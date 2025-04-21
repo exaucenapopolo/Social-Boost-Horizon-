@@ -30,7 +30,7 @@
       justify-content: center;
       align-items: center;
       padding: 20px;
-      height: calc(100% - 80px);
+      height: calc(100% - 80px); /* header + padding */
     }
 
     .card {
@@ -112,7 +112,7 @@
 <body>
 
   <header>
-    <h1>Social Boost Horizon</h1>
+    <h1>Social Boost Horizon</h1>
   </header>
 
   <main>
@@ -148,18 +148,19 @@
         <div class="error" id="errorMsg"></div>
 
         <div class="link">
-          Déjà un compte ? <a href="login.html">Se connecter</a>
+          Déjà un compte ? <a href="login.html">Se connecter</a>
         </div>
       </form>
     </div>
   </main>
 
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js"></script>
+  <!-- Firebase compat SDKs v11.6.0 -->
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
+
   <script>
-    // Initialisation Firebase
+    // Configuration Firebase (inchangée)
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -169,20 +170,23 @@
       appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
       measurementId: "G-JJXPNN90V1"
     };
+    // Initialisation des services compat
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db   = firebase.firestore();
 
-    // Mise à jour automatique de l’indicatif pays
+    // Fonction indicatifs
     function updateIndicatif() {
       const codes = { ci:"+225", cm:"+237", sn:"+221", ml:"+223", gn:"+224" };
       document.getElementById("indicatif").value =
         codes[document.getElementById("pays").value] || "";
     }
 
-    // Gestion du formulaire d'inscription
+    // Événement de soumission
     document.getElementById('registerForm').addEventListener('submit', async e => {
       e.preventDefault();
+      const errEl = document.getElementById('errorMsg');
+      errEl.textContent = '';
 
       const username = document.getElementById('username').value.trim();
       const email    = document.getElementById('email').value.trim();
@@ -190,8 +194,6 @@
       const pays     = document.getElementById('pays').value;
       const indic    = document.getElementById('indicatif').value;
       const telephone= document.getElementById('telephone').value.trim();
-      const errEl    = document.getElementById('errorMsg');
-      errEl.textContent = '';
 
       try {
         const cred = await auth.createUserWithEmailAndPassword(email, password);
@@ -201,12 +203,12 @@
           phone: `${indic} ${telephone}`,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        alert('Inscription réussie !');            // alerte de succès
-        window.location.href = 'login.html';      // redirection
+        alert('Inscription réussie !');
+        window.location.href = 'login.html';
       } catch(err) {
-        const msg = "Erreur lors de l'inscription : " + err.message;
-        errEl.textContent = msg;                  // message inline
-        alert(msg);                               // alerte d'erreur
+        const msg = "Erreur lors de l'inscription : " + err.message;
+        errEl.textContent = msg;
+        alert(msg);
       }
     });
   </script>
