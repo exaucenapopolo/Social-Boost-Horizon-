@@ -1,0 +1,172 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Commander Boost - Social Boost Horizon</title>
+  <style>
+    body {
+      background-color: #ffffff;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+
+    h1 {
+      color: #333;
+      padding: 20px;
+    }
+
+    .platforms {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+      gap: 10px;
+    }
+
+    .platform-icon {
+      width: 35px;
+      height: auto;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .platform-icon:hover {
+      transform: scale(1.1);
+    }
+
+    .form-section {
+      display: none;
+      margin-top: 20px;
+    }
+
+    select, input[type="number"], input[type="text"] {
+      padding: 10px;
+      margin: 10px;
+      width: 300px;
+      max-width: 90%;
+      font-size: 16px;
+    }
+
+    .price-estimate {
+      color: green;
+      font-size: 18px;
+      margin-top: 10px;
+    }
+
+    .remark {
+      background-color: #fff8c4;
+      border-left: 5px solid #ffcc00;
+      padding: 10px;
+      width: 340px;
+      margin: 10px auto;
+      font-size: 15px;
+      color: #333;
+      text-align: left;
+      border-radius: 4px;
+    }
+
+    .submit-btn {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      cursor: pointer;
+      margin-top: 20px;
+      border-radius: 5px;
+    }
+
+    .submit-btn:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>Commander Boost</h1>
+  <div class="platforms">
+    <img src="https://cdn-icons-png.flaticon.com/512/124/124010.png" class="platform-icon" onclick="showForm('facebook')" alt="Facebook">
+    <img src="https://cdn-icons-png.flaticon.com/512/1384/1384063.png" class="platform-icon" onclick="showForm('instagram')" alt="Instagram">
+    <img src="https://cdn-icons-png.flaticon.com/512/1384/1384060.png" class="platform-icon" onclick="showForm('youtube')" alt="YouTube">
+    <img src="https://cdn-icons-png.flaticon.com/512/3046/3046121.png" class="platform-icon" onclick="showForm('tiktok')" alt="TikTok">
+    <img src="https://cdn-icons-png.flaticon.com/512/2111/2111703.png" class="platform-icon" onclick="showForm('telegram')" alt="Telegram">
+    <img src="https://cdn-icons-png.flaticon.com/512/733/733579.png" class="platform-icon" onclick="showForm('twitter')" alt="Twitter">
+    <img src="https://cdn-icons-png.flaticon.com/512/124/124034.png" class="platform-icon" onclick="showForm('whatsapp')" alt="WhatsApp">
+  </div>
+
+  <div id="form" class="form-section">
+    <select id="service" onchange="updateRemark()">
+      <option value="">Sélectionner un service</option>
+    </select><br>
+    <input type="text" id="link" placeholder="Lien de la publication/compte"><br>
+    <input type="number" id="quantity" placeholder="Quantité" oninput="calculatePrice()"><br>
+    <div class="price-estimate" id="priceEstimate"></div>
+    <div class="remark" id="remarkBox">Veuillez choisir un service pour afficher la remarque.</div>
+    <button class="submit-btn">Acheter Boost</button>
+  </div>
+
+  <script>
+    const form = document.getElementById('form');
+    const serviceSelect = document.getElementById('service');
+    const priceBox = document.getElementById('priceEstimate');
+    const remarkBox = document.getElementById('remarkBox');
+
+    const services = {
+      facebook: {
+        "followers_page": { price: 2000, remark: "Entrez un lien de page publique Facebook." },
+        "followers_profil": { price: 2100, remark: "Entrez le lien du profil Facebook (public)." },
+        "jaime_page": { price: 2500, remark: "Entrez le lien de votre page Facebook à liker." },
+        "jaime_publication": { price: 1400, remark: "Entrez le lien de la publication Facebook à liker." },
+        "partages": { price: 500, remark: "Fournissez un lien de publication partageable." },
+        "membres_groupe": { price: 2000, remark: "Entrez un lien valide vers votre groupe Facebook." },
+        "vues_video": { price: 1500, remark: "Lien de votre vidéo Facebook." },
+        "commentaires": { price: 800 / 10, remark: "10 commentaires personnalisés (merci d’envoyer les textes via e-mail après achat)." }
+      },
+    };
+
+    function showForm(platform) {
+      serviceSelect.innerHTML = '<option value="">Sélectionner un service</option>';
+      if (services[platform]) {
+        for (let key in services[platform]) {
+          const opt = document.createElement('option');
+          opt.value = key;
+          opt.textContent = key.replace(/_/g, ' ').toUpperCase();
+          serviceSelect.appendChild(opt);
+        }
+        form.style.display = 'block';
+        form.setAttribute("data-platform", platform);
+      } else {
+        form.style.display = 'none';
+      }
+    }
+
+    function updateRemark() {
+      const platform = form.getAttribute("data-platform");
+      const service = serviceSelect.value;
+      if (platform && service && services[platform][service]) {
+        remarkBox.innerText = services[platform][service].remark;
+        calculatePrice();
+      } else {
+        remarkBox.innerText = "Veuillez choisir un service pour afficher la remarque.";
+        priceBox.innerText = "";
+      }
+    }
+
+    function calculatePrice() {
+      const quantity = parseInt(document.getElementById("quantity").value);
+      const platform = form.getAttribute("data-platform");
+      const service = serviceSelect.value;
+      if (platform && service && quantity && services[platform][service]) {
+        const unitPrice = services[platform][service].price / 1000;
+        const price = unitPrice * quantity;
+        priceBox.innerText = `Prix estimé : ${Math.round(price)} FCFA`;
+      } else {
+        priceBox.innerText = "";
+      }
+    }
+  </script>
+</body>
+</html>
