@@ -1,186 +1,128 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8"/>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Connexion – Social Boost Horizon</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body {
-      height: 100%;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
       background: linear-gradient(135deg, #1e3c72, #2a5298);
       color: #fff;
-    }
-
-    header {
-      text-align: center;
-      padding: 20px 0;
-    }
-    header h1 {
-      font-size: 1.75rem;
-      color: #fff;
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-    }
-
-    main {
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 20px;
-      height: calc(100% - 80px);
+      height: 100vh;
     }
-
     .card {
-      background: #fff;
+      background: white;
       color: #333;
-      border-radius: 8px;
-      max-width: 400px;
-      width: 100%;
       padding: 30px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-radius: 10px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
-
-    .card h2 {
+    h2 {
       text-align: center;
-      font-size: 2rem;
-      margin-bottom: 24px;
       color: #1e3c72;
+      margin-bottom: 20px;
     }
-
     label {
       display: block;
-      font-size: 1rem;
-      margin-bottom: 6px;
-      font-weight: 600;
+      margin: 10px 0 5px;
     }
-
     input {
       width: 100%;
-      font-size: 1rem;
       padding: 10px;
-      margin-bottom: 18px;
+      border-radius: 5px;
       border: 1px solid #ccc;
-      border-radius: 4px;
-      outline: none;
+      margin-bottom: 10px;
     }
-
     button {
       width: 100%;
-      font-size: 1rem;
       padding: 12px;
       background: #007bff;
-      color: #fff;
+      color: white;
       border: none;
-      border-radius: 4px;
+      border-radius: 5px;
       cursor: pointer;
+      font-weight: bold;
     }
     button:hover {
       background: #0056b3;
     }
-
     .error {
-      font-size: 0.9rem;
-      color: #d00;
+      color: red;
       margin-top: 10px;
+      font-size: 0.9rem;
     }
-
     .link {
       text-align: center;
-      margin-top: 16px;
-      font-size: 0.9rem;
+      margin-top: 12px;
     }
     .link a {
       color: #007bff;
       text-decoration: none;
     }
-    .link a:hover {
-      text-decoration: underline;
-    }
   </style>
 </head>
 <body>
+  <div class="card">
+    <h2>Connexion</h2>
+    <form id="loginForm">
+      <label for="email">Email</label>
+      <input type="email" id="email" required />
 
-  <header>
-    <h1>Social Boost Horizon</h1>
-  </header>
+      <label for="password">Mot de passe</label>
+      <input type="password" id="password" required />
 
-  <main>
-    <div class="card">
-      <h2>Se connecter</h2>
-      <form id="loginForm">
-        <label for="email">Email</label>
-        <input type="email" id="email" required />
-
-        <label for="password">Mot de passe</label>
-        <input type="password" id="password" required />
-
-        <button type="submit">Se connecter</button>
-        <div class="error" id="errorMsg"></div>
-      </form>
-      <div class="link">
-        Pas encore de compte ? <a href="register.html">Créer un compte</a>
-      </div>
+      <button type="submit">Se connecter</button>
+      <div class="error" id="errorMsg"></div>
+    </form>
+    <div class="link">
+      Pas encore de compte ? <a href="register.html">Créer un compte</a>
     </div>
-  </main>
+  </div>
 
-  <!-- Firebase compat SDKs v11.6.0 -->
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
-
   <script>
-    // Configuration Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
       projectId: "social-boost-horizon",
       storageBucket: "social-boost-horizon.appspot.com",
       messagingSenderId: "43658165639",
-      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
-      measurementId: "G-JJXPNN90V1"
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
     };
-    // Initialisation compat
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
 
-    // Soumission du formulaire de connexion
     document.getElementById('loginForm').addEventListener('submit', async e => {
       e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
       const errEl = document.getElementById('errorMsg');
       errEl.textContent = '';
 
-      const email = document.getElementById('email').value.trim();
-      const pw    = document.getElementById('password').value;
-
       try {
-        await auth.signInWithEmailAndPassword(email, pw);
-        window.location.href = 'dashboard.html';
-      } catch(error) {
-        // Gestion des erreurs spécifiques
-        switch (error.code) {
-          case 'auth/user-not-found':
-            errEl.textContent = 'Aucun utilisateur trouvé avec cet e-mail.';
-            break;
-          case 'auth/wrong-password':
-            errEl.textContent = 'Mot de passe incorrect.';
-            break;
-          case 'auth/invalid-email':
-            errEl.textContent = 'Adresse e-mail invalide.';
-            break;
-          case 'auth/invalid-credential':
-          case 'auth/invalid-login-credentials':
-            errEl.textContent = 'Identifiants invalides. Veuillez vérifier vos informations.';
-            break;
-          case 'auth/too-many-requests':
-            errEl.textContent = 'Trop de tentatives. Veuillez réessayer plus tard.';
-            break;
-          default:
-            errEl.textContent = 'Erreur lors de la connexion : ' + error.message;
+        await auth.signInWithEmailAndPassword(email, password);
+        alert("Connexion réussie !");
+        window.location.href = "dashboard.html";
+      } catch (error) {
+        if (error.code === 'auth/user-not-found') {
+          errEl.textContent = "Aucun utilisateur trouvé avec cet email.";
+        } else if (error.code === 'auth/wrong-password') {
+          errEl.textContent = "Mot de passe incorrect.";
+        } else if (error.code === 'auth/invalid-email') {
+          errEl.textContent = "Email invalide.";
+        } else {
+          errEl.textContent = "Erreur : " + error.message;
         }
       }
     });
   </script>
 </body>
 </html>
-`` 

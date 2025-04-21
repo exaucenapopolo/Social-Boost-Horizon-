@@ -5,210 +5,135 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Inscription – Social Boost Horizon</title>
   <style>
-    /* Reset minimal */
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body {
-      height: 100%;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
       background: linear-gradient(135deg, #1e3c72, #2a5298);
       color: #fff;
-    }
-
-    header {
-      text-align: center;
-      padding: 20px 0;
-    }
-    header h1 {
-      font-size: 1.75rem;
-      color: #fff;
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-    }
-
-    main {
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 20px;
-      height: calc(100% - 80px); /* header + padding */
+      height: 100vh;
     }
-
     .card {
-      background: #fff;
+      background: white;
       color: #333;
-      border-radius: 8px;
-      max-width: 400px;
-      width: 100%;
       padding: 30px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-radius: 10px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
-
-    .card h2 {
+    h2 {
       text-align: center;
-      font-size: 2rem;
-      margin-bottom: 24px;
       color: #1e3c72;
+      margin-bottom: 20px;
     }
-
     label {
       display: block;
-      font-size: 1rem;
-      margin-bottom: 6px;
-      font-weight: 600;
+      margin: 10px 0 5px;
     }
-
-    input, select {
+    input {
       width: 100%;
-      font-size: 1rem;
       padding: 10px;
-      margin-bottom: 18px;
+      border-radius: 5px;
       border: 1px solid #ccc;
-      border-radius: 4px;
-      outline: none;
+      margin-bottom: 10px;
     }
-
-    .phone-group {
-      display: flex;
-      gap: 8px;
-    }
-    .phone-group input {
-      flex: 1;
-    }
-
     button {
       width: 100%;
-      font-size: 1rem;
       padding: 12px;
       background: #007bff;
-      color: #fff;
+      color: white;
       border: none;
-      border-radius: 4px;
+      border-radius: 5px;
       cursor: pointer;
+      font-weight: bold;
     }
     button:hover {
       background: #0056b3;
     }
-
     .error {
-      font-size: 0.9rem;
-      color: #d00;
+      color: red;
       margin-top: 10px;
+      font-size: 0.9rem;
     }
-
     .link {
       text-align: center;
-      margin-top: 16px;
-      font-size: 0.9rem;
+      margin-top: 12px;
     }
     .link a {
       color: #007bff;
       text-decoration: none;
     }
-    .link a:hover {
-      text-decoration: underline;
-    }
   </style>
 </head>
 <body>
+  <div class="card">
+    <h2>Créer un compte</h2>
+    <form id="registerForm">
+      <label for="email">Email</label>
+      <input type="email" id="email" required />
+      
+      <label for="phone">Téléphone</label>
+      <input type="tel" id="phone" pattern="^\+?\d{9,15}$" placeholder="+225xxxxxxxx" required />
 
-  <header>
-    <h1>Social Boost Horizon</h1>
-  </header>
+      <label for="password">Mot de passe</label>
+      <input type="password" id="password" required />
 
-  <main>
-    <div class="card">
-      <h2>Créer un compte</h2>
-      <form id="registerForm">
-        <label for="username">Nom d'utilisateur</label>
-        <input type="text" id="username" name="username" required />
-
-        <label for="email">Email</label>
-        <input type="email" id="email" name="email" required />
-
-        <label for="pays">Pays</label>
-        <select id="pays" name="pays" onchange="updateIndicatif()" required>
-          <option value="">— Sélectionnez votre pays —</option>
-          <option value="ci">🇨🇮 Côte d'Ivoire</option>
-          <option value="cm">🇨🇲 Cameroun</option>
-          <option value="sn">🇸🇳 Sénégal</option>
-          <option value="ml">🇲🇱 Mali</option>
-          <option value="gn">🇬🇳 Guinée</option>
-        </select>
-
-        <label for="telephone">Numéro de téléphone</label>
-        <div class="phone-group">
-          <input type="text" id="indicatif" name="indicatif" readonly placeholder="+225" style="max-width:100px;" />
-          <input type="tel" id="telephone" name="telephone" required placeholder="xx xx xx xx" />
-        </div>
-
-        <label for="password">Mot de passe</label>
-        <input type="password" id="password" name="password" required />
-
-        <button type="submit">S'inscrire</button>
-        <div class="error" id="errorMsg"></div>
-
-        <div class="link">
-          Déjà un compte ? <a href="login.html">Se connecter</a>
-        </div>
-      </form>
+      <button type="submit">S'inscrire</button>
+      <div class="error" id="errorMsg"></div>
+    </form>
+    <div class="link">
+      Déjà un compte ? <a href="login.html">Se connecter</a>
     </div>
-  </main>
+  </div>
 
-  <!-- Firebase compat SDKs v11.6.0 -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
-
   <script>
-    // Configuration Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
       projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.firebasestorage.app",
+      storageBucket: "social-boost-horizon.appspot.com",
       messagingSenderId: "43658165639",
-      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
-      measurementId: "G-JJXPNN90V1"
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
     };
-    // Initialisation compat
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
-    const db   = firebase.firestore();
 
-    // Indicatif pays
-    function updateIndicatif() {
-      const codes = { ci:"+225", cm:"+237", sn:"+221", ml:"+223", gn:"+224" };
-      document.getElementById("indicatif").value =
-        codes[document.getElementById("pays").value] || "";
-    }
-
-    // Soumission du formulaire
     document.getElementById('registerForm').addEventListener('submit', async e => {
       e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const phone = document.getElementById('phone').value.trim();
       const errEl = document.getElementById('errorMsg');
       errEl.textContent = '';
 
-      const username = document.getElementById('username').value.trim();
-      const email    = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-      const pays     = document.getElementById('pays').value;
-      const indic    = document.getElementById('indicatif').value;
-      const telephone= document.getElementById('telephone').value.trim();
+      if (!/^\+?\d{9,15}$/.test(phone)) {
+        errEl.textContent = "Numéro de téléphone invalide (ex : +225xxxxxxxx)";
+        return;
+      }
+
+      if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+        errEl.textContent = "Mot de passe trop faible. Min 8 caractères, 1 majuscule, 1 chiffre.";
+        return;
+      }
 
       try {
-        const cred = await auth.createUserWithEmailAndPassword(email, password);
-        await db.collection('users').doc(cred.user.uid).set({
-          username,
-          country: pays,
-          phone: `${indic} ${telephone}`,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        alert('Inscription réussie !');
-        window.location.href = 'dashboard.html';
-      } catch(err) {
-        const msg = "Erreur lors de l'inscription : " + err.message;
-        errEl.textContent = msg;
-        alert(msg);
+        await auth.createUserWithEmailAndPassword(email, password);
+        alert("Inscription réussie !");
+        window.location.href = "dashboard.html";
+      } catch (error) {
+        if (error.code === 'auth/email-already-in-use') {
+          errEl.textContent = "Email déjà utilisé.";
+        } else if (error.code === 'auth/invalid-email') {
+          errEl.textContent = "Email invalide.";
+        } else {
+          errEl.textContent = "Erreur : " + error.message;
+        }
       }
     });
   </script>
