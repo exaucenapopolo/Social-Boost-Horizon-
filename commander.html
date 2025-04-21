@@ -1,234 +1,209 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Commander un Boost - Social Boost Horizon</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Commander Boost - Social Boost Horizon</title>
   <style>
     body {
-      background-color: #001f3f;
-      color: white;
-      font-family: Arial, sans-serif;
-      padding: 20px;
-    }
-    h1 {
-      text-align: center;
-      color: #00ff88;
-    }
-    .form-group {
-      margin-bottom: 15px;
-    }
-    label {
-      display: block;
-      margin-bottom: 6px;
-    }
-    input, select, button {
-      width: 100%;
-      padding: 10px;
-      border: none;
-      border-radius: 5px;
-    }
-    select, input {
       background-color: #ffffff;
-      color: #000;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
     }
-    button {
-      background-color: #007bff;
-      color: white;
+
+    header {
+      text-align: center;
+      padding: 20px;
+      font-size: 24px;
+      font-weight: bold;
+      color: #003366;
+    }
+
+    .platform-icons {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .platform-icons img {
+      width: 50px;
+      height: 50px;
       cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .platform-icons img:hover {
+      transform: scale(1.2);
+    }
+
+    .service-form {
+      max-width: 600px;
+      margin: auto;
+      display: none;
+      flex-direction: column;
+      gap: 15px;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      background: #f9f9f9;
+    }
+
+    .service-form label {
       font-weight: bold;
     }
-    .price {
+
+    .service-form input, .service-form select {
+      padding: 10px;
+      font-size: 16px;
+      width: 100%;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    .estimation {
+      font-size: 18px;
+      color: green;
       font-weight: bold;
+    }
+
+    .btn-commander {
+      background-color: #007BFF;
+      color: #fff;
+      font-size: 18px;
+      padding: 15px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
       margin-top: 10px;
-      color: #00ff88;
+    }
+
+    .btn-commander:hover {
+      background-color: #0056b3;
     }
   </style>
 </head>
 <body>
 
-  <h1>Commander un Boost</h1>
+<header>Commander Boost</header>
 
-  <div class="form-group">
-    <label for="platform">Plateforme</label>
-    <select id="platform" onchange="loadServices()">
-      <option value="">-- Choisissez une plateforme --</option>
-      <option value="facebook">Facebook</option>
-      <option value="instagram">Instagram</option>
-      <option value="youtube">YouTube</option>
-      <option value="tiktok">TikTok</option>
-      <option value="telegram">Telegram</option>
-      <option value="twitter">Twitter</option>
-      <option value="whatsapp">WhatsApp</option>
-    </select>
-  </div>
+<div class="platform-icons">
+  <img src="https://img.icons8.com/color/48/facebook.png" alt="Facebook" onclick="showServices('Facebook')">
+  <img src="https://img.icons8.com/color/48/instagram-new.png" alt="Instagram" onclick="showServices('Instagram')">
+  <img src="https://img.icons8.com/color/48/youtube-play.png" alt="YouTube" onclick="showServices('YouTube')">
+  <img src="https://img.icons8.com/color/48/tiktok--v1.png" alt="TikTok" onclick="showServices('TikTok')">
+  <img src="https://img.icons8.com/color/48/telegram-app.png" alt="Telegram" onclick="showServices('Telegram')">
+  <img src="https://img.icons8.com/color/48/twitter--v1.png" alt="Twitter" onclick="showServices('Twitter')">
+  <img src="https://img.icons8.com/color/48/whatsapp--v1.png" alt="WhatsApp" onclick="showServices('WhatsApp')">
+</div>
 
-  <div class="form-group">
-    <label for="service">Service</label>
-    <select id="service" onchange="updatePrice()">
-      <option value="">-- Choisissez un service --</option>
-    </select>
-  </div>
+<form class="service-form" id="boostForm">
+  <label for="service">Service :</label>
+  <select id="service" required></select>
 
-  <div class="form-group">
-    <label for="link">Lien de la publication ou compte</label>
-    <input type="text" id="link" placeholder="Collez votre lien ici">
-  </div>
+  <label for="link">Lien de la publication / compte :</label>
+  <input type="url" id="link" placeholder="Collez le lien ici" required>
 
-  <div class="form-group">
-    <label for="quantity">Quantité</label>
-    <input type="number" id="quantity" placeholder="Entrez une quantité" oninput="updatePrice()">
-  </div>
+  <label for="quantity">Quantité :</label>
+  <input type="number" id="quantity" placeholder="Entrez la quantité" required oninput="updatePrice()">
 
-  <div class="form-group">
-    <label for="delay">Temps de réalisation estimé</label>
-    <input type="text" id="delay" value="2 à 6 heures" disabled>
-  </div>
+  <div class="estimation" id="estimation">Prix estimé : 0 FCFA</div>
 
-  <div class="price" id="price">Prix estimé : 0 FCFA</div>
+  <label for="delai">Temps de réalisation estimé :</label>
+  <input type="text" id="delai" value="2 heures" disabled>
 
-  <div class="form-group">
-    <label for="notes">Remarques</label>
-    <input type="text" id="notes" placeholder="Remarques (facultatif)">
-  </div>
+  <label for="note">Remarque :</label>
+  <textarea id="note" rows="3" disabled>Assurez-vous que votre lien est correct avant de commander.</textarea>
 
-  <button onclick="commander()">Commander</button>
+  <button type="submit" class="btn-commander">Commander</button>
+</form>
 
-  <script>
-    const tarifs = {
-      facebook: {
-        "followers_page": 2000,
-        "followers_profil": 2100,
-        "likes_page": 2500,
-        "likes_publication": 1400,
-        "partages": 500,
-        "membres_groupe": 2000,
-        "vues_video": 1500,
-        "commentaires": 800 / 10
-      },
-      instagram: {
-        "followers": 2300,
-        "likes": 850,
-        "vues_video": 500,
-        "commentaires": 250 / 10,
-        "vues_story": 500
-      },
-      youtube: {
-        "abonnés": 4900,
-        "vues": 1400,
-        "likes": 1450
-      },
-      tiktok: {
-        "followers": 2350,
-        "likes": 850,
-        "vues": 500,
-        "sauvegardes": 400,
-        "partages": 350,
-        "commentaires": 500 / 10,
-        "likes_direct": 450
-      },
-      telegram: {
-        "membres": 2250,
-        "vues_specifiques": 550,
-        "vues_anciennes": 1000 / 20,
-        "reactions": 550
-      },
-      twitter: {
-        "followers": 6000,
-        "likes": 2000,
-        "retweets": 1500
-      },
-      whatsapp: {
-        "abonnés_internationaux": 2700,
-        "abonnés_us_inde": 4500,
-        "reactions_publication": 2300
-      }
-    };
-
-    const nomsServices = {
-      facebook: {
-        "followers_page": "Followers pour votre page",
-        "followers_profil": "Followers pour votre profil",
-        "likes_page": "J’aime pour votre page",
-        "likes_publication": "J’aime pour votre publication",
-        "partages": "Partages",
-        "membres_groupe": "Membres de groupes",
-        "vues_video": "Vues de vidéo",
-        "commentaires": "Commentaires personnalisés (par 10)"
-      },
-      instagram: {
-        "followers": "Abonnés Instagram",
-        "likes": "J’aime",
-        "vues_video": "Vues de vidéos",
-        "commentaires": "Commentaires personnalisés (par 10)",
-        "vues_story": "Vues de story"
-      },
-      youtube: {
-        "abonnés": "Abonnés",
-        "vues": "Vues",
-        "likes": "J’aime"
-      },
-      tiktok: {
-        "followers": "Followers",
-        "likes": "J’aime",
-        "vues": "Vues",
-        "sauvegardes": "Sauvegarde de vidéos",
-        "partages": "Partages de vidéos",
-        "commentaires": "Commentaires personnalisés (par 10)",
-        "likes_direct": "J’aime pour votre direct"
-      },
-      telegram: {
-        "membres": "Membres du groupe / canal",
-        "vues_specifiques": "Vues pour votre publication spécifique",
-        "vues_anciennes": "Vues pour vos publications précédentes (par 20)",
-        "reactions": "Réactions"
-      },
-      twitter: {
-        "followers": "Followers",
-        "likes": "J’aime",
-        "retweets": "Republication"
-      },
-      whatsapp: {
-        "abonnés_internationaux": "Abonnés pour votre chaîne (Internationaux)",
-        "abonnés_us_inde": "Abonnés USA / Inde",
-        "reactions_publication": "Réactions de publication"
-      }
-    };
-
-    function loadServices() {
-      const platform = document.getElementById('platform').value;
-      const serviceSelect = document.getElementById('service');
-      serviceSelect.innerHTML = "<option value=''>-- Choisissez un service --</option>";
-
-      if (tarifs[platform]) {
-        for (let key in tarifs[platform]) {
-          const option = document.createElement('option');
-          option.value = key;
-          option.text = nomsServices[platform][key];
-          serviceSelect.appendChild(option);
-        }
-      }
-
-      document.getElementById('price').textContent = "Prix estimé : 0 FCFA";
+<script>
+  const services = {
+    Facebook: {
+      "Followers Page": 2000,
+      "Followers Profil": 2100,
+      "J’aime Page": 2500,
+      "J’aime Publication": 1400,
+      "Partages": 500,
+      "Membres de groupe": 2000,
+      "Vues Vidéo": 1500,
+      "10 Commentaires": 800
+    },
+    Instagram: {
+      "Followers": 2300,
+      "J’aime": 850,
+      "Vues Vidéo": 500,
+      "10 Commentaires": 250,
+      "Vues Story": 500
+    },
+    YouTube: {
+      "Abonnés": 4900,
+      "Vues": 1400,
+      "J’aime": 1450
+    },
+    TikTok: {
+      "Followers": 2350,
+      "J’aime": 850,
+      "Vues": 500,
+      "Sauvegarde Vidéos": 400,
+      "Partages Vidéos": 350,
+      "10 Commentaires": 500,
+      "J’aime Direct": 450
+    },
+    Telegram: {
+      "Membres Groupe/Canal": 2250,
+      "Vues Publication": 550,
+      "20 Vues Anciennes": 1000,
+      "Réactions": 550
+    },
+    Twitter: {
+      "Followers": 6000,
+      "J’aime": 2000,
+      "Republication": 1500
+    },
+    WhatsApp: {
+      "Abonnés Internationaux": 2700,
+      "Abonnés USA/Inde": 4500,
+      "Réactions Publication": 2300
     }
+  };
 
-    function updatePrice() {
-      const platform = document.getElementById('platform').value;
-      const service = document.getElementById('service').value;
-      const qty = parseInt(document.getElementById('quantity').value);
+  function showServices(platform) {
+    const form = document.getElementById('boostForm');
+    const serviceSelect = document.getElementById('service');
+    serviceSelect.innerHTML = "";
 
-      if (platform && service && qty > 0) {
-        const pricePer1000 = tarifs[platform][service];
-        const estimated = Math.round((pricePer1000 / 1000) * qty);
-        document.getElementById('price').textContent = `Prix estimé : ${estimated} FCFA`;
-      } else {
-        document.getElementById('price').textContent = "Prix estimé : 0 FCFA";
-      }
-    }
+    Object.keys(services[platform]).forEach(service => {
+      const option = document.createElement('option');
+      option.value = service;
+      option.textContent = service;
+      serviceSelect.appendChild(option);
+    });
 
-    function commander() {
-      alert("Commande enregistrée ! Fonction à connecter plus tard à la base de données.");
-    }
-  </script>
+    form.style.display = 'flex';
+    updatePrice();
+  }
+
+  function updatePrice() {
+    const platform = document.querySelector(".service-form").style.display === "flex"
+      ? Object.keys(services).find(p => Object.keys(services[p]).includes(document.getElementById("service").value))
+      : null;
+
+    if (!platform) return;
+
+    const service = document.getElementById("service").value;
+    const quantity = parseInt(document.getElementById("quantity").value || 0);
+    const pricePerThousand = services[platform][service];
+    const price = Math.ceil((quantity / 1000) * pricePerThousand);
+
+    document.getElementById("estimation").textContent = `Prix estimé : ${price} FCFA`;
+  }
+
+  document.getElementById("service").addEventListener("change", updatePrice);
+</script>
 
 </body>
 </html>
