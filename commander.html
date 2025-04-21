@@ -9,25 +9,27 @@
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 0;
-      text-align: center;
     }
 
     h1 {
+      text-align: center;
       color: #007BFF;
-      margin-top: 20px;
+      font-size: 32px;
+      margin: 20px 0;
     }
 
     .platforms {
       display: flex;
       justify-content: center;
-      flex-wrap: wrap;
-      margin: 20px 0;
+      gap: 20px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      padding: 10px 0;
     }
 
     .platform-icon {
-      width: 45px;
-      height: 45px;
-      margin: 0 10px;
+      width: 55px;
+      height: 55px;
       cursor: pointer;
       transition: transform 0.2s;
     }
@@ -37,44 +39,49 @@
     }
 
     .service-form {
-      max-width: 500px;
-      margin: 20px auto;
-      padding: 20px;
+      max-width: 600px;
+      margin: 30px auto;
+      padding: 25px;
       background-color: #f9f9f9;
       border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
     }
 
     select, input[type="number"], input[type="url"] {
       width: 100%;
-      padding: 10px;
-      margin: 10px 0;
+      padding: 15px;
+      font-size: 16px;
+      margin: 15px 0;
       border-radius: 5px;
       border: 1px solid #ccc;
     }
 
     .price-estimate {
       color: green;
+      font-size: 18px;
       font-weight: bold;
+      margin-bottom: 10px;
     }
 
     .remark-box {
       background-color: #fff3cd;
       color: #856404;
-      padding: 10px;
+      padding: 15px;
       border-radius: 5px;
       margin-top: 15px;
+      font-size: 15px;
     }
 
     .btn {
       background-color: #007BFF;
       color: white;
-      padding: 12px;
-      font-size: 16px;
+      padding: 15px;
+      font-size: 20px;
       border: none;
       width: 100%;
-      border-radius: 5px;
+      border-radius: 6px;
       cursor: pointer;
+      margin-top: 20px;
     }
 
     .btn:hover {
@@ -85,6 +92,13 @@
       text-align: left;
       margin-bottom: 5px;
       font-weight: bold;
+      font-size: 16px;
+    }
+
+    .time-box {
+      font-weight: bold;
+      color: #444;
+      margin-top: 10px;
     }
   </style>
 </head>
@@ -98,7 +112,7 @@
     <img src="https://cdn-icons-png.flaticon.com/512/1384/1384060.png" alt="YouTube" class="platform-icon" onclick="selectPlatform('youtube')">
     <img src="https://cdn-icons-png.flaticon.com/512/3046/3046121.png" alt="TikTok" class="platform-icon" onclick="selectPlatform('tiktok')">
     <img src="https://cdn-icons-png.flaticon.com/512/2111/2111646.png" alt="Telegram" class="platform-icon" onclick="selectPlatform('telegram')">
-    <img src="https://cdn-icons-png.flaticon.com/512/3670/3670151.png" alt="Twitter" class="platform-icon" onclick="selectPlatform('twitter')">
+    <img src="https://cdn-icons-png.flaticon.com/512/5969/5969020.png" alt="Twitter" class="platform-icon" onclick="selectPlatform('twitter')">
     <img src="https://cdn-icons-png.flaticon.com/512/733/733585.png" alt="WhatsApp" class="platform-icon" onclick="selectPlatform('whatsapp')">
   </div>
 
@@ -118,10 +132,10 @@
     <div id="priceEstimate" class="price-estimate">0 FCFA</div>
 
     <div class="label">Temps de réalisation :</div>
-    <div id="timeEstimate">---</div>
+    <div id="timeEstimate" class="time-box">---</div>
 
     <div class="label">Remarques :</div>
-    <div id="remarkBox" class="remark-box">Veuillez choisir un service pour voir les remarques.</div>
+    <div id="remarkBox" class="remark-box">Veuillez choisir un service pour voir les remarques adaptées.</div>
 
     <button class="btn">Commander Boost</button>
   </div>
@@ -129,29 +143,32 @@
   <script>
     const services = {
       facebook: {
-        "followers_page": {price: 2000, label: "Followers pour votre page", time: "2h", remark: "Mettez le lien de votre page publique."},
-        "followers_profil": {price: 2100, label: "Followers pour votre profil", time: "2h", remark: "Utilisez un profil non privé."},
-        "likes_publication": {price: 1400, label: "J'aime pour votre publication", time: "1h", remark: "Lien de la publication nécessaire."}
+        "followers_page": {price: 2000, label: "Followers pour votre page", time: "2h", remark: "Mettez le lien de votre page Facebook publique."},
+        "followers_profil": {price: 2100, label: "Followers pour votre profil", time: "2h", remark: "Utilisez un profil non privé, public uniquement."},
+        "likes_publication": {price: 1400, label: "J’aime pour votre publication", time: "1h", remark: "Mettez le lien direct de la publication."},
+        "membres_groupe": {price: 2000, label: "Membres de groupe", time: "2h", remark: "Fournissez le lien du groupe ouvert."}
       },
       instagram: {
-        "followers": {price: 2300, label: "Abonnés Instagram", time: "2h", remark: "Lien du compte Instagram requis."},
-        "likes": {price: 850, label: "J'aime", time: "1h", remark: "Lien d'une publication Instagram."}
-      },
-      tiktok: {
-        "followers": {price: 2350, label: "Abonnés TikTok", time: "3h", remark: "Lien de votre profil TikTok."},
-        "vues": {price: 500, label: "Vues de vidéo", time: "1h", remark: "Mettez le lien d'une vidéo TikTok, pas du profil."}
+        "followers": {price: 2300, label: "Abonnés Instagram", time: "2h", remark: "Mettez le lien de votre profil Instagram public."},
+        "likes": {price: 850, label: "J’aime Instagram", time: "1h", remark: "Lien de la publication à liker."},
+        "vues": {price: 500, label: "Vues de vidéos", time: "30min", remark: "Lien direct de la vidéo Instagram."}
       },
       youtube: {
-        "abonnés": {price: 4900, label: "Abonnés YouTube", time: "4h", remark: "Lien de votre chaîne YouTube."}
+        "abonnes": {price: 4900, label: "Abonnés YouTube", time: "4h", remark: "Lien de votre chaîne YouTube."},
+        "vues": {price: 1400, label: "Vues YouTube", time: "1h", remark: "Lien d’une vidéo YouTube précise."}
+      },
+      tiktok: {
+        "followers": {price: 2350, label: "Followers TikTok", time: "3h", remark: "Mettez votre lien de profil TikTok."},
+        "vues": {price: 500, label: "Vues vidéos TikTok", time: "30min", remark: "Utilisez le lien d’une vidéo TikTok."}
       },
       telegram: {
-        "membres": {price: 2250, label: "Membres groupe/canal", time: "2h", remark: "Lien de l'invitation ou @nomducanal."}
+        "membres": {price: 2250, label: "Membres de groupe/canal", time: "2h", remark: "Fournissez un lien d'invitation valide ou @username du canal."}
       },
       twitter: {
-        "followers": {price: 6000, label: "Followers Twitter", time: "2h", remark: "Lien de votre profil Twitter/X."}
+        "followers": {price: 6000, label: "Followers Twitter/X", time: "3h", remark: "Lien de votre profil X/Twitter, public de préférence."}
       },
       whatsapp: {
-        "abonnes": {price: 2700, label: "Abonnés de chaîne WhatsApp", time: "2h", remark: "Lien d'invitation vers votre chaîne."}
+        "abonnes": {price: 2700, label: "Abonnés WhatsApp", time: "2h", remark: "Mettez le lien de votre chaîne WhatsApp (format invitation)."}
       }
     };
 
@@ -172,7 +189,7 @@
       }
 
       document.getElementById("priceEstimate").textContent = "0 FCFA";
-      document.getElementById("remarkBox").textContent = "Veuillez choisir un service pour voir les remarques.";
+      document.getElementById("remarkBox").textContent = "Veuillez choisir un service pour voir les remarques adaptées.";
       document.getElementById("timeEstimate").textContent = "---";
     }
 
