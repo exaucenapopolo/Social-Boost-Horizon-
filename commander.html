@@ -10,9 +10,12 @@
       font-family: Arial, sans-serif;
       background-color: white;
       color: #333;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
     }
     header {
-      background-color: #007BFF;
+      background-color: #007bff;
       color: white;
       padding: 15px;
       text-align: center;
@@ -25,20 +28,26 @@
       padding: 10px 0;
       border-bottom: 1px solid #eee;
       overflow-x: auto;
+      background: white;
     }
     .platforms img {
       width: 45px;
       height: 45px;
       cursor: pointer;
       opacity: 0.7;
-      transition: transform 0.2s, opacity 0.2s;
+      transition: transform 0.2s, opacity 0.2s, border-bottom 0.2s;
+      border-bottom: 3px solid transparent;
     }
-    .platforms img.active,
     .platforms img:hover {
       transform: scale(1.1);
       opacity: 1;
     }
+    .platforms img.active {
+      opacity: 1;
+      border-bottom-color: #007bff;
+    }
     .content {
+      flex: 1;
       max-width: 800px;
       margin: 20px auto;
       padding: 0 15px;
@@ -93,7 +102,7 @@
     .btn {
       width: 100%;
       padding: 15px;
-      background-color: #007BFF;
+      background-color: #007bff;
       color: white;
       font-size: 18px;
       border: none;
@@ -103,6 +112,13 @@
     }
     .btn:hover {
       background-color: #0056b3;
+    }
+    footer {
+      background-color: #000;
+      color: #ddd;
+      text-align: center;
+      padding: 15px 0;
+      font-size: 14px;
     }
   </style>
 </head>
@@ -116,7 +132,7 @@
     <img src="https://img.icons8.com/color/48/youtube-play.png" alt="YouTube" data-platform="youtube">
     <img src="https://img.icons8.com/color/48/tiktok--v1.png" alt="TikTok" data-platform="tiktok">
     <img src="https://img.icons8.com/color/48/telegram-app.png" alt="Telegram" data-platform="telegram">
-    <img src="https://img.icons8.com/color/48/twitter--v1.png" alt="Twitter" data-platform="twitter">
+    <img src="https://img.icons8.com/ios-filled/50/000000/x.png"  alt="Twitter" data-platform="twitter">
     <img src="https://img.icons8.com/color/48/whatsapp--v1.png" alt="WhatsApp" data-platform="whatsapp">
   </div>
 
@@ -128,76 +144,54 @@
           <option value="">-- Choisir un service --</option>
         </select>
       </div>
-
       <div class="form-group">
         <label for="linkInput">Lien du compte / publication</label>
-        <input id="linkInput" type="url" placeholder="Collez le lien ici" required>
+        <input id="linkInput" type="url" placeholder="https://..." required>
       </div>
-
       <div class="form-group">
         <label for="quantityInput">Quantité</label>
-        <input id="quantityInput" type="number" placeholder="Ex: 1000" min="1" oninput="updatePrice()" required>
+        <input id="quantityInput" type="number" min="1" placeholder="Ex: 1000" oninput="updateDetails()" required>
       </div>
-
       <div class="price-estimate" id="priceEstimate">Prix estimé : 0 FCFA</div>
-
       <div class="time-estimate" id="timeEstimate">Temps de réalisation : 2 h</div>
-
       <div class="remark-box" id="remarkBox">Sélectionnez un service pour voir la remarque.</div>
-
       <button type="button" class="btn" onclick="submitOrder()">Commander Boost</button>
     </form>
   </div>
 
+  <footer>
+    Social Boost Horizon – Tous droits réservés © 2025
+  </footer>
+
   <script>
-    // Données complètes des services
     const servicesData = {
       facebook: {
         "Followers (page)": { price: 2000, time: "2 h", remark: "Entrez le lien d’une page Facebook publique." },
         "Followers (profil)": { price: 2100, time: "2 h", remark: "Entrez le lien d’un profil public, pas privé." },
-        "J’aime (page)": { price: 2500, time: "2 h", remark: "Entrez le lien de votre page à liker." },
-        "J’aime (publication)": { price: 1400, time: "2 h", remark: "Entrez le lien de la publication à liker." },
-        "Partages": { price: 500, time: "2 h", remark: "Entrez le lien de la publication à partager." },
-        "Membres de groupe": { price: 2000, time: "2 h", remark: "Entrez le lien du groupe accessible publiquement." },
-        "Vues de vidéo": { price: 1500, time: "2 h", remark: "Entrez le lien direct de la vidéo." },
-        "10 commentaires": { price: 800, time: "2 h", remark: "Publication publique nécessaire pour commentaires." }
+        "J’aime (publication)": { price: 1400, time: "2 h", remark: "Entrez le lien direct de la publication." },
+        "Membres de groupe": { price: 2000, time: "2 h", remark: "Entrez le lien du groupe ouvert." }
       },
       instagram: {
         "Followers": { price: 2300, time: "2 h", remark: "Entrez le lien du profil Instagram public." },
         "J’aime": { price: 850, time: "2 h", remark: "Entrez le lien de la publication Instagram." },
-        "Vues de vidéos": { price: 500, time: "2 h", remark: "Entrez le lien direct de la vidéo IG." },
-        "10 commentaires": { price: 250, time: "2 h", remark: "Entrez le lien de la publication pour commentaires." },
-        "Vues de story": { price: 500, time: "2 h", remark: "Story encore visible requise." }
+        "Vues vidéo": { price: 500, time: "2 h", remark: "Entrez le lien d’une vidéo Instagram." }
       },
       youtube: {
         "Abonnés": { price: 4900, time: "4 h", remark: "Entrez le lien de votre chaîne YouTube." },
-        "Vues": { price: 1400, time: "2 h", remark: "Entrez le lien direct de la vidéo YouTube." },
-        "J’aime": { price: 1450, time: "2 h", remark: "Entrez le lien de la vidéo à liker." }
+        "Vues": { price: 1400, time: "2 h", remark: "Entrez le lien direct de la vidéo YouTube." }
       },
       tiktok: {
         "Followers": { price: 2350, time: "3 h", remark: "Entrez le lien du profil TikTok public." },
-        "J’aime": { price: 850, time: "2 h", remark: "Entrez le lien direct de la vidéo TikTok." },
-        "Vues": { price: 500, time: "1 h", remark: "Entrez le lien de la vidéo TikTok à booster." },
-        "Sauvegarde vidéos": { price: 400, time: "2 h", remark: "Vidéo publique requise pour sauvegarde." },
-        "Partages vidéos": { price: 350, time: "2 h", remark: "Entrez le lien de la vidéo TikTok." },
-        "10 commentaires": { price: 500, time: "3 h", remark: "Envoyez les textes après commande." },
-        "J’aime direct": { price: 450, time: "2 h", remark: "Entrez le lien du direct TikTok." }
+        "Vues": { price: 500, time: "1 h", remark: "Entrez le lien d’une vidéo TikTok, pas du profil." }
       },
       telegram: {
-        "Membres groupe/canal": { price: 2250, time: "2 h", remark: "Entrez le lien d’invitation ou @nomducanal." },
-        "Vues publication spécifique": { price: 550, time: "2 h", remark: "Entrez le lien de la publication Telegram." },
-        "20 vues anciennes": { price: 1000, time: "3 h", remark: "Lien des publications précédentes." },
-        "Réactions": { price: 550, time: "2 h", remark: "Entrez le lien de la publication à réagir." }
+        "Membres groupe/canal": { price: 2250, time: "2 h", remark: "Entrez le lien d’invitation ou @nomducanal." }
       },
       twitter: {
-        "Followers": { price: 6000, time: "2 h", remark: "Entrez le lien de votre profil Twitter/X." },
-        "J’aime": { price: 2000, time: "2 h", remark: "Entrez le lien du tweet à liker." },
-        "Republication": { price: 1500, time: "2 h", remark: "Entrez le lien du tweet à retweeter." }
+        "Followers": { price: 6000, time: "2 h", remark: "Entrez le lien de votre profil Twitter/X." }
       },
       whatsapp: {
-        "Abonnés internationaux": { price: 2700, time: "2 h", remark: "Entrez le lien de votre chaîne WhatsApp." },
-        "Abonnés USA/Inde": { price: 4500, time: "2 h", remark: "Chaîne ciblant USA ou Inde." },
-        "Réactions publication": { price: 2300, time: "2 h", remark: "Entrez le lien de la publication sur votre chaîne." }
+        "Abonnés chaîne": { price: 2700, time: "2 h", remark: "Entrez le lien d’invitation vers votre chaîne WhatsApp." }
       }
     };
 
@@ -210,11 +204,11 @@
     const timeEl = document.getElementById('timeEstimate');
     const qtyInput = document.getElementById('quantityInput');
 
-    icons.forEach(img => {
-      img.addEventListener('click', () => {
+    icons.forEach(icon => {
+      icon.addEventListener('click', () => {
         icons.forEach(i => i.classList.remove('active'));
-        img.classList.add('active');
-        selectedPlatform = img.getAttribute('data-platform');
+        icon.classList.add('active');
+        selectedPlatform = icon.dataset.platform;
         loadServices();
         form.style.display = 'block';
       });
@@ -222,8 +216,8 @@
 
     function loadServices() {
       serviceSelect.innerHTML = '<option value="">-- Choisir un service --</option>';
-      const services = servicesData[selectedPlatform];
-      for (let key in services) {
+      const list = servicesData[selectedPlatform] || {};
+      for (const key in list) {
         const opt = document.createElement('option');
         opt.value = key;
         opt.textContent = key;
@@ -234,28 +228,22 @@
 
     function updateDetails() {
       const serviceKey = serviceSelect.value;
+      const qty = parseInt(qtyInput.value) || 0;
       if (!serviceKey) {
-        priceEl.textContent = '0 FCFA';
+        priceEl.textContent = 'Prix estimé : 0 FCFA';
         remarkEl.textContent = 'Sélectionnez un service pour voir la remarque.';
-        timeEl.textContent = '2 h';
+        timeEl.textContent = 'Temps de réalisation : 2 h';
         return;
       }
       const data = servicesData[selectedPlatform][serviceKey];
-      // Prix
-      const qty = parseInt(qtyInput.value) || 0;
       const total = Math.round((data.price / 1000) * qty);
-      priceEl.textContent = `${total} FCFA`;
-      // Remarque & temps
+      priceEl.textContent = `Prix estimé : ${total} FCFA`;
       remarkEl.textContent = data.remark;
-      timeEl.textContent = data.time;
-    }
-
-    function updatePrice() {
-      updateDetails();
+      timeEl.textContent = `Temps de réalisation : ${data.time}`;
     }
 
     function submitOrder() {
-      alert('Commande enregistrée ! (simulation)');
+      alert('Commande enregistrée ! (simulation)');
     }
   </script>
 </body>
