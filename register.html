@@ -30,7 +30,7 @@
       justify-content: center;
       align-items: center;
       padding: 20px;
-      height: calc(100% - 80px); /* header + padding */
+      height: calc(100% - 80px);
     }
 
     .card {
@@ -89,6 +89,12 @@
       background: #0056b3;
     }
 
+    .error {
+      font-size: 0.9rem;
+      color: #d00;
+      margin-top: 10px;
+    }
+
     .link {
       text-align: center;
       margin-top: 16px;
@@ -106,13 +112,13 @@
 <body>
 
   <header>
-    <h1>Social Boost Horizon</h1>
+    <h1>Social Boost Horizon</h1>
   </header>
 
   <main>
     <div class="card">
       <h2>Créer un compte</h2>
-      <form id="registerForm" action="#" method="POST">
+      <form id="registerForm">
         <label for="username">Nom d'utilisateur</label>
         <input type="text" id="username" name="username" required />
 
@@ -139,6 +145,8 @@
         <input type="password" id="password" name="password" required />
 
         <button type="submit">S'inscrire</button>
+        <div class="error" id="errorMsg"></div>
+
         <div class="link">
           Déjà un compte ? <a href="login.html">Se connecter</a>
         </div>
@@ -151,6 +159,7 @@
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js"></script>
   <script>
+    // Initialisation Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -164,31 +173,40 @@
     const auth = firebase.auth();
     const db   = firebase.firestore();
 
+    // Mise à jour automatique de l’indicatif pays
     function updateIndicatif() {
       const codes = { ci:"+225", cm:"+237", sn:"+221", ml:"+223", gn:"+224" };
       document.getElementById("indicatif").value =
-        codes[document.getElementById("pays").value]||"";
+        codes[document.getElementById("pays").value] || "";
     }
 
+    // Gestion du formulaire d'inscription
     document.getElementById('registerForm').addEventListener('submit', async e => {
       e.preventDefault();
-      const u = document.getElementById('username').value.trim();
-      const em = document.getElementById('email').value.trim();
-      const pw = document.getElementById('password').value;
-      const p = document.getElementById('pays').value;
-      const ind = document.getElementById('indicatif').value;
-      const tel = document.getElementById('telephone').value.trim();
+
+      const username = document.getElementById('username').value.trim();
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const pays     = document.getElementById('pays').value;
+      const indic    = document.getElementById('indicatif').value;
+      const telephone= document.getElementById('telephone').value.trim();
+      const errEl    = document.getElementById('errorMsg');
+      errEl.textContent = '';
+
       try {
-        const cred = await auth.createUserWithEmailAndPassword(em, pw);
+        const cred = await auth.createUserWithEmailAndPassword(email, password);
         await db.collection('users').doc(cred.user.uid).set({
-          username: u,
-          country: p,
-          phone: `${ind} ${tel}`,
+          username,
+          country: pays,
+          phone: `${indic} ${telephone}`,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        window.location.href = 'login.html';
+        alert('Inscription réussie !');            // alerte de succès
+        window.location.href = 'login.html';      // redirection
       } catch(err) {
-        alert(err.message);
+        const msg = "Erreur lors de l'inscription : " + err.message;
+        errEl.textContent = msg;                  // message inline
+        alert(msg);                               // alerte d'erreur
       }
     });
   </script>
