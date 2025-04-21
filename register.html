@@ -1,28 +1,25 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Inscription – Social Boost Horizon</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.17/css/intlTelInput.min.css" />
   <style>
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
+      padding: 0;
+      font-family: 'Segoe UI', sans-serif;
       background: linear-gradient(135deg, #1e3c72, #2a5298);
       color: #fff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
     }
-    .card {
-      background: white;
-      color: #333;
-      padding: 30px;
-      border-radius: 10px;
-      width: 100%;
+    .container {
       max-width: 400px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      margin: 50px auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      color: #333;
     }
     h2 {
       text-align: center;
@@ -30,53 +27,53 @@
       margin-bottom: 20px;
     }
     label {
+      font-weight: bold;
       display: block;
-      margin: 10px 0 5px;
+      margin-top: 15px;
     }
     input {
       width: 100%;
       padding: 10px;
-      border-radius: 5px;
+      margin-top: 5px;
+      border-radius: 4px;
       border: 1px solid #ccc;
-      margin-bottom: 10px;
+    }
+    #phone {
+      width: 100%;
     }
     button {
+      margin-top: 20px;
       width: 100%;
       padding: 12px;
       background: #007bff;
-      color: white;
       border: none;
-      border-radius: 5px;
+      color: white;
+      font-size: 1rem;
+      border-radius: 4px;
       cursor: pointer;
-      font-weight: bold;
     }
     button:hover {
       background: #0056b3;
     }
     .error {
       color: red;
-      margin-top: 10px;
       font-size: 0.9rem;
-    }
-    .link {
-      text-align: center;
-      margin-top: 12px;
-    }
-    .link a {
-      color: #007bff;
-      text-decoration: none;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
-  <div class="card">
+  <div class="container">
     <h2>Créer un compte</h2>
     <form id="registerForm">
+      <label for="name">Nom complet</label>
+      <input type="text" id="name" required />
+
       <label for="email">Email</label>
       <input type="email" id="email" required />
-      
+
       <label for="phone">Téléphone</label>
-      <input type="tel" id="phone" pattern="^\+?\d{9,15}$" placeholder="+225xxxxxxxx" required />
+      <input type="tel" id="phone" required />
 
       <label for="password">Mot de passe</label>
       <input type="password" id="password" required />
@@ -84,56 +81,83 @@
       <button type="submit">S'inscrire</button>
       <div class="error" id="errorMsg"></div>
     </form>
-    <div class="link">
-      Déjà un compte ? <a href="login.html">Se connecter</a>
-    </div>
   </div>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
-  <script>
+  <!-- Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.17/js/intlTelInput.min.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
       projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.appspot.com",
+      storageBucket: "social-boost-horizon.firebasestorage.app",
       messagingSenderId: "43658165639",
-      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
+      measurementId: "G-JJXPNN90V1"
     };
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
 
-    document.getElementById('registerForm').addEventListener('submit', async e => {
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const phoneInput = document.querySelector("#phone");
+    const iti = window.intlTelInput(phoneInput, {
+      initialCountry: "auto",
+      geoIpLookup: function(callback) {
+        fetch("https://ipinfo.io/json?token=123abc") // token facultatif
+          .then(resp => resp.json())
+          .then(resp => callback(resp.country))
+          .catch(() => callback("fr"));
+      },
+      utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.17/js/utils.js"
+    });
+
+    const form = document.getElementById("registerForm");
+    const errorMsg = document.getElementById("errorMsg");
+
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-      const phone = document.getElementById('phone').value.trim();
-      const errEl = document.getElementById('errorMsg');
-      errEl.textContent = '';
+      errorMsg.textContent = "";
 
-      if (!/^\+?\d{9,15}$/.test(phone)) {
-        errEl.textContent = "Numéro de téléphone invalide (ex : +225xxxxxxxx)";
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const phoneNumber = iti.getNumber();
+
+      if (!iti.isValidNumber()) {
+        errorMsg.textContent = "Numéro de téléphone invalide.";
         return;
       }
 
-      if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
-        errEl.textContent = "Mot de passe trop faible. Min 8 caractères, 1 majuscule, 1 chiffre.";
+      if (password.length < 6) {
+        errorMsg.textContent = "Le mot de passe doit contenir au moins 6 caractères.";
         return;
       }
 
       try {
-        await auth.createUserWithEmailAndPassword(email, password);
+        const userCred = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCred.user;
+
+        await setDoc(doc(db, "users", user.uid), {
+          name,
+          email,
+          phone: phoneNumber,
+          uid: user.uid,
+          createdAt: new Date().toISOString()
+        });
+
         alert("Inscription réussie !");
         window.location.href = "dashboard.html";
       } catch (error) {
-        if (error.code === 'auth/email-already-in-use') {
-          errEl.textContent = "Email déjà utilisé.";
-        } else if (error.code === 'auth/invalid-email') {
-          errEl.textContent = "Email invalide.";
-        } else {
-          errEl.textContent = "Erreur : " + error.message;
-        }
+        let message = "Erreur lors de l'inscription.";
+        if (error.code === "auth/email-already-in-use") message = "Email déjà utilisé.";
+        else if (error.code === "auth/invalid-email") message = "Email invalide.";
+        else if (error.code === "auth/weak-password") message = "Mot de passe trop faible.";
+        errorMsg.textContent = message;
       }
     });
   </script>
