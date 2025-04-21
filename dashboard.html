@@ -8,21 +8,35 @@
     body {
       margin: 0;
       font-family: 'Segoe UI', sans-serif;
-      background-color: #e0e7ff; /* bleu très clair en fond général */
+      background-color: #e0e7ff;
     }
-
     .header {
       background-color: #004080;
       color: white;
-      padding: 30px;
+      padding: 20px;
       text-align: center;
+      position: relative;
     }
-
     .header h1 {
       margin: 0;
-      font-size: 28px;
+      font-size: 24px;
     }
-
+    #logoutBtn {
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: #007bff;
+      border: none;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    #logoutBtn:hover {
+      background: #0056b3;
+    }
     .container {
       max-width: 1000px;
       margin: 40px auto;
@@ -31,28 +45,24 @@
       gap: 30px;
       justify-content: center;
     }
-
     .card {
       background-color: white;
       width: 45%;
       border-radius: 12px;
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
       padding: 25px;
       text-align: center;
     }
-
     .card h2 {
       font-size: 18px;
       color: #004080;
       margin-bottom: 10px;
     }
-
     .card p {
       font-size: 14px;
       color: #555;
       margin-bottom: 20px;
     }
-
     .btn {
       padding: 12px 20px;
       background-color: #007bff;
@@ -62,23 +72,21 @@
       font-size: 16px;
       cursor: pointer;
       text-decoration: none;
+      display: inline-block;
     }
-
     .btn:hover {
       background-color: #0056b3;
     }
-
     @media (max-width: 768px) {
-      .card {
-        width: 100%;
-      }
+      .card { width: 100%; }
     }
   </style>
 </head>
 <body>
 
   <div class="header">
-    <h1>Bienvenue sur ton tableau de bord, JuniorBoost</h1>
+    <h1 id="welcome">Chargement…</h1>
+    <button id="logoutBtn">Déconnexion</button>
   </div>
 
   <div class="container">
@@ -107,5 +115,56 @@
     </div>
   </div>
 
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js"></script>
+  <script>
+    // 1) Configuration Firebase (même que sur register/login)
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.firebasestorage.app",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
+      measurementId: "G-JJXPNN90V1"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db   = firebase.firestore();
+
+    const welcomeEl = document.getElementById('welcome');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    // 2) Gardien d'accès et récupération du username
+    auth.onAuthStateChanged(user => {
+      if (!user) {
+        // non connecté → retour à la page de login
+        window.location.href = 'login.html';
+        return;
+      }
+      // connecté : charger le profil depuis Firestore
+      db.collection('users').doc(user.uid).get()
+        .then(doc => {
+          if (doc.exists) {
+            const data = doc.data();
+            welcomeEl.textContent = `Bienvenue sur ton tableau de bord, ${data.username}`;
+          } else {
+            welcomeEl.textContent = 'Bienvenue sur ton tableau de bord';
+          }
+        })
+        .catch(() => {
+          welcomeEl.textContent = 'Bienvenue sur ton tableau de bord';
+        });
+    });
+
+    // 3) Déconnexion
+    logoutBtn.addEventListener('click', () => {
+      auth.signOut().then(() => {
+        window.location.href = 'login.html';
+      });
+    });
+  </script>
 </body>
 </html>
