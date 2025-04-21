@@ -5,48 +5,50 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Inscription - Social Boost Horizon</title>
   <style>
-    body {
+    html, body {
       margin: 0;
+      padding: 0;
+      height: 100%;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(135deg, #1e3c72, #2a5298);
       color: #ffffff;
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 100vh;
     }
-    .card {
-      background-color: #ffffff;
-      border-radius: 10px;
-      padding: 30px;
-      width: 350px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-      color: #333333;
+    .form-container {
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
     }
-    header h1 {
-      text-align: center;
-      font-size: 2rem;
-      color: #ffffff;
-      text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
-      margin-bottom: 20px;
+    h1 {
+      font-size: 4rem;
+      margin: 0 0 40px;
+      text-shadow: 2px 2px 6px rgba(0,0,0,0.5);
     }
-    h2 {
-      text-align: center;
-      margin-bottom: 25px;
-      color: #1e3c72;
+    form {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
     }
     label {
-      display: block;
-      margin-bottom: 6px;
+      font-size: 1.5rem;
+      margin-bottom: 10px;
       font-weight: bold;
     }
-    input, select {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 18px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      font-size: 1rem;
+    select, input {
+      font-size: 1.25rem;
+      padding: 15px;
+      margin-bottom: 24px;
+      border: none;
+      border-radius: 8px;
+      outline: none;
     }
     .phone-group {
       display: flex;
@@ -56,40 +58,32 @@
       flex: 1;
     }
     button {
-      width: 100%;
-      padding: 12px;
+      font-size: 1.5rem;
+      padding: 18px;
       background-color: #007bff;
-      color: white;
+      color: #ffffff;
       border: none;
-      border-radius: 5px;
-      font-size: 1rem;
+      border-radius: 8px;
       cursor: pointer;
+      margin-top: 20px;
     }
     button:hover {
       background-color: #0056b3;
     }
     .link {
-      text-align: center;
-      margin-top: 15px;
-      font-size: 0.9rem;
+      margin-top: 30px;
+      font-size: 1.25rem;
     }
     .link a {
-      color: #007bff;
-      text-decoration: none;
-    }
-    .link a:hover {
+      color: #ffffff;
       text-decoration: underline;
     }
   </style>
 </head>
 <body>
 
-  <header>
-    <h1>Social Boost Horizon</h1>
-  </header>
-
-  <div class="card">
-    <h2>Créer un compte</h2>
+  <div class="form-container">
+    <h1>Créer un compte</h1>
     <form id="registerForm" action="#" method="POST">
       <label for="username">Nom d'utilisateur</label>
       <input type="text" id="username" name="username" required />
@@ -99,17 +93,17 @@
 
       <label for="pays">Pays</label>
       <select id="pays" name="pays" onchange="updateIndicatif()" required>
-        <option value="">-- Sélectionnez votre pays --</option>
-        <option value="ci">Côte d'Ivoire</option>
-        <option value="cm">Cameroun</option>
-        <option value="sn">Sénégal</option>
-        <option value="ml">Mali</option>
-        <option value="gn">Guinée</option>
+        <option value="">— Sélectionnez votre pays —</option>
+        <option value="ci">🇨🇮 Côte d'Ivoire</option>
+        <option value="cm">🇨🇲 Cameroun</option>
+        <option value="sn">🇸🇳 Sénégal</option>
+        <option value="ml">🇲🇱 Mali</option>
+        <option value="gn">🇬🇳 Guinée</option>
       </select>
 
       <label for="telephone">Numéro de téléphone</label>
       <div class="phone-group">
-        <input type="text" id="indicatif" name="indicatif" readonly placeholder="+225" style="max-width: 80px;" />
+        <input type="text" id="indicatif" name="indicatif" readonly placeholder="+225" style="max-width:120px;" />
         <input type="tel" id="telephone" name="telephone" required placeholder="xx xx xx xx" />
       </div>
 
@@ -119,7 +113,7 @@
       <button type="submit">S'inscrire</button>
 
       <div class="link">
-        Déjà un compte ? <a href="login.html">Se connecter</a>
+        Déjà un compte ? <a href="login.html">Se connecter</a>
       </div>
     </form>
   </div>
@@ -140,42 +134,39 @@
       appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
       measurementId: "G-JJXPNN90V1"
     };
-    // Init Firebase
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db   = firebase.firestore();
 
-    // Gestion indicatif
+    // Mise à jour de l'indicatif selon le pays choisi
     function updateIndicatif() {
-      const country = document.getElementById("pays").value;
-      const indicatif = document.getElementById("indicatif");
-      const indicatifs = {
+      const codes = {
         ci: "+225",
         cm: "+237",
         sn: "+221",
         ml: "+223",
         gn: "+224"
       };
-      indicatif.value = indicatifs[country] || "";
+      document.getElementById("indicatif").value =
+        codes[document.getElementById("pays").value] || "";
     }
 
-    // Gestion inscription
-    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    // Gestion de l'inscription
+    document.getElementById('registerForm').addEventListener('submit', async e => {
       e.preventDefault();
       const username = document.getElementById('username').value.trim();
       const email    = document.getElementById('email').value.trim();
-      const pass     = document.getElementById('password').value;
+      const password = document.getElementById('password').value;
       const pays     = document.getElementById('pays').value;
       const indic    = document.getElementById('indicatif').value;
-      const tel      = document.getElementById('telephone').value.trim();
+      const telephone= document.getElementById('telephone').value.trim();
 
       try {
-        const userCred = await auth.createUserWithEmailAndPassword(email, pass);
-        // Enregistrer infos supplémentaires
-        await db.collection('users').doc(userCred.user.uid).set({
-          username: username,
+        const cred = await auth.createUserWithEmailAndPassword(email, password);
+        await db.collection('users').doc(cred.user.uid).set({
+          username,
           country: pays,
-          phone: indic + ' ' + tel,
+          phone: `${indic} ${telephone}`,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         window.location.href = 'login.html';
