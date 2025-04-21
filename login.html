@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Connexion – Social Boost Horizon</title>
   <style>
-    /* Reset minimal */
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     html, body {
@@ -136,7 +135,7 @@
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
       projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.firebasestorage.app",
+      storageBucket: "social-boost-horizon.appspot.com",
       messagingSenderId: "43658165639",
       appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
       measurementId: "G-JJXPNN90V1"
@@ -156,14 +155,32 @@
 
       try {
         await auth.signInWithEmailAndPassword(email, pw);
-        alert('Connexion réussie !');
         window.location.href = 'dashboard.html';
       } catch(error) {
-        const msg = 'Erreur lors de la connexion : ' + error.message;
-        errEl.textContent = msg;
-        alert(msg);
+        // Gestion des erreurs spécifiques
+        switch (error.code) {
+          case 'auth/user-not-found':
+            errEl.textContent = 'Aucun utilisateur trouvé avec cet e-mail.';
+            break;
+          case 'auth/wrong-password':
+            errEl.textContent = 'Mot de passe incorrect.';
+            break;
+          case 'auth/invalid-email':
+            errEl.textContent = 'Adresse e-mail invalide.';
+            break;
+          case 'auth/invalid-credential':
+          case 'auth/invalid-login-credentials':
+            errEl.textContent = 'Identifiants invalides. Veuillez vérifier vos informations.';
+            break;
+          case 'auth/too-many-requests':
+            errEl.textContent = 'Trop de tentatives. Veuillez réessayer plus tard.';
+            break;
+          default:
+            errEl.textContent = 'Erreur lors de la connexion : ' + error.message;
+        }
       }
     });
   </script>
 </body>
 </html>
+`` 
