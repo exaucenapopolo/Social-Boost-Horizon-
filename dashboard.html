@@ -20,7 +20,41 @@
     .header h1 {
       margin: 0;
       font-size: 24px;
+      display: inline-block;
     }
+
+    /* Nouveau bloc solde + dépôt */
+    .balance-deposit {
+      position: absolute;
+      top: 50%;
+      right: 100px; /* ajuster si besoin */
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      color: #fff;
+    }
+    .balance-deposit #balance {
+      background: rgba(255,255,255,0.2);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .balance-deposit button {
+      background: #28a745;
+      border: none;
+      color: #fff;
+      font-size: 1.1rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .balance-deposit button:hover {
+      background: #218838;
+    }
+
+    /* Bouton déconnexion repositionné */
     #logoutBtn {
       position: absolute;
       right: 20px;
@@ -37,6 +71,7 @@
     #logoutBtn:hover {
       background: #0056b3;
     }
+
     .container {
       max-width: 1000px;
       margin: 40px auto;
@@ -85,7 +120,14 @@
 <body>
 
   <div class="header">
-    <h1 id="welcome">Bienvenue sur votre tableau de bord chers client</h1>
+    <h1 id="welcome">Chargement…</h1>
+
+    <!-- Bloc Solde + Dépôt rapide -->
+    <div class="balance-deposit">
+      <span id="balance">Solde : 0 XAF</span>
+      <button id="quickDeposit" title="Déposer des fonds">➕</button>
+    </div>
+
     <button id="logoutBtn">Déconnexion</button>
   </div>
 
@@ -115,10 +157,11 @@
     </div>
   </div>
 
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js"></script>
+  <!-- Firebase SDKs (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
+
   <script>
     // Configuration Firebase
     const firebaseConfig = {
@@ -136,21 +179,22 @@
 
     const welcomeEl = document.getElementById('welcome');
     const logoutBtn = document.getElementById('logoutBtn');
+    const balanceEl = document.getElementById('balance');
+    const quickDepositBtn = document.getElementById('quickDeposit');
 
-    // Authentification et affichage du nom
+    // Gardien d'accès et récupération du username + solde
     auth.onAuthStateChanged(user => {
       if (!user) {
         window.location.href = 'login.html';
         return;
       }
+      // Charger profil + solde depuis Firestore
       db.collection('users').doc(user.uid).get()
-        .then(doc => {
-          if (doc.exists) {
-            const data = doc.data();
-            welcomeEl.textContent = `Bienvenue sur ton tableau de bord, ${data.username}`;
-          } else {
-            welcomeEl.textContent = 'Bienvenue sur ton tableau de bord';
-          }
+        .then(docSnap => {
+          const data = docSnap.data() || {};
+          welcomeEl.textContent = `Bienvenue sur ton tableau de bord, ${data.username || ''}`;
+          const solde = data.solde || 0;
+          balanceEl.textContent = `Solde : ${solde} XAF`;
         })
         .catch(() => {
           welcomeEl.textContent = 'Bienvenue sur ton tableau de bord';
@@ -162,6 +206,11 @@
       auth.signOut().then(() => {
         window.location.href = 'login.html';
       });
+    });
+
+    // Dépôt rapide
+    quickDepositBtn.addEventListener('click', () => {
+      window.location.href = 'depot.html';
     });
   </script>
 </body>
