@@ -9,76 +9,58 @@
       margin: 0;
       font-family: 'Segoe UI', sans-serif;
       background-color: #e0e7ff;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
     }
+    /* Header bleu */
     .header {
       background-color: #004080;
       color: white;
       padding: 20px;
       text-align: center;
-      position: relative;
     }
     .header h1 {
       margin: 0;
       font-size: 24px;
-      display: inline-block;
     }
 
-    /* Nouveau bloc solde + dépôt */
-    .balance-deposit {
-      position: absolute;
-      top: 50%;
-      right: 100px; /* ajuster si besoin */
-      transform: translateY(-50%);
+    /* Zone sous le header (blanche) */
+    .balance-section {
+      background: #fff;
+      padding: 16px 20px;
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 8px;
-      font-size: 0.9rem;
-      color: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    .balance-deposit #balance {
-      background: rgba(255,255,255,0.2);
-      padding: 4px 8px;
-      border-radius: 4px;
+    .balance-section #balance {
+      font-size: 1.1rem;
+      color: #333;
     }
-    .balance-deposit button {
+    .balance-section button {
       background: #28a745;
       border: none;
       color: #fff;
-      font-size: 1.1rem;
-      padding: 2px 6px;
+      padding: 6px 12px;
+      font-size: 1.2rem;
       border-radius: 4px;
       cursor: pointer;
       line-height: 1;
     }
-    .balance-deposit button:hover {
+    .balance-section button:hover {
       background: #218838;
     }
 
-    /* Bouton déconnexion repositionné */
-    #logoutBtn {
-      position: absolute;
-      right: 20px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: #007bff;
-      border: none;
-      color: #fff;
-      padding: 8px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.9rem;
-    }
-    #logoutBtn:hover {
-      background: #0056b3;
-    }
-
+    /* Cartes */
     .container {
       max-width: 1000px;
-      margin: 40px auto;
+      margin: 20px auto;
       display: flex;
       flex-wrap: wrap;
       gap: 30px;
       justify-content: center;
+      flex-grow: 1;
     }
     .card {
       background-color: white;
@@ -115,22 +97,42 @@
     @media (max-width: 768px) {
       .card { width: 100%; }
     }
+
+    /* Pied de page pour déconnexion */
+    .footer {
+      background: #fff;
+      padding: 16px 20px;
+      text-align: center;
+      box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+    }
+    #logoutBtn {
+      background: #dc3545;
+      border: none;
+      color: #fff;
+      padding: 10px 20px;
+      font-size: 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #logoutBtn:hover {
+      background: #c82333;
+    }
   </style>
 </head>
 <body>
 
+  <!-- 1) Header bleu -->
   <div class="header">
     <h1 id="welcome">Chargement…</h1>
-
-    <!-- Bloc Solde + Dépôt rapide -->
-    <div class="balance-deposit">
-      <span id="balance">Solde : 0 XAF</span>
-      <button id="quickDeposit" title="Déposer des fonds">➕</button>
-    </div>
-
-    <button id="logoutBtn">Déconnexion</button>
   </div>
 
+  <!-- 2) Zone solde + dépôt -->
+  <div class="balance-section">
+    <span id="balance">Solde : 0 XAF</span>
+    <button id="quickDeposit" title="Déposer des fonds">➕</button>
+  </div>
+
+  <!-- 3) Cartes -->
   <div class="container">
     <div class="card">
       <h2>Booster tes réseaux</h2>
@@ -157,6 +159,11 @@
     </div>
   </div>
 
+  <!-- 4) Pied de page : bouton Déconnexion -->
+  <div class="footer">
+    <button id="logoutBtn">Déconnexion</button>
+  </div>
+
   <!-- Firebase SDKs (compat) -->
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
@@ -177,40 +184,38 @@
     const auth = firebase.auth();
     const db   = firebase.firestore();
 
-    const welcomeEl = document.getElementById('welcome');
-    const logoutBtn = document.getElementById('logoutBtn');
-    const balanceEl = document.getElementById('balance');
-    const quickDepositBtn = document.getElementById('quickDeposit');
+    // Éléments DOM
+    const welcomeEl     = document.getElementById('welcome');
+    const balanceEl     = document.getElementById('balance');
+    const quickDeposit  = document.getElementById('quickDeposit');
+    const logoutBtn     = document.getElementById('logoutBtn');
 
-    // Gardien d'accès et récupération du username + solde
-    auth.onAuthStateChanged(user => {
+    // Auth et affichage données
+    auth.onAuthStateChanged(async user => {
       if (!user) {
         window.location.href = 'login.html';
         return;
       }
-      // Charger profil + solde depuis Firestore
-      db.collection('users').doc(user.uid).get()
-        .then(docSnap => {
-          const data = docSnap.data() || {};
-          welcomeEl.textContent = `Bienvenue sur ton tableau de bord, ${data.username || ''}`;
-          const solde = data.solde || 0;
-          balanceEl.textContent = `Solde : ${solde} XAF`;
-        })
-        .catch(() => {
-          welcomeEl.textContent = 'Bienvenue sur ton tableau de bord';
-        });
-    });
-
-    // Déconnexion
-    logoutBtn.addEventListener('click', () => {
-      auth.signOut().then(() => {
-        window.location.href = 'login.html';
-      });
+      // Récupération du profil et solde
+      const docSnap = await db.collection('users').doc(user.uid).get();
+      const data   = docSnap.data() || {};
+      welcomeEl.textContent = `Bienvenue sur ton tableau de bord, ${data.username || ''}`;
+      const solde = data.solde || 0;
+      balanceEl.textContent = `Solde : ${solde} XAF`;
     });
 
     // Dépôt rapide
-    quickDepositBtn.addEventListener('click', () => {
+    quickDeposit.addEventListener('click', () => {
       window.location.href = 'depot.html';
+    });
+
+    // Déconnexion avec confirmation
+    logoutBtn.addEventListener('click', () => {
+      if (confirm("Voulez‑vous vraiment vous déconnecter ?")) {
+        auth.signOut().then(() => {
+          window.location.href = 'login.html';
+        });
+      }
     });
   </script>
 </body>
