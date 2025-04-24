@@ -10,7 +10,6 @@
         rel="stylesheet" />
 
   <style>
-    /* Thème : vert sombre, bleu ciel pour les boutons */
     :root {
       --bg-page: #023020;
       --btn-bg: #87ceeb;
@@ -63,7 +62,6 @@
       display: block; margin-bottom: 0.5rem;
       font-weight: 500;
     }
-    /* Style du bouton “Choisir un fichier” */
     input[type="file"] { width: 100%; }
     input[type="file"]::file-selector-button {
       font-family: var(--font-family);
@@ -76,7 +74,6 @@
     input[type="file"]::file-selector-button:hover {
       opacity: 0.9;
     }
-    /* Boutons d’envoi */
     .btn {
       width: 100%; padding: 0.8rem;
       font-size: 1.1rem; font-family: var(--font-family);
@@ -100,8 +97,9 @@
 
       <!-- MTN Mobile Money -->
       <section id="mtn-section" class="provider">
-        <img src="https://seeklogo.com/images/M/mtn-mobile-money-logo-2975750C9E-seeklogo.com.png"
-             alt="Logo MTN Mobile Money" class="provider-logo" />
+        <img src="assets/logos/mtn-momo.PNG"
+             alt="Logo MTN Mobile Money"
+             class="provider-logo" />
         <p class="provider-info">
           <strong>Numéro :</strong> +237 652 205 768<br />
           <strong>Nom :</strong> ZAMOTOM ZAMIGON MOISE
@@ -127,8 +125,9 @@
 
       <!-- Orange Money -->
       <section id="orange-section" class="provider">
-        <img src="https://seeklogo.com/images/O/orange-money-logo-440383B5E4-seeklogo.com.png"
-             alt="Logo Orange Money" class="provider-logo" />
+        <img src="assets/logos/orange-money.PNG"
+             alt="Logo Orange Money"
+             class="provider-logo" />
         <p class="provider-info">
           <strong>Numéro :</strong> +237 699 853 665<br />
           <strong>Nom :</strong> NGOUBA PHINEAS
@@ -157,7 +156,6 @@
 
   <!-- JavaScript Firebase + upload & Firestore -->
   <script type="module">
-    // 1. Import du SDK modulaire  [oai_citation_attribution:0‡Firebase](https://firebase.google.com/docs/web/setup?utm_source=chatgpt.com)
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import {
       getStorage, ref, uploadBytesResumable, getDownloadURL
@@ -166,7 +164,6 @@
       getFirestore, collection, addDoc, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-    // 2. Votre configuration Firebase (à remplacer)  [oai_citation_attribution:1‡Firebase](https://firebase.google.com/docs/web/setup?utm_source=chatgpt.com)
     const firebaseConfig = {
       apiKey: "VOTRE_API_KEY",
       authDomain: "VOTRE_DOMAINE.firebaseapp.com",
@@ -176,10 +173,9 @@
       appId: "VOTRE_APP_ID"
     };
     const app = initializeApp(firebaseConfig);
-    const storage = getStorage(app);     // Cloud Storage  [oai_citation_attribution:2‡Firebase](https://firebase.google.com/docs/storage/web/upload-files?utm_source=chatgpt.com)
-    const db = getFirestore(app);        // Cloud Firestore  [oai_citation_attribution:3‡Firebase](https://firebase.google.com/docs/firestore/manage-data/add-data?utm_source=chatgpt.com)
+    const storage = getStorage(app);
+    const db = getFirestore(app);
 
-    // 3. Fonction générique d’upload + enregistrement  [oai_citation_attribution:4‡Stack Overflow](https://stackoverflow.com/questions/69314382/document-creation-timestamp-server-time-in-firestore?utm_source=chatgpt.com)
     function handleDeposit(formId, inputId, providerName) {
       const form = document.getElementById(formId);
       const fileInput = document.getElementById(inputId);
@@ -188,41 +184,37 @@
         e.preventDefault();
         const file = fileInput.files[0];
         if (!file) {
-          return alert("Veuillez sélectionner une image dans votre galerie."); 
+          return alert("Veuillez sélectionner une image dans votre galerie.");
         }
-        // Référence Storage
         const path = `deposits/${providerName}/${Date.now()}_${file.name}`;
         const storageRef = ref(storage, path);
-        // Upload avec suivi
         const uploadTask = uploadBytesResumable(storageRef, file);
+
         uploadTask.on("state_changed",
           snapshot => {
             const pct = Math.round(
               (snapshot.bytesTransferred / snapshot.totalBytes) * 100
             );
-            console.log(`Progression : ${pct}%`);                     //  [oai_citation_attribution:5‡Firebase](https://firebase.google.com/docs/storage/web/upload-files?utm_source=chatgpt.com)
+            console.log(`Progression : ${pct}%`);
           },
           error => {
             console.error("Erreur d’upload :", error);
             alert("Échec de l’envoi : " + error.message);
           },
           async () => {
-            // Récupérer l’URL publique  [oai_citation_attribution:6‡Firebase](https://firebase.google.com/docs/storage/web/download-files?utm_source=chatgpt.com)
             const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            // Enregistrer dans Firestore  [oai_citation_attribution:7‡Firebase](https://firebase.google.com/docs/firestore/manage-data/add-data?utm_source=chatgpt.com)
             await addDoc(collection(db, "deposits"), {
               provider: providerName,
               imageUrl: downloadURL,
               createdAt: serverTimestamp()
             });
-            alert("Preuve enregistrée avec succès !"); 
+            alert("Preuve enregistrée avec succès !");
             form.reset();
           }
         );
       });
     }
 
-    // 4. Initialisation pour MTN et Orange
     handleDeposit("mtn-form", "mtn-screenshot", "MTN_MoMo");
     handleDeposit("orange-form", "orange-screenshot", "Orange_Money");
   </script>
