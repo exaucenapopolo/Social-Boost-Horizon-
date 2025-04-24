@@ -1,180 +1,163 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8"/>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dépôt – Social Boost Horizon</title>
+  <title>Déposer des fonds - Social Boost Horizon</title>
   <style>
     body {
       margin: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background: #e0e7ff;
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
       display: flex;
-      flex-direction: column;
+      justify-content: center;
       align-items: center;
-      padding: 40px 20px;
+      min-height: 100vh;
     }
-    .header {
-      width: 100%;
-      max-width: 600px;
-      text-align: center;
-      margin-bottom: 30px;
-    }
-    .header h1 {
-      margin: 0;
-      color: #004080;
-      font-size: 2rem;
-    }
-    .balance {
-      font-size: 1.2rem;
-      margin-top: 8px;
-      color: #333;
-    }
-    .form-container {
-      background: #fff;
+    .container {
+      background: white;
       padding: 30px;
       border-radius: 8px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 400px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      width: 360px;
     }
-    .form-container label {
+    h2 {
+      text-align: center;
+      color: #007bff;
+      margin-bottom: 20px;
+    }
+    .methods {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 20px;
+    }
+    .methods img {
+      width: 40px;
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity 0.2s, transform 0.2s, border 0.2s;
+      border: 2px solid transparent;
+      border-radius: 4px;
+    }
+    .methods img.active,
+    .methods img:hover {
+      opacity: 1;
+      transform: scale(1.1);
+      border-color: #007bff;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group label {
       display: block;
-      margin: 12px 0 6px;
+      margin-bottom: 5px;
       font-weight: bold;
-      color: #333;
     }
-    .form-container input {
+    .form-group input {
       width: 100%;
       padding: 10px;
+      font-size: 16px;
       border-radius: 4px;
       border: 1px solid #ccc;
-      font-size: 1rem;
+      box-sizing: border-box;
     }
-    .form-container button {
-      margin-top: 20px;
+    .btn {
       width: 100%;
       padding: 12px;
       background: #007bff;
       color: white;
       border: none;
+      font-size: 16px;
       border-radius: 4px;
-      font-size: 1rem;
       cursor: pointer;
-    }
-    .form-container button:hover {
-      background: #0056b3;
-    }
-    .error {
-      color: red;
-      font-size: 0.9rem;
       margin-top: 10px;
     }
+    .btn:hover {
+      background: #0056b3;
+    }
+    .info {
+      font-size: 14px;
+      color: #555;
+      margin-top: 15px;
+      text-align: center;
+    }
   </style>
-  <!-- CinetPay Seamless JS -->
-  <script src="https://cdn.cinetpay.com/seamless/main.js" type="text/javascript"></script>
 </head>
 <body>
 
-  <div class="header">
-    <h1>Dépôt de fonds</h1>
-    <div class="balance" id="balance">Solde actuel : 0 XAF</div>
+  <div class="container">
+    <h2>Déposer des fonds</h2>
+
+    <div class="methods">
+      <img src="https://img.icons8.com/color/96/mtn-mobile-money.png"
+           alt="MTN MoMo"
+           id="mtn"
+           title="MTN Mobile Money"
+           onclick="selectMethod('mtn')" />
+      <img src="https://img.icons8.com/color/96/orange.png"
+           alt="Orange Money"
+           id="orange"
+           title="Orange Money"
+           onclick="selectMethod('orange')" />
+    </div>
+
+    <form id="depositForm">
+      <div class="form-group">
+        <label for="phoneInput">Numéro Mobile Money</label>
+        <input type="text" id="phoneInput" placeholder="+237 6XXXXXXXX" required />
+      </div>
+
+      <div class="form-group">
+        <label for="amountInput">Montant (FCFA)</label>
+        <input type="number" id="amountInput" placeholder="Ex : 5000" required min="100" />
+      </div>
+
+      <button type="submit" class="btn">Je confirme mon paiement</button>
+    </form>
+
+    <div class="info" id="paymentInfo">
+      Sélectionnez un moyen de paiement.
+    </div>
   </div>
 
-  <div class="form-container">
-    <label for="amount">Montant à déposer (XAF)</label>
-    <input type="number" id="amount" min="100" placeholder="1000" />
+  <script>
+    let selected = null;
 
-    <button id="depositBtn">Payer avec CinetPay</button>
-    <div class="error" id="errorMsg"></div>
-  </div>
-
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
-
-    // --- 1) Configuration Firebase ---
-    const firebaseConfig = {
-      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-      authDomain: "social-boost-horizon.firebaseapp.com",
-      projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.firebasestorage.app",
-      messagingSenderId: "43658165639",
-      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
-      measurementId: "G-JJXPNN90V1"
-    };
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    let currentUser, currentUserData;
-
-    const balanceEl = document.getElementById('balance');
-    const errorMsgEl = document.getElementById('errorMsg');
-    const depositBtn = document.getElementById('depositBtn');
-
-    // --- 2) Auth & récupération du solde ---
-    onAuthStateChanged(auth, async user => {
-      if (!user) {
-        window.location.href = 'login.html';
-        return;
-      }
-      currentUser = user;
-      const snap = await getDoc(doc(db, 'users', user.uid));
-      const solde = snap.exists() && snap.data().solde ? snap.data().solde : 0;
-      currentUserData = snap.data() || {};
-      balanceEl.textContent = `Solde actuel : ${solde} XAF`;
-    });
-
-    // --- 3) Configuration CinetPay ---
-    CinetPay.setConfig({
-      apikey: "14846379356806b488819569.63854220",
-      site_id: 105892894,
-      mode: "PRODUCTION",         // ou "TEST"
-      notify_url: window.location.origin + "/cinetpay-notify",
-      close_after_response: true
-    });
-
-    // --- 4) Lancement du paiement ---
-    depositBtn.addEventListener('click', () => {
-      errorMsgEl.textContent = '';
-      const amount = Number(document.getElementById('amount').value);
-      if (!amount || amount < 100) {
-        errorMsgEl.textContent = 'Entrez un montant valide (min 100 XAF).';
-        return;
-      }
-
-      CinetPay.getCheckout({
-        transaction_id: `DEPOT-${Date.now()}`,
-        amount: amount,
-        currency: "XAF",
-        channels: "ALL",
-        description: "Dépôt de fonds Social Boost Horizon",
-        metadata: {
-          uid: currentUser.uid
-        }
+    function selectMethod(method) {
+      selected = method;
+      document.querySelectorAll('.methods img').forEach(img => {
+        img.classList.toggle('active', img.id === method);
       });
-    });
-
-    // --- 5) Réponse de CinetPay ---
-    CinetPay.waitResponse(async function(data) {
-      if (data.status === "ACCEPTED") {
-        const amount = Number(document.getElementById('amount').value);
-        // Mise à jour du solde en base
-        await updateDoc(doc(db, 'users', currentUser.uid), {
-          solde: increment(amount)
-        });
-        // Rechargement du solde affiché
-        const snap = await getDoc(doc(db, 'users', currentUser.uid));
-        const newSolde = snap.data().solde;
-        balanceEl.textContent = `Solde actuel : ${newSolde} XAF`;
-        // Redirection vers le tableau de bord
-        window.location.href = 'dashboard.html';
-      } else {
-        errorMsgEl.textContent = 'Paiement annulé ou échoué.';
+      const info = document.getElementById('paymentInfo');
+      if (method === 'mtn') {
+        info.textContent = 'MTN MoMo ➔ Numéro : +237 652205768 (ZAMOTOM ZAMIGON MOISE)';
+      } else if (method === 'orange') {
+        info.textContent = 'Orange Money ➔ Numéro : +237 699853665 (NGOUBA PHINEAS)';
       }
+    }
+
+    document.getElementById('depositForm').addEventListener('submit', e => {
+      e.preventDefault();
+      if (!selected) {
+        alert('Choisis d’abord un moyen de paiement.');
+        return;
+      }
+      const phone = document.getElementById('phoneInput').value.trim();
+      const amount = document.getElementById('amountInput').value.trim();
+      // Ici : enregistrer le dépôt dans Firestore ou autre back-end
+      alert(
+        `Tu as choisi : ${selected === 'mtn' ? 'MTN MoMo' : 'Orange Money'}\n` +
+        `Numéro saisi : ${phone}\n` +
+        `Montant : ${amount} FCFA\n\n` +
+        'Merci pour ton dépôt !'
+      );
+      // Réinitialiser
+      document.getElementById('depositForm').reset();
+      document.getElementById('paymentInfo').textContent = 'Sélectionnez un moyen de paiement.';
+      document.querySelectorAll('.methods img').forEach(img => img.classList.remove('active'));
+      selected = null;
     });
   </script>
+
 </body>
 </html>
