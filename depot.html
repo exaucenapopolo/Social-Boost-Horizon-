@@ -62,6 +62,8 @@
       display: block; margin-bottom: 0.5rem;
       font-weight: 500;
     }
+    input[type="text"],
+    input[type="number"],
     input[type="file"] { width: 100%; }
     input[type="file"]::file-selector-button {
       font-family: var(--font-family);
@@ -107,14 +109,36 @@
         <form id="mtn-form" class="deposit-form" novalidate>
           <fieldset>
             <legend>MTN MoMo</legend>
+            <input type="hidden" name="provider" value="MTN_MoMo" />
+
+            <div class="form-group">
+              <label for="mtn-amount">Montant (XAF) :</label>
+              <input type="number"
+                     id="mtn-amount"
+                     name="amount"
+                     placeholder="Montant en XAF"
+                     required />
+            </div>
+
+            <div class="form-group">
+              <label for="mtn-userid">Votre User ID Firestore :</label>
+              <input type="text"
+                     id="mtn-userid"
+                     name="userId"
+                     placeholder="Votre User ID Firestore"
+                     required />
+            </div>
+
             <div class="form-group">
               <label for="mtn-screenshot">Preuve de dépôt :</label>
               <input type="file"
                      id="mtn-screenshot"
+                     name="proof"
                      accept="image/*"
                      required
                      aria-describedby="mtn-remark" />
             </div>
+
             <button type="submit" class="btn">Envoyer preuve MTN MoMo</button>
             <div id="mtn-remark" role="status" aria-live="polite" class="remark">
               Vous devez joindre une capture d’écran pour valider votre dépôt.
@@ -135,14 +159,36 @@
         <form id="orange-form" class="deposit-form" novalidate>
           <fieldset>
             <legend>Orange Money</legend>
+            <input type="hidden" name="provider" value="Orange_Money" />
+
+            <div class="form-group">
+              <label for="orange-amount">Montant (XAF) :</label>
+              <input type="number"
+                     id="orange-amount"
+                     name="amount"
+                     placeholder="Montant en XAF"
+                     required />
+            </div>
+
+            <div class="form-group">
+              <label for="orange-userid">Votre User ID Firestore :</label>
+              <input type="text"
+                     id="orange-userid"
+                     name="userId"
+                     placeholder="Votre User ID Firestore"
+                     required />
+            </div>
+
             <div class="form-group">
               <label for="orange-screenshot">Preuve de dépôt :</label>
               <input type="file"
                      id="orange-screenshot"
+                     name="proof"
                      accept="image/*"
                      required
                      aria-describedby="orange-remark" />
             </div>
+
             <button type="submit" class="btn">Envoyer preuve Orange Money</button>
             <div id="orange-remark" role="status" aria-live="polite" class="remark">
               Vous devez joindre une capture d’écran pour valider votre dépôt.
@@ -154,69 +200,33 @@
     </div>
   </main>
 
-  <!-- JavaScript Firebase + upload & Firestore -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import {
-      getStorage, ref, uploadBytesResumable, getDownloadURL
-    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
-    import {
-      getFirestore, collection, addDoc, serverTimestamp
-    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+  <!-- Script : envoi vers ton backend Replit -->
+  <script>
+    const backendUrl = "https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev/upload";
 
-    const firebaseConfig = {
-      apiKey: "VOTRE_API_KEY",
-      authDomain: "VOTRE_DOMAINE.firebaseapp.com",
-      projectId: "VOTRE_PROJECT_ID",
-      storageBucket: "VOTRE_BUCKET.appspot.com",
-      messagingSenderId: "VOTRE_SENDER_ID",
-      appId: "VOTRE_APP_ID"
-    };
-    const app = initializeApp(firebaseConfig);
-    const storage = getStorage(app);
-    const db = getFirestore(app);
-
-    function handleDeposit(formId, inputId, providerName) {
-      const form = document.getElementById(formId);
-      const fileInput = document.getElementById(inputId);
-
-      form.addEventListener("submit", e => {
+    document.querySelectorAll('.deposit-form').forEach(form => {
+      form.addEventListener('submit', async e => {
         e.preventDefault();
-        const file = fileInput.files[0];
-        if (!file) {
-          return alert("Veuillez sélectionner une image dans votre galerie.");
-        }
-        const path = `deposits/${providerName}/${Date.now()}_${file.name}`;
-        const storageRef = ref(storage, path);
-        const uploadTask = uploadBytesResumable(storageRef, file);
+        const fd = new FormData(form);
 
-        uploadTask.on("state_changed",
-          snapshot => {
-            const pct = Math.round(
-              (snapshot.bytesTransferred / snapshot.totalBytes) * 100
-            );
-            console.log(`Progression : ${pct}%`);
-          },
-          error => {
-            console.error("Erreur d’upload :", error);
-            alert("Échec de l’envoi : " + error.message);
-          },
-          async () => {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            await addDoc(collection(db, "deposits"), {
-              provider: providerName,
-              imageUrl: downloadURL,
-              createdAt: serverTimestamp()
-            });
-            alert("Preuve enregistrée avec succès !");
+        try {
+          const res = await fetch(backendUrl, {
+            method: 'POST',
+            body: fd
+          });
+          const data = await res.json();
+          if (data.success) {
+            alert(`Succès ! Montant traité : ${data.montant} FCFA`);
             form.reset();
+          } else {
+            alert(`Erreur : ${data.error}`);
           }
-        );
+        } catch (err) {
+          console.error(err);
+          alert('Une erreur est survenue lors de l’envoi de la preuve.');
+        }
       });
-    }
-
-    handleDeposit("mtn-form", "mtn-screenshot", "MTN_MoMo");
-    handleDeposit("orange-form", "orange-screenshot", "Orange_Money");
+    });
   </script>
 </body>
 </html>
