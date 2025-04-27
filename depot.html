@@ -6,7 +6,8 @@
   <title>Déposer des fonds – Social Boost Horizon</title>
 
   <!-- Google Fonts Poppins -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap"
+        rel="stylesheet" />
 
   <style>
     :root {
@@ -65,6 +66,7 @@
       font-weight: 500;
     }
     input[type="text"],
+    input[type="tel"],
     input[type="number"],
     input[type="file"] { width: 100%; }
     input[type="file"]::file-selector-button {
@@ -123,18 +125,25 @@
             <input type="hidden" name="provider" value="MTN_MoMo" />
 
             <div class="form-group">
-              <label for="mtn-amount">Montant (XAF) :</label>
-              <input type="number" id="mtn-amount" name="amount" placeholder="Montant en XAF" required />
+              <label for="mtn-whatsapp">Votre numéro WhatsApp :</label>
+              <input type="tel"
+                     id="mtn-whatsapp"
+                     name="whatsapp"
+                     placeholder="+237 6XX XXX XXX"
+                     required />
             </div>
 
-            <div class="form-group">
-              <label for="mtn-whatsapp">Votre numéro WhatsApp :</label>
-              <input type="text" id="mtn-whatsapp" name="whatsapp" placeholder="+237 6XX XXX XXX" required />
-            </div>
+            <!-- Champ caché : User ID Firebase -->
+            <input type="hidden" name="userId" id="mtn-userId" />
 
             <div class="form-group">
               <label for="mtn-screenshot">Preuve de dépôt :</label>
-              <input type="file" id="mtn-screenshot" name="proof" accept="image/*" required aria-describedby="mtn-remark" />
+              <input type="file"
+                     id="mtn-screenshot"
+                     name="proof"
+                     accept="image/*"
+                     required
+                     aria-describedby="mtn-remark" />
             </div>
 
             <button type="submit" class="btn">Envoyer preuve MTN MoMo</button>
@@ -160,18 +169,25 @@
             <input type="hidden" name="provider" value="Orange_Money" />
 
             <div class="form-group">
-              <label for="orange-amount">Montant (XAF) :</label>
-              <input type="number" id="orange-amount" name="amount" placeholder="Montant en XAF" required />
+              <label for="orange-whatsapp">Votre numéro WhatsApp :</label>
+              <input type="tel"
+                     id="orange-whatsapp"
+                     name="whatsapp"
+                     placeholder="+237 6XX XXX XXX"
+                     required />
             </div>
 
-            <div class="form-group">
-              <label for="orange-whatsapp">Votre numéro WhatsApp :</label>
-              <input type="text" id="orange-whatsapp" name="whatsapp" placeholder="+237 6XX XXX XXX" required />
-            </div>
+            <!-- Champ caché : User ID Firebase -->
+            <input type="hidden" name="userId" id="orange-userId" />
 
             <div class="form-group">
               <label for="orange-screenshot">Preuve de dépôt :</label>
-              <input type="file" id="orange-screenshot" name="proof" accept="image/*" required aria-describedby="orange-remark" />
+              <input type="file"
+                     id="orange-screenshot"
+                     name="proof"
+                     accept="image/*"
+                     required
+                     aria-describedby="orange-remark" />
             </div>
 
             <button type="submit" class="btn">Envoyer preuve Orange Money</button>
@@ -185,7 +201,32 @@
     </div>
   </main>
 
-  <!-- Script : envoi des preuves vers ton backend Replit -->
+  <!-- Firebase Auth pour injecter userId -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.firebasestorage.app",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
+      measurementId: "G-JJXPNN90V1"
+    };
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        document.getElementById('mtn-userId').value    = user.uid;
+        document.getElementById('orange-userId').value = user.uid;
+      }
+    });
+  </script>
+
+  <!-- Envoi vers ton backend Replit -->
   <script>
     const backendUrl = "https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev/upload";
 
@@ -193,12 +234,8 @@
       form.addEventListener('submit', async e => {
         e.preventDefault();
         const fd = new FormData(form);
-
         try {
-          const res = await fetch(backendUrl, {
-            method: 'POST',
-            body: fd
-          });
+          const res = await fetch(backendUrl, { method: 'POST', body: fd });
           const data = await res.json();
           if (data.success) {
             alert(`Succès ! Montant traité : ${data.montant} FCFA`);
