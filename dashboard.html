@@ -94,9 +94,6 @@
     .btn:hover {
       background-color: #0056b3;
     }
-    @media (max-width: 768px) {
-      .card { width: 100%; }
-    }
 
     /* Pied de page pour déconnexion */
     .footer {
@@ -117,6 +114,10 @@
     #logoutBtn:hover {
       background: #c82333;
     }
+
+    @media (max-width: 768px) {
+      .card { width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -132,7 +133,7 @@
     <button id="quickDeposit" title="Déposer des fonds">➕</button>
   </div>
 
-  <!-- 3) Cartes -->
+  <!-- 3) Cartes d’origine -->
   <div class="container">
     <div class="card">
       <h2>Booster tes réseaux</h2>
@@ -185,36 +186,42 @@
     const db   = firebase.firestore();
 
     // Éléments DOM
-    const welcomeEl     = document.getElementById('welcome');
-    const balanceEl     = document.getElementById('balance');
-    const quickDeposit  = document.getElementById('quickDeposit');
-    const logoutBtn     = document.getElementById('logoutBtn');
+    const welcomeEl    = document.getElementById('welcome');
+    const balanceEl    = document.getElementById('balance');
+    const quickDeposit = document.getElementById('quickDeposit');
+    const logoutBtn    = document.getElementById('logoutBtn');
 
-    // Auth et affichage données
-    auth.onAuthStateChanged(async user => {
+    // Auth et écoute temps réel
+    auth.onAuthStateChanged(user => {
       if (!user) {
         window.location.href = 'login.html';
         return;
       }
-      // Récupération du profil et solde
-      const docSnap = await db.collection('users').doc(user.uid).get();
-      const data   = docSnap.data() || {};
-      welcomeEl.textContent = `Bienvenue sur ton tableau de bord, ${data.username || ''}`;
-      const solde = data.solde || 0;
-      balanceEl.textContent = `Solde : ${solde} XAF`;
+
+      // Affiche le nom une seule fois
+      db.collection('users').doc(user.uid)
+        .get()
+        .then(docSnap => {
+          const data = docSnap.data() || {};
+          welcomeEl.textContent = `Bienvenue ${data.username || ''}`;
+        });
+
+      // Met à jour le solde en temps réel
+      db.collection('users').doc(user.uid)
+        .onSnapshot(docSnap => {
+          const data    = docSnap.data() || {};
+          const montant = data.balance ?? 0;
+          balanceEl.textContent = `Solde : ${montant} XAF`;
+        });
     });
 
-    // Dépôt rapide
+    // Gestion des boutons
     quickDeposit.addEventListener('click', () => {
       window.location.href = 'depot.html';
     });
-
-    // Déconnexion avec confirmation
     logoutBtn.addEventListener('click', () => {
-      if (confirm("Voulez‑vous vraiment vous déconnecter ?")) {
-        auth.signOut().then(() => {
-          window.location.href = 'login.html';
-        });
+      if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+        auth.signOut().then(() => window.location.href = 'login.html');
       }
     });
   </script>
