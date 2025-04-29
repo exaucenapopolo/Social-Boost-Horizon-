@@ -8,21 +8,21 @@
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&display=swap" rel="stylesheet">
   <!-- Font Awesome for icons -->
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">  [oai_citation_attribution:8‡Font Awesome Docs](https://docs.fontawesome.com/web/add-icons/how-to?utm_source=chatgpt.com)
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <!-- AOS CSS -->
-  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>  [oai_citation_attribution:9‡michalsnik.github.io](https://michalsnik.github.io/aos/?utm_source=chatgpt.com)
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>
 
   <style>
     :root {
-      --blue:        #004080;
-      --green:       #28a745;
-      --bg-pastel:   #F0F8F4;
-      --text-dark:   #212121;
-      --card-border: var(--blue);
-      --btn-green:   #28a745;
+      --blue:            #004080;
+      --green:           #28a745;
+      --bg-pastel:       #F0F8F4;
+      --text-dark:       #212121;
+      --card-border:     var(--blue);
+      --btn-green:       #28a745;
       --btn-green-hover: #218838;
-      --btn-red:     #dc3545;
-      --btn-red-hover:#c82333;
+      --btn-red:         #dc3545;
+      --btn-red-hover:   #c82333;
     }
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
@@ -109,9 +109,9 @@
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
   <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
   <script>
-    AOS.init({ duration: 500, once: true });  [oai_citation_attribution:10‡michalsnik.github.io](https://michalsnik.github.io/aos/?utm_source=chatgpt.com)
+    AOS.init({ duration: 500, once: true });
 
-    // --- 1) Configuration Firebase importée du dashboard.html ---
+    // Configuration Firebase récupérée du dashboard
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -119,9 +119,8 @@
       storageBucket: "social-boost-horizon.firebasestorage.app",
       messagingSenderId: "43658165639",
       appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
-    };  [oai_citation_attribution:11‡Firebase](https://firebase.google.com/docs/web/setup?utm_source=chatgpt.com)
-
-    firebase.initializeApp(firebaseConfig);  [oai_citation_attribution:12‡Firebase](https://firebase.google.com/docs/web/alt-setup?utm_source=chatgpt.com)
+    };
+    firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth(), db = firebase.firestore();
 
     let initialized = false;
@@ -129,59 +128,52 @@
       if (!initialized) {
         initialized = true;
         if (!user) {
-          window.location.href = 'login.html'; 
+          window.location.href = 'login.html';
           return;
         }
         document.getElementById('displayName').value = user.displayName || '';
         document.getElementById('email').value       = user.email || '';
         document.getElementById('password').value    = '••••••••';
-        db.collection('users').doc(user.uid).get()  
-          .then(doc => {
-            document.getElementById('phone').value = doc.data()?.phone || '';
-          });  [oai_citation_attribution:13‡Google Cloud](https://cloud.google.com/firestore/docs/samples/firestore-data-set-doc-upsert?utm_source=chatgpt.com)
+        db.collection('users').doc(user.uid).get()
+          .then(doc => document.getElementById('phone').value = doc.data()?.phone || '');
       }
     });
 
-    const editBtn   = document.getElementById('editBtn'),
-          saveBtn   = document.getElementById('saveBtn'),
-          logoutBtn = document.getElementById('logoutBtn'),
-          form      = document.getElementById('profileForm');
-
-    editBtn.addEventListener('click', () => {
+    document.getElementById('editBtn').addEventListener('click', () => {
       ['displayName','email','phone','password'].forEach(id => {
         document.getElementById(id).readOnly = false;
       });
-      editBtn.style.display = 'none';
-      saveBtn.style.display = 'inline-block';
+      document.getElementById('editBtn').style.display = 'none';
+      document.getElementById('saveBtn').style.display = 'inline-block';
     });
 
-    form.addEventListener('submit', e => {
+    document.getElementById('profileForm').addEventListener('submit', e => {
       e.preventDefault();
       const user = auth.currentUser;
-      const updates = [];
       const dn = document.getElementById('displayName').value;
       const em = document.getElementById('email').value;
       const pw = document.getElementById('password').value;
       const ph = document.getElementById('phone').value;
+      const updates = [];
 
-      if (dn && dn !== user.displayName) updates.push(user.updateProfile({ displayName: dn }));  [oai_citation_attribution:14‡Stack Overflow](https://stackoverflow.com/questions/50000630/how-to-update-user-profile-in-firebase?utm_source=chatgpt.com)
-      if (em && em !== user.email)           updates.push(user.updateEmail(em));                [oai_citation_attribution:15‡Stack Overflow](https://stackoverflow.com/questions/39909964/how-to-change-email-in-firebase-auth?utm_source=chatgpt.com)
-      if (pw && pw !== '••••••••')           updates.push(user.updatePassword(pw));             [oai_citation_attribution:16‡GeeksforGeeks](https://www.geeksforgeeks.org/how-to-update-user-password-in-firebase-and-web/?utm_source=chatgpt.com)
-      updates.push(db.collection('users').doc(user.uid).set({ phone: ph }, { merge: true }));   [oai_citation_attribution:17‡Google Cloud](https://cloud.google.com/firestore/docs/samples/firestore-data-set-doc-upsert?utm_source=chatgpt.com)
+      if (dn && dn !== user.displayName) updates.push(user.updateProfile({ displayName: dn }));
+      if (em && em !== user.email)       updates.push(user.updateEmail(em));
+      if (pw && pw !== '••••••••')       updates.push(user.updatePassword(pw));
+      updates.push(db.collection('users').doc(user.uid).set({ phone: ph }, { merge: true }));
 
       Promise.all(updates)
         .then(() => {
-          alert('Profil mis à jour !'); 
+          alert('Profil mis à jour !');
           ['displayName','email','phone','password'].forEach(id => {
             document.getElementById(id).readOnly = true;
           });
-          saveBtn.style.display = 'none';
-          editBtn.style.display = 'inline-block';
+          document.getElementById('saveBtn').style.display = 'none';
+          document.getElementById('editBtn').style.display = 'inline-block';
         })
-        .catch(err => alert('Erreur : '+ err.message));
+        .catch(err => alert('Erreur : ' + err.message));
     });
 
-    logoutBtn.addEventListener('click', () => {
+    document.getElementById('logoutBtn').addEventListener('click', () => {
       if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
         auth.signOut().then(() => window.location.href = 'login.html');
       }
