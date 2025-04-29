@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Profil – Social Boost Horizon</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&display=swap" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- AOS CSS -->
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>
+
+  <style>
+    :root {
+      --blue:        #004080;
+      --green:       #28a745;
+      --bg-pastel:   #F0F8F4;
+      --text-dark:   #212121;
+      --card-border: var(--blue);
+      --btn-green:   #28a745;
+      --btn-green-hover: #218838;
+      --btn-red:     #dc3545;
+      --btn-red-hover:#c82333;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: var(--bg-pastel);
+      color: var(--text-dark);
+    }
+    .header {
+      background: linear-gradient(45deg, var(--blue), #6a0dad);
+      padding: 12px 20px; text-align: center;
+    }
+    .header h1 { color:#fff; font-size:1.4rem; }
+
+    .container {
+      max-width:600px; margin:20px auto; background:#fff;
+      border:2px solid var(--card-border); border-radius:8px;
+      padding:20px; box-shadow:0 4px 10px rgba(0,0,0,0.1);
+      animation: fadeIn 0.5s ease;
+    }
+    @keyframes fadeIn { from {opacity:0; transform:translateY(20px);} to{opacity:1;transform:translateY(0);} }
+
+    .field {
+      margin-bottom:15px;
+    }
+    .field label {
+      display:flex; align-items:center; font-weight:500; margin-bottom:5px;
+    }
+    .field label i {
+      color: var(--green); margin-right:8px;
+    }
+    .field input {
+      width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;
+      font-size:1rem;
+    }
+    .field input[readonly] { background:#eee; }
+
+    .buttons {
+      display:flex; justify-content: space-between; margin-top:20px;
+    }
+    .btn-save {
+      background: var(--btn-green); color:#fff; border:none; padding:10px 20px;
+      border-radius:6px; cursor:pointer; transition:background 0.3s;
+    }
+    .btn-save:hover { background: var(--btn-green-hover); }
+
+    .btn-logout {
+      background: var(--btn-red); color:#fff; border:none; padding:10px 20px;
+      border-radius:6px; cursor:pointer; transition:background 0.3s;
+    }
+    .btn-logout:hover { background: var(--btn-red-hover); }
+  </style>
+</head>
+<body>
+
+  <div class="header" data-aos="fade-down">
+    <h1>Mon Profil</h1>
+  </div>
+
+  <div class="container" data-aos="fade-up">
+    <form id="profileForm">
+      <div class="field">
+        <label><i class="fas fa-user"></i> Nom d’utilisateur</label>
+        <input type="text" id="displayName" readonly />
+      </div>
+      <div class="field">
+        <label><i class="fas fa-envelope"></i> Adresse e-mail</label>
+        <input type="email" id="email" readonly />
+      </div>
+      <div class="field">
+        <label><i class="fas fa-phone"></i> Téléphone</label>
+        <input type="tel" id="phone" readonly />
+      </div>
+      <div class="field">
+        <label><i class="fas fa-lock"></i> Mot de passe</label>
+        <input type="password" id="password" placeholder="••••••••" readonly />
+      </div>
+
+      <div class="buttons">
+        <button type="button" id="editBtn" class="btn-save">Modifier</button>
+        <button type="submit" id="saveBtn" class="btn-save" style="display:none;">Enregistrer</button>
+        <button type="button" id="logoutBtn" class="btn-logout">Déconnexion</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Firebase & AOS JS -->
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+  <script>
+    AOS.init({ duration: 500, once: true });
+
+    // Config Firebase (identique aux autres pages)
+    const firebaseConfig = {
+      apiKey: "…", authDomain: "…", projectId: "…", /* etc. */
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth(), db = firebase.firestore();
+
+    // Élément DOM
+    const form = document.getElementById('profileForm'),
+          displayNameInput = document.getElementById('displayName'),
+          emailInput       = document.getElementById('email'),
+          phoneInput       = document.getElementById('phone'),
+          passwordInput    = document.getElementById('password'),
+          editBtn          = document.getElementById('editBtn'),
+          saveBtn          = document.getElementById('saveBtn'),
+          logoutBtn        = document.getElementById('logoutBtn');
+
+    let currentUser;
+
+    // Charge les données utilisateur
+    auth.onAuthStateChanged(user => {
+      if (!user) return window.location.href = 'login.html';
+      currentUser = user;
+      displayNameInput.value = user.displayName || '';
+      emailInput.value       = user.email || '';
+
+      // Téléphone depuis Firestore  [oai_citation_attribution:0‡Firebase](https://firebase.google.com/docs/auth/web/manage-users?utm_source=chatgpt.com)
+      db.collection('users').doc(user.uid).get().then(doc => {
+        phoneInput.value = doc.data()?.phone || '';
+      });
+
+      // Placeholder mot de passe
+      passwordInput.value = '••••••••';
+    });
+
+    // Mode édition
+    editBtn.addEventListener('click', () => {
+      [displayNameInput, emailInput, phoneInput, passwordInput].forEach(i => i.readOnly = false);
+      saveBtn.style.display = 'inline-block';
+      editBtn.style.display = 'none';
+    });
+
+    // Sauvegarde des changements  [oai_citation_attribution:1‡Code.Build 💻](https://code.build/p/how-to-update-a-user-profile-in-firebase-jp6P3K?utm_source=chatgpt.com)
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const promises = [];
+
+      // Update displayName
+      if (displayNameInput.value !== currentUser.displayName) {
+        promises.push(currentUser.updateProfile({ displayName: displayNameInput.value }));
+      }
+      // Update email  [oai_citation_attribution:2‡Firebase](https://firebase.google.com/docs/auth/android/manage-users?utm_source=chatgpt.com)
+      if (emailInput.value !== currentUser.email) {
+        promises.push(currentUser.updateEmail(emailInput.value));
+      }
+      // Update password
+      if (passwordInput.value && passwordInput.value !== '••••••••') {
+        promises.push(currentUser.updatePassword(passwordInput.value));
+      }
+      // Update phone in Firestore
+      promises.push(
+        db.collection('users').doc(currentUser.uid).set({ phone: phoneInput.value }, { merge: true })
+      );
+
+      Promise.all(promises)
+        .then(() => {
+          alert('Profil mis à jour !'); 
+          [displayNameInput, emailInput, phoneInput, passwordInput].forEach(i => i.readOnly = true);
+          saveBtn.style.display = 'none'; editBtn.style.display = 'inline-block';
+        })
+        .catch(err => alert('Erreur : '+err.message));
+    });
+
+    // Déconnexion
+    logoutBtn.addEventListener('click', () => {
+      if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+        auth.signOut().then(() => window.location.href = 'login.html');
+      }
+    });
+  </script>
+</body>
+</html>
