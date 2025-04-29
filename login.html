@@ -4,43 +4,63 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Connexion – Social Boost Horizon</title>
-  <!-- Font Awesome pour les icônes -->  
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"> <!--  [oai_citation_attribution:0‡Font Awesome Docs](https://docs.fontawesome.com/web/add-icons/how-to?utm_source=chatgpt.com) -->
+  <!-- Font Awesome pour les icônes -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- AOS pour les animations au scroll -->
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>
+
   <style>
-    body {
+    :root {
+      --bg-dark-green:  #a3c1a3;   /* fond un peu sombre vert clair */
+      --blue:           #004080;
+      --green:          #28a745;
+      --green-hover:    #218838;
+      --text-dark:      #333;
+    }
+
+    * {
+      box-sizing: border-box;
       margin: 0;
+      padding: 0;
+    }
+
+    body {
       font-family: Arial, sans-serif;
-      background: #F0F8F4; /* pastel vert clair  [oai_citation_attribution:1‡Figma](https://www.figma.com/colors/pastel-green/?utm_source=chatgpt.com) */
-      color: #333;
+      background: var(--bg-dark-green);
+      color: var(--text-dark);
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
     }
+
     .card {
-      background: white;
-      color: #333;
+      background: #fff;
+      color: var(--text-dark);
       padding: 30px;
       border-radius: 10px;
       width: 100%;
       max-width: 400px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
+
     h2 {
       text-align: center;
-      color: #004080;
+      color: var(--blue);
       margin-bottom: 20px;
+      font-family: 'Montserrat', sans-serif;
     }
+
     label {
       display: block;
       margin: 10px 0 5px;
       font-weight: 600;
     }
-    /* icônes vertes devant chaque label */  
     label i {
-      color: #28a745; /* vert  */
+      color: var(--green);
       margin-right: 8px;
     }
+
     input {
       width: 100%;
       padding: 10px;
@@ -49,11 +69,12 @@
       margin-bottom: 10px;
       font-size: 1rem;
     }
+
     button {
       width: 100%;
       padding: 12px;
-      background: #007bff;
-      color: white;
+      background: var(--green);
+      color: #fff;
       border: none;
       border-radius: 5px;
       cursor: pointer;
@@ -61,28 +82,42 @@
       transition: background 0.3s;
     }
     button:hover {
-      background: #0056b3;
+      background: var(--green-hover);
     }
+
     .error {
       color: red;
       margin-top: 10px;
       font-size: 0.9rem;
     }
+
     .link {
       text-align: center;
       margin-top: 12px;
+      font-size: 0.9rem;
     }
     .link a {
-      color: #007bff;
+      color: var(--blue);
       text-decoration: none;
     }
     .link a:hover {
       text-decoration: underline;
     }
+
+    footer {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      text-align: center;
+      padding: 10px 0;
+      background: #000;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
-  <div class="card">
+
+  <div class="card" data-aos="fade-up">
     <h2>Connexion</h2>
     <form id="loginForm">
       <label for="email"><i class="fas fa-envelope"></i>Email</label>
@@ -94,14 +129,36 @@
       <button type="submit">Se connecter</button>
       <div class="error" id="errorMsg"></div>
     </form>
+
     <div class="link">
       Pas encore de compte ? <a href="register.html"><i class="fas fa-user-plus"></i> Créer un compte</a>
     </div>
   </div>
 
+  <footer>
+    Social Boost Horizon – Tous droits réservés ©2025 | Mč Exau
+    <br>
+    <button id="logoutBtn" style="
+      margin-top: 8px;
+      background: #dc3545;
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      cursor: pointer;
+    ">Déconnexion</button>
+  </footer>
+
+  <!-- Firebase SDK (inchangé) -->
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
+  <!-- AOS JS -->
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+
   <script>
+    AOS.init({ duration: 600, once: true });
+
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -122,7 +179,6 @@
 
       try {
         await auth.signInWithEmailAndPassword(email, password);
-        alert("Connexion réussie !");
         window.location.href = "dashboard.html";
       } catch (error) {
         if (error.code === 'auth/user-not-found') {
@@ -135,6 +191,10 @@
           errEl.textContent = "Erreur : " + error.message;
         }
       }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      auth.signOut().then(() => window.location.href='login.html');
     });
   </script>
 </body>
