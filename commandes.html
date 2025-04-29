@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mes commandes – Social Boost Horizon</title>
+
+  <!-- Google Fonts Poppins -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap"
+        rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg-page: #e0e7ff;
+      --header-bg: #004080;
+      --card-bg: #fff;
+      --btn-bg: #007bff;
+      --btn-hover: #0056b3;
+      --font-family: 'Poppins', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-family);
+      background: var(--bg-page);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    /* Header */
+    .header {
+      background: var(--header-bg);
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 1.8rem;
+    }
+    /* Main container */
+    .container {
+      flex: 1;
+      max-width: 900px;
+      margin: 20px auto;
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    h2 {
+      margin-bottom: 1rem;
+      color: var(--header-bg);
+    }
+    /* Table styles */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+    th {
+      background: #f0f4ff;
+      font-weight: 600;
+    }
+    tr:nth-child(even) {
+      background: #fafbff;
+    }
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 12px;
+      background: var(--card-bg);
+      box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+    }
+    .btn-refresh {
+      background: var(--btn-bg);
+      color: #fff;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+      margin-top: 1rem;
+    }
+    .btn-refresh:hover {
+      background: var(--btn-hover);
+    }
+    /* Responsive */
+    @media (max-width: 600px) {
+      th, td { font-size: 0.9rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <h1>Mes commandes</h1>
+  </div>
+
+  <!-- Contenu -->
+  <main class="container">
+    <h2>Historique de vos commandes</h2>
+    <button class="btn-refresh" id="refreshBtn">↻ Rafraîchir</button>
+    <table id="ordersTable">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Plateforme</th>
+          <th>Service</th>
+          <th>Quantité</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Les lignes seront injectées ici par JavaScript -->
+      </tbody>
+    </table>
+  </main>
+
+  <!-- Footer -->
+  <div class="footer">
+    © 2025 Social Boost Horizon
+  </div>
+
+  <!-- Firebase Auth -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.firebasestorage.app",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
+      measurementId: "G-JJXPNN90V1"
+    };
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    let currentUserId = null;
+    onAuthStateChanged(auth, user => {
+      if (!user) {
+        window.location.href = 'login.html';
+      } else {
+        currentUserId = user.uid;
+        fetchOrders();
+      }
+    });
+
+    // URL de base de votre backend Replit
+    const BACKEND_BASE = "https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev:5000";
+
+    // Récupère et affiche les commandes
+    async function fetchOrders() {
+      if (!currentUserId) return;
+      const tbody = document.querySelector('#ordersTable tbody');
+      tbody.innerHTML = '<tr><td colspan="5">Chargement…</td></tr>';
+      try {
+        const res = await fetch(`${BACKEND_BASE}/users/${currentUserId}/orders`);
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Erreur inconnue');
+        const orders = json.orders;
+        if (orders.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5">Aucune commande pour le moment.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = orders.map(o => `
+          <tr>
+            <td>${new Date(o.createdAt).toLocaleLocaleString('fr-FR')}</td>
+            <td>${o.platform}</td>
+            <td>${o.service}</td>
+            <td>${o.quantity}</td>
+            <td>${o.status}</td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+        tbody.innerHTML = `<tr><td colspan="5">Erreur lors du chargement : ${err.message}</td></tr>`;
+      }
+    }
+
+    // Bouton rafraîchir
+    document.getElementById('refreshBtn').addEventListener('click', fetchOrders);
+  </script>
+</body>
+</html>
