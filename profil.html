@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Profil – Social Boost Horizon</title>
 
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&display=swap" rel="stylesheet">
-  <!-- Font Awesome -->
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- Font Awesome for icons -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">  [oai_citation_attribution:8‡Font Awesome Docs](https://docs.fontawesome.com/web/add-icons/how-to?utm_source=chatgpt.com)
   <!-- AOS CSS -->
-  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>  [oai_citation_attribution:9‡michalsnik.github.io](https://michalsnik.github.io/aos/?utm_source=chatgpt.com)
 
   <style>
     :root {
@@ -42,35 +42,30 @@
       padding:20px; box-shadow:0 4px 10px rgba(0,0,0,0.1);
       animation: fadeIn 0.5s ease;
     }
-    @keyframes fadeIn { from {opacity:0; transform:translateY(20px);} to{opacity:1;transform:translateY(0);} }
+    @keyframes fadeIn { from {opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);} }
 
-    .field {
-      margin-bottom:15px;
-    }
+    .field { margin-bottom:15px; }
     .field label {
       display:flex; align-items:center; font-weight:500; margin-bottom:5px;
     }
-    .field label i {
-      color: var(--green); margin-right:8px;
-    }
+    .field label i { color: var(--green); margin-right:8px; }
     .field input {
-      width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;
-      font-size:1rem;
+      width:100%; padding:8px; border:1px solid #ccc;
+      border-radius:4px; font-size:1rem;
     }
     .field input[readonly] { background:#eee; }
 
-    .buttons {
-      display:flex; justify-content: space-between; margin-top:20px;
-    }
+    .buttons { display:flex; justify-content: space-between; margin-top:20px; }
     .btn-save {
-      background: var(--btn-green); color:#fff; border:none; padding:10px 20px;
-      border-radius:6px; cursor:pointer; transition:background 0.3s;
+      background: var(--btn-green); color:#fff; border:none;
+      padding:10px 20px; border-radius:6px; cursor:pointer;
+      transition: background 0.3s;
     }
     .btn-save:hover { background: var(--btn-green-hover); }
-
     .btn-logout {
-      background: var(--btn-red); color:#fff; border:none; padding:10px 20px;
-      border-radius:6px; cursor:pointer; transition:background 0.3s;
+      background: var(--btn-red); color:#fff; border:none;
+      padding:10px 20px; border-radius:6px; cursor:pointer;
+      transition: background 0.3s;
     }
     .btn-logout:hover { background: var(--btn-red-hover); }
   </style>
@@ -88,7 +83,7 @@
         <input type="text" id="displayName" readonly />
       </div>
       <div class="field">
-        <label><i class="fas fa-envelope"></i> Adresse e-mail</label>
+        <label><i class="fas fa-envelope"></i> E-mail</label>
         <input type="email" id="email" readonly />
       </div>
       <div class="field">
@@ -114,82 +109,78 @@
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
   <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
   <script>
-    AOS.init({ duration: 500, once: true });
+    AOS.init({ duration: 500, once: true });  [oai_citation_attribution:10‡michalsnik.github.io](https://michalsnik.github.io/aos/?utm_source=chatgpt.com)
 
-    // Config Firebase (identique aux autres pages)
+    // --- 1) Configuration Firebase importée du dashboard.html ---
     const firebaseConfig = {
-      apiKey: "…", authDomain: "…", projectId: "…", /* etc. */
-    };
-    firebase.initializeApp(firebaseConfig);
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.firebasestorage.app",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+    };  [oai_citation_attribution:11‡Firebase](https://firebase.google.com/docs/web/setup?utm_source=chatgpt.com)
+
+    firebase.initializeApp(firebaseConfig);  [oai_citation_attribution:12‡Firebase](https://firebase.google.com/docs/web/alt-setup?utm_source=chatgpt.com)
     const auth = firebase.auth(), db = firebase.firestore();
 
-    // Élément DOM
-    const form = document.getElementById('profileForm'),
-          displayNameInput = document.getElementById('displayName'),
-          emailInput       = document.getElementById('email'),
-          phoneInput       = document.getElementById('phone'),
-          passwordInput    = document.getElementById('password'),
-          editBtn          = document.getElementById('editBtn'),
-          saveBtn          = document.getElementById('saveBtn'),
-          logoutBtn        = document.getElementById('logoutBtn');
-
-    let currentUser;
-
-    // Charge les données utilisateur
+    let initialized = false;
     auth.onAuthStateChanged(user => {
-      if (!user) return window.location.href = 'login.html';
-      currentUser = user;
-      displayNameInput.value = user.displayName || '';
-      emailInput.value       = user.email || '';
-
-      // Téléphone depuis Firestore  [oai_citation_attribution:0‡Firebase](https://firebase.google.com/docs/auth/web/manage-users?utm_source=chatgpt.com)
-      db.collection('users').doc(user.uid).get().then(doc => {
-        phoneInput.value = doc.data()?.phone || '';
-      });
-
-      // Placeholder mot de passe
-      passwordInput.value = '••••••••';
+      if (!initialized) {
+        initialized = true;
+        if (!user) {
+          window.location.href = 'login.html'; 
+          return;
+        }
+        document.getElementById('displayName').value = user.displayName || '';
+        document.getElementById('email').value       = user.email || '';
+        document.getElementById('password').value    = '••••••••';
+        db.collection('users').doc(user.uid).get()  
+          .then(doc => {
+            document.getElementById('phone').value = doc.data()?.phone || '';
+          });  [oai_citation_attribution:13‡Google Cloud](https://cloud.google.com/firestore/docs/samples/firestore-data-set-doc-upsert?utm_source=chatgpt.com)
+      }
     });
 
-    // Mode édition
+    const editBtn   = document.getElementById('editBtn'),
+          saveBtn   = document.getElementById('saveBtn'),
+          logoutBtn = document.getElementById('logoutBtn'),
+          form      = document.getElementById('profileForm');
+
     editBtn.addEventListener('click', () => {
-      [displayNameInput, emailInput, phoneInput, passwordInput].forEach(i => i.readOnly = false);
-      saveBtn.style.display = 'inline-block';
+      ['displayName','email','phone','password'].forEach(id => {
+        document.getElementById(id).readOnly = false;
+      });
       editBtn.style.display = 'none';
+      saveBtn.style.display = 'inline-block';
     });
 
-    // Sauvegarde des changements  [oai_citation_attribution:1‡Code.Build 💻](https://code.build/p/how-to-update-a-user-profile-in-firebase-jp6P3K?utm_source=chatgpt.com)
     form.addEventListener('submit', e => {
       e.preventDefault();
-      const promises = [];
+      const user = auth.currentUser;
+      const updates = [];
+      const dn = document.getElementById('displayName').value;
+      const em = document.getElementById('email').value;
+      const pw = document.getElementById('password').value;
+      const ph = document.getElementById('phone').value;
 
-      // Update displayName
-      if (displayNameInput.value !== currentUser.displayName) {
-        promises.push(currentUser.updateProfile({ displayName: displayNameInput.value }));
-      }
-      // Update email  [oai_citation_attribution:2‡Firebase](https://firebase.google.com/docs/auth/android/manage-users?utm_source=chatgpt.com)
-      if (emailInput.value !== currentUser.email) {
-        promises.push(currentUser.updateEmail(emailInput.value));
-      }
-      // Update password
-      if (passwordInput.value && passwordInput.value !== '••••••••') {
-        promises.push(currentUser.updatePassword(passwordInput.value));
-      }
-      // Update phone in Firestore
-      promises.push(
-        db.collection('users').doc(currentUser.uid).set({ phone: phoneInput.value }, { merge: true })
-      );
+      if (dn && dn !== user.displayName) updates.push(user.updateProfile({ displayName: dn }));  [oai_citation_attribution:14‡Stack Overflow](https://stackoverflow.com/questions/50000630/how-to-update-user-profile-in-firebase?utm_source=chatgpt.com)
+      if (em && em !== user.email)           updates.push(user.updateEmail(em));                [oai_citation_attribution:15‡Stack Overflow](https://stackoverflow.com/questions/39909964/how-to-change-email-in-firebase-auth?utm_source=chatgpt.com)
+      if (pw && pw !== '••••••••')           updates.push(user.updatePassword(pw));             [oai_citation_attribution:16‡GeeksforGeeks](https://www.geeksforgeeks.org/how-to-update-user-password-in-firebase-and-web/?utm_source=chatgpt.com)
+      updates.push(db.collection('users').doc(user.uid).set({ phone: ph }, { merge: true }));   [oai_citation_attribution:17‡Google Cloud](https://cloud.google.com/firestore/docs/samples/firestore-data-set-doc-upsert?utm_source=chatgpt.com)
 
-      Promise.all(promises)
+      Promise.all(updates)
         .then(() => {
           alert('Profil mis à jour !'); 
-          [displayNameInput, emailInput, phoneInput, passwordInput].forEach(i => i.readOnly = true);
-          saveBtn.style.display = 'none'; editBtn.style.display = 'inline-block';
+          ['displayName','email','phone','password'].forEach(id => {
+            document.getElementById(id).readOnly = true;
+          });
+          saveBtn.style.display = 'none';
+          editBtn.style.display = 'inline-block';
         })
-        .catch(err => alert('Erreur : '+err.message));
+        .catch(err => alert('Erreur : '+ err.message));
     });
 
-    // Déconnexion
     logoutBtn.addEventListener('click', () => {
       if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
         auth.signOut().then(() => window.location.href = 'login.html');
