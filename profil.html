@@ -5,11 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Profil – Social Boost Horizon</title>
 
-  <!-- Google Fonts -->
+  <!-- Google Fonts & Font Awesome & AOS -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&display=swap" rel="stylesheet">
-  <!-- Font Awesome for icons -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <!-- AOS CSS -->
   <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>
 
   <style>
@@ -44,7 +42,7 @@
     }
     @keyframes fadeIn { from {opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);} }
 
-    .field { margin-bottom:15px; }
+    .field { margin-bottom:15px; position: relative; }
     .field label {
       display:flex; align-items:center; font-weight:500; margin-bottom:5px;
     }
@@ -54,6 +52,12 @@
       border-radius:4px; font-size:1rem;
     }
     .field input[readonly] { background:#eee; }
+
+    /* Toggle œil */
+    .toggle-password {
+      position: absolute; top: 38px; right: 10px;
+      cursor: pointer; color: #777;
+    }
 
     .buttons { display:flex; justify-content: space-between; margin-top:20px; }
     .btn-save {
@@ -68,6 +72,11 @@
       transition: background 0.3s;
     }
     .btn-logout:hover { background: var(--btn-red-hover); }
+
+    /* Remarque */
+    .note {
+      font-size:0.85rem; color:#a00; margin-top:15px;
+    }
   </style>
 </head>
 <body>
@@ -93,6 +102,7 @@
       <div class="field">
         <label><i class="fas fa-lock"></i> Mot de passe</label>
         <input type="password" id="password" placeholder="••••••••" readonly />
+        <i class="fas fa-eye toggle-password" id="togglePassword"></i>
       </div>
 
       <div class="buttons">
@@ -100,6 +110,10 @@
         <button type="submit" id="saveBtn" class="btn-save" style="display:none;">Enregistrer</button>
         <button type="button" id="logoutBtn" class="btn-logout">Déconnexion</button>
       </div>
+
+      <p class="note">
+        ⚠️ Veuillez conserver votre mot de passe en lieu sûr : si vous l’oubliez, vous risquez de perdre définitivement l’accès à votre compte.  
+      </p>
     </form>
   </div>
 
@@ -111,7 +125,7 @@
   <script>
     AOS.init({ duration: 500, once: true });
 
-    // Configuration Firebase récupérée du dashboard
+    // Configuration Firebase (depuis dashboard.html)
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -139,6 +153,14 @@
       }
     });
 
+    // Toggle visibilité mot de passe
+    document.getElementById('togglePassword').addEventListener('click', function(){
+      const pwd = document.getElementById('password');
+      const type = pwd.getAttribute('type') === 'password' ? 'text' : 'password';
+      pwd.setAttribute('type', type);
+      this.classList.toggle('fa-eye-slash');
+    });
+
     document.getElementById('editBtn').addEventListener('click', () => {
       ['displayName','email','phone','password'].forEach(id => {
         document.getElementById(id).readOnly = false;
@@ -156,10 +178,10 @@
       const ph = document.getElementById('phone').value;
       const updates = [];
 
-      if (dn && dn !== user.displayName) updates.push(user.updateProfile({ displayName: dn }));
-      if (em && em !== user.email)       updates.push(user.updateEmail(em));
-      if (pw && pw !== '••••••••')       updates.push(user.updatePassword(pw));
-      updates.push(db.collection('users').doc(user.uid).set({ phone: ph }, { merge: true }));
+      if (dn && dn !== user.displayName) updates.push(user.updateProfile({ displayName: dn }));  
+      if (em && em !== user.email)       updates.push(user.updateEmail(em));                   
+      if (pw && pw !== '••••••••')       updates.push(user.updatePassword(pw));               
+      updates.push(db.collection('users').doc(user.uid).set({ phone: ph }, { merge: true }));  
 
       Promise.all(updates)
         .then(() => {
