@@ -26,18 +26,13 @@
       display: flex;
       flex-direction: column;
     }
-    /* Header */
     .header {
       background: var(--header-bg);
       color: #fff;
       padding: 20px;
       text-align: center;
     }
-    .header h1 {
-      margin: 0;
-      font-size: 1.8rem;
-    }
-    /* Main container */
+    .header h1 { margin: 0; font-size: 1.8rem; }
     .container {
       flex: 1;
       max-width: 900px;
@@ -47,11 +42,7 @@
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
-    h2 {
-      margin-bottom: 1rem;
-      color: var(--header-bg);
-    }
-    /* Table styles */
+    h2 { margin-bottom: 1rem; color: var(--header-bg); }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -61,14 +52,8 @@
       border: 1px solid #ddd;
       text-align: left;
     }
-    th {
-      background: #f0f4ff;
-      font-weight: 600;
-    }
-    tr:nth-child(even) {
-      background: #fafbff;
-    }
-    /* Footer */
+    th { background: #f0f4ff; font-weight: 600; }
+    tr:nth-child(even) { background: #fafbff; }
     .footer {
       text-align: center;
       padding: 12px;
@@ -83,25 +68,17 @@
       border-radius: 6px;
       cursor: pointer;
       font-size: 1rem;
-      margin-top: 1rem;
+      margin-bottom: 1rem;
     }
-    .btn-refresh:hover {
-      background: var(--btn-hover);
-    }
-    /* Responsive */
-    @media (max-width: 600px) {
-      th, td { font-size: 0.9rem; }
-    }
+    .btn-refresh:hover { background: var(--btn-hover); }
   </style>
 </head>
 <body>
 
-  <!-- Header -->
   <div class="header">
     <h1>Mes commandes</h1>
   </div>
 
-  <!-- Contenu -->
   <main class="container">
     <h2>Historique de vos commandes</h2>
     <button class="btn-refresh" id="refreshBtn">↻ Rafraîchir</button>
@@ -116,17 +93,16 @@
         </tr>
       </thead>
       <tbody>
-        <!-- Les lignes seront injectées ici par JavaScript -->
+        <!-- injecté par JS -->
       </tbody>
     </table>
   </main>
 
-  <!-- Footer -->
   <div class="footer">
     © 2025 Social Boost Horizon
   </div>
 
-  <!-- Firebase Auth & Firestore -->
+  <!-- Firebase Auth JS -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
@@ -144,49 +120,56 @@
     const auth = getAuth(app);
 
     let currentUserId = null;
+
     onAuthStateChanged(auth, user => {
-      if (!user) {
-        window.location.href = 'login.html';
-      } else {
-        currentUserId = user.uid;
-        fetchOrders();
-      }
+      if (!user) return window.location.href = 'login.html';
+      currentUserId = user.uid;
+      fetchOrders();
     });
 
-    // Base URL de votre backend Replit
+    // **URL EXACTE** exposée par Replit (sans port si Replit le proxifie)
     const BACKEND_BASE = "https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev";
 
-    // Récupère et affiche les commandes
     async function fetchOrders() {
       if (!currentUserId) return;
       const tbody = document.querySelector('#ordersTable tbody');
       tbody.innerHTML = '<tr><td colspan="5">Chargement…</td></tr>';
+
       try {
-        const res  = await fetch(`${BACKEND_BASE}/users/${currentUserId}/orders`);
+        // encodeURIComponent pour éviter tout caractère illégal dans l’URL
+        const res  = await fetch(
+          `${BACKEND_BASE}/users/${encodeURIComponent(currentUserId)}/orders`
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         if (!json.success) throw new Error(json.error || 'Erreur inconnue');
+
         const orders = json.orders;
-        if (orders.length === 0) {
+        if (!orders.length) {
           tbody.innerHTML = '<tr><td colspan="5">Aucune commande pour le moment.</td></tr>';
           return;
         }
+
         tbody.innerHTML = orders.map(o => `
           <tr>
             <td>${new Date(o.createdAt).toLocaleString('fr-FR')}</td>
             <td>${o.platform}</td>
             <td>${o.service}</td>
             <td>${o.quantity}</td>
-            <td>${o.status || 'En attente'}</td>
+            <td>${o.status}</td>
           </tr>
         `).join('');
+
       } catch (err) {
-        console.error(err);
-        tbody.innerHTML = `<tr><td colspan="5">Erreur lors du chargement : ${err.message}</td></tr>`;
+        console.error('Erreur fetchOrders():', err);
+        tbody.innerHTML = `<tr><td colspan="5">
+          Erreur lors du chargement : ${err.message}
+        </td></tr>`;
       }
     }
 
-    // Bouton rafraîchir
-    document.getElementById('refreshBtn').addEventListener('click', fetchOrders);
+    document.getElementById('refreshBtn')
+      .addEventListener('click', fetchOrders);
   </script>
 </body>
 </html>
