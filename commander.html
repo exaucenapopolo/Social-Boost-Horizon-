@@ -30,102 +30,69 @@
       font-size: 24px;
     }
     .platforms {
-      display: flex;
-      justify-content: center;
-      gap: 15px;
-      padding: 10px 0;
-      border-bottom: 1px solid #eee;
-      overflow-x: auto;
-      background: #fff;
+      display: flex; justify-content: center; gap: 15px;
+      padding: 10px 0; border-bottom: 1px solid #eee;
+      overflow-x: auto; background: #fff;
     }
     .platforms img {
-      width: 40px;
-      height: 40px;
-      cursor: pointer;
+      width: 40px; height: 40px; cursor: pointer;
       filter: brightness(0.7);
       transition: transform .2s, filter .2s, border-bottom .2s;
       border-bottom: 3px solid transparent;
     }
     .platforms img:hover {
-      transform: scale(1.1);
-      filter: brightness(0.9);
+      transform: scale(1.1); filter: brightness(0.9);
     }
     .platforms img.active {
-      filter: brightness(1);
-      border-bottom-color: var(--primary);
+      filter: brightness(1); border-bottom-color: var(--primary);
     }
     .content {
-      flex: 1;
-      max-width: 800px;
-      margin: 20px auto;
-      padding: 0 15px;
-      box-sizing: border-box;
+      flex: 1; max-width: 800px; margin: 20px auto;
+      padding: 0 15px; box-sizing: border-box;
     }
     .service-form {
-      display: none;
-      background: var(--bg-light);
-      padding: 25px;
-      border-radius: 8px;
+      display: none; background: var(--bg-light);
+      padding: 25px; border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
     .form-group { margin-bottom: 15px; }
     .form-group label {
-      display: block;
-      margin-bottom: 6px;
-      font-weight: bold;
+      display: block; margin-bottom: 6px; font-weight: bold;
     }
     .form-group select,
     .form-group input {
-      width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
+      width: 100%; padding: 12px; font-size: 16px;
+      border: 1px solid #ccc; border-radius: 5px;
       box-sizing: border-box;
     }
     .price-estimate {
-      color: green;
-      font-weight: bold;
-      font-size: 18px;
+      color: green; font-weight: bold; font-size: 18px;
       margin-top: 10px;
     }
     .time-estimate {
-      background: #e7f3ff;
-      padding: 10px;
-      margin-top: 10px;
-      border-radius: 4px;
-      font-weight: bold;
+      background: #e7f3ff; padding: 10px;
+      margin-top: 10px; border-radius: 4px; font-weight: bold;
     }
     .remark-box {
-      background: var(--bg-warning);
-      padding: 12px;
-      margin-top: 15px;
-      border-left: 5px solid var(--border-warning);
+      background: var(--bg-warning); padding: 12px;
+      margin-top: 15px; border-left: 5px solid var(--border-warning);
       font-size: 15px;
     }
     .contact-remark {
-      font-size: .9rem;
-      color: #555;
-      margin: -10px 0 15px;
+      font-size: .9rem; color: #555; margin: -10px 0 15px;
+    }
+    #orderErrorBox {
+      color: red; margin-bottom: 1rem;
     }
     .btn {
-      width: 100%;
-      padding: 15px;
-      background: var(--primary);
-      color: #fff;
-      font-size: 18px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      margin-top: 20px;
+      width: 100%; padding: 15px; background: var(--primary);
+      color: #fff; font-size: 18px; border: none;
+      border-radius: 6px; cursor: pointer; margin-top: 20px;
     }
     .btn:hover { background: var(--primary-hover); }
     footer {
-      background: #000;
-      color: #ddd;
-      text-align: center;
-      padding: 15px;
-      font-size: 14px;
+      background: #000; color: #ddd; text-align: center;
+      padding: 15px; font-size: 14px;
     }
   </style>
 </head>
@@ -187,6 +154,9 @@
       <div class="contact-remark">
         * Si vous choisissez l’email, utilisez celui de création de votre compte.
       </div>
+
+      <!-- Boîte d’erreur -->
+      <div id="orderErrorBox"></div>
 
       <div class="price-estimate" id="priceEstimate">Prix estimé : 0 FCFA</div>
       <div class="time-estimate"  id="timeEstimate">Temps de réalisation : 2 h</div>
@@ -255,7 +225,7 @@
         "Vues":                       { price:500,  time:"1 h", remark:"Entrez le lien de la vidéo à booster." },
         "Sauvegarde de vidéos":       { price:400,  time:"2 h", remark:"Vidéo publique requise pour sauvegarde." },
         "Partages de vidéos":         { price:350,  time:"2 h", remark:"Entrez le lien de la vidéo TikTok." },
-        "10 commentaires personnalisés":{price:500, time:"3 h", remark:"Envoyez les textes après commande."},
+        "10 commentaires personnalisés":{ price:500, time:"3 h", remark:"Envoyez les textes après commande." },
         "J’aime pour direct":         { price:450,  time:"2 h", remark:"Entrez le lien du live TikTok." }
       },
       telegram: {
@@ -287,6 +257,7 @@
     const contactType   = document.getElementById('contactType');
     const whatsappFld   = document.getElementById('whatsappField');
     const emailFld      = document.getElementById('emailField');
+    const errBox        = document.getElementById('orderErrorBox');
 
     icons.forEach(icon => {
       icon.addEventListener('click', () => {
@@ -345,13 +316,14 @@
 
     orderForm.addEventListener('submit', async e => {
       e.preventDefault();
+      errBox.textContent = '';
       const payload = {
         userId:   document.getElementById('userId').value,
         platform: selectedPlatform,
         service:  serviceSelect.value,
         link:     document.getElementById('linkInput').value,
         quantity: Number(qtyInput.value),
-        contactType,
+        contactType: contactType.value,
         contact:  contactType.value === 'whatsapp'
                    ? document.getElementById('contactInput').value
                    : document.getElementById('emailInput').value
@@ -359,21 +331,22 @@
       try {
         const res  = await fetch(
           'https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev/order',
-          {
-            method:  'POST',
-            headers: {'Content-Type':'application/json'},
-            body:    JSON.stringify(payload)
-          }
-        );
+        {
+          method:  'POST',
+          headers: {'Content-Type':'application/json'},
+          body:    JSON.stringify(payload)
+        });
         const data = await res.json();
-        if (!data.success) throw new Error(data.error);
+        if (!res.ok) throw new Error(data.error || 'Erreur inattendue');
         alert('✅ Commande envoyée !');
         orderForm.reset();
         icons.forEach(i => i.classList.remove('active'));
         orderForm.style.display = 'none';
+        // notifier le dashboard pour rafraîchir le solde
+        window.dispatchEvent(new Event('balanceChanged'));
       } catch (err) {
         console.error('Erreur commande:', err);
-        alert('❌ ' + err.message);
+        errBox.textContent = err.message;
       }
     });
   </script>

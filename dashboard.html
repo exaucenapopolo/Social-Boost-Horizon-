@@ -66,7 +66,7 @@
       background: var(--btn-blue-hover);
     }
 
-    /* CONTENEUR CARTES */
+    /* CONTAINER CARTES */
     .container {
       display: flex;
       flex-wrap: wrap;
@@ -198,7 +198,7 @@
 
   <!-- FOOTER -->
   <div class="footer" data-aos="fade-up">
-    <small>Social Boost Horizon – Tous droits réservés ©2025 | Mč Exau</small>
+    <small>Social Boost Horizon – Tous droits réservés ©2025</small>
     <button id="logoutBtn">Déconnexion</button>
   </div>
 
@@ -228,11 +228,22 @@
 
     auth.onAuthStateChanged(user => {
       if (!user) return window.location.href = 'login.html';
-      db.collection('users').doc(user.uid).get().then(doc => {
-        welcomeEl.textContent = `Bienvenue ${doc.data().username || ''}`;
+
+      const userRef = db.collection('users').doc(user.uid);
+
+      // affichage initial du nom
+      userRef.get().then(doc => {
+        const data = doc.data() || {};
+        welcomeEl.textContent = `Bienvenue ${data.username || ''}`;
       });
-      db.collection('users').doc(user.uid).onSnapshot(doc => {
-        balanceEl.textContent = `Solde : ${doc.data().balance || 0} XAF`;
+
+      // écoute solde ET nom
+      userRef.onSnapshot(doc => {
+        const data = doc.data() || {};
+        balanceEl.textContent = `Solde : ${data.balance || 0} XAF`;
+        if (data.username) {
+          welcomeEl.textContent = `Bienvenue ${data.username}`;
+        }
       });
     });
 

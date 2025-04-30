@@ -53,7 +53,6 @@
     }
     .field input[readonly] { background:#eee; }
 
-    /* Toggle œil */
     .toggle-password {
       position: absolute; top: 38px; right: 10px;
       cursor: pointer; color: #777;
@@ -73,7 +72,6 @@
     }
     .btn-logout:hover { background: var(--btn-red-hover); }
 
-    /* Remarque */
     .note {
       font-size:0.85rem; color:#a00; margin-top:15px;
     }
@@ -112,7 +110,7 @@
       </div>
 
       <p class="note">
-        ⚠️ Veuillez conserver votre mot de passe en lieu sûr : si vous l’oubliez, vous risquez de perdre définitivement l’accès à votre compte.  
+        ⚠️ Veuillez conserver votre mot de passe en lieu sûr : si vous l’oubliez, vous risquez de perdre définitivement l’accès à votre compte.
       </p>
     </form>
   </div>
@@ -125,7 +123,6 @@
   <script>
     AOS.init({ duration: 500, once: true });
 
-    // Configuration Firebase (depuis dashboard.html)
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -153,7 +150,6 @@
       }
     });
 
-    // Toggle visibilité mot de passe
     document.getElementById('togglePassword').addEventListener('click', function(){
       const pwd = document.getElementById('password');
       const type = pwd.getAttribute('type') === 'password' ? 'text' : 'password';
@@ -178,10 +174,19 @@
       const ph = document.getElementById('phone').value;
       const updates = [];
 
-      if (dn && dn !== user.displayName) updates.push(user.updateProfile({ displayName: dn }));  
-      if (em && em !== user.email)       updates.push(user.updateEmail(em));                   
-      if (pw && pw !== '••••••••')       updates.push(user.updatePassword(pw));               
-      updates.push(db.collection('users').doc(user.uid).set({ phone: ph }, { merge: true }));  
+      // Auth update
+      if (dn && dn !== user.displayName) {
+        updates.push(user.updateProfile({ displayName: dn }));
+        // <-- NOUVEAU : enregistrer username en Firestore
+        updates.push(
+          db.collection('users').doc(user.uid)
+            .set({ username: dn }, { merge: true })
+        );
+      }
+      if (em && em !== user.email)       updates.push(user.updateEmail(em));
+      if (pw && pw !== '••••••••')       updates.push(user.updatePassword(pw));
+      // stocker le téléphone
+      updates.push(db.collection('users').doc(user.uid).set({ phone: ph }, { merge: true }));
 
       Promise.all(updates)
         .then(() => {
