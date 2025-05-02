@@ -37,11 +37,54 @@
       background: linear-gradient(45deg, var(--blue), #6a0dad);
       padding: 12px 20px;
       text-align: center;
+      position: relative; /* pour positionner le bouton hamburger */
     }
     .header h1 {
       color: #fff;
       font-size: 1.4rem;
     }
+
+    /* BOUTON HAMBURGER */
+    .hamburger-btn {
+      background: transparent;
+      border: none;
+      font-size: 1.5rem;
+      color: #fff;
+      cursor: pointer;
+      position: absolute;
+      top: 12px;
+      right: 20px;
+      z-index: 10;
+    }
+
+    /* MENU HAMBURGER (caché par défaut) */
+    .hamburger-menu {
+      position: absolute;
+      top: 52px;
+      right: 20px;
+      background: #fff;
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      overflow: hidden;
+      transform: scaleY(0);
+      transform-origin: top; /* point d’ancrage du scale  [oai_citation:9‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/CSS/transform-origin?utm_source=chatgpt.com) */
+      transition: transform 0.2s ease-in-out; /* animation douce  [oai_citation:10‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/CSS/transition?utm_source=chatgpt.com) */
+    }
+    .hamburger-menu.open {
+      transform: scaleY(1);
+    }
+    .hamburger-menu ul { list-style: none; margin: 0; padding: 0; }
+    .hamburger-menu li { border-bottom: 1px solid #eee; }
+    .hamburger-menu li:last-child { border-bottom: none; }
+    .hamburger-menu a {
+      display: block;
+      padding: 10px 15px;
+      text-decoration: none;
+      color: var(--text-dark);
+      font-size: 0.9rem;
+    }
+    .hamburger-menu a:hover { background: var(--bg-pastel); }
 
     /* SOLDE & DÉPÔT */
     .balance-section {
@@ -148,8 +191,19 @@
 <body>
 
   <!-- HEADER -->
-  <div class="header" data-aos="fade-down">
+  <div class="header" data-aos="fade-down" role="banner">
     <h1 id="welcome">Bienvenue sur ton tableau de bord</h1>
+    <button id="hamburgerBtn" class="hamburger-btn" aria-label="Menu">
+      <i class="fas fa-bars"></i>
+    </button>
+    <nav id="hamburgerMenu" class="hamburger-menu" role="navigation" aria-label="Menu principal">
+      <ul>
+        <li><a href="dashboard.html">Accueil</a></li>
+        <li><a href="#" id="showParrainage">Programme de parrainage</a></li>
+        <li><a href="privacy.html">Politiques de confidentialité</a></li>
+        <li><a href="assistance.html">Assistance</a></li>
+      </ul>
+    </nav>
   </div>
 
   <!-- SOLDE & DÉPÔT -->
@@ -224,34 +278,55 @@
     const welcomeEl = document.getElementById('welcome'),
           balanceEl = document.getElementById('balance'),
           quickDeposit = document.getElementById('quickDeposit'),
-          logoutBtn = document.getElementById('logoutBtn');
+          logoutBtn = document.getElementById('logoutBtn'),
+          hamburgerBtn = document.getElementById('hamburgerBtn'),
+          hamburgerMenu = document.getElementById('hamburgerMenu'),
+          showParrainage = document.getElementById('showParrainage');
 
     auth.onAuthStateChanged(user => {
       if (!user) return window.location.href = 'login.html';
-
       const userRef = db.collection('users').doc(user.uid);
 
-      // affichage initial du nom
       userRef.get().then(doc => {
         const data = doc.data() || {};
-        welcomeEl.textContent = `Bienvenue ${data.username || ''}`;
+        welcomeEl.textContent = `Bienvenue ${data.username||''}`;
       });
 
-      // écoute solde ET nom
       userRef.onSnapshot(doc => {
         const data = doc.data() || {};
-        balanceEl.textContent = `Solde : ${data.balance || 0} XAF`;
-        if (data.username) {
-          welcomeEl.textContent = `Bienvenue ${data.username}`;
-        }
+        balanceEl.textContent = `Solde : ${data.balance||0} XAF`;
+        if (data.username) welcomeEl.textContent = `Bienvenue ${data.username}`;
       });
     });
 
     quickDeposit.addEventListener('click', () => window.location.href='depot.html');
     logoutBtn.addEventListener('click', () => {
-      if(confirm("Voulez-vous vraiment vous déconnecter ?")){
+      if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
         auth.signOut().then(() => window.location.href='login.html');
       }
+    });
+
+    // ouverture/fermeture menu hamburger  [oai_citation:11‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener?utm_source=chatgpt.com)
+    hamburgerBtn.addEventListener('click', () => {
+      hamburgerMenu.classList.toggle('open');                                          // toggle classe  [oai_citation:12‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Element/classList?utm_source=chatgpt.com)
+    });
+    document.addEventListener('click', e => {
+      if (!hamburgerMenu.contains(e.target) && !hamburgerBtn.contains(e.target)) {
+        hamburgerMenu.classList.remove('open');
+      }
+    });
+
+    // Programme de parrainage  [oai_citation:13‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Event/preventDefault?utm_source=chatgpt.com) [oai_citation:14‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Window/alert?utm_source=chatgpt.com)
+    showParrainage.addEventListener('click', async e => {
+      e.preventDefault();                                                              // preventDefault  [oai_citation:15‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Event/preventDefault?utm_source=chatgpt.com)
+      const user = firebase.auth().currentUser;                                        // currentUser  [oai_citation:16‡Firebase](https://firebase.google.com/docs/auth/web/manage-users?utm_source=chatgpt.com)
+      if (!user) return window.location.href='login.html';
+      const doc = await db.collection('users').doc(user.uid).get();                    // Firestore get  [oai_citation:17‡Firebase](https://firebase.google.com/docs/firestore/query-data/get-data?utm_source=chatgpt.com)
+      const data = doc.data()||{};
+      alert(
+        `Votre code de parrainage : ${data.referralCode||'N/A'}\n`+
+        `Parrains actuels : ${data.referralsCount||0}`
+      );
     });
   </script>
 </body>
