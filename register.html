@@ -16,53 +16,38 @@
       height: 100%; font-family: 'Montserrat', sans-serif;
       background: #F0F8F4; color: #333;
     }
-
-    /* Marge sous le header pour dégager l'espace */
     header {
-      text-align: center;
-      padding: 20px 0;
-      background: #004080;
-      color: #fff;
-      margin-bottom: 20px; /* <-- Ajouté */
+      text-align: center; padding: 20px 0; background: #004080; color: #fff;
+      margin-bottom: 20px; /* espace sous le header */
     }
-
     header h1 { font-size: 1.75rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
-
     main {
       display: flex; justify-content: center; align-items: center;
       padding: 20px; height: calc(100% - 80px);
     }
-
     .card {
       background: #fff; border-radius: 8px; max-width: 400px; width: 100%;
       padding: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
-
     .card h2 { text-align: center; font-size: 2rem; margin-bottom: 24px; color: #004080; }
-
     label { display: block; font-size: 1rem; margin-bottom: 6px; font-weight: 600; }
     label i { color: #28a745; margin-right: 8px; }
-
     input, select {
       width: 100%; font-size: 1rem; padding: 10px; margin-bottom: 18px;
       border: 1px solid #ccc; border-radius: 4px;
     }
-
     .phone-group { display: flex; gap: 8px; }
     .phone-group input { flex: 1; }
-
     button {
       width: 100%; font-size: 1rem; padding: 12px;
       background: #28a745; color: #fff; border: none; border-radius: 4px;
       cursor: pointer; transition: opacity 0.3s;
     }
     button:hover { opacity: 0.9; }
-
     .error { font-size: 0.9rem; color: #d00; margin-top: 10px; }
     .link { text-align: center; margin-top: 16px; font-size: 0.9rem; }
     .link a { color: #004080; text-decoration: none; }
     .link a:hover { text-decoration: underline; }
-
     .result {
       margin-top: 20px; padding: 12px; background: #e8f5e9;
       border: 1px solid #c8e6c9; border-radius: 4px; color: #2e7d32;
@@ -103,7 +88,7 @@
           <option value="NG" data-code="+234">Nigéria 🇳🇬</option>
           <option value="UG" data-code="+256">Ouganda 🇺🇬</option>
           <option value="CD" data-code="+243">RDC 🇨🇩</option>
-          <option value="RW" data-code="+250">Rwanda 🇷🚀</option>
+          <option value="RW" data-code="+250">Rwanda 🇷🇼</option>
           <option value="SN" data-code="+221">Sénégal 🇸🇳</option>
           <option value="TZ" data-code="+255">Tanzanie 🇹🇿</option>
           <option value="TG" data-code="+228">Togo 🇹🇬</option>
@@ -139,7 +124,15 @@
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
 
   <script>
-    const firebaseConfig = { /* … vos clés … */ };
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.firebasestorage.app",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
+      measurementId: "G-JJXPNN90V1"
+    };
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth(), db = firebase.firestore();
 
@@ -177,21 +170,24 @@
         const { user } = await auth.createUserWithEmailAndPassword(email, password);
         const userId = user.uid;
 
-        // 2️⃣ Envoi au server
+        // 2️⃣ Envoi au serveur
         const resp = await fetch('/api/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId, email, referralCode: referred })
         });
 
-        // 📌 Vérifier d'abord le statut HTTP avant resp.json()
         if (!resp.ok) {
-          const txt = await resp.text();               //  [oai_citation:0‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Response/text?utm_source=chatgpt.com)
-          throw new Error(txt);
+          const txt = await resp.text();
+          err.textContent = txt;
+          return;
         }
 
-        const data = await resp.json();                //  [oai_citation:1‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Response/json?utm_source=chatgpt.com)
-        if (!data.success) throw new Error(data.error || 'Erreur inscription serveur');
+        const data = await resp.json();
+        if (!data.success) {
+          err.textContent = data.error || 'Erreur inscription serveur';
+          return;
+        }
 
         // 3️⃣ Stockage Firestore
         await db.collection("users").doc(userId).set({
@@ -201,16 +197,13 @@
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
 
-        // 4️⃣ Affichage du code et redirection
-        resultEl.textContent = `Inscription réussie ! Votre code de parrainage : ${data.referralCode}`;
-        resultEl.style.display = 'block';
-        setTimeout(() => window.location.href = 'dashboard.html', 4000);
+        // 4️⃣ Succès : alert + redirection sur OK
+        alert('Inscription réussie !');
+        window.location.href = 'dashboard.html';
 
       } catch (e) {
         console.error(e);
-        err.textContent =
-          e.message.includes('pattern') ? "Format de réponse invalide du serveur." :
-          e.message;
+        err.textContent = e.message;
       }
     });
   </script>
