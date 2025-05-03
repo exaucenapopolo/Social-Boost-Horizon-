@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8"/>                                          <!-- HTML5 Boilerplate turn0search0 -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/> <!-- Responsive turn0search9 -->
+  <meta charset="UTF-8"/>  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>  
   <title>Mon portefeuille - Social Boost Horizon</title>
 
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&display=swap" rel="stylesheet">
   <!-- Font Awesome -->
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"> turn0search8
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <!-- AOS CSS -->
-  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/> turn0search7
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>
 
   <style>
     :root {
@@ -22,6 +22,7 @@
     }
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
+      display: flex; flex-direction: column; height: 100vh;
       font-family: 'Montserrat', sans-serif;
       background: var(--bg-pastel);
       color: var(--text-dark);
@@ -42,66 +43,62 @@
     }
     .balance-section button:hover { background:#0056b3; }
 
-    /* CARTES (inchangé) */
-    .container { display:flex; flex-wrap:wrap; gap:20px; justify-content:center; padding:20px; }
-    .card {
+    /* MAIN: two balances + activities */
+    main {
+      flex: 1; display: flex; flex-direction: column; gap:20px; padding:20px; overflow-y: auto;
+    }
+    .wallet-balance, .affiliate-balance, .recent-activities {
       background:#fff; border:2px solid var(--card-border); border-radius:10px;
-      box-shadow:0 4px 10px rgba(0,0,0,0.1); width:45%; padding:20px; text-align:center;
-      transition:transform 0.3s;
+      padding:20px; box-shadow:0 4px 10px rgba(0,0,0,0.1);
     }
-    .card:hover { transform:translateY(-5px); }
-    .card i { font-size:30px; color:var(--green); margin-bottom:10px; }
-    .card h2 { font-size:1.1rem; color:var(--blue); margin-bottom:8px; }
-    .card p { font-size:0.9rem; margin-bottom:12px; color:#555; }
-    .card .btn {
-      background:var(--green); color:#fff; padding:8px 16px; border:none; border-radius:6px;
-      text-decoration:none; display:inline-block; font-size:0.9rem; cursor:pointer;
+    .wallet-balance, .affiliate-balance {
+      display: flex; flex-direction: column; justify-content: space-between;
+      height: 200px;
     }
-    .card .btn:hover { background:#218838; }
+    .wallet-balance { background-color: var(--green); color:#fff; }
+    .affiliate-balance { background-color: rgba(40,167,69,0.2); color:var(--text-dark); }
+
+    .wallet-balance h2, .affiliate-balance h2, .recent-activities h2 {
+      margin-bottom: 10px;
+    }
+    .wallet-balance p, .affiliate-balance p {
+      font-size:2rem; margin-bottom: 20px;
+    }
+
+    .wallet-balance button, .affiliate-balance button {
+      align-self: flex-end; padding:12px 24px; border:none; border-radius:50px; cursor:pointer; font-size:1rem;
+    }
+    .wallet-balance button { background:#fff; color:var(--green); }
+    .affiliate-balance button { background:var(--green); color:#fff; }
+
+    /* Recent activities list */
+    .recent-activities {
+      flex: 1; display: flex; flex-direction: column;
+    }
+    .recent-activities ul {
+      list-style:none; overflow-y:auto; flex:1; padding:0; margin:0;
+    }
+    .recent-activities li {
+      padding:10px; border-bottom:1px solid rgba(0,0,0,0.1);
+    }
+    .recent-activities li:last-of-type { border-bottom:none; }
 
     /* FOOTER */
-    .footer { background:#000; color:#fff; text-align:center; padding:15px 20px; margin-top:30px; }
+    .footer { background:#000; color:#fff; text-align:center; padding:15px 20px; }
     .footer small { display:block; margin-bottom:10px; }
-    #logoutBtn {
-      background:#dc3545; border:none; color:#fff; padding:8px 16px; font-size:1rem; border-radius:4px; cursor:pointer;
-    }
+    #logoutBtn { background:#dc3545; border:none; color:#fff; padding:8px 16px; border-radius:4px; cursor:pointer; }
     #logoutBtn:hover { background:#c82333; }
 
-    @media (max-width:768px) { .card { width:100%; } }
-
-    /* ── MENU HAMBURGER ── */
-
-    .menu-backdrop {
-      position:fixed; top:0; left:0; width:100%; height:100%;
-      background:rgba(0,0,0,0.4); opacity:0; visibility:hidden;
-      transition:opacity 0.3s ease; z-index:9998;
-    }
+    /* MENU HAMBURGER & BACKDROP (unchanged) */
+    .menu-backdrop { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); opacity:0; visibility:hidden; transition:opacity 0.3s ease; z-index:9998; }
     .menu-backdrop.active { opacity:1; visibility:visible; }
-
-    .hamburger-btn {
-      position:absolute; top:12px; right:20px; background:transparent; border:none;
-      font-size:1.5rem; color:#fff; cursor:pointer; z-index:9999;
-    }
-
-    .hamburger-menu {
-      position:fixed; top:0; right:0; width:240px !important; max-width:80%;
-      height:100vh !important; background:#fff !important; border-left:1px solid var(--card-border);
-      box-shadow:-2px 0 8px rgba(0,0,0,0.2); transform:translateX(100%); transition:transform 0.3s ease;
-      z-index:9999; display:flex; flex-direction:column; /* full height  turn0search14 */
-    }
+    .hamburger-btn { position:absolute; top:12px; right:20px; background:transparent; border:none; font-size:1.5rem; color:#fff; cursor:pointer; z-index:9999; }
+    .hamburger-menu { position:fixed; top:0; right:0; width:240px; height:100vh; background:#fff; border-left:1px solid var(--card-border); box-shadow:-2px 0 8px rgba(0,0,0,0.2); transform:translateX(100%); transition:transform 0.3s ease; z-index:9999; display:flex; flex-direction:column; }
     .hamburger-menu.open { transform:translateX(0); }
-
-    .hamburger-menu ul {
-      list-style:none; margin:0; padding:0; height:100%; display:flex; flex-direction:column;
-      justify-content:space-evenly; /* equal spacing  turn0search3 */
-    }
+    .hamburger-menu ul { list-style:none; margin:0; padding:0; flex:1; display:flex; flex-direction:column; justify-content:space-evenly; }
     .hamburger-menu li { border-bottom:1px solid rgba(0,0,0,0.1); }
     .hamburger-menu li:last-of-type { border-bottom:none; }
-
-    .hamburger-menu a {
-      display:block; padding:12px 20px; color:var(--green) !important; /* green links turn0search6 */
-      text-decoration:none !important; /* no underline turn0search5 */
-    }
+    .hamburger-menu a { display:block; padding:12px 20px; color:var(--green); text-decoration:none; }
     .hamburger-menu a:hover { background:var(--bg-pastel); }
   </style>
 </head>
@@ -112,14 +109,14 @@
 
   <!-- HEADER -->
   <div class="header" data-aos="fade-down">
-    <h1 id="welcome">Bienvenue dans ton portefeuille</h1>
+    <h1 id="welcome">Bienvenue sur ton portefeuille</h1>
     <button id="hamburgerBtn" class="hamburger-btn" aria-label="Menu">
       <i class="fas fa-bars"></i>
     </button>
   </div>
 
   <!-- OFF‑CANVAS MENU -->
-  <nav id="hamburgerMenu" class="hamburger-menu" role="navigation">
+  <nav id="hamburgerMenu" class="hamburger-menu">
     <ul>
       <li><a href="dashboard.html">Accueil</a></li>
       <li><a href="wallet.html">Mon portefeuille</a></li>
@@ -134,15 +131,33 @@
 
   <!-- SOLDE & DÉPÔT -->
   <div class="balance-section" data-aos="fade-up">
-    <span id="mainBalance">Solde principal : 0 XAF</span>
-    <button id="addFunds">➕ Ajouter des fonds</button>
+    <span id="balance">Solde : 0 XAF</span>
+    <button id="quickDeposit">➕ Déposer</button>
   </div>
 
-  <!-- CONTENU SPÉCIFIQUE PORTFOLIO -->
+  <!-- CONTENU PORTFOLIO -->
   <main id="content">
-    <section data-aos="fade-up">
-      <h2>Solde d’affiliation</h2>
-      <p id="referralBalance">0 XAF</p>
+    <section class="wallet-balance" data-aos="fade-up">
+      <div>
+        <h2>Solde principal</h2>
+        <p id="mainBalance">0 XAF</p>
+      </div>
+      <button id="addFunds">➕ Ajouter des fonds</button>
+    </section>
+
+    <section class="affiliate-balance" data-aos="fade-up">
+      <div>
+        <h2>Solde d’affiliation</h2>
+        <p id="referralBalance">0 XAF</p>
+      </div>
+      <button id="transferFunds">🔄 Transférer vers solde principal</button>
+    </section>
+
+    <section class="recent-activities" data-aos="fade-up">
+      <h2>Activités récentes</h2>
+      <ul id="activityList">
+        <!-- Les dépôts récents seront injectés ici -->
+      </ul>
     </section>
   </main>
 
@@ -161,37 +176,77 @@
   <script>
     AOS.init({ duration:600, once:true });
 
-    const firebaseConfig = { /* tes clés */ };
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.firebasestorage.app",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+    };
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth(), db = firebase.firestore();
 
-    const mainBalEl     = document.getElementById('mainBalance'),
-          referralBalEl = document.getElementById('referralBalance'),
-          addFundsBtn   = document.getElementById('addFunds'),
-          welcomeEl     = document.getElementById('welcome'),
-          logoutBtn     = document.getElementById('logoutBtn'),
-          hamburgerBtn  = document.getElementById('hamburgerBtn'),
-          hamburgerMenu = document.getElementById('hamburgerMenu'),
-          backdrop      = document.getElementById('menuBackdrop'),
-          showParrainage= document.getElementById('showParrainage');
+    const welcomeEl      = document.getElementById('welcome'),
+          balanceEl      = document.getElementById('balance'),
+          mainBalEl      = document.getElementById('mainBalance'),
+          referralBalEl  = document.getElementById('referralBalance'),
+          activityList   = document.getElementById('activityList'),
+          addFundsBtn    = document.getElementById('addFunds'),
+          transferBtn    = document.getElementById('transferFunds'),
+          quickDeposit   = document.getElementById('quickDeposit'),
+          logoutBtn      = document.getElementById('logoutBtn'),
+          hamburgerBtn   = document.getElementById('hamburgerBtn'),
+          hamburgerMenu  = document.getElementById('hamburgerMenu'),
+          backdrop       = document.getElementById('menuBackdrop'),
+          showParrainage = document.getElementById('showParrainage');
 
     auth.onAuthStateChanged(user => {
       if (!user) return window.location.href='login.html';
       const userRef = db.collection('users').doc(user.uid);
+      // fetch balances
       userRef.get().then(doc => {
         const d = doc.data()||{};
-        mainBalEl.textContent     = `Solde principal : ${d.balance||0} XAF`;
-        referralBalEl.textContent = `${d.referralBalance||0} XAF`;
-        welcomeEl.textContent     = `Bienvenue ${d.username||''}`;
+        balanceEl.textContent    = `Solde : ${d.balance||0} XAF`;
+        mainBalEl.textContent    = `${d.balance||0} XAF`;
+        referralBalEl.textContent= `${d.referralBalance||0} XAF`;
       });
       userRef.onSnapshot(doc => {
         const d = doc.data()||{};
-        mainBalEl.textContent     = `Solde principal : ${d.balance||0} XAF`;
-        referralBalEl.textContent = `${d.referralBalance||0} XAF`;
+        balanceEl.textContent    = `Solde : ${d.balance||0} XAF`;
+        mainBalEl.textContent    = `${d.balance||0} XAF`;
+        referralBalEl.textContent= `${d.referralBalance||0} XAF`;
+      });
+      // fetch recent deposits subcollection
+      userRef.collection('deposits').orderBy('date','desc').limit(10).get().then(qs=>{
+        activityList.innerHTML = '';
+        qs.forEach(doc => {
+          const d = doc.data();
+          const li = document.createElement('li');
+          const date = d.date && d.date.toDate().toLocaleString();
+          li.textContent = `${date}: +${d.amount} XAF`;
+          activityList.appendChild(li);
+        });
       });
     });
 
     addFundsBtn.addEventListener('click', ()=>window.location.href='depot.html');
+    quickDeposit.addEventListener('click', ()=>window.location.href='depot.html');
+    transferBtn.addEventListener('click', async ()=>{
+      const user = firebase.auth().currentUser;
+      if (!user) return window.location.href='login.html';
+      const userRef = db.collection('users').doc(user.uid);
+      const doc = await userRef.get(); const d = doc.data()||{};
+      const amt = d.referralBalance||0;
+      if (amt>0) {
+        await userRef.update({
+          balance: firebase.firestore.FieldValue.increment(amt),
+          referralBalance: 0
+        });
+        alert(`Transféré ${amt} XAF vers solde principal.`);
+      } else alert("Pas de solde d'affiliation.");
+    });
+
     logoutBtn.addEventListener('click', ()=>{
       if (confirm("Voulez-vous vraiment vous déconnecter ?"))
         auth.signOut().then(()=>window.location.href='login.html');
