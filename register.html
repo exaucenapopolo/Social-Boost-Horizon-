@@ -13,40 +13,107 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
-      height: 100%; font-family: 'Montserrat', sans-serif;
-      background: #F0F8F4; color: #333;
+      height: 100%;
+      font-family: 'Montserrat', sans-serif;
+      background: #F0F8F4;
+      color: #333;
     }
-    header { text-align: center; padding: 20px 0; background: #004080; color: #fff; }
-    header h1 { font-size: 1.75rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
-    main { display: flex; justify-content: center; align-items: center;
-      padding: 20px; height: calc(100% - 80px); }
+
+    header {
+      text-align: center;
+      padding: 30px 0;            /* plus d’espace sous le header */
+      background: #004080;
+      color: #fff;
+      margin-bottom: 20px;        /* écarte le main */
+    }
+    header h1 {
+      font-size: 1.75rem;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    }
+
+    main {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;    /* commence en haut */
+      padding: 20px;
+      min-height: calc(100% - 110px); /* header + footer */
+    }
+
     .card {
-      background: #fff; border-radius: 8px; max-width: 400px; width: 100%;
-      padding: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      background: #fff;
+      border-radius: 8px;
+      max-width: 400px;
+      width: 100%;
+      padding: 30px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
-    .card h2 { text-align: center; font-size: 2rem; margin-bottom: 24px; color: #004080; }
-    label { display: block; font-size: 1rem; margin-bottom: 6px; font-weight: 600; }
+
+    .card h2 {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 24px;
+      color: #004080;
+    }
+
+    label {
+      display: block;
+      font-size: 1rem;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
     label i { color: #28a745; margin-right: 8px; }
+
     input, select {
-      width: 100%; font-size: 1rem; padding: 10px; margin-bottom: 18px;
-      border: 1px solid #ccc; border-radius: 4px;
+      width: 100%;
+      font-size: 1rem;
+      padding: 10px;
+      margin-bottom: 18px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
     }
+
     .phone-group { display: flex; gap: 8px; }
     .phone-group input { flex: 1; }
+
     button {
-      width: 100%; font-size: 1rem; padding: 12px;
-      background: #28a745; color: #fff; border: none; border-radius: 4px;
-      cursor: pointer; transition: opacity 0.3s;
+      width: 100%;
+      font-size: 1rem;
+      padding: 12px;
+      background: #28a745;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: opacity 0.3s;
     }
     button:hover { opacity: 0.9; }
-    .error { font-size: 0.9rem; color: #d00; margin-top: 10px; }
-    .link { text-align: center; margin-top: 16px; font-size: 0.9rem; }
-    .link a { color: #004080; text-decoration: none; }
+
+    .error {
+      font-size: 0.9rem;
+      color: #d00;
+      margin-top: 10px;
+    }
+
+    .link {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 0.9rem;
+    }
+    .link a {
+      color: #004080;
+      text-decoration: none;
+    }
     .link a:hover { text-decoration: underline; }
+
     .result {
-      margin-top: 20px; padding: 12px; background: #e8f5e9;
-      border: 1px solid #c8e6c9; border-radius: 4px; color: #2e7d32;
-      font-weight: bold; text-align: center;
+      margin-top: 20px;
+      padding: 12px;
+      background: #e8f5e9;
+      border: 1px solid #c8e6c9;
+      border-radius: 4px;
+      color: #2e7d32;
+      font-weight: bold;
+      text-align: center;
     }
   </style>
 </head>
@@ -59,7 +126,7 @@
   <main>
     <div class="card" data-aos="fade-up">
       <h2>Créer un compte</h2>
-      <form id="registerForm">
+      <form id="registerForm" novalidate>
         <label for="username"><i class="fas fa-user"></i> Nom d'utilisateur</label>
         <input type="text" id="username" required />
 
@@ -101,9 +168,12 @@
         <label for="password"><i class="fas fa-lock"></i> Mot de passe</label>
         <input type="password" id="password" required minlength="6" />
 
-        <!-- Champ de parrainage -->
-        <label for="referralCode"><i class="fas fa-gift"></i> Code de parrainage (optionnel)</label>
-        <input type="text" id="referralCode" placeholder="AAAAAA" maxlength="6" />
+        <!-- Champ de parrainage avec pattern et title -->
+        <label for="referralCode"><i class="fas fa-gift"></i> Code de parrainage (6 caractères)</label>
+        <input type="text" id="referralCode"
+               pattern="[A-Za-z0-9]{6}"
+               title="Entrez exactement 6 lettres ou chiffres (ex : ABC123)"
+               maxlength="6" />
 
         <button type="submit">S'inscrire</button>
         <div class="error" id="errorMsg"></div>
@@ -121,8 +191,12 @@
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
+  <!-- AOS JS -->
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 
   <script>
+    AOS.init({ duration: 600, once: true });
+
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -141,35 +215,46 @@
       document.getElementById("indicatif").value = code;
     }
 
+    // Custom validity pour le champ referralCode
+    const refInput = document.getElementById('referralCode');
+    refInput.addEventListener('invalid', e => {
+      e.preventDefault();
+      if (!refInput.value.match(/^[A-Za-z0-9]{6}$/)) {
+        refInput.setCustomValidity('Le code doit comporter exactement 6 lettres ou chiffres (ex : ABC123).');
+      }
+    });
+    refInput.addEventListener('input', () => {
+      refInput.setCustomValidity('');
+    });
+
     document.getElementById('registerForm').addEventListener('submit', async e => {
       e.preventDefault();
-      const err = document.getElementById('errorMsg'); err.textContent = "";
+      const err = document.getElementById('errorMsg');
+      err.textContent = '';
       const resultEl = document.getElementById('result');
       resultEl.style.display = 'none';
 
-      const username = document.getElementById('username').value.trim();
-      const email    = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-      const pays     = document.getElementById('pays').value;
-      const indicatif= document.getElementById('indicatif').value;
-      const telephone= document.getElementById('telephone').value.trim();
-      const referred = document.getElementById('referralCode').value.trim() || null;
+      const username  = document.getElementById('username').value.trim();
+      const email     = document.getElementById('email').value.trim();
+      const password  = document.getElementById('password').value;
+      const pays      = document.getElementById('pays').value;
+      const indicatif = document.getElementById('indicatif').value;
+      const tel       = document.getElementById('telephone').value.trim();
+      const referred  = document.getElementById('referralCode').value.trim() || null;
 
-      if (!username || !email || !pays || !telephone || !password) {
-        err.textContent = "Tous les champs sont requis.";
+      if (!username || !email || !pays || !tel || !password) {
+        err.textContent = 'Tous les champs sont requis.';
         return;
       }
       if (password.length < 6) {
-        err.textContent = "Le mot de passe doit contenir au moins 6 caractères.";
+        err.textContent = 'Le mot de passe doit contenir au moins 6 caractères.';
         return;
       }
 
       try {
-        // Création de l'utilisateur dans Firebase Auth
         const { user } = await auth.createUserWithEmailAndPassword(email, password);
         const userId = user.uid;
 
-        // Appel à votre endpoint /api/signup
         const resp = await fetch('/api/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -178,15 +263,13 @@
         const data = await resp.json();
         if (!data.success) throw new Error(data.error || 'Erreur serveur');
 
-        // Enregistrement du profil de base
-        await db.collection("users").doc(userId).set({
+        await db.collection('users').doc(userId).set({
           username,
-          phone: `${indicatif} ${telephone}`,
+          phone: `${indicatif} ${tel}`,
           country: pays,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
 
-        // Affichage du code généré
         resultEl.textContent = `Inscription réussie ! Votre code : ${data.referralCode}`;
         resultEl.style.display = 'block';
 
@@ -195,16 +278,12 @@
         console.error(e);
         const code = e.code || '';
         err.textContent =
-          code === 'auth/email-already-in-use' ? "Adresse e-mail déjà utilisée." :
-          code === 'auth/invalid-email'           ? "Adresse e-mail invalide." :
-          code === 'auth/weak-password'           ? "Mot de passe trop faible." :
-          e.message || "Erreur inattendue.";
+          code === 'auth/email-already-in-use' ? 'Adresse e-mail déjà utilisée.' :
+          code === 'auth/invalid-email'           ? 'Adresse e-mail invalide.' :
+          code === 'auth/weak-password'           ? 'Mot de passe trop faible.' :
+          e.message || 'Erreur inattendue.';
       }
     });
   </script>
-
-  <!-- AOS animation -->
-  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-  <script>AOS.init({ duration:600, once:true });</script>
 </body>
 </html>
