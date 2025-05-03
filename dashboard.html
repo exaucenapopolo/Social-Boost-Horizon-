@@ -27,7 +27,7 @@
       color: var(--text-dark);
     }
 
-    /* HEADER (inchangé, on remet z-index bas) */
+    /* HEADER */
     .header {
       background: linear-gradient(45deg, var(--blue), #6a0dad);
       padding: 12px 20px;
@@ -40,7 +40,7 @@
       font-size: 1.4rem;
     }
 
-    /* SOLDE & DÉPÔT (inchangé) */
+    /* SOLDE & DÉPÔT */
     .balance-section {
       background: #fff;
       display: flex;
@@ -63,7 +63,7 @@
       background: #0056b3;
     }
 
-    /* CARTES (inchangé) */
+    /* CARTES */
     .container {
       display: flex;
       flex-wrap: wrap;
@@ -112,7 +112,7 @@
       background: #218838;
     }
 
-    /* FOOTER (inchangé) */
+    /* FOOTER */
     .footer {
       background: #000;
       color: #fff;
@@ -141,9 +141,9 @@
       .card { width: 100%; }
     }
 
-    /*  ── MENU HAMBURGER ── */
+    /* ── MENU HAMBURGER ── */
 
-    /* Backdrop qui masque le dashboard */
+    /* Backdrop */
     .menu-backdrop {
       position: fixed;
       top: 0; left: 0;
@@ -157,7 +157,7 @@
       opacity: 1; visibility: visible;
     }
 
-    /* Bouton hamburger (dans header) */
+    /* Bouton hamburger */
     .hamburger-btn {
       position: absolute; top: 12px; right: 20px;
       background: transparent; border: none;
@@ -165,11 +165,13 @@
       cursor: pointer; z-index: 9999;
     }
 
-    /* Menu off‑canvas à droite */
+    /* 1) largeur réduite du offcanvas */
     .hamburger-menu {
       position: fixed; top: 0; right: 0;
-      width: 260px; height: 100%;
-      background: #fff;
+      width: 240px !important;       /* custom width override  [oai_citation:7‡Stack Overflow](https://stackoverflow.com/questions/72720802/is-it-possible-to-change-the-width-of-an-offcanvas-panel?utm_source=chatgpt.com) */
+      max-width: 80%;                /* responsive constraint  [oai_citation:8‡cssdeck.com](https://cssdeck.com/blog/using-the-max-width-property-in-responsive-design/?utm_source=chatgpt.com) */
+      height: 100%;
+      background: #fff !important;   /* fond blanc  [oai_citation:9‡Bootstrap](https://getbootstrap.com/docs/5.0/components/offcanvas/?utm_source=chatgpt.com) */
       border-left: 1px solid var(--card-border);
       box-shadow: -2px 0 8px rgba(0,0,0,0.2);
       transform: translateX(100%);
@@ -181,28 +183,36 @@
       transform: translateX(0);
     }
 
-    /* Espacement uniforme, sans traits */
-    .hamburger-menu ul {
-      list-style: none;
-      flex: 1;
-      display: flex; flex-direction: column;
-      justify-content: space-evenly;
-      padding: 0; margin: 0; height: 100%;
-    }
-    .hamburger-menu li {
-      border-bottom: none;
+    /* 2) fond blanc + texte noir */
+    .hamburger-menu ul,
+    .hamburger-menu a {
+      background-color: #fff !important;  /* override default  [oai_citation:10‡Reddit](https://www.reddit.com/r/bootstrap/comments/xustcq/how_to_override_offcanvas_default_styling/?utm_source=chatgpt.com) */
+      color: #000 !important;             /* texte noir  [oai_citation:11‡Bootstrap](https://getbootstrap.com/docs/5.0/components/offcanvas/?utm_source=chatgpt.com) */
     }
 
-    /* Liens en vert, pas souligné */
-    .hamburger-menu a {
-      display: block; padding: 12px 20px;
-      text-decoration: none;
-      color: var(--green);
-      font-size: 1rem;
+    /* 3) divisions nettes entre chaque item */
+    .hamburger-menu ul {
+      list-style: none;
+      flex: 1; display: flex; flex-direction: column;
+      margin: 0; padding: 0;
     }
-    .hamburger-menu a:hover {
-      background: var(--bg-pastel);
+    .hamburger-menu ul li {
+      border-bottom: 1px solid rgba(0,0,0,0.1); /* séparation fine  [oai_citation:12‡GeneratePress](https://generatepress.com/forums/topic/border-bottom-on-off-canvas-items/?utm_source=chatgpt.com) */
     }
+    .hamburger-menu ul li:last-of-type {
+      border-bottom: none; /* pas de trait sous le dernier  [oai_citation:13‡W3Schools.com](https://www.w3schools.com/howto/howto_css_navbar_border.asp?utm_source=chatgpt.com) */
+    }
+
+    /* 4) bouton Déconnexion pleine largeur */
+    #logoutBtn {
+      display: block;            /* block-level  [oai_citation:14‡Stack Overflow](https://stackoverflow.com/questions/12061139/making-button-go-full-width?utm_source=chatgpt.com) */
+      width: 100% !important;    /* full width override  [oai_citation:15‡Stack Overflow](https://stackoverflow.com/questions/12061139/making-button-go-full-width?utm_source=chatgpt.com) */
+      margin: 1rem 0 0;
+      background-color: #dc3545 !important;
+      color: #fff !important;
+    }
+
+    /* Important to override Bootstrap Offcanvas defaults  [oai_citation:16‡Reddit](https://www.reddit.com/r/webdev/comments/nb7sr3/using_important_to_override_bootstrap_styles/?utm_source=chatgpt.com) */
   </style>
 </head>
 <body>
@@ -306,7 +316,6 @@
           backdrop       = document.getElementById('menuBackdrop'),
           showParrainage = document.getElementById('showParrainage');
 
-    /* Auth & affichage nom/solde */
     auth.onAuthStateChanged(user => {
       if (!user) return window.location.href='login.html';
       const userRef = db.collection('users').doc(user.uid);
@@ -321,14 +330,12 @@
       });
     });
 
-    /* Dépôt rapide & déconnexion */
     quickDeposit.addEventListener('click', ()=>window.location.href='depot.html');
     logoutBtn.addEventListener('click', ()=>{
       if (confirm("Voulez-vous vraiment vous déconnecter ?"))
         auth.signOut().then(()=>window.location.href='login.html');
     });
 
-    /* Toggle off‑canvas menu & backdrop */
     function toggleMenu(){
       hamburgerMenu.classList.toggle('open');
       backdrop.classList.toggle('active');
@@ -336,7 +343,6 @@
     hamburgerBtn.addEventListener('click', toggleMenu);
     backdrop.addEventListener('click', toggleMenu);
 
-    /* Programme de parrainage */
     showParrainage.addEventListener('click', async e=>{
       e.preventDefault();
       const user = firebase.auth().currentUser; if (!user) return window.location.href='login.html';
