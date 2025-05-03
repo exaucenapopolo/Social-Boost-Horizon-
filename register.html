@@ -17,7 +17,7 @@
       background: #F0F8F4; color: #333;
     }
 
-    /* On ajoute une marge sous le header pour libérer de l'espace */
+    /* Marge sous le header pour dégager l'espace */
     header {
       text-align: center;
       padding: 20px 0;
@@ -63,7 +63,6 @@
     .link a { color: #004080; text-decoration: none; }
     .link a:hover { text-decoration: underline; }
 
-    /* Affichage du code de parrainage généré */
     .result {
       margin-top: 20px; padding: 12px; background: #e8f5e9;
       border: 1px solid #c8e6c9; border-radius: 4px; color: #2e7d32;
@@ -104,7 +103,7 @@
           <option value="NG" data-code="+234">Nigéria 🇳🇬</option>
           <option value="UG" data-code="+256">Ouganda 🇺🇬</option>
           <option value="CD" data-code="+243">RDC 🇨🇩</option>
-          <option value="RW" data-code="+250">Rwanda 🇷🇼</option>
+          <option value="RW" data-code="+250">Rwanda 🇷🚀</option>
           <option value="SN" data-code="+221">Sénégal 🇸🇳</option>
           <option value="TZ" data-code="+255">Tanzanie 🇹🇿</option>
           <option value="TG" data-code="+228">Togo 🇹🇬</option>
@@ -140,15 +139,7 @@
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
 
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-      authDomain: "social-boost-horizon.firebaseapp.com",
-      projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.firebasestorage.app",
-      messagingSenderId: "43658165639",
-      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
-      measurementId: "G-JJXPNN90V1"
-    };
+    const firebaseConfig = { /* … vos clés … */ };
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth(), db = firebase.firestore();
 
@@ -182,26 +173,27 @@
       }
 
       try {
-        // Création de l'utilisateur dans Firebase Auth
+        // 1️⃣ Création dans Firebase Auth
         const { user } = await auth.createUserWithEmailAndPassword(email, password);
         const userId = user.uid;
 
-        // Appel à votre endpoint /api/signup pour générer le code et stocker les données
+        // 2️⃣ Envoi au server
         const resp = await fetch('/api/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId,
-            email,
-            referralCode: referred
-          })
+          body: JSON.stringify({ userId, email, referralCode: referred })
         });
-        const data = await resp.json();
-        if (!data.success) {
-          throw new Error(data.error || 'Erreur inscription serveur');
+
+        // 📌 Vérifier d'abord le statut HTTP avant resp.json()
+        if (!resp.ok) {
+          const txt = await resp.text();               //  [oai_citation:0‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Response/text?utm_source=chatgpt.com)
+          throw new Error(txt);
         }
 
-        // Enregistrement du profil utilisateur de base
+        const data = await resp.json();                //  [oai_citation:1‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Response/json?utm_source=chatgpt.com)
+        if (!data.success) throw new Error(data.error || 'Erreur inscription serveur');
+
+        // 3️⃣ Stockage Firestore
         await db.collection("users").doc(userId).set({
           username,
           phone: `${indicatif} ${telephone}`,
@@ -209,20 +201,16 @@
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
 
-        // Affichage du code généré
+        // 4️⃣ Affichage du code et redirection
         resultEl.textContent = `Inscription réussie ! Votre code de parrainage : ${data.referralCode}`;
         resultEl.style.display = 'block';
-
-        // Redirection éventuelle après quelques secondes
         setTimeout(() => window.location.href = 'dashboard.html', 4000);
+
       } catch (e) {
         console.error(e);
-        const code = e.code || '';
-        err.textContent = 
-          code === 'auth/email-already-in-use' ? "Cette adresse e-mail est déjà utilisée." :
-          code === 'auth/invalid-email'           ? "Adresse e-mail invalide." :
-          code === 'auth/weak-password'           ? "Mot de passe trop faible." :
-          e.message || "Erreur inattendue.";
+        err.textContent =
+          e.message.includes('pattern') ? "Format de réponse invalide du serveur." :
+          e.message;
       }
     });
   </script>
