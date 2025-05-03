@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Programme de parrainage – Social Boost Horizon</title>
+  <!-- Font Awesome pour les icônes -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">   [oai_citation:0‡Font Awesome Docs](https://docs.fontawesome.com/web/add-icons/how-to?utm_source=chatgpt.com)
+  <!-- AOS pour les animations -->
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>  [oai_citation:1‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_flexible_box_layout?utm_source=chatgpt.com)
+  <!-- Styles personnalisés -->
+  <style>
+    :root {
+      --blue:        #004080;
+      --green:       #28a745;
+      --bg-pastel:   #F0F8F4;
+      --text-dark:   #212121;
+      --border-dash: #ccc;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Montserrat', sans-serif; /* Google Font utilisée en dashboard  */
+      background: var(--bg-pastel);
+      color: var(--text-dark);
+    }
+    .container {
+      max-width: 480px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      animation: fadeIn 0.6s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    h1 {
+      text-align: center;
+      color: var(--blue);
+      margin-bottom: 20px;
+      font-size: 1.75rem;
+    }
+    .code-box {
+      display: flex; align-items: center; justify-content: space-between;
+      border: 2px dashed var(--border-dash); /* bordure en pointillés  [oai_citation:2‡CSS-Tricks](https://css-tricks.com/more-control-over-css-borders-with-background-image/?utm_source=chatgpt.com) */
+      padding: 12px 16px;
+      border-radius: 6px;
+      background: #fafafa;
+      margin-bottom: 16px;
+    }
+    .code-box span {
+      font-family: monospace; letter-spacing: 2px;
+      font-size: 1.5rem;
+      color: var(--blue);
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--green); color: #fff;
+      border: none; border-radius: 4px;
+      padding: 10px 14px; cursor: pointer;
+      font-size: 0.95rem;
+      transition: opacity 0.3s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .info {
+      font-size: 0.9rem; color: #555; line-height: 1.4;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    #backBtn {
+      width: 100%;
+      background: var(--blue);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" data-aos="fade-up">
+    <h1>Programme de parrainage</h1>
+    <div class="code-box">
+      <span id="referralCode">———</span>
+      <button id="copyBtn" class="btn">
+        <i class="fas fa-copy"></i> Copier
+      </button>
+    </div>
+    <p class="info">
+      Partagez ce code avec vos amis !<br>
+      Ils devront ensuite le mettre à l'inscription pour qu'ils bénéficient de 10 % de réduction sur leurs 10 prochaines commandes,<br>
+      et vous recevez 5 % de cashback sur leurs dépôts et cela à vie.
+    </p>
+    <button id="backBtn" class="btn">
+      <i class="fas fa-arrow-left"></i> Retour au dashboard
+    </button>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script> 
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script> 
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script> 
+  <!-- AOS JS -->
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>  [oai_citation:3‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_flexible_box_layout?utm_source=chatgpt.com)
+  <script>
+    AOS.init({ duration: 600, once: true });
+
+    // Configuration Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.firebasestorage.app",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth(), db = firebase.firestore();
+
+    auth.onAuthStateChanged(async user => {
+      if (!user) return window.location.href = 'login.html';
+      const doc = await db.collection('users').doc(user.uid).get();
+      const code = doc.data()?.referralCode || 'N/A';
+      document.getElementById('referralCode').textContent = code;
+    });
+
+    // Copier dans le presse-papiers via Clipboard API  [oai_citation:4‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard_API?utm_source=chatgpt.com)
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+      const text = document.getElementById('referralCode').textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        alert('Code copié !');
+      } catch {
+        alert('Échec de la copie.');
+      }
+    });
+
+    // Retour au dashboard
+    document.getElementById('backBtn').addEventListener('click', () => {
+      window.location.href = 'dashboard.html';
+    });
+  </script>
+</body>
+</html>
