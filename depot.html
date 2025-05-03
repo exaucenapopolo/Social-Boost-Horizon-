@@ -6,252 +6,256 @@
   <title>Déposer des fonds – Social Boost Horizon</title>
 
   <!-- Google Fonts Poppins -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap"
-        rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <!-- Font Awesome pour le hamburger et icônes -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
   <style>
     :root {
-      --bg-page: #023020;
-      --btn-bg: #87ceeb;
-      --btn-hover: #6ec3dd;
-      --warn-bg: #fff3cd;
-      --warn-border: #ffc107;
-      --font-family: 'Poppins', sans-serif;
+      --bg-page:        #023020; /* vert foncé existant */
+      --btn-bg:         #87ceeb;
+      --btn-hover:      #6ec3dd;
+      --warn-bg:        #fff3cd;
+      --warn-border:    #ffc107;
+      --font-family:    'Poppins', sans-serif;
+      --header-bg:      #023020; /* même vert foncé */
+      --footer-bg:      #000;    /* footer noir */
+      --text-footer:    #fff;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; margin:0; padding:0; }
     body {
       font-family: var(--font-family);
       background: var(--bg-page);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
+      display: flex; flex-direction: column; min-height: 100vh;
     }
-    .container {
-      background: #fff;
-      padding: 1.5rem;
-      border-radius: 8px;
-      width: 100%;
-      max-width: 420px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    }
-    h1 {
-      font-size: 1.8rem;
-      text-align: center;
-      margin-bottom: 1rem;
-      color: var(--bg-page);
-    }
-    .provider { margin-bottom: 2rem; }
-    .provider-logo {
-      display: block;
-      width: 160px;
-      margin: 0 auto 1rem;
-    }
-    .provider-info {
-      font-size: 1rem;
-      text-align: center;
-      line-height: 1.4;
-      margin-bottom: 1rem;
-    }
-    .deposit-form fieldset { border: none; }
-    .deposit-form legend {
-      font-size: 1.2rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-    }
-    .form-group { margin-bottom: 1rem; }
-    .form-group label {
-      display: block;
-      margin-bottom: 0.5rem;
-      font-weight: 500;
-    }
-    input[type="text"],
-    input[type="tel"],
-    input[type="number"],
-    input[type="file"] { width: 100%; }
-    input[type="file"]::file-selector-button {
-      font-family: var(--font-family);
-      padding: 0.6rem 1rem;
-      border: none;
-      border-radius: 6px;
-      background: linear-gradient(45deg, #6dbf84, #2e7d32);
+
+    /* HEADER + hamburger */
+    header {
+      background: var(--header-bg);
       color: #fff;
-      font-size: 1rem;
-      cursor: pointer;
-      margin-bottom: 0.5rem;
+      padding: 12px 20px;
+      position: relative; z-index: 1;
+      display: flex; align-items: center; justify-content: center;
     }
-    input[type="file"]::file-selector-button:hover {
-      opacity: 0.9;
+    header h1 { margin:0; font-size:1.5rem; }
+    .hamburger-btn {
+      position: absolute; top:12px; right:20px;
+      background: transparent; border: none; color: #fff;
+      font-size: 1.5rem; cursor: pointer; z-index: 2;
+    }
+    .menu-backdrop {
+      position: fixed; top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.4); opacity:0; visibility:hidden;
+      transition: opacity 0.3s; z-index: 1;
+    }
+    .menu-backdrop.active { opacity:1; visibility:visible; }
+    .hamburger-menu {
+      position: fixed; top:0; right:0; width:240px; height:100vh;
+      background: #fff; border-left:1px solid var(--bg-page);
+      box-shadow: -2px 0 8px rgba(0,0,0,0.2);
+      transform: translateX(100%); transition: transform 0.3s; z-index:2;
+      display:flex; flex-direction:column;
+    }
+    .hamburger-menu.open { transform: translateX(0); }
+    .hamburger-menu ul { list-style:none; margin:0; padding:0; flex:1;
+                         display:flex; flex-direction:column; justify-content: space-evenly; }
+    .hamburger-menu li { border-bottom:1px solid rgba(0,0,0,0.1); }
+    .hamburger-menu li:last-of-type { border-bottom:none; }
+    .hamburger-menu a {
+      display:block; padding:12px 20px; color:#000; text-decoration:none;
+    }
+
+    /* CONTAINER */
+    .container {
+      background: #fff; padding:1.5rem; border-radius:8px;
+      width:100%; max-width:420px; margin:20px auto; box-shadow:0 4px 12px rgba(0,0,0,0.2);
+      flex:1;
+    }
+    h1 { color: var(--bg-page); text-align:center; margin-bottom:1rem; }
+
+    /* PROVIDERS */
+    .provider { margin-bottom:2rem; }
+    .provider-logo { display:block; width:160px; margin:0 auto 1rem; }
+    .provider-info { text-align:center; line-height:1.4; margin-bottom:1rem; }
+
+    /* USSD instructions */
+    .instructions {
+      background: #e8f5e9; border-left:4px solid #66bb6a;
+      padding: 0.8rem; margin-bottom:1rem; font-size:0.95rem;
+    }
+
+    /* FORM */
+    .deposit-form fieldset { border:none; }
+    .deposit-form legend { font-size:1.2rem; font-weight:600; margin-bottom:0.5rem; }
+    .form-group { margin-bottom:1rem; }
+    .form-group label { display:block; margin-bottom:0.5rem; font-weight:500; }
+    input[type="tel"], input[type="file"] { width:100%; }
+    input[type="file"]::file-selector-button {
+      font-family: var(--font-family); padding:0.6rem 1rem; border:none; border-radius:6px;
+      background: linear-gradient(45deg, #6dbf84, #2e7d32); color:#fff; cursor:pointer; margin-bottom:0.5rem;
     }
     .btn {
-      width: 100%;
-      padding: 0.8rem;
-      font-size: 1.1rem;
-      font-family: var(--font-family);
-      background: var(--btn-bg);
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background 0.2s;
+      width:100%; padding:0.8rem; font-size:1.1rem; background:var(--btn-bg);
+      color:#fff; border:none; border-radius:6px; cursor:pointer; transition:background 0.2s;
     }
-    .btn:hover { background: var(--btn-hover); }
+    .btn:hover { background:var(--btn-hover); }
     .remark {
-      background: var(--warn-bg);
-      border-left: 4px solid var(--warn-border);
-      padding: 0.6rem;
-      font-size: 0.9rem;
-      margin-top: 0.5rem;
+      background: var(--warn-bg); border-left:4px solid var(--warn-border);
+      padding:0.6rem; font-size:0.9rem; margin-top:0.5rem;
     }
+
+    /* Autres moyens */
+    .other-payments {
+      text-align:center; margin:2rem 0;
+    }
+    .other-payments button {
+      background: var(--btn-bg); border:none; color:#fff; padding:0.7rem 1.2rem;
+      border-radius:4px; cursor:pointer; transition:background 0.2s;
+    }
+    .other-payments button:hover { background:var(--btn-hover); }
+
+    /* FOOTER */
+    footer {
+      background: var(--footer-bg); color: var(--text-footer);
+      text-align:center; padding:1rem 0;
+    }
+    footer a { color: var(--btn-bg); text-decoration:none; margin:0 0.5rem; }
+    footer a:hover { text-decoration:underline; }
   </style>
 </head>
 <body>
-  <main class="container">
+
+  <!-- Hamburger & backdrop -->
+  <div id="menuBackdrop" class="menu-backdrop"></div>
+  <header>
     <h1>Déposer des fonds</h1>
-    <div class="providers">
+    <button id="hamburgerBtn" class="hamburger-btn"><i class="fas fa-bars"></i></button>
+  </header>
+  <nav id="hamburgerMenu" class="hamburger-menu">
+    <ul>
+      <li><a href="dashboard.html">Accueil</a></li>
+      <li><a href="wallet.html">Mon portefeuille</a></li>
+      <li><a href="resources.html">Ressources & aide</a></li>
+      <li><a href="community.html">Communauté & feedback</a></li>
+      <li><a href="payment.html">Autre moyen de paiement</a></li>
+      <li><a href="#" id="showParrainage">Programme de parrainage</a></li>
+      <li><a href="privacy.html">Politique de confidentialité</a></li>
+      <li><a href="assistance.html">Assistance</a></li>
+    </ul>
+  </nav>
 
-      <!-- MTN Mobile Money -->
-      <section id="mtn-section" class="provider">
-        <img src="assets/logos/mtn-momo.png"
-             alt="Logo MTN Mobile Money"
-             class="provider-logo" />
-        <p class="provider-info">
-          <strong>Numéro :</strong> +237 652 205 768<br />
-          <strong>Nom :</strong> ZAMOTOM ZAMIGON MOISE
-        </p>
-        <form id="mtn-form" class="deposit-form" novalidate>
-          <fieldset>
-            <legend>MTN MoMo</legend>
-            <input type="hidden" name="provider" value="MTN_MoMo" />
+  <main class="container">
+    <!-- MTN MoMo -->
+    <section id="mtn-section" class="provider">
+      <img src="assets/logos/mtn-momo.png" alt="Logo MTN MoMo" class="provider-logo"/>
+      <p class="provider-info">
+        <strong>Numéro :</strong> +237 652 205 768<br/>
+        <strong>Nom :</strong> ZAMOTOM ZAMIGON MOISE
+      </p>
+      <div class="instructions">
+        Pour déposer avec MTN MoMo, composez <code>*126*652205768*MONTANT#</code>, saisissez votre code secret, puis prenez une capture d’écran de la confirmation.
+      </div>
+      <form id="mtn-form" class="deposit-form" novalidate>
+        <fieldset>
+          <legend>MTN MoMo</legend>
+          <input type="hidden" name="provider" value="MTN_MoMo"/>
+          <input type="hidden" name="userId" id="mtn-userId"/>
+          <div class="form-group">
+            <label for="mtn-whatsapp">Votre numéro WhatsApp :</label>
+            <input type="tel" id="mtn-whatsapp" name="whatsapp" placeholder="+237 6XX XXX XXX" required/>
+          </div>
+          <div class="form-group">
+            <label for="mtn-screenshot">Preuve de dépôt :</label>
+            <input type="file" id="mtn-screenshot" name="proof" accept="image/*" required aria-describedby="mtn-remark"/>
+          </div>
+          <button type="submit" class="btn">Envoyer preuve MTN MoMo</button>
+          <div id="mtn-remark" class="remark">Capture d’écran requise pour valider le dépôt.</div>
+        </fieldset>
+      </form>
+    </section>
 
-            <div class="form-group">
-              <label for="mtn-whatsapp">Votre numéro WhatsApp :</label>
-              <input type="tel"
-                     id="mtn-whatsapp"
-                     name="whatsapp"
-                     placeholder="+237 6XX XXX XXX"
-                     required />
-            </div>
+    <!-- Orange Money -->
+    <section id="orange-section" class="provider">
+      <img src="assets/logos/orange-money.png" alt="Logo Orange Money" class="provider-logo"/>
+      <p class="provider-info">
+        <strong>Numéro :</strong> +237 699 853 665<br/>
+        <strong>Nom :</strong> NGOUBA PHINEAS
+      </p>
+      <div class="instructions">
+        Pour déposer avec Orange Money, composez <code>*150*699853665*MONTANT#</code>, saisissez votre code secret, puis capturez l’écran de confirmation.
+      </div>
+      <form id="orange-form" class="deposit-form" novalidate>
+        <fieldset>
+          <legend>Orange Money</legend>
+          <input type="hidden" name="provider" value="Orange_Money"/>
+          <input type="hidden" name="userId" id="orange-userId"/>
+          <div class="form-group">
+            <label for="orange-whatsapp">Votre numéro WhatsApp :</label>
+            <input type="tel" id="orange-whatsapp" name="whatsapp" placeholder="+237 6XX XXX XXX" required/>
+          </div>
+          <div class="form-group">
+            <label for="orange-screenshot">Preuve de dépôt :</label>
+            <input type="file" id="orange-screenshot" name="proof" accept="image/*" required aria-describedby="orange-remark"/>
+          </div>
+          <button type="submit" class="btn">Envoyer preuve Orange Money</button>
+          <div id="orange-remark" class="remark">Capture d’écran requise pour valider le dépôt.</div>
+        </fieldset>
+      </form>
+    </section>
 
-            <!-- Champ caché : User ID Firebase -->
-            <input type="hidden" name="userId" id="mtn-userId" />
-
-            <div class="form-group">
-              <label for="mtn-screenshot">Preuve de dépôt :</label>
-              <input type="file"
-                     id="mtn-screenshot"
-                     name="proof"
-                     accept="image/*"
-                     required
-                     aria-describedby="mtn-remark" />
-            </div>
-
-            <button type="submit" class="btn">Envoyer preuve MTN MoMo</button>
-            <div id="mtn-remark" role="status" aria-live="polite" class="remark">
-              Vous devez joindre une capture d’écran pour valider votre dépôt. Sans preuve, votre solde ne sera pas mis à jour.
-            </div>
-          </fieldset>
-        </form>
-      </section>
-
-      <!-- Orange Money -->
-      <section id="orange-section" class="provider">
-        <img src="assets/logos/orange-money.png"
-             alt="Logo Orange Money"
-             class="provider-logo" />
-        <p class="provider-info">
-          <strong>Numéro :</strong> +237 699 853 665<br />
-          <strong>Nom :</strong> NGOUBA PHINEAS
-        </p>
-        <form id="orange-form" class="deposit-form" novalidate>
-          <fieldset>
-            <legend>Orange Money</legend>
-            <input type="hidden" name="provider" value="Orange_Money" />
-
-            <div class="form-group">
-              <label for="orange-whatsapp">Votre numéro WhatsApp :</label>
-              <input type="tel"
-                     id="orange-whatsapp"
-                     name="whatsapp"
-                     placeholder="+237 6XX XXX XXX"
-                     required />
-            </div>
-
-            <!-- Champ caché : User ID Firebase -->
-            <input type="hidden" name="userId" id="orange-userId" />
-
-            <div class="form-group">
-              <label for="orange-screenshot">Preuve de dépôt :</label>
-              <input type="file"
-                     id="orange-screenshot"
-                     name="proof"
-                     accept="image/*"
-                     required
-                     aria-describedby="orange-remark" />
-            </div>
-
-            <button type="submit" class="btn">Envoyer preuve Orange Money</button>
-            <div id="orange-remark" role="status" aria-live="polite" class="remark">
-              Vous devez joindre une capture d’écran pour valider votre dépôt. Sans preuve, votre solde ne sera pas mis à jour.
-            </div>
-          </fieldset>
-        </form>
-      </section>
-
+    <!-- Autres moyens -->
+    <div class="other-payments">
+      <p>Vous ne trouvez pas votre moyen de paiement ?</p>
+      <button onclick="window.location.href='payment.html'">Autres moyens de paiement</button>
     </div>
   </main>
 
-  <!-- Firebase Auth pour injecter userId -->
+  <!-- Footer -->
+  <footer>
+    <a href="privacy.html">Politique de confidentialité</a> |
+    <a href="assistance.html">Assistance</a>
+    <p>&copy; 2025 Social Boost Horizon – Tous droits réservés.</p>
+  </footer>
+
+  <!-- Firebase Auth (inject userId) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    const firebaseConfig = {/*…*/};
+    const app = initializeApp(firebaseConfig), auth = getAuth(app);
+    onAuthStateChanged(auth, u=>{ if(u){
+      document.getElementById('mtn-userId').value=u.uid;
+      document.getElementById('orange-userId').value=u.uid;
+    }});
+  </script>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-      authDomain: "social-boost-horizon.firebaseapp.com",
-      projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.firebasestorage.app",
-      messagingSenderId: "43658165639",
-      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
-      measurementId: "G-JJXPNN90V1"
-    };
-    const app  = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-
-    onAuthStateChanged(auth, user => {
-      if (user) {
-        document.getElementById('mtn-userId').value    = user.uid;
-        document.getElementById('orange-userId').value = user.uid;
-      }
+  <!-- Submit to backend -->
+  <script>
+    const backendUrl="https://.../upload";
+    document.querySelectorAll('.deposit-form').forEach(f=>{
+      f.addEventListener('submit',async e=>{
+        e.preventDefault();
+        const fd=new FormData(f);
+        try{
+          let r=await fetch(backendUrl,{method:'POST',body:fd}),d=await r.json();
+          if(d.success){alert(`✅ Montant : ${d.montant} FCFA`);f.reset();}
+          else alert(`❌ ${d.error}`);
+        }catch{alert('⚠️ Erreur lors de l’envoi.');}
+      });
     });
   </script>
 
-  <!-- Envoi vers ton backend Replit -->
-  <script>
-    const backendUrl = "https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev/upload";
+  <!-- AOS -->
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+  <script> AOS.init({ duration:600, once:true }); </script>
 
-    document.querySelectorAll('.deposit-form').forEach(form => {
-      form.addEventListener('submit', async e => {
-        e.preventDefault();
-        const fd = new FormData(form);
-        try {
-          const res = await fetch(backendUrl, {
-            method: 'POST',
-            body: fd
-          });
-          const data = await res.json();
-          if (data.success) {
-            alert(`✅ Succès ! Montant traité : ${data.montant} FCFA`);
-            form.reset();
-          } else {
-            alert(`❌ Erreur : ${data.error}`);
-          }
-        } catch (err) {
-          console.error(err);
-          alert('⚠️ Une erreur est survenue lors de l’envoi de la preuve.');
-        }
-      });
-    });
+  <!-- Hamburger toggle -->
+  <script>
+    const btn=document.getElementById('hamburgerBtn'),
+          menu=document.getElementById('hamburgerMenu'),
+          back=document.getElementById('menuBackdrop');
+    btn.addEventListener('click',()=>{menu.classList.toggle('open');back.classList.toggle('active');});
+    back.addEventListener('click',()=>{menu.classList.remove('open');back.classList.remove('active');});
   </script>
 </body>
 </html>
