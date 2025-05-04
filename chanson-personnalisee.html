@@ -14,15 +14,17 @@
       --text-dark:   #2c3e50;
       --border-gray: #b0bec5;
     }
+    /* Reset & typo **/
     * { margin:0; padding:0; box-sizing:border-box; }
-    html { font-size:100%; }
+    html { font-size:100%; }               /* 1rem = 16px  */
     body {
       font-family:'Poppins',sans-serif;
-      font-size:1rem;
+      font-size:1rem;                      /* texte ≈16px  */
       line-height:1.6;
       background:var(--bg-light);
       color:var(--text-dark);
     }
+    /* Header **/
     header {
       background:var(--dark-blue);
       color:var(--white);
@@ -30,6 +32,7 @@
       padding:1.5rem;
     }
     header h1 { font-size:1.5rem; }
+    /* Container **/
     .container {
       max-width:700px;
       margin:1.5rem auto;
@@ -38,11 +41,13 @@
       border-radius:6px;
       box-shadow:0 2px 8px rgba(0,0,0,0.05);
     }
+    /* Illustration **/
     .illustration img {
       display:block;
-      width:100%;
-      height:auto; /* responsive image  [oai_citation:2‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/input/button?utm_source=chatgpt.com) */
+      width:100%;                         /* responsive, pas de 0×0  [oai_citation:1‡W3Schools](https://www.w3schools.com/tags/att_button_type.asp?utm_source=chatgpt.com) */
+      height:auto;
     }
+    /* Section description **/
     .section {
       padding:1rem;
     }
@@ -51,9 +56,7 @@
       color:var(--green);
       margin-bottom:0.5rem;
     }
-    button, form button {
-      font-family:'Poppins',sans-serif;
-    }
+    /* Bouton Commander (type=button) **/
     .btn-order {
       display:block;
       width:90%;
@@ -64,8 +67,9 @@
       border:none;
       border-radius:4px;
       font-size:1rem;
-      cursor:pointer;
+      cursor:pointer;                     /* bouton sans comportement par défaut  [oai_citation:2‡Stack Overflow](https://stackoverflow.com/questions/41904199/whats-the-point-of-button-type-button?utm_source=chatgpt.com) */
     }
+    /* Formulaire (caché initialement) **/
     form {
       display:none;
       padding:1rem;
@@ -84,12 +88,14 @@
       border:1px solid var(--border-gray);
       border-radius:4px;
     }
+    /* Prix total **/
     #prixTotal {
       text-align:center;
       margin-top:0.5rem;
       font-size:1rem;
       font-weight:bold;
     }
+    /* Footer **/
     footer {
       background:var(--dark-blue);
       color:var(--white);
@@ -114,10 +120,11 @@
 
     <div class="section">
       <h2>Description</h2>
-      <p>Créez une chanson unique pour votre moment spécial ! Nos chansons personnalisées sont parfaites pour les mariages, anniversaires, cadeaux pour vos proches. Choisissez une catégorie et faites chanter vos émotions.</p>
+      <p>Créez une chanson unique pour votre moment spécial ! Nos chansons personnalisées sont parfaites pour les mariages, anniversaires et cadeaux. Choisissez une catégorie et faites chanter vos émotions.</p>
     </div>
 
-    <button type="button" class="btn-order" onclick="toggleForm()">Commander ce service</button>
+    <!-- BOUTON TYPE BUTTON pour n’avoir aucun comportement submit par défaut -->
+    <button type="button" class="btn-order" onclick="showForm()">Commander ce service</button>
 
     <form id="formulaire" name="formulaire" onsubmit="redirigerWhatsApp(event)">
       <label for="packs">Packs :</label>
@@ -151,7 +158,7 @@
       <label for="idee">Idée de la chanson :</label>
       <input id="idee" name="idee" type="text" required>
 
-      <label for="paroles">Paroles de la chanson :</label>
+      <label for="paroles">Paroles de la chanson (optionnel) :</label>
       <textarea id="paroles" name="paroles" rows="3"></textarea>
 
       <label for="details">Plus de détails :</label>
@@ -165,43 +172,41 @@
   <footer>Social Boost Horizon – © 2025</footer>
 
   <script>
-    // Affiche / cache le formulaire
-    function toggleForm(){
-      const f = document.getElementById('formulaire');
-      f.style.display = f.style.display === 'block' ? 'none' : 'block';
+    /** Affiche simplement le formulaire (pas de toggle) **/
+    function showForm(){
+      document.getElementById('formulaire').style.display = 'block';
     }
 
-    // Calcule dynamiquement le prix en fonction du pack et des paroles
+    /** Calcule le prix dynamique **/
     function calcPrix(){
       let base = parseInt(document.forms['formulaire'].elements['packs'].value);
       const paroles = document.forms['formulaire'].elements['paroles'].value.trim();
       if(paroles) {
-        base -= 500; // remise 500 FCFA si paroles fournies 
+        base -= 500;                    // remise si paroles fournies 
       }
       document.getElementById('prixTotal').textContent =
         'Prix total : ' + base.toLocaleString() + ' FCFA';
     }
-    // S’assurer de recalculer si l’utilisateur saisit des paroles
-    document.getElementById('paroles').addEventListener('input', calcPrix);
+    document.getElementById('paroles')
+            .addEventListener('input', calcPrix);  // recalcul automatique 
 
-    // Envoi vers WhatsApp avec message pré‑rempli
+    /** Redirection WhatsApp **/
     function redirigerWhatsApp(e){
       e.preventDefault();
-      const form = document.forms['formulaire'];
+      const f = document.forms['formulaire'];
       const data = {
-        packs: form.elements['packs'].value,
-        categorie: form.elements['categorie'].value,
-        voix: form.elements['voix'].value,
-        style: form.elements['style'].value,
-        idee: form.elements['idee'].value,
-        paroles: form.elements['paroles'].value || '(non spécifiées)',
-        details: form.elements['details'].value
+        packs: f.elements['packs'].value,
+        categorie: f.elements['categorie'].value,
+        voix: f.elements['voix'].value,
+        style: f.elements['style'].value,
+        idee: f.elements['idee'].value,
+        paroles: f.elements['paroles'].value || '(non spécifiées)',
+        details: f.elements['details'].value
       };
       const prix = document.getElementById('prixTotal').textContent.split(' : ')[1];
-      let msg = `Commande Chanson Personnalisée\n\n`;
-      msg += `Packs : ${data.packs} FCFA\nCatégorie : ${data.categorie}\nVoix : ${data.voix}\n`;
-      msg += `Style : ${data.style}\nIdée : ${data.idee}\nParoles : ${data.paroles}\n`;
-      msg += `Détails : ${data.details}\nPrix : ${prix}`;
+      let msg = `Commande Chanson Personnalisée\n\nPacks : ${data.packs} FCFA\nCatégorie : ${data.categorie}\n`;
+      msg += `Voix : ${data.voix}\nStyle : ${data.style}\nIdée : ${data.idee}\n`;
+      msg += `Paroles : ${data.paroles}\nDétails : ${data.details}\nPrix : ${prix}`;
       window.open(`https://wa.me/237699853665?text=${encodeURIComponent(msg)}`, '_blank');
     }
   </script>
