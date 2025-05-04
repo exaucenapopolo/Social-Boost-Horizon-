@@ -9,11 +9,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&display=swap" rel="stylesheet">
   <!-- Font Awesome pour icônes -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <!-- AOS pour animations (conservé au cas où, mais non activé ici) -->
+  <!-- AOS (désactivé pour cette page) -->
   <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>
 
   <style>
-    /* ─── Vos styles inchangés ─────────────────────────────────────────── */
+    /* Vos styles initiaux */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       height: 100%;
@@ -174,13 +174,13 @@
     </div>
   </main>
 
-  <!-- AOS (inactif ici) et votre script JS -->
+  <!-- AOS chargé mais désactivé pour ne pas masquer -->
   <script src="https://unpkg.com/aos@2.3.1/dist/aos.js" defer></script>
   <script defer>
-    // Si vous souhaitez toujours charger AOS pour d'autres pages :
+    // Désactivation totale de AOS sur cette page
     AOS.init({ disable: true });
 
-    // Configuration Firebase (votre config d'origine)
+    // Configuration Firebase complète
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -215,52 +215,43 @@
       const telephone = document.getElementById('telephone').value.trim();
       const referred  = document.getElementById('referralCode').value.trim();
 
-      // Validation
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        err.textContent = 'Adresse e-mail invalide.'; return;
+        alert('Adresse e-mail invalide.'); err.textContent = 'Adresse e-mail invalide.'; return;
       }
-      if (!username||!pays||!telephone||!password) {
-        err.textContent = 'Tous les champs sont requis.'; return;
+      if (!username || !pays || !telephone || !password) {
+        alert('Tous les champs sont requis.'); err.textContent = 'Tous les champs sont requis.'; return;
       }
       if (password.length < 6) {
-        err.textContent = 'Le mot de passe doit contenir au moins 6 caractères.'; return;
+        alert('Le mot de passe doit contenir au moins 6 caractères.'); err.textContent = 'Le mot de passe doit contenir au moins 6 caractères.'; return;
       }
       if (referred && !/^[A-Za-z0-9]{6}$/.test(referred)) {
-        err.textContent = 'Le code doit comporter exactement 6 lettres ou chiffres (ex : ABC123).'; return;
+        alert('Le code doit comporter exactement 6 lettres ou chiffres (ex : ABC123).'); err.textContent = 'Le code doit comporter exactement 6 lettres ou chiffres (ex : ABC123).'; return;
       }
 
       try {
+        console.log('👉 Création du compte Firebase…');
         const cred = await auth.createUserWithEmailAndPassword(email, password);
         if (!cred.user) throw new Error('Échec création utilisateur');
         const userId = cred.user.uid;
+        console.log('✅ UID:', userId);
 
-        console.log('📤 Envoi /api/signup', { userId, email, referralCode: referred||null });
+        console.log('📤 Appel /api/signup');
         const resp = await fetch('/api/signup', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ userId, email, referralCode: referred||null })
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, email, referralCode: referred || null })
         });
+        console.log('📥 Statut:', resp.status);
         const data = await resp.json();
-        console.log('📥 réponse back-end', resp.status, data);
-        if (!data.success) throw new Error(data.error||'Erreur serveur');
+        console.log('📥 JSON:', data);
+        if (!data.success) throw new Error(data.error || 'Erreur serveur');
 
-        await db.collection('users').doc(userId).set({
-          username,
-          phone: `${indicatif} ${telephone}`,
-          country: pays,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-
-        resultEl.textContent = `Inscription réussie ! Votre code : ${data.referralCode}`;
-        resultEl.style.display = 'block';
-        setTimeout(() => window.location.href='dashboard.html', 4000);
-
+        alert('Inscription réussie ! Vous allez être redirigé...');
+        window.location.href = 'dashboard.html';
       } catch (e) {
-        console.error(e);
-        err.textContent =
-          e.code==='auth/email-already-in-use' ? 'Adresse e-mail déjà utilisée.' :
-          e.code==='auth/weak-password'         ? 'Mot de passe trop faible.' :
-          e.message                              || 'Erreur inattendue.';
+        console.error('❌ Erreur d\'inscription :', e);
+        alert(`Erreur : ${e.message}`);
+        err.textContent = e.message;
       }
     });
   </script>
