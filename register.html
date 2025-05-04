@@ -9,11 +9,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&display=swap" rel="stylesheet">
   <!-- Font Awesome pour icônes -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <!-- AOS (désactivé pour cette page) -->
-  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>
 
   <style>
-    /* Vos styles initiaux */
+    /* Vos styles inchangés */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       height: 100%;
@@ -174,13 +172,13 @@
     </div>
   </main>
 
-  <!-- AOS chargé mais désactivé pour ne pas masquer -->
-  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js" defer></script>
-  <script defer>
-    // Désactivation totale de AOS sur cette page
-    AOS.init({ disable: true });
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
 
-    // Configuration Firebase complète
+  <script>
+    // Votre configuration Firebase d'origine
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -201,57 +199,79 @@
 
     document.getElementById('registerForm').addEventListener('submit', async e => {
       e.preventDefault();
-      console.log('🚀 Formulaire soumis !');
+      const errorEl = document.getElementById('errorMsg');
+      errorEl.textContent = "";
 
-      const err = document.getElementById('errorMsg');
-      const resultEl = document.getElementById('result');
-      err.textContent = ''; resultEl.style.display = 'none';
-
+      // Récupérer les valeurs
       const username  = document.getElementById('username').value.trim();
       const email     = document.getElementById('email').value.trim();
       const password  = document.getElementById('password').value;
       const pays      = document.getElementById('pays').value;
       const indicatif = document.getElementById('indicatif').value;
       const telephone = document.getElementById('telephone').value.trim();
-      const referred  = document.getElementById('referralCode').value.trim();
+      const referred  = document.getElementById('referralCode').value.trim() || null;
 
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        alert('Adresse e-mail invalide.'); err.textContent = 'Adresse e-mail invalide.'; return;
-      }
-      if (!username || !pays || !telephone || !password) {
-        alert('Tous les champs sont requis.'); err.textContent = 'Tous les champs sont requis.'; return;
+      // Validations
+      if (!username || !email || !pays || !telephone || !password) {
+        errorEl.textContent = "Tous les champs sont requis.";
+        return;
       }
       if (password.length < 6) {
-        alert('Le mot de passe doit contenir au moins 6 caractères.'); err.textContent = 'Le mot de passe doit contenir au moins 6 caractères.'; return;
+        errorEl.textContent = "Le mot de passe doit contenir au moins 6 caractères.";
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errorEl.textContent = "Adresse e-mail invalide.";
+        return;
       }
       if (referred && !/^[A-Za-z0-9]{6}$/.test(referred)) {
-        alert('Le code doit comporter exactement 6 lettres ou chiffres (ex : ABC123).'); err.textContent = 'Le code doit comporter exactement 6 lettres ou chiffres (ex : ABC123).'; return;
+        errorEl.textContent = "Le code de parrainage est invalide.";
+        return;
       }
 
       try {
-        console.log('👉 Création du compte Firebase…');
+        // 1) Création du compte Firebase Auth
         const cred = await auth.createUserWithEmailAndPassword(email, password);
         if (!cred.user) throw new Error('Échec création utilisateur');
         const userId = cred.user.uid;
-        console.log('✅ UID:', userId);
 
-        console.log('📤 Appel /api/signup');
+        // 2) Appel à votre back-end pour générer/stocker le code de parrainage
         const resp = await fetch('/api/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, email, referralCode: referred || null })
+          body: JSON.stringify({ userId, email, referralCode: referred })
         });
-        console.log('📥 Statut:', resp.status);
         const data = await resp.json();
-        console.log('📥 JSON:', data);
         if (!data.success) throw new Error(data.error || 'Erreur serveur');
 
-        alert('Inscription réussie ! Vous allez être redirigé...');
-        window.location.href = 'dashboard.html';
-      } catch (e) {
-        console.error('❌ Erreur d\'inscription :', e);
-        alert(`Erreur : ${e.message}`);
-        err.textContent = e.message;
+        // 3) Enregistrement du profil dans Firestore
+        await db.collection("users").doc(userId).set({
+          username,
+          email,
+          phone: `${indicatif} ${telephone}`,
+          country: pays,
+          referralCode: data.referralCode,
+          referredBy: referred,
+          remainingDiscountUses: referred ? 10 : 0,
+          hasReceivedReferralBonus: false,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        // 4) Succès & redirection
+        alert("Inscription réussie ! Redirection vers le tableau de bord...");
+        window.location.href = "dashboard.html";
+
+      } catch (error) {
+        console.error('Erreur inscription :', error);
+        if (error.code === 'auth/email-already-in-use') {
+          errorEl.textContent = "Cette adresse e-mail est déjà utilisée.";
+        } else if (error.code === 'auth/invalid-email') {
+          errorEl.textContent = "Adresse e-mail invalide.";
+        } else if (error.code === 'auth/weak-password') {
+          errorEl.textContent = "Mot de passe trop faible.";
+        } else {
+          errorEl.textContent = "Erreur : " + error.message;
+        }
       }
     });
   </script>
