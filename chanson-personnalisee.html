@@ -14,12 +14,11 @@
       --text-dark:   #2c3e50;
       --border-gray: #b0bec5;
     }
-    /* reset & typographie */
     * { margin:0; padding:0; box-sizing:border-box; }
-    html { font-size:100%; }           /* 1rem=16px  [oai_citation:0‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/CSS/font-size?utm_source=chatgpt.com) */
+    html { font-size:100%; }
     body {
       font-family:'Poppins',sans-serif;
-      font-size:1rem;                  /* texte ≈16px  [oai_citation:1‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/CSS/font-size?utm_source=chatgpt.com) */
+      font-size:1rem;
       line-height:1.6;
       background:var(--bg-light);
       color:var(--text-dark);
@@ -41,8 +40,8 @@
     }
     .illustration img {
       display:block;
-      width:100%;                     /* évite 0×0  [oai_citation:2‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-y?utm_source=chatgpt.com) */
-      height:auto;
+      width:100%;
+      height:auto; /* responsive image  [oai_citation:2‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/input/button?utm_source=chatgpt.com) */
     }
     .section {
       padding:1rem;
@@ -51,6 +50,9 @@
       font-size:1.25rem;
       color:var(--green);
       margin-bottom:0.5rem;
+    }
+    button, form button {
+      font-family:'Poppins',sans-serif;
     }
     .btn-order {
       display:block;
@@ -74,7 +76,7 @@
       font-weight:600;
       font-size:0.875rem;
     }
-    form input, form select, form textarea, form button {
+    form input, form select, form textarea {
       width:100%;
       padding:0.5rem;
       margin-top:0.25rem;
@@ -115,18 +117,18 @@
       <p>Créez une chanson unique pour votre moment spécial ! Nos chansons personnalisées sont parfaites pour les mariages, anniversaires, cadeaux pour vos proches. Choisissez une catégorie et faites chanter vos émotions.</p>
     </div>
 
-    <button class="btn-order" onclick="showForm()">Commander ce service</button>
+    <button type="button" class="btn-order" onclick="toggleForm()">Commander ce service</button>
 
-    <form id="formulaire" onsubmit="redirigerWhatsApp(event)">
+    <form id="formulaire" name="formulaire" onsubmit="redirigerWhatsApp(event)">
       <label for="packs">Packs :</label>
-      <select id="packs" onchange="calcPrix()">
+      <select id="packs" name="packs" onchange="calcPrix()">
         <option value="3500">1 chanson (3 500 FCFA)</option>
         <option value="5000">2 chansons (5 000 FCFA)</option>
         <option value="15000">EP de 5 chansons (15 000 FCFA)</option>
       </select>
 
-      <label>Catégorie :</label>
-      <select id="categorie">
+      <label for="categorie">Catégorie :</label>
+      <select id="categorie" name="categorie">
         <option value="amour">Chanson d’amour</option>
         <option value="amitie">Chanson d’amitié</option>
         <option value="gratitude">Chanson de gratitude</option>
@@ -136,24 +138,24 @@
         <option value="autre">Autre</option>
       </select>
 
-      <label>Voix :</label>
-      <select id="voix">
+      <label for="voix">Voix :</label>
+      <select id="voix" name="voix">
         <option value="masculin">Masculin</option>
         <option value="feminin">Féminin</option>
         <option value="les_deux">Les deux</option>
       </select>
 
       <label for="style">Style et genre :</label>
-      <input id="style" type="text" required>
+      <input id="style" name="style" type="text" required>
 
       <label for="idee">Idée de la chanson :</label>
-      <input id="idee" type="text" required>
+      <input id="idee" name="idee" type="text" required>
 
       <label for="paroles">Paroles de la chanson :</label>
-      <textarea id="paroles" rows="3"></textarea>
+      <textarea id="paroles" name="paroles" rows="3"></textarea>
 
       <label for="details">Plus de détails :</label>
-      <textarea id="details" rows="3"></textarea>
+      <textarea id="details" name="details" rows="3"></textarea>
 
       <p id="prixTotal">Prix total : 3500 FCFA</p>
       <button type="submit">Envoyer et discuter</button>
@@ -163,33 +165,44 @@
   <footer>Social Boost Horizon – © 2025</footer>
 
   <script>
-    function showForm(){
-      document.getElementById('formulaire').style.display='block';
+    // Affiche / cache le formulaire
+    function toggleForm(){
+      const f = document.getElementById('formulaire');
+      f.style.display = f.style.display === 'block' ? 'none' : 'block';
     }
+
+    // Calcule dynamiquement le prix en fonction du pack et des paroles
     function calcPrix(){
-      let base = parseInt(document.getElementById('packs').value);
-      const paroles = document.getElementById('paroles').value.trim();
+      let base = parseInt(document.forms['formulaire'].elements['packs'].value);
+      const paroles = document.forms['formulaire'].elements['paroles'].value.trim();
       if(paroles) {
-        base -= 500;               // remise si paroles fournies  [oai_citation:3‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/parseInt?utm_source=chatgpt.com)
+        base -= 500; // remise 500 FCFA si paroles fournies 
       }
-      document.getElementById('prixTotal').textContent = 
+      document.getElementById('prixTotal').textContent =
         'Prix total : ' + base.toLocaleString() + ' FCFA';
     }
-    document.getElementById('paroles').addEventListener('input', calcPrix); // recalcul au remplissage  [oai_citation:4‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/change_event?utm_source=chatgpt.com)
+    // S’assurer de recalculer si l’utilisateur saisit des paroles
+    document.getElementById('paroles').addEventListener('input', calcPrix);
 
+    // Envoi vers WhatsApp avec message pré‑rempli
     function redirigerWhatsApp(e){
       e.preventDefault();
-      const f = e.target;
-      const packs = f.packs.value;
-      const categorie = f.categorie.value;
-      const voix = f.voix.value;
-      const style = f.style.value;
-      const idee = f.idee.value;
-      const paroles = f.paroles.value || '(non spécifiées)';
-      const details = f.details.value;
+      const form = document.forms['formulaire'];
+      const data = {
+        packs: form.elements['packs'].value,
+        categorie: form.elements['categorie'].value,
+        voix: form.elements['voix'].value,
+        style: form.elements['style'].value,
+        idee: form.elements['idee'].value,
+        paroles: form.elements['paroles'].value || '(non spécifiées)',
+        details: form.elements['details'].value
+      };
       const prix = document.getElementById('prixTotal').textContent.split(' : ')[1];
-      let msg = `Commande Chanson Personnalisée\n\nPacks : ${packs} FCFA\nCatégorie : ${categorie}\nVoix : ${voix}\nStyle : ${style}\nIdée : ${idee}\nParoles : ${paroles}\nDétails : ${details}\nPrix : ${prix}`;
-      window.open(`https://wa.me/237699853665?text=${encodeURIComponent(msg)}`,'_blank');  [oai_citation:5‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Window/open?utm_source=chatgpt.com)
+      let msg = `Commande Chanson Personnalisée\n\n`;
+      msg += `Packs : ${data.packs} FCFA\nCatégorie : ${data.categorie}\nVoix : ${data.voix}\n`;
+      msg += `Style : ${data.style}\nIdée : ${data.idee}\nParoles : ${data.paroles}\n`;
+      msg += `Détails : ${data.details}\nPrix : ${prix}`;
+      window.open(`https://wa.me/237699853665?text=${encodeURIComponent(msg)}`, '_blank');
     }
   </script>
 
