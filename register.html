@@ -20,7 +20,6 @@
       background: #F0F8F4;
       color: #333;
     }
-
     header {
       text-align: center;
       padding: 30px 0;
@@ -32,7 +31,6 @@
       font-size: 1.75rem;
       text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
     }
-
     main {
       display: flex;
       justify-content: center;
@@ -40,7 +38,6 @@
       padding: 20px;
       min-height: calc(100% - 110px);
     }
-
     .card {
       background: #fff;
       border-radius: 8px;
@@ -49,14 +46,12 @@
       padding: 30px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
-
     .card h2 {
       text-align: center;
       font-size: 2rem;
       margin-bottom: 24px;
       color: #004080;
     }
-
     label {
       display: block;
       font-size: 1rem;
@@ -64,7 +59,6 @@
       font-weight: 600;
     }
     label i { color: #28a745; margin-right: 8px; }
-
     input, select {
       width: 100%;
       font-size: 1rem;
@@ -73,10 +67,8 @@
       border: 1px solid #ccc;
       border-radius: 4px;
     }
-
     .phone-group { display: flex; gap: 8px; }
     .phone-group input { flex: 1; }
-
     button {
       width: 100%;
       font-size: 1rem;
@@ -89,13 +81,11 @@
       transition: opacity 0.3s;
     }
     button:hover { opacity: 0.9; }
-
     .error {
       font-size: 0.9rem;
       color: #d00;
       margin-top: 10px;
     }
-
     .link {
       text-align: center;
       margin-top: 16px;
@@ -106,7 +96,6 @@
       text-decoration: none;
     }
     .link a:hover { text-decoration: underline; }
-
     .result {
       margin-top: 20px;
       padding: 12px;
@@ -128,12 +117,14 @@
   <main>
     <div class="card" data-aos="fade-up">
       <h2>Créer un compte</h2>
+      <!-- novalidate désactive la validation HTML5 native  [oai_citation:0‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form?utm_source=chatgpt.com) -->
       <form id="registerForm" novalidate>
         <label for="username"><i class="fas fa-user"></i> Nom d'utilisateur</label>
         <input type="text" id="username" required />
 
         <label for="email"><i class="fas fa-envelope"></i> Email</label>
-        <input type="email" id="email" required />
+        <!-- on passe en type="text" pour valider en JS -->
+        <input type="text" id="email" required />
 
         <label for="pays"><i class="fas fa-globe"></i> Pays</label>
         <select id="pays" onchange="updateIndicatif()" required>
@@ -189,9 +180,10 @@
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
   <!-- AOS JS -->
-  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js" defer></script>
 
-  <script>
+  <!-- Votre script, chargé avec defer pour s'exécuter après le parsing  [oai_citation:1‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script?utm_source=chatgpt.com) -->
+  <script defer>
     AOS.init({ duration: 600, once: true });
 
     const firebaseConfig = {
@@ -214,6 +206,7 @@
 
     document.getElementById('registerForm').addEventListener('submit', async e => {
       e.preventDefault();
+      console.log('🚀 Formulaire soumis !');
       const err = document.getElementById('errorMsg');
       const resultEl = document.getElementById('result');
       err.textContent = '';
@@ -227,7 +220,12 @@
       const telephone = document.getElementById('telephone').value.trim();
       const referred  = document.getElementById('referralCode').value.trim();
 
-      if (!username || !email || !pays || !telephone || !password) {
+      // Validation manuelle de l'email
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        err.textContent = 'Adresse e-mail invalide.';
+        return;
+      }
+      if (!username || !pays || !telephone || !password) {
         err.textContent = 'Tous les champs sont requis.';
         return;
       }
@@ -242,15 +240,19 @@
       }
 
       try {
-        const { user } = await auth.createUserWithEmailAndPassword(email, password);
-        const userId = user.uid;
+        const cred = await auth.createUserWithEmailAndPassword(email, password);
+        if (!cred.user) throw new Error("Échec création utilisateur");
+        const userId = cred.user.uid;
 
+        console.log('📤 Envoi à /api/signup', { userId, email, referralCode: referred || null });
         const resp = await fetch('/api/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId, email, referralCode: referred || null })
         });
         const data = await resp.json();
+        console.log('📥 Réponse back-end', resp.status, data);
+
         if (!data.success) throw new Error(data.error || 'Erreur serveur');
 
         await db.collection('users').doc(userId).set({
@@ -262,15 +264,14 @@
 
         resultEl.textContent = `Inscription réussie ! Votre code : ${data.referralCode}`;
         resultEl.style.display = 'block';
-        setTimeout(() => window.location.href = 'dashboard.html', 4000);
 
+        setTimeout(() => window.location.href = 'dashboard.html', 4000);
       } catch (e) {
         console.error(e);
         const code = e.code || '';
         err.textContent =
-          code === 'auth/email-already-in-use' ? 'Adresse e-mail déjà utilisée.' :
-          code === 'auth/invalid-email'           ? 'Adresse e-mail invalide.' :
-          code === 'auth/weak-password'           ? 'Mot de passe trop faible.' :
+          code === 'auth/email-already-in-use' ? 'Cette adresse e-mail est déjà utilisée.' :
+          code === 'auth/weak-password'         ? 'Mot de passe trop faible.' :
           e.message || 'Erreur inattendue.';
       }
     });
