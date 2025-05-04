@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&display=swap" rel="stylesheet">
   <!-- Font Awesome pour icônes -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <!-- AOS pour animations -->
+  <!-- AOS pour animations (conservé au cas où, mais non activé ici) -->
   <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>
 
   <style>
@@ -107,9 +107,6 @@
       font-weight: bold;
       text-align: center;
     }
-
-    /* ─── Override AOS pour forcer affichage ───────────────────────────── */
-    .aos-init { opacity: 1 !important; }
   </style>
 </head>
 <body>
@@ -119,7 +116,7 @@
   </header>
 
   <main>
-    <div class="card" data-aos="fade-up">
+    <div class="card">
       <h2>Créer un compte</h2>
       <form id="registerForm" novalidate>
         <label for="username"><i class="fas fa-user"></i> Nom d'utilisateur</label>
@@ -177,13 +174,13 @@
     </div>
   </main>
 
-  <!-- AOS et votre script JS en bas (defer pour l’ordre) -->
+  <!-- AOS (inactif ici) et votre script JS -->
   <script src="https://unpkg.com/aos@2.3.1/dist/aos.js" defer></script>
   <script defer>
-    // Initialisation après le chargement complet pour lever l’opacité
-    AOS.init({ startEvent: 'load', duration: 600, once: true });
+    // Si vous souhaitez toujours charger AOS pour d'autres pages :
+    AOS.init({ disable: true });
 
-    // Votre configuration Firebase originale
+    // Configuration Firebase (votre config d'origine)
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -218,6 +215,7 @@
       const telephone = document.getElementById('telephone').value.trim();
       const referred  = document.getElementById('referralCode').value.trim();
 
+      // Validation
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         err.textContent = 'Adresse e-mail invalide.'; return;
       }
@@ -228,7 +226,7 @@
         err.textContent = 'Le mot de passe doit contenir au moins 6 caractères.'; return;
       }
       if (referred && !/^[A-Za-z0-9]{6}$/.test(referred)) {
-        err.textContent = 'Le code doit être 6 lettres/chiffres (ex : ABC123).'; return;
+        err.textContent = 'Le code doit comporter exactement 6 lettres ou chiffres (ex : ABC123).'; return;
       }
 
       try {
@@ -236,13 +234,14 @@
         if (!cred.user) throw new Error('Échec création utilisateur');
         const userId = cred.user.uid;
 
-        console.log('📤 POST /api/signup', { userId, email, referralCode: referred||null });
+        console.log('📤 Envoi /api/signup', { userId, email, referralCode: referred||null });
         const resp = await fetch('/api/signup', {
-          method:'POST', headers:{'Content-Type':'application/json'},
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ userId, email, referralCode: referred||null })
         });
         const data = await resp.json();
-        console.log('📥 back-end', resp.status, data);
+        console.log('📥 réponse back-end', resp.status, data);
         if (!data.success) throw new Error(data.error||'Erreur serveur');
 
         await db.collection('users').doc(userId).set({
@@ -252,14 +251,14 @@
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
 
-        resultEl.textContent = `Inscription réussie ! Code : ${data.referralCode}`;
+        resultEl.textContent = `Inscription réussie ! Votre code : ${data.referralCode}`;
         resultEl.style.display = 'block';
         setTimeout(() => window.location.href='dashboard.html', 4000);
 
       } catch (e) {
         console.error(e);
         err.textContent =
-          e.code==='auth/email-already-in-use' ? 'Cette adresse e-mail est déjà utilisée.' :
+          e.code==='auth/email-already-in-use' ? 'Adresse e-mail déjà utilisée.' :
           e.code==='auth/weak-password'         ? 'Mot de passe trop faible.' :
           e.message                              || 'Erreur inattendue.';
       }
