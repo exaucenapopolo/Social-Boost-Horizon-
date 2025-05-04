@@ -108,8 +108,8 @@
     }
   </style>
 </head>
-<body>
 
+<body>
   <header>
     <h1>Social Boost Horizon</h1>
   </header>
@@ -117,13 +117,11 @@
   <main>
     <div class="card" data-aos="fade-up">
       <h2>Créer un compte</h2>
-      <!-- novalidate désactive la validation HTML5 native  [oai_citation:0‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form?utm_source=chatgpt.com) -->
       <form id="registerForm" novalidate>
         <label for="username"><i class="fas fa-user"></i> Nom d'utilisateur</label>
         <input type="text" id="username" required />
 
         <label for="email"><i class="fas fa-envelope"></i> Email</label>
-        <!-- on passe en type="text" pour valider en JS -->
         <input type="text" id="email" required />
 
         <label for="pays"><i class="fas fa-globe"></i> Pays</label>
@@ -154,7 +152,7 @@
 
         <label for="telephone"><i class="fas fa-phone"></i> Numéro de téléphone</label>
         <div class="phone-group">
-          <input type="text" id="indicatif" readonly placeholder="+1" style="max-width:100px;" />
+          <input type="text" id="indicatif" readonly placeholder="+229" style="max-width:100px;" />
           <input type="tel" id="telephone" required placeholder="xx xx xx xx" />
         </div>
 
@@ -175,17 +173,12 @@
     </div>
   </main>
 
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
-  <!-- AOS JS -->
+  <!-- Scripts en bas pour s'assurer que le DOM est chargé -->
   <script src="https://unpkg.com/aos@2.3.1/dist/aos.js" defer></script>
-
-  <!-- Votre script, chargé avec defer pour s'exécuter après le parsing  [oai_citation:1‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script?utm_source=chatgpt.com) -->
   <script defer>
     AOS.init({ duration: 600, once: true });
 
+    // Initialisation Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -198,20 +191,24 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth(), db = firebase.firestore();
 
+    // Met à jour l'indicatif téléphonique
     function updateIndicatif() {
       const sel = document.getElementById("pays");
       document.getElementById("indicatif").value =
         sel.options[sel.selectedIndex].dataset.code || "";
     }
 
+    // Gestion du submit
     document.getElementById('registerForm').addEventListener('submit', async e => {
       e.preventDefault();
       console.log('🚀 Formulaire soumis !');
+
       const err = document.getElementById('errorMsg');
       const resultEl = document.getElementById('result');
       err.textContent = '';
       resultEl.style.display = 'none';
 
+      // Récupération des valeurs
       const username  = document.getElementById('username').value.trim();
       const email     = document.getElementById('email').value.trim();
       const password  = document.getElementById('password').value;
@@ -220,41 +217,45 @@
       const telephone = document.getElementById('telephone').value.trim();
       const referred  = document.getElementById('referralCode').value.trim();
 
-      // Validation manuelle de l'email
+      // 1) Validation email en JS
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         err.textContent = 'Adresse e-mail invalide.';
         return;
       }
+      // 2) Champs requis
       if (!username || !pays || !telephone || !password) {
         err.textContent = 'Tous les champs sont requis.';
         return;
       }
+      // 3) Mot de passe
       if (password.length < 6) {
         err.textContent = 'Le mot de passe doit contenir au moins 6 caractères.';
         return;
       }
-      // Validation manuelle du code de parrainage
+      // 4) Code parrainage optionnel
       if (referred && !/^[A-Za-z0-9]{6}$/.test(referred)) {
         err.textContent = 'Le code doit comporter exactement 6 lettres ou chiffres (ex : ABC123).';
         return;
       }
 
       try {
+        // Création du compte Firebase Auth
         const cred = await auth.createUserWithEmailAndPassword(email, password);
-        if (!cred.user) throw new Error("Échec création utilisateur");
+        if (!cred.user) throw new Error('Échec création utilisateur');
         const userId = cred.user.uid;
 
-        console.log('📤 Envoi à /api/signup', { userId, email, referralCode: referred || null });
+        // Appel à votre back-end
+        console.log('📤 POST /api/signup', { userId, email, referralCode: referred || null });
         const resp = await fetch('/api/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId, email, referralCode: referred || null })
         });
         const data = await resp.json();
-        console.log('📥 Réponse back-end', resp.status, data);
-
+        console.log('📥 réponse back-end', resp.status, data);
         if (!data.success) throw new Error(data.error || 'Erreur serveur');
 
+        // Stockage des infos de profil
         await db.collection('users').doc(userId).set({
           username,
           phone: `${indicatif} ${telephone}`,
@@ -262,17 +263,17 @@
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
 
+        // Succès et redirection
         resultEl.textContent = `Inscription réussie ! Votre code : ${data.referralCode}`;
         resultEl.style.display = 'block';
-
         setTimeout(() => window.location.href = 'dashboard.html', 4000);
+
       } catch (e) {
         console.error(e);
-        const code = e.code || '';
         err.textContent =
-          code === 'auth/email-already-in-use' ? 'Cette adresse e-mail est déjà utilisée.' :
-          code === 'auth/weak-password'         ? 'Mot de passe trop faible.' :
-          e.message || 'Erreur inattendue.';
+          e.code === 'auth/email-already-in-use' ? 'Cette adresse e-mail est déjà utilisée.' :
+          e.code === 'auth/weak-password'         ? 'Mot de passe trop faible.' :
+          e.message                                || 'Erreur inattendue.';
       }
     });
   </script>
