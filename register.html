@@ -13,6 +13,7 @@
   <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>
 
   <style>
+    /* ─── Vos styles inchangés ─────────────────────────────────────────── */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       height: 100%;
@@ -106,10 +107,13 @@
       font-weight: bold;
       text-align: center;
     }
+
+    /* ─── Override AOS pour forcer affichage ───────────────────────────── */
+    .aos-init { opacity: 1 !important; }
   </style>
 </head>
-
 <body>
+
   <header>
     <h1>Social Boost Horizon</h1>
   </header>
@@ -173,12 +177,13 @@
     </div>
   </main>
 
-  <!-- Scripts en bas pour s'assurer que le DOM est chargé -->
+  <!-- AOS et votre script JS en bas (defer pour l’ordre) -->
   <script src="https://unpkg.com/aos@2.3.1/dist/aos.js" defer></script>
   <script defer>
-    AOS.init({ duration: 600, once: true });
+    // Initialisation après le chargement complet pour lever l’opacité
+    AOS.init({ startEvent: 'load', duration: 600, once: true });
 
-    // Initialisation Firebase
+    // Votre configuration Firebase originale
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -191,24 +196,20 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth(), db = firebase.firestore();
 
-    // Met à jour l'indicatif téléphonique
     function updateIndicatif() {
       const sel = document.getElementById("pays");
       document.getElementById("indicatif").value =
         sel.options[sel.selectedIndex].dataset.code || "";
     }
 
-    // Gestion du submit
     document.getElementById('registerForm').addEventListener('submit', async e => {
       e.preventDefault();
       console.log('🚀 Formulaire soumis !');
 
       const err = document.getElementById('errorMsg');
       const resultEl = document.getElementById('result');
-      err.textContent = '';
-      resultEl.style.display = 'none';
+      err.textContent = ''; resultEl.style.display = 'none';
 
-      // Récupération des valeurs
       const username  = document.getElementById('username').value.trim();
       const email     = document.getElementById('email').value.trim();
       const password  = document.getElementById('password').value;
@@ -217,45 +218,33 @@
       const telephone = document.getElementById('telephone').value.trim();
       const referred  = document.getElementById('referralCode').value.trim();
 
-      // 1) Validation email en JS
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        err.textContent = 'Adresse e-mail invalide.';
-        return;
+        err.textContent = 'Adresse e-mail invalide.'; return;
       }
-      // 2) Champs requis
-      if (!username || !pays || !telephone || !password) {
-        err.textContent = 'Tous les champs sont requis.';
-        return;
+      if (!username||!pays||!telephone||!password) {
+        err.textContent = 'Tous les champs sont requis.'; return;
       }
-      // 3) Mot de passe
       if (password.length < 6) {
-        err.textContent = 'Le mot de passe doit contenir au moins 6 caractères.';
-        return;
+        err.textContent = 'Le mot de passe doit contenir au moins 6 caractères.'; return;
       }
-      // 4) Code parrainage optionnel
       if (referred && !/^[A-Za-z0-9]{6}$/.test(referred)) {
-        err.textContent = 'Le code doit comporter exactement 6 lettres ou chiffres (ex : ABC123).';
-        return;
+        err.textContent = 'Le code doit être 6 lettres/chiffres (ex : ABC123).'; return;
       }
 
       try {
-        // Création du compte Firebase Auth
         const cred = await auth.createUserWithEmailAndPassword(email, password);
         if (!cred.user) throw new Error('Échec création utilisateur');
         const userId = cred.user.uid;
 
-        // Appel à votre back-end
-        console.log('📤 POST /api/signup', { userId, email, referralCode: referred || null });
+        console.log('📤 POST /api/signup', { userId, email, referralCode: referred||null });
         const resp = await fetch('/api/signup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, email, referralCode: referred || null })
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ userId, email, referralCode: referred||null })
         });
         const data = await resp.json();
-        console.log('📥 réponse back-end', resp.status, data);
-        if (!data.success) throw new Error(data.error || 'Erreur serveur');
+        console.log('📥 back-end', resp.status, data);
+        if (!data.success) throw new Error(data.error||'Erreur serveur');
 
-        // Stockage des infos de profil
         await db.collection('users').doc(userId).set({
           username,
           phone: `${indicatif} ${telephone}`,
@@ -263,17 +252,16 @@
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
 
-        // Succès et redirection
-        resultEl.textContent = `Inscription réussie ! Votre code : ${data.referralCode}`;
+        resultEl.textContent = `Inscription réussie ! Code : ${data.referralCode}`;
         resultEl.style.display = 'block';
-        setTimeout(() => window.location.href = 'dashboard.html', 4000);
+        setTimeout(() => window.location.href='dashboard.html', 4000);
 
       } catch (e) {
         console.error(e);
         err.textContent =
-          e.code === 'auth/email-already-in-use' ? 'Cette adresse e-mail est déjà utilisée.' :
-          e.code === 'auth/weak-password'         ? 'Mot de passe trop faible.' :
-          e.message                                || 'Erreur inattendue.';
+          e.code==='auth/email-already-in-use' ? 'Cette adresse e-mail est déjà utilisée.' :
+          e.code==='auth/weak-password'         ? 'Mot de passe trop faible.' :
+          e.message                              || 'Erreur inattendue.';
       }
     });
   </script>
