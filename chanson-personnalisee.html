@@ -56,7 +56,7 @@
       color:var(--green);
       margin-bottom:0.5rem;
     }
-    /* Bouton commander (type=button pour ne pas submit) */
+    /* Bouton commander */
     .btn-order {
       display:block;
       width:90%;
@@ -69,10 +69,10 @@
       font-size:1rem;
       cursor:pointer;
     }
-    /* Formulaire caché initialement (seulement #formulaire) */
+    /* Formulaire caché par défaut */
     #formulaire {
-      display:none;
-      padding:1rem;
+      display: none !important;
+      padding: 1rem;
     }
     form label {
       display:block;
@@ -122,12 +122,12 @@
       <p>Créez une chanson unique pour votre moment spécial ! Nos chansons personnalisées sont parfaites pour les mariages, anniversaires et cadeaux. Choisissez une catégorie et faites chanter vos émotions.</p>
     </div>
 
-    <!-- Bouton type="button" pour dévoiler le formulaire -->
-    <button type="button" class="btn-order" onclick="showForm()">Commander ce service</button>
+    <!-- Bouton pour révéler le formulaire -->
+    <button type="button" class="btn-order">Commander ce service</button>
 
     <form id="formulaire" name="formulaire" onsubmit="redirigerWhatsApp(event)">
       <label for="packs">Packs :</label>
-      <select id="packs" name="packs" onchange="calcPrix()">
+      <select id="packs" name="packs">
         <option value="3500">1 chanson (3 500 FCFA)</option>
         <option value="5000">2 chansons (5 000 FCFA)</option>
         <option value="15000">EP de 5 chansons (15 000 FCFA)</option>
@@ -157,7 +157,7 @@
       <label for="idee">Idée de la chanson :</label>
       <input id="idee" name="idee" type="text" required>
 
-      <label for="paroles">Paroles de la chanson (optionnel) :</label>
+      <label for="paroles">Paroles (optionnel) :</label>
       <textarea id="paroles" name="paroles" rows="3"></textarea>
 
       <label for="details">Plus de détails :</label>
@@ -171,48 +171,55 @@
   <footer>Social Boost Horizon – © 2025</footer>
 
   <script>
-    /** 1. Affiche le formulaire et scroll vers lui **/
-    function showForm(){
-      console.log('showForm() appelé');
-      const f = document.getElementById('formulaire');
-      if (!f) {
-        console.error('Élément #formulaire introuvable');
-        return;
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn  = document.querySelector('.btn-order');
+      const form = document.getElementById('formulaire');
+
+      console.log('Bouton trouvé ?', !!btn);
+      console.log('Formulaire trouvé ?', !!form);
+
+      btn.addEventListener('click', () => {
+        console.log('Clic détecté sur Commander');
+        form.style.setProperty('display', 'block', 'important');
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+
+      // Calcul dynamique du prix
+      function calcPrix(){
+        let base = parseInt(form.elements['packs'].value, 10);
+        if (form.elements['paroles'].value.trim()) base -= 500;
+        document.getElementById('prixTotal').textContent =
+          'Prix total : ' + base.toLocaleString() + ' FCFA';
       }
-      f.style.display = 'block';
-      f.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+      document.getElementById('packs').addEventListener('change', calcPrix);
+      document.getElementById('paroles').addEventListener('input', calcPrix);
 
-    /** 2. Calcule le prix dynamiquement **/
-    function calcPrix(){
-      let base = parseInt(document.forms['formulaire'].elements['packs'].value);
-      const paroles = document.forms['formulaire'].elements['paroles'].value.trim();
-      if(paroles) base -= 500;  // remise si paroles fournies
-      document.getElementById('prixTotal').textContent =
-        'Prix total : ' + base.toLocaleString() + ' FCFA';
-    }
-    document.getElementById('paroles')
-            .addEventListener('input', calcPrix);
-
-    /** 3. Redirection vers WhatsApp **/
-    function redirigerWhatsApp(e){
-      e.preventDefault();
-      const f = document.forms['formulaire'];
-      const data = {
-        packs: f.elements['packs'].value,
-        categorie: f.elements['categorie'].value,
-        voix: f.elements['voix'].value,
-        style: f.elements['style'].value,
-        idee: f.elements['idee'].value,
-        paroles: f.elements['paroles'].value || '(non spécifiées)',
-        details: f.elements['details'].value
+      // Redirection vers WhatsApp
+      window.redirigerWhatsApp = function(e){
+        e.preventDefault();
+        const f = form;
+        const data = {
+          packs:     f.elements['packs'].value,
+          categorie: f.elements['categorie'].value,
+          voix:      f.elements['voix'].value,
+          style:     f.elements['style'].value,
+          idee:      f.elements['idee'].value,
+          paroles:   f.elements['paroles'].value || '(non spécifiées)',
+          details:   f.elements['details'].value
+        };
+        const prix = document.getElementById('prixTotal').textContent.split(' : ')[1];
+        let msg = `Commande Chanson Personnalisée\n\n` +
+                  `Packs : ${data.packs} FCFA\n` +
+                  `Catégorie : ${data.categorie}\n` +
+                  `Voix : ${data.voix}\n` +
+                  `Style : ${data.style}\n` +
+                  `Idée : ${data.idee}\n` +
+                  `Paroles : ${data.paroles}\n` +
+                  `Détails : ${data.details}\n` +
+                  `Prix : ${prix}`;
+        window.open(`https://wa.me/237699853665?text=${encodeURIComponent(msg)}`, '_blank');
       };
-      const prix = document.getElementById('prixTotal').textContent.split(' : ')[1];
-      let msg = `Commande Chanson Personnalisée\n\nPacks : ${data.packs} FCFA\nCatégorie : ${data.categorie}\n`;
-      msg += `Voix : ${data.voix}\nStyle : ${data.style}\nIdée : ${data.idee}\n`;
-      msg += `Paroles : ${data.paroles}\nDétails : ${data.details}\nPrix : ${prix}`;
-      window.open(`https://wa.me/237699853665?text=${encodeURIComponent(msg)}`, '_blank');
-    }
+    });
   </script>
 
 </body>
