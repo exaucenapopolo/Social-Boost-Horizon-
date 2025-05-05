@@ -16,13 +16,13 @@
     }
     /* Reset & typo */
     * { margin:0; padding:0; box-sizing:border-box; }
-    html { font-size:100%; }               /* 1rem = 16px  
+    html { font-size:100%; }
     body {
       font-family:'Poppins',sans-serif;
-      font-size:1rem;                      /* texte ≈16px pour un bon scroll  
+      font-size:1rem;
+      line-height:1.6;
       background:var(--bg-light);
       color:var(--text-dark);
-      line-height:1.6;
     }
     /* Header */
     header {
@@ -41,10 +41,10 @@
       border-radius:6px;
       box-shadow:0 2px 8px rgba(0,0,0,0.05);
     }
-    /* Illustration */
+    /* Illustration responsive */
     .illustration img {
       display:block;
-      width:100%;                         /* responsive, pas de 0×0  [
+      width:100%;
       height:auto;
     }
     /* Section description */
@@ -56,54 +56,52 @@
       color:var(--green);
       margin-bottom:0.5rem;
     }
-    /* Style commun à tous les boutons */
-    .btn-order,
-    form button {
-      display: block;                     /* plein largeur  
-      width: 90%;                         /* même largeur que “Commander”  
-      margin: 1rem auto;
-      padding: 0.75rem;                   /* même padding  
-      background: var(--green);
-      color: var(--white);
-      border: none;
-      border-radius: 4px;
-      font-size: 1rem;                    /* même font-size  
-      cursor: pointer;
-      text-align: center;
+    /* Bouton commander (type=button pour ne pas submit) */
+    .btn-order {
+      display:block;
+      width:90%;
+      margin:1rem auto;
+      padding:0.75rem;
+      background:var(--green);
+      color:var(--white);
+      border:none;
+      border-radius:4px;
+      font-size:1rem;
+      cursor:pointer;
     }
-    /* Formulaire caché initialement */
-    form {
-      display: none;
-      padding: 1rem;
+    /* Formulaire caché initialement (seulement #formulaire) */
+    #formulaire {
+      display:none;
+      padding:1rem;
     }
     form label {
-      display: block;
-      margin-top: 0.75rem;
-      font-weight: 600;
-      font-size: 0.875rem;
+      display:block;
+      margin-top:0.75rem;
+      font-weight:600;
+      font-size:0.875rem;
     }
     form input, form select, form textarea {
-      width: 100%;
-      padding: 0.5rem;
-      margin-top: 0.25rem;
-      font-size: 0.875rem;
-      border: 1px solid var(--border-gray);
-      border-radius: 4px;
+      width:100%;
+      padding:0.5rem;
+      margin-top:0.25rem;
+      font-size:0.875rem;
+      border:1px solid var(--border-gray);
+      border-radius:4px;
     }
     #prixTotal {
-      text-align: center;
-      margin-top: 0.5rem;
-      font-size: 1rem;
-      font-weight: bold;
+      text-align:center;
+      margin-top:0.5rem;
+      font-size:1rem;
+      font-weight:bold;
     }
     /* Footer */
     footer {
-      background: var(--dark-blue);
-      color: var(--white);
-      text-align: center;
-      padding: 1rem;
-      font-size: 0.75rem;
-      margin-top: 1.5rem;
+      background:var(--dark-blue);
+      color:var(--white);
+      text-align:center;
+      padding:1rem;
+      font-size:0.75rem;
+      margin-top:1.5rem;
     }
   </style>
 </head>
@@ -121,18 +119,18 @@
 
     <div class="section">
       <h2>Description</h2>
-      <p>Créez une chanson unique pour votre moment spécial ! Nos chansons personnalisées sont parfaites pour les mariages, anniversaires et cadeaux. Choisissez une catégorie et faites chanter vos émotions.</p>
+      <p>Créez une chanson unique pour votre moment spécial ! Nos chansons personnalisées sont parfaites pour les mariages, anniversaires et cadeaux. Choisissez une catégorie et faites chanter vos émotions.</p>
     </div>
 
-    <!-- Bouton de commande -->
+    <!-- Bouton type="button" pour dévoiler le formulaire -->
     <button type="button" class="btn-order" onclick="showForm()">Commander ce service</button>
 
     <form id="formulaire" name="formulaire" onsubmit="redirigerWhatsApp(event)">
       <label for="packs">Packs :</label>
       <select id="packs" name="packs" onchange="calcPrix()">
-        <option value="3500">1 chanson (3 500 FCFA)</option>
-        <option value="5000">2 chansons (5 000 FCFA)</option>
-        <option value="15000">EP de 5 chansons (15 000 FCFA)</option>
+        <option value="3500">1 chanson (3 500 FCFA)</option>
+        <option value="5000">2 chansons (5 000 FCFA)</option>
+        <option value="15000">EP de 5 chansons (15 000 FCFA)</option>
       </select>
 
       <label for="categorie">Catégorie :</label>
@@ -165,33 +163,38 @@
       <label for="details">Plus de détails :</label>
       <textarea id="details" name="details" rows="3"></textarea>
 
-      <p id="prixTotal">Prix total : 3500 FCFA</p>
-      <!-- Le bouton “Envoyer et discuter” reprend maintenant le style .btn-order -->
+      <p id="prixTotal">Prix total : 3500 FCFA</p>
       <button type="submit">Envoyer et discuter</button>
     </form>
   </div>
 
-  <footer>Social Boost Horizon – © 2025</footer>
+  <footer>Social Boost Horizon – © 2025</footer>
 
   <script>
-    /** Affiche le formulaire et y scrolle **/
+    /** 1. Affiche le formulaire et scroll vers lui **/
     function showForm(){
+      console.log('showForm() appelé');
       const f = document.getElementById('formulaire');
+      if (!f) {
+        console.error('Élément #formulaire introuvable');
+        return;
+      }
       f.style.display = 'block';
-      f.scrollIntoView({ behavior: 'smooth', block: 'start' });  /* défilement fluide  */
+      f.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    /** Calcule dynamiquement le prix **/
+    /** 2. Calcule le prix dynamiquement **/
     function calcPrix(){
       let base = parseInt(document.forms['formulaire'].elements['packs'].value);
       const paroles = document.forms['formulaire'].elements['paroles'].value.trim();
-      if(paroles) base -= 500;             /* remise si paroles fournies  
-        'Prix total : ' + base.toLocaleString() + ' FCFA';
+      if(paroles) base -= 500;  // remise si paroles fournies
+      document.getElementById('prixTotal').textContent =
+        'Prix total : ' + base.toLocaleString() + ' FCFA';
     }
     document.getElementById('paroles')
-            .addEventListener('input', calcPrix); /* recalcul automatique  */
+            .addEventListener('input', calcPrix);
 
-    /** Redirection vers WhatsApp **/
+    /** 3. Redirection vers WhatsApp **/
     function redirigerWhatsApp(e){
       e.preventDefault();
       const f = document.forms['formulaire'];
@@ -204,10 +207,10 @@
         paroles: f.elements['paroles'].value || '(non spécifiées)',
         details: f.elements['details'].value
       };
-      const prix = document.getElementById('prixTotal').textContent.split(' : ')[1];
-      let msg = `Commande Chanson Personnalisée\n\nPacks : ${data.packs} FCFA\nCatégorie : ${data.categorie}\n`;
-      msg += `Voix : ${data.voix}\nStyle : ${data.style}\nIdée : ${data.idee}\n`;
-      msg += `Paroles : ${data.paroles}\nDétails : ${data.details}\nPrix : ${prix}`;
+      const prix = document.getElementById('prixTotal').textContent.split(' : ')[1];
+      let msg = `Commande Chanson Personnalisée\n\nPacks : ${data.packs} FCFA\nCatégorie : ${data.categorie}\n`;
+      msg += `Voix : ${data.voix}\nStyle : ${data.style}\nIdée : ${data.idee}\n`;
+      msg += `Paroles : ${data.paroles}\nDétails : ${data.details}\nPrix : ${prix}`;
       window.open(`https://wa.me/237699853665?text=${encodeURIComponent(msg)}`, '_blank');
     }
   </script>
