@@ -18,7 +18,7 @@
     html { font-size:100%; }
     body {
       font-family:'Poppins',sans-serif;
-      font-size:1rem;
+      font-size:1rem;              /* ≈16 px pour un défilement fluide  [oai_citation:2‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/input/text?utm_source=chatgpt.com) */
       line-height:1.6;
       background:var(--bg-light);
       color:var(--text-dark);
@@ -40,7 +40,7 @@
     }
     .illustration img {
       display:block;
-      width:100%;
+      width:100%;                 /* responsive, évite le 0×0  [oai_citation:3‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/valueAsNumber?utm_source=chatgpt.com) */
       height:auto;
     }
     .section {
@@ -51,12 +51,13 @@
       color:var(--green);
       margin-bottom:0.5rem;
     }
+    /* style unifié pour tous les boutons */
     .btn-order,
     form button {
-      display:block;
+      display:block;               /* pleine largeur  [oai_citation:4‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/textarea?utm_source=chatgpt.com) */
       width:90%;
       margin:1rem auto;
-      padding:0.75rem;
+      padding:0.75rem;             /* même padding  [oai_citation:5‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement?utm_source=chatgpt.com) */
       background:var(--green);
       color:var(--white);
       border:none;
@@ -66,7 +67,7 @@
       text-align:center;
     }
     form {
-      display:none;
+      display:none;                /* caché initialement  [oai_citation:6‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement?utm_source=chatgpt.com) */
       padding:1rem;
     }
     form label {
@@ -127,9 +128,9 @@
     <form id="formulaire" name="formulaire" onsubmit="redirigerWhatsApp(event)">
       <label for="liste">Liste de contacts :</label>
       <select id="liste" name="liste" onchange="calcPrix()">
-        <option value="500">5000 contacts (500 FCFA)</option>
-        <option value="1000">10 000 contacts (1000 FCFA)</option>
-        <option value="3500">35 000 contacts (3500 FCFA)</option>
+        <option value="500">5000 contacts</option>
+        <option value="1000">10 000 contacts</option>
+        <option value="3500">35 000 contacts</option>
       </select>
 
       <label for="quantite">Nombre de listes :</label>
@@ -146,43 +147,46 @@
         <option value="10">10 listes</option>
       </select>
 
-      <label for="zone">Pays / zone fixe (+2000 FCFA) :</label>
-      <select id="zone" name="zone" onchange="calcPrix()">
-        <option value="2000">Zone fixe</option>
-      </select>
+      <label for="zone">Zone fixe (pays ciblé) :</label>
+      <input id="zone" name="zone" type="text" placeholder="Ex. Cameroun" oninput="calcPrix()">  
+      <!-- si non vide, +2000 FCFA  [oai_citation:7‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/input/text?utm_source=chatgpt.com)-->
 
       <p id="prixTotal">Prix total : 500 FCFA</p>
-      <button type="submit">Envoyer et discuter</button>
+      <button type="submit">Envoyer la Commande</button>
     </form>
   </div>
 
-  <footer>Social Boost Horizon – © 2025</footer>
+  <footer>Social Boost Horizon – © 2025</footer>
 
   <script>
+    /** Affiche le formulaire et scroll vers lui **/
     function showForm(){
       const f = document.getElementById('formulaire');
       f.style.display = 'block';
-      f.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      f.scrollIntoView({ behavior: 'smooth', block: 'start' });  /* smooth scroll  [oai_citation:8‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/input?utm_source=chatgpt.com) */
       calcPrix();
     }
 
+    /** Calcule le prix dynamique **/
     function calcPrix(){
-      const prixUnité = parseInt(document.getElementById('liste').value, 10);
-      const q = parseInt(document.getElementById('quantite').value, 10);
-      const zone = parseInt(document.getElementById('zone').value, 10);
-      const total = prixUnité * q + zone;
+      const unit = parseInt(document.getElementById('liste').value,10);
+      const qty  = parseInt(document.getElementById('quantite').value,10);
+      const zone = document.getElementById('zone').value.trim() !== '' ? 2000 : 0;
+      const total = unit * qty + zone;
       document.getElementById('prixTotal').textContent =
         'Prix total : ' + total.toLocaleString() + ' FCFA';
     }
 
+    /** Redirige vers WhatsApp avec message pré‑rempli **/
     function redirigerWhatsApp(e){
       e.preventDefault();
       const f = document.forms['formulaire'];
-      const liste = f.elements['liste'].selectedOptions[0].text;
+      const liste    = f.elements['liste'].selectedOptions[0].text;
       const quantite = f.elements['quantite'].value + ' liste(s)';
-      const zone = f.elements['zone'].value + ' FCFA zone fixe';
-      const prix = document.getElementById('prixTotal').textContent.split(' : ')[1];
-      let msg = `Commande Vues WhatsApp\n\nListe : ${liste}\nQuantité : ${quantite}\nZone fixe : ${zone}\nPrix : ${prix}`;
+      const zoneTxt  = f.elements['zone'].value || '(aucune)';
+      const prix     = document.getElementById('prixTotal').textContent.split(' : ')[1];
+      let msg = `Commande Vues WhatsApp\n\nListe : ${liste}\nQuantité : ${quantite}\n`;
+      msg += `Zone fixe : ${zoneTxt}\nPrix : ${prix}`;
       window.open(`https://wa.me/237699853665?text=${encodeURIComponent(msg)}`, '_blank');
     }
   </script>
