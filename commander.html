@@ -96,13 +96,12 @@
       padding: 15px; font-size: 14px;
     }
 
-    /* === Ajout : commentaires personnalisés === */
+    /* Commentaires personnalisés */
     #commentsSection { display: none; }
     #commentsCount { margin-top: 0.5rem; }
     #commentsError {
       color: red; margin-top: 0.5rem; display: none;
     }
-    /* =========================================== */
   </style>
 </head>
 <body>
@@ -140,7 +139,6 @@
         <input id="quantityInput" name="quantity" type="number" min="1" required placeholder="Ex : 1000" oninput="updateDetails()">
       </div>
 
-      <!-- Commentaires personnalisés (Facebook, Instagram, TikTok seulement) -->
       <div class="form-group" id="commentsSection">
         <label for="customComments">
           Séparez chaque commentaire par un saut de ligne.<br>
@@ -152,7 +150,6 @@
         <p id="commentsCount">0 commentaire(s) (minimum 10)</p>
         <div id="commentsError">Vous devez saisir au moins 10 commentaires.</div>
       </div>
-      <!-- ======================================= -->
 
       <div class="form-group">
         <label for="contactType">Mode de contact</label>
@@ -211,7 +208,7 @@
     });
   </script>
 
-  <!-- Services + envoi vers Replit + logique commentaires -->
+  <!-- Services + logique commentaires + sélection par défaut -->
   <script>
     const servicesData = {
       facebook: {
@@ -264,79 +261,85 @@
     };
 
     let selectedPlatform = null;
-    const icons         = document.querySelectorAll('.platforms img');
-    const orderForm     = document.getElementById('orderForm');
-    const serviceSelect = document.getElementById('serviceSelect');
-    const priceEl       = document.getElementById('priceEstimate');
-    const timeEl        = document.getElementById('timeEstimate');
-    const remarkEl      = document.getElementById('remarkBox');
-    const qtyInput      = document.getElementById('quantityInput');
-    const contactType   = document.getElementById('contactType');
-    const whatsappFld   = document.getElementById('whatsappField');
-    const emailFld      = document.getElementById('emailField');
-    const errBox        = document.getElementById('orderErrorBox');
+    const icons           = document.querySelectorAll('.platforms img');
+    const orderForm       = document.getElementById('orderForm');
+    const serviceSelect   = document.getElementById('serviceSelect');
+    const priceEl         = document.getElementById('priceEstimate');
+    const timeEl          = document.getElementById('timeEstimate');
+    const remarkEl        = document.getElementById('remarkBox');
+    const qtyInput        = document.getElementById('quantityInput');
+    const contactType     = document.getElementById('contactType');
+    const whatsappFld     = document.getElementById('whatsappField');
+    const emailFld        = document.getElementById('emailField');
+    const errBox          = document.getElementById('orderErrorBox');
 
-    // === Déclarations manquantes ===
-    const contactInput  = document.getElementById('contactInput');
-    const emailInput    = document.getElementById('emailInput');
+    // Déclarations manquantes
+    const contactInput    = document.getElementById('contactInput');
+    const emailInput      = document.getElementById('emailInput');
     const commentsSection = document.getElementById('commentsSection');
     const customComments  = document.getElementById('customComments');
     const commentsCount   = document.getElementById('commentsCount');
     const commentsError   = document.getElementById('commentsError');
     const pricingComments = { facebook:85, instagram:24.5, tiktok:65 };
-    // ==============================
 
+    // Gestion du clic sur icônes + présélection Facebook
     icons.forEach(icon => {
-      icon.addEventListener('click', () => {
-        icons.forEach(i => i.classList.remove('active'));
-        icon.classList.add('active');
-        selectedPlatform = icon.dataset.platform;
-        loadServices();
-        orderForm.style.display = 'block';
-      });
+      icon.addEventListener('click', () => selectPlatform(icon.dataset.platform));
+    });
+    function selectPlatform(platform) {
+      // reset visuel
+      icons.forEach(i => i.classList.remove('active'));
+      const el = document.querySelector(`.platforms img[data-platform="${platform}"]`);
+      el.classList.add('active');
+      selectedPlatform = platform;
+      loadServices();
+      orderForm.style.display = 'block';
+    }
+    // Par défaut, on sélectionne Facebook dès que le DOM est prêt
+    window.addEventListener('DOMContentLoaded', () => {
+      selectPlatform('facebook');
     });
 
     function loadServices() {
+      // remplit la liste
       serviceSelect.innerHTML = '<option value="">-- Choisir un service --</option>';
-      Object.keys(servicesData[selectedPlatform]||{}).forEach(key => {
+      Object.keys(servicesData[selectedPlatform] || {}).forEach(key => {
         const opt = document.createElement('option');
-        opt.value = key; opt.textContent = key;
+        opt.value = key;
+        opt.textContent = key;
         serviceSelect.appendChild(opt);
       });
-      // Cacher tout au rechargement
       resetDetails();
     }
 
     function resetDetails() {
-      // Masquer section commentaires et quantité par défaut
       commentsSection.style.display = 'none';
       qtyInput.parentElement.style.display = '';
       commentsError.style.display = 'none';
       priceEl.textContent  = 'Prix estimé : 0 FCFA';
       remarkEl.textContent = 'Sélectionnez un service pour voir la remarque.';
       timeEl.textContent   = 'Temps de réalisation : 2 h';
+      serviceSelect.value  = '';
     }
 
     function updateDetails() {
-      const key = serviceSelect.value;
-      // Toujours masquer l’erreur
+      const key = serviceSelect.value || '';
       commentsError.style.display = 'none';
 
-      // Si commentaire personnalisé sélectionné et plateforme valide
-      if (
-        key.toLowerCase().includes('commentaires personnalisés')
-        && ['facebook','instagram','tiktok'].includes(selectedPlatform)
-      ) {
+      const isCommentaire = key.toLowerCase().includes('commentaires personnalisés');
+      const isPlatOK      = ['facebook','instagram','tiktok'].includes(selectedPlatform);
+
+      if (isCommentaire && isPlatOK) {
         qtyInput.parentElement.style.display = 'none';
         commentsSection.style.display = '';
         updateCommentsPrice();
-        remarkEl.textContent = servicesData[selectedPlatform][key].remark;
-        timeEl.textContent   = `Temps de réalisation : ${servicesData[selectedPlatform][key].time}`;
+        const data = servicesData[selectedPlatform][key];
+        remarkEl.textContent = data.remark;
+        timeEl.textContent   = `Temps de réalisation : ${data.time}`;
         return;
       }
 
-      // Sinon, mode quantité
-      commentsSection.style.display = 'none';
+      commentsSection.style.display       = 'none';
       qtyInput.parentElement.style.display = '';
       if (!key) {
         resetDetails();
@@ -379,10 +382,8 @@
       errBox.textContent = '';
 
       // Validation commentaires
-      if (
-        serviceSelect.value.toLowerCase().includes('commentaires personnalisés')
-        && ['facebook','instagram','tiktok'].includes(selectedPlatform)
-      ) {
+      const key = serviceSelect.value.toLowerCase();
+      if (key.includes('commentaires personnalisés') && ['facebook','instagram','tiktok'].includes(selectedPlatform)) {
         const count = customComments.value.split('\n').filter(l=>l.trim()).length;
         if (count < 10) {
           commentsError.style.display = '';
@@ -395,28 +396,25 @@
         platform: selectedPlatform,
         service:  serviceSelect.value,
         link:     document.getElementById('linkInput').value,
-        quantity: (serviceSelect.value.toLowerCase().includes('commentaires personnalisés')
-                   && ['facebook','instagram','tiktok'].includes(selectedPlatform))
+        quantity: (key.includes('commentaires personnalisés') && ['facebook','instagram','tiktok'].includes(selectedPlatform))
                   ? undefined
                   : Number(qtyInput.value),
-        comments: (serviceSelect.value.toLowerCase().includes('commentaires personnalisés')
-                   && ['facebook','instagram','tiktok'].includes(selectedPlatform))
+        comments: (key.includes('commentaires personnalisés') && ['facebook','instagram','tiktok'].includes(selectedPlatform))
                   ? customComments.value.split('\n').filter(l=>l.trim())
                   : undefined,
         contactType: contactType.value,
-        contact:  contactType.value==='whatsapp'
-                   ? contactInput.value
-                   : emailInput.value
+        contact:     contactType.value==='whatsapp' ? contactInput.value : emailInput.value
       };
 
       try {
         const res  = await fetch(
           'https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev/order',
-        {
-          method:  'POST',
-          headers: {'Content-Type':'application/json'},
-          body:    JSON.stringify(payload)
-        });
+          {
+            method:  'POST',
+            headers: {'Content-Type':'application/json'},
+            body:    JSON.stringify(payload)
+          }
+        );
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erreur inattendue');
         alert('✅ Commande envoyée !');
