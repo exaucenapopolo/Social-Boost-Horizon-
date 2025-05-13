@@ -167,6 +167,10 @@
           <input type="tel" id="telephone" required placeholder="xx xx xx xx" />
         </div>
 
+        <!-- NOUVEAU CHAMP pour le code de parrainage -->
+        <label for="referral"><i class="fas fa-gift"></i>Code de parrainage (optionnel)</label>
+        <input type="text" id="referral" placeholder="Entrez le code de votre parrain" />
+
         <label for="password"><i class="fas fa-lock"></i>Mot de passe</label>
         <input type="password" id="password" required minlength="6" />
 
@@ -192,7 +196,7 @@
 
     // Récupère le code de parrainage dans l'URL
     const urlParams        = new URLSearchParams(window.location.search);
-    const referralCodeUsed = urlParams.get('ref') || null;
+    const urlReferralCode  = urlParams.get('ref') || null;
 
     // Map des indicatifs
     function updateIndicatif() {
@@ -226,12 +230,13 @@
       const errorEl = document.getElementById('errorMsg');
       errorEl.textContent = "";
 
-      const username  = document.getElementById('username').value.trim();
-      const email     = document.getElementById('email').value.trim();
-      const password  = document.getElementById('password').value;
-      const pays      = document.getElementById('pays').value;
-      const indicatif = document.getElementById('indicatif').value;
-      const telephone = document.getElementById('telephone').value.trim();
+      const username      = document.getElementById('username').value.trim();
+      const email         = document.getElementById('email').value.trim();
+      const password      = document.getElementById('password').value;
+      const pays          = document.getElementById('pays').value;
+      const indicatif     = document.getElementById('indicatif').value;
+      const telephone     = document.getElementById('telephone').value.trim();
+      const manualReferral= document.getElementById('referral').value.trim();
 
       if (!username || !email || !pays || !telephone || !password) {
         errorEl.textContent = "Tous les champs sont requis.";
@@ -250,7 +255,10 @@
         // 2) Générer un code de parrainage unique
         const generatedCode = Math.random().toString(36).substring(2,10).toUpperCase();
 
-        // 3) Enregistrer dans Firestore
+        // 3) Déterminer le code du parrain (priorité au champ manuel)
+        const referralCodeUsed = manualReferral || urlReferralCode || null;
+
+        // 4) Enregistrer dans Firestore
         await db.collection("users").doc(userId).set({
           username,
           email,
