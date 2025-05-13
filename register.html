@@ -4,7 +4,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Inscription – Social Boost Horizon</title>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/> <!-- Icônes -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        rel="stylesheet"/>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -94,7 +95,12 @@
       transition: opacity 0.3s;
     }
 
-    button:hover {
+    button[disabled] {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    button:hover:not([disabled]) {
       opacity: 0.9;
     }
 
@@ -163,18 +169,20 @@
 
         <label for="telephone"><i class="fas fa-phone"></i>Numéro de téléphone</label>
         <div class="phone-group">
-          <input type="text" id="indicatif" readonly placeholder="+229" style="max-width:100px;" />
+          <input type="text" id="indicatif" readonly placeholder="+229"
+                 style="max-width:100px;" />
           <input type="tel" id="telephone" required placeholder="xx xx xx xx" />
         </div>
 
-        <!-- NOUVEAU CHAMP pour le code de parrainage -->
+        <!-- Champ optionnel de parrainage -->
         <label for="referral"><i class="fas fa-gift"></i>Code de parrainage (optionnel)</label>
-        <input type="text" id="referral" placeholder="Entrez le code de votre parrain" />
+        <input type="text" id="referral"
+               placeholder="Entrez le code de votre parrain" />
 
         <label for="password"><i class="fas fa-lock"></i>Mot de passe</label>
         <input type="password" id="password" required minlength="6" />
 
-        <button type="submit">S'inscrire</button>
+        <button type="submit" id="submitBtn">S'inscrire</button>
         <div class="error" id="errorMsg"></div>
 
         <div class="link">
@@ -188,17 +196,17 @@
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
-  <!-- AOS animation -->
+  <!-- AOS JS -->
   <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 
   <script>
     AOS.init({ duration: 600, once: true });
 
-    // Récupère le code de parrainage dans l'URL
+    // Récupère le code de parrainage depuis l'URL
     const urlParams        = new URLSearchParams(window.location.search);
     const urlReferralCode  = urlParams.get('ref') || null;
 
-    // Map des indicatifs
+    // Gère l'indicatif pays
     function updateIndicatif() {
       const codes = {
         bj: "+229", bf: "+226", cm: "+237", ca: "+1",
@@ -211,7 +219,7 @@
         codes[document.getElementById("pays").value] || "";
     }
 
-    // Config Firebase
+    // Configuration Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -224,12 +232,15 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth(), db = firebase.firestore();
 
-    // Gestion du formulaire
+    // Soumission du formulaire
     document.getElementById('registerForm').addEventListener('submit', async e => {
       e.preventDefault();
-      const errorEl = document.getElementById('errorMsg');
+      const submitBtn = document.getElementById('submitBtn');
+      const errorEl   = document.getElementById('errorMsg');
       errorEl.textContent = "";
+      submitBtn.disabled  = true;
 
+      // Récupère les valeurs
       const username      = document.getElementById('username').value.trim();
       const email         = document.getElementById('email').value.trim();
       const password      = document.getElementById('password').value;
@@ -240,29 +251,31 @@
 
       if (!username || !email || !pays || !telephone || !password) {
         errorEl.textContent = "Tous les champs sont requis.";
+        submitBtn.disabled  = false;
         return;
       }
       if (password.length < 6) {
         errorEl.textContent = "Le mot de passe doit contenir au moins 6 caractères.";
+        submitBtn.disabled  = false;
         return;
       }
 
       try {
-        // 1) Créer l’utilisateur Firebase Auth
+        // 1) Créer l’utilisateur
         const userCred = await auth.createUserWithEmailAndPassword(email, password);
         const userId   = userCred.user.uid;
 
-        // 2) Générer un code de parrainage unique
+        // 2) Générer un code unique
         const generatedCode = Math.random().toString(36).substring(2,10).toUpperCase();
 
-        // 3) Déterminer le code du parrain (priorité au champ manuel)
+        // 3) Choisir le code du parrain (manuel > URL)
         const referralCodeUsed = manualReferral || urlReferralCode || null;
 
-        // 4) Enregistrer dans Firestore
+        // 4) Écrire dans Firestore et attendre la confirmation
         await db.collection("users").doc(userId).set({
           username,
           email,
-          phone:            indicatif + " " + telephone,
+          phone:            `${indicatif} ${telephone}`,
           country:          pays,
           referralCode:     generatedCode,
           referredBy:       referralCodeUsed,
@@ -272,10 +285,13 @@
           referralsCount:   0,
           createdAt:        firebase.firestore.FieldValue.serverTimestamp()
         });
+        console.log("User doc créé pour UID=", userId);
 
         alert("Inscription réussie !");
         window.location.href = "dashboard.html";
+
       } catch (error) {
+        console.error("Erreur inscription :", error);
         if (error.code === 'auth/email-already-in-use') {
           errorEl.textContent = "Cette adresse e-mail est déjà utilisée.";
         } else if (error.code === 'auth/invalid-email') {
@@ -285,6 +301,7 @@
         } else {
           errorEl.textContent = "Erreur : " + error.message;
         }
+        submitBtn.disabled = false;
       }
     });
   </script>
