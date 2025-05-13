@@ -73,9 +73,9 @@
     }
     .code-box span {
       font-family: monospace;
-      font-size: 1.4rem;
+      font-size: 1.2rem;
       color: var(--blue);
-      letter-spacing: 2px;
+      word-break: break-all;
     }
     .btn {
       display: inline-flex;
@@ -130,23 +130,32 @@
       <p>Recevez 5 % de cashback à vie !</p>
     </div>
 
+    <!-- Bloc 1 : Code de parrainage -->
     <div class="code-box">
       <span id="referralCode">— — — — — —</span>
-      <button id="copyBtn" class="btn">
-        <i class="fas fa-copy"></i> Copier
+      <button id="copyCodeBtn" class="btn">
+        <i class="fas fa-copy"></i> Copier code
+      </button>
+    </div>
+
+    <!-- Bloc 2 : Lien de parrainage -->
+    <div class="code-box">
+      <span id="referralLink">https://votresite.com/registre.html?ref=—</span>
+      <button id="copyLinkBtn" class="btn">
+        <i class="fas fa-link"></i> Copier lien
       </button>
     </div>
 
     <p class="info">
-      Partagez ce code et profitez des avantages :
+      Partagez votre code ou le lien et profitez des avantages :
     </p>
 
     <div class="steps">
       <h2>Comment ça marche ?</h2>
       <ol>
-        <li><strong>Copiez</strong> votre code en cliquant sur « Copier ».</li>
-        <li><strong>Envoyez</strong> ce code à vos amis ou votre famille.</li>
-        <li><strong>Ils s’inscrivent</strong> et saisissent le code sur la page d’inscription.</li>
+        <li><strong>Copiez</strong> votre code ou lien.</li>
+        <li><strong>Envoyez</strong> à vos amis ou votre famille.</li>
+        <li><strong>Ils s’inscrivent</strong> via ce lien ou en saisissant le code.</li>
         <li><strong>Ils reçoivent</strong> 10 % de réduction sur leurs 10 prochaines commandes.</li>
         <li><strong>Vous recevez</strong> 5 % de cashback sur chaque dépôt qu’ils font.</li>
       </ol>
@@ -173,7 +182,7 @@
   <script>
     AOS.init({ duration: 600, once: true });
 
-    // Configuration Firebase complète
+    // Configuration Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -186,20 +195,30 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth(), db = firebase.firestore();
 
-    // Affichage du code de parrainage
+    // Affichage du code ET du lien de parrainage
     auth.onAuthStateChanged(async user => {
       if (!user) return window.location.href = 'login.html';
       const snap = await db.collection('users').doc(user.uid).get();
-      document.getElementById('referralCode').textContent =
-        snap.data().referralCode || 'N/A';
+      const code = snap.data().referralCode || 'N/A';
+      document.getElementById('referralCode').textContent = code;
+      document.getElementById('referralLink').textContent =
+        `${window.location.origin}/registre.html?ref=${code}`;
     });
 
-    // Copier dans le presse-papiers
-    document.getElementById('copyBtn').addEventListener('click', () => {
+    // Copier le code
+    document.getElementById('copyCodeBtn').addEventListener('click', () => {
       const text = document.getElementById('referralCode').textContent;
       navigator.clipboard.writeText(text)
         .then(() => alert('Code copié !'))
-        .catch(() => alert('Impossible de copier.'));
+        .catch(() => alert('Impossible de copier le code.'));
+    });
+
+    // Copier le lien
+    document.getElementById('copyLinkBtn').addEventListener('click', () => {
+      const text = document.getElementById('referralLink').textContent;
+      navigator.clipboard.writeText(text)
+        .then(() => alert('Lien copié !'))
+        .catch(() => alert('Impossible de copier le lien.'));
     });
 
     // Retour au dashboard
