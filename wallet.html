@@ -115,7 +115,7 @@
     </button>
   </div>
 
-  <!-- OFF‑CANVAS MENU -->
+  <!-- OFF-CANVAS MENU -->
   <nav id="hamburgerMenu" class="hamburger-menu">
     <ul>
       <li><a href="dashboard.html">Accueil</a></li>
@@ -156,7 +156,7 @@
     <section class="recent-activities" data-aos="fade-up">
       <h2>Activités récentes</h2>
       <ul id="activityList">
-        <!-- Les dépôts récents seront injectés ici -->
+        <!-- Les dépôts personnels ET ceux des filleuls seront injectés ici -->
       </ul>
     </section>
   </main>
@@ -204,30 +204,63 @@
     auth.onAuthStateChanged(user => {
       if (!user) return window.location.href='login.html';
       const userRef = db.collection('users').doc(user.uid);
-      // fetch balances
+
+      // 1) Récupérer et afficher soldes
       userRef.get().then(doc => {
         const d = doc.data()||{};
-        balanceEl.textContent    = `Solde : ${d.balance||0} XAF`;
-        mainBalEl.textContent    = `${d.balance||0} XAF`;
-        referralBalEl.textContent= `${d.referralBalance||0} XAF`;
+        balanceEl.textContent     = `Solde : ${d.balance||0} XAF`;
+        mainBalEl.textContent     = `${d.balance||0} XAF`;
+        referralBalEl.textContent = `${d.referralBalance||0} XAF`;
       });
       userRef.onSnapshot(doc => {
         const d = doc.data()||{};
-        balanceEl.textContent    = `Solde : ${d.balance||0} XAF`;
-        mainBalEl.textContent    = `${d.balance||0} XAF`;
-        referralBalEl.textContent= `${d.referralBalance||0} XAF`;
+        balanceEl.textContent     = `Solde : ${d.balance||0} XAF`;
+        mainBalEl.textContent     = `${d.balance||0} XAF`;
+        referralBalEl.textContent = `${d.referralBalance||0} XAF`;
       });
-      // fetch recent deposits subcollection
-      userRef.collection('deposits').orderBy('date','desc').limit(10).get().then(qs=>{
-        activityList.innerHTML = '';
-        qs.forEach(doc => {
+
+      // 2) Récupérer dépôts personnels et dépôts de filleuls
+      Promise.all([
+        // dépôts personnels
+        userRef.collection('deposits').orderBy('date','desc').limit(10).get(),
+        // dépôts de filleuls
+        userRef.collection('referrals').orderBy('date','desc').limit(10).get()
+      ]).then(([depositsSnap, refsSnap]) => {
+        const items = [];
+
+        depositsSnap.forEach(doc => {
           const d = doc.data();
+          items.push({
+            date: d.date.toDate(),
+            label: 'Mon dépôt',
+            amount: d.amount,
+            extra: null
+          });
+        });
+
+        refsSnap.forEach(doc => {
+          const d = doc.data();
+          items.push({
+            date: d.date.toDate(),
+            label: `Filleul ${d.refereeUid}`,
+            amount: d.amount,
+            extra: `(+${d.referrerShare} XAF)`
+          });
+        });
+
+        // trier par date décroissante
+        items.sort((a,b) => b.date - a.date);
+
+        // ne garder que les 10 premiers
+        activityList.innerHTML = '';
+        items.slice(0,10).forEach(item => {
           const li = document.createElement('li');
-          const date = d.date && d.date.toDate().toLocaleString();
-          li.textContent = `${date}: +${d.amount} XAF`;
+          const dateStr = item.date.toLocaleString();
+          li.textContent = `${dateStr} – ${item.label} : +${item.amount} XAF ${item.extra||''}`.trim();
           activityList.appendChild(li);
         });
       });
+
     });
 
     addFundsBtn.addEventListener('click', ()=>window.location.href='depot.html');
@@ -248,7 +281,7 @@
     });
 
     logoutBtn.addEventListener('click', ()=>{
-      if (confirm("Voulez-vous vraiment vous déconnecter ?"))
+      if (confirm("Voulez-vous vraiment vous déconnecter ?"))
         auth.signOut().then(()=>window.location.href='login.html');
     });
 
@@ -263,7 +296,7 @@
       e.preventDefault();
       const user = firebase.auth().currentUser; if(!user) return window.location.href='login.html';
       const d = (await db.collection('users').doc(user.uid).get()).data()||{};
-      alert(`Votre code : ${d.referralCode||'N/A'}\nParrains : ${d.referralsCount||0}`);
+      alert(`Votre code : ${d.referralCode||'N/A'}\nParrains : ${d.referralsCount||0}`);
     });
   </script>
 </body>

@@ -140,12 +140,12 @@
         <select id="pays" onchange="updateIndicatif()" required>
           <option value="">— Sélectionnez votre pays —</option>
           <option value="bj">Bénin 🇧🇯 (+229)</option>
-          <option value="bf">Burkina Faso 🇧🇫 (+226)</option>
+          <option value="bf">Burkina Faso 🇧🇫 (+226)</option>
           <option value="cm">Cameroun 🇨🇲 (+237)</option>
           <option value="ca">Canada 🇨🇦 (+1)</option>
           <option value="cf">Centrafrique 🇨🇫 (+236)</option>
-          <option value="cg">Congo Brazzaville 🇨🇬 (+242)</option>
-          <option value="ci">Côte d’Ivoire 🇨🇮 (+225)</option>
+          <option value="cg">Congo Brazzaville 🇨🇬 (+242)</option>
+          <option value="ci">Côte d’Ivoire 🇨🇮 (+225)</option>
           <option value="ga">Gabon 🇬🇦 (+241)</option>
           <option value="ke">Kenya 🇰🇪 (+254)</option>
           <option value="mw">Malawi 🇲🇼 (+265)</option>
@@ -163,7 +163,7 @@
 
         <label for="telephone"><i class="fas fa-phone"></i>Numéro de téléphone</label>
         <div class="phone-group">
-          <input type="text" id="indicatif" readonly placeholder="+225" style="max-width:100px;" />
+          <input type="text" id="indicatif" readonly placeholder="+229" style="max-width:100px;" />
           <input type="tel" id="telephone" required placeholder="xx xx xx xx" />
         </div>
 
@@ -184,21 +184,17 @@
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
+  <!-- AOS animation -->
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-      authDomain: "social-boost-horizon.firebaseapp.com",
-      projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.firebasestorage.app",
-      messagingSenderId: "43658165639",
-      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
-      measurementId: "G-JJXPNN90V1"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+    AOS.init({ duration: 600, once: true });
 
+    // Récupère le code de parrainage dans l'URL
+    const urlParams        = new URLSearchParams(window.location.search);
+    const referralCodeUsed = urlParams.get('ref') || null;
+
+    // Map des indicatifs
     function updateIndicatif() {
       const codes = {
         bj: "+229", bf: "+226", cm: "+237", ca: "+1",
@@ -211,15 +207,29 @@
         codes[document.getElementById("pays").value] || "";
     }
 
+    // Config Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.firebasestorage.app",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
+      measurementId: "G-JJXPNN90V1"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth(), db = firebase.firestore();
+
+    // Gestion du formulaire
     document.getElementById('registerForm').addEventListener('submit', async e => {
       e.preventDefault();
       const errorEl = document.getElementById('errorMsg');
       errorEl.textContent = "";
 
-      const username = document.getElementById('username').value.trim();
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-      const pays = document.getElementById('pays').value;
+      const username  = document.getElementById('username').value.trim();
+      const email     = document.getElementById('email').value.trim();
+      const password  = document.getElementById('password').value;
+      const pays      = document.getElementById('pays').value;
       const indicatif = document.getElementById('indicatif').value;
       const telephone = document.getElementById('telephone').value.trim();
 
@@ -233,15 +243,28 @@
       }
 
       try {
-        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-        const userId = userCredential.user.uid;
+        // 1) Créer l’utilisateur Firebase Auth
+        const userCred = await auth.createUserWithEmailAndPassword(email, password);
+        const userId   = userCred.user.uid;
+
+        // 2) Générer un code de parrainage unique
+        const generatedCode = Math.random().toString(36).substring(2,10).toUpperCase();
+
+        // 3) Enregistrer dans Firestore
         await db.collection("users").doc(userId).set({
           username,
           email,
-          phone: indicatif + " " + telephone,
-          country: pays,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          phone:            indicatif + " " + telephone,
+          country:          pays,
+          referralCode:     generatedCode,
+          referredBy:       referralCodeUsed,
+          balance:          0,
+          referralBalance:  0,
+          discountUsesLeft: 10,
+          referralsCount:   0,
+          createdAt:        firebase.firestore.FieldValue.serverTimestamp()
         });
+
         alert("Inscription réussie !");
         window.location.href = "dashboard.html";
       } catch (error) {
@@ -256,12 +279,6 @@
         }
       }
     });
-  </script>
-
-  <!-- AOS animation -->
-  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-  <script>
-    AOS.init({ duration: 600, once: true });
   </script>
 </body>
 </html>
