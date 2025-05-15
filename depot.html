@@ -239,17 +239,17 @@
     <section class="provider">
       <img src="assets/logos/mtn-momo.png" alt="Logo MTN MoMo" class="provider-logo">
       <div class="provider-info">
-        <p><strong>Numéro :</strong> +237 652 205 768</p>
+        <p><strong>Numéro :</strong> +237 652 205 768</p>
         <p><strong>Nom :</strong> ZAMOTOM ZAMIGON MOISE</p>
       </div>
       <div class="instructions">
         Composez <code>*126*652205768*MONTANT#</code>, saisissez votre PIN, puis capturez l’écran de confirmation.
       </div>
-      <!-- Ajout method + enctype pour upload de fichier via FormData  [oai_citation:0‡Stack Overflow](https://stackoverflow.com/questions/4526273/what-does-enctype-multipart-form-data-mean?utm_source=chatgpt.com)  [oai_citation:1‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Forms/Sending_and_retrieving_form_data?utm_source=chatgpt.com) -->
       <form id="mtn-form" class="deposit-form" method="post" enctype="multipart/form-data" novalidate>
         <fieldset>
           <legend>MTN MoMo</legend>
           <input type="hidden" name="provider" value="MTN_MoMo">
+          <!-- on remplit userId ici via JS -->
           <input type="hidden" name="userId" id="mtn-userId">
           <div class="form-group">
             <label for="mtn-whatsapp">Votre numéro WhatsApp :</label>
@@ -269,11 +269,11 @@
     <section class="provider">
       <img src="assets/logos/orange-money.png" alt="Logo Orange Money" class="provider-logo">
       <div class="provider-info">
-        <p><strong>Numéro :</strong> +237 699 853 665</p>
+        <p><strong>Numéro :</strong> +237 699 853 665</p>
         <p><strong>Nom :</strong> NGOUBA PHINEAS</p>
       </div>
       <div class="instructions">
-        Composez <code>*150*699853665*MONTANT#</code>, saisissez votre code secret, puis capturez l’écran de confirmation.
+        Composez <code>#150*699853665*MONTANT#</code>, saisissez votre code secret, puis capturez l’écran de confirmation.
       </div>
       <form id="orange-form" class="deposit-form" method="post" enctype="multipart/form-data" novalidate>
         <fieldset>
@@ -296,7 +296,7 @@
 
     <!-- Autres moyens -->
     <div class="other-payments">
-      <p>Vous ne trouvez pas un moyen de paiement éligible dans votre pays ?</p>
+      <p>Vous ne trouvez pas un moyen de paiement éligible dans votre pays ?</p>
       <p>Vous serez redirigé vers “Autres moyens de paiement” pour déposer manuellement, puis revenir confirmer ici.</p>
       <button type="button" onclick="location.href='payment.html'">Autres moyens de paiement</button>
     </div>
@@ -306,7 +306,7 @@
   <footer>
     <a href="privacy.html">Politique de confidentialité</a> |
     <a href="assistance.html">Assistance</a>
-    <p>&copy; 2025 Social Boost Horizon – Tous droits réservés.</p>
+    <p>&copy; 2025 Social Boost Horizon – Mč Exau - Tous droits réservés.</p>
   </footer>
 
   <!-- ======= Scripts externes ======= -->
@@ -315,10 +315,10 @@
   <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
   <script defer src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 
-  <!-- ======= Script métier (différé pour que Firebase soit prêt)  [oai_citation:2‡MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script?utm_source=chatgpt.com)  [oai_citation:3‡Stack Overflow](https://stackoverflow.com/questions/41394983/how-to-defer-inline-javascript?utm_source=chatgpt.com) ======= -->
+  <!-- ======= Script métier ======= -->
   <script defer>
     document.addEventListener('DOMContentLoaded', () => {
-      // Initialize Firebase & inject userId
+      // 1) Initialisation Firebase
       const firebaseConfig = {
         apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
         authDomain: "social-boost-horizon.firebaseapp.com",
@@ -328,28 +328,36 @@
         appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
       };
       firebase.initializeApp(firebaseConfig);
-      firebase.auth().onAuthStateChanged(u => {
-        if (u) {
-          document.getElementById('mtn-userId').value    = u.uid;
-          document.getElementById('orange-userId').value = u.uid;
+
+      // 2) Récupérer et injecter le userId dans chaque form
+      firebase.auth().onAuthStateChanged(user => {
+        if (!user) {
+          // pas connecté, rediriger vers login
+          return window.location.href = 'login.html';
         }
+        document.getElementById('mtn-userId').value    = user.uid;
+        document.getElementById('orange-userId').value = user.uid;
       });
 
-      // Submit proofs to backend
-      const backendUrl = "https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev/upload";
+      // 3) Soumission de chaque formulaire vers /upload local
       document.querySelectorAll('.deposit-form').forEach(form => {
         form.addEventListener('submit', async e => {
           e.preventDefault();
           const fd = new FormData(form);
           console.log('FormData entries:', [...fd.entries()]);  // debug
+
           try {
-            const res  = await fetch(backendUrl, { method: 'POST', body: fd });
+            // On poste vers /upload sur le même domaine
+            const res  = await fetch('/upload', {
+              method: 'POST',
+              body:   fd
+            });
             const data = await res.json();
             if (data.success) {
-              alert(`✅ Montant : ${data.montant} FCFA`);
+              alert(`✅ Montant : ${data.montant} FCFA`);
               form.reset();
             } else {
-              alert(`❌ Erreur : ${data.error}`);
+              alert(`❌ Erreur : ${data.error}`);
             }
           } catch (err) {
             console.error(err);
@@ -358,7 +366,7 @@
         });
       });
 
-      // Hamburger toggle (inchangé)
+      // 4) Hamburger toggle
       const btn  = document.getElementById('hamburgerBtn'),
             menu = document.getElementById('hamburgerMenu'),
             back = document.getElementById('menuBackdrop');
@@ -375,7 +383,7 @@
         back.hidden = true;
       });
 
-      // Init AOS animations
+      // 5) AOS init
       AOS.init({ duration: 600, once: true });
     });
   </script>
