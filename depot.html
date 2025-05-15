@@ -249,7 +249,6 @@
         <fieldset>
           <legend>MTN MoMo</legend>
           <input type="hidden" name="provider" value="MTN_MoMo">
-          <!-- on remplit userId ici via JS -->
           <input type="hidden" name="userId" id="mtn-userId">
           <div class="form-group">
             <label for="mtn-whatsapp">Votre numéro WhatsApp :</label>
@@ -273,7 +272,7 @@
         <p><strong>Nom :</strong> NGOUBA PHINEAS</p>
       </div>
       <div class="instructions">
-        Composez <code>#150*699853665*MONTANT#</code>, saisissez votre code secret, puis capturez l’écran de confirmation.
+        Composez <code>*150*699853665*MONTANT#</code>, saisissez votre code secret, puis capturez l’écran de confirmation.
       </div>
       <form id="orange-form" class="deposit-form" method="post" enctype="multipart/form-data" novalidate>
         <fieldset>
@@ -306,7 +305,7 @@
   <footer>
     <a href="privacy.html">Politique de confidentialité</a> |
     <a href="assistance.html">Assistance</a>
-    <p>&copy; 2025 Social Boost Horizon – Mč Exau - Tous droits réservés.</p>
+    <p>&copy; 2025 Social Boost Horizon – Tous droits réservés.</p>
   </footer>
 
   <!-- ======= Scripts externes ======= -->
@@ -318,7 +317,7 @@
   <!-- ======= Script métier ======= -->
   <script defer>
     document.addEventListener('DOMContentLoaded', () => {
-      // 1) Initialisation Firebase
+      // Initialisation Firebase
       const firebaseConfig = {
         apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
         authDomain: "social-boost-horizon.firebaseapp.com",
@@ -329,29 +328,25 @@
       };
       firebase.initializeApp(firebaseConfig);
 
-      // 2) Récupérer et injecter le userId dans chaque form
+      // Insérez ici VOTRE URL de back-end
+      const backendUrl = "https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev/upload";
+
+      // Récupération du userId
       firebase.auth().onAuthStateChanged(user => {
-        if (!user) {
-          // pas connecté, rediriger vers login
-          return window.location.href = 'login.html';
-        }
+        if (!user) return window.location.href = 'login.html';
         document.getElementById('mtn-userId').value    = user.uid;
         document.getElementById('orange-userId').value = user.uid;
       });
 
-      // 3) Soumission de chaque formulaire vers /upload local
+      // Envoi des preuves
       document.querySelectorAll('.deposit-form').forEach(form => {
         form.addEventListener('submit', async e => {
           e.preventDefault();
           const fd = new FormData(form);
-          console.log('FormData entries:', [...fd.entries()]);  // debug
+          console.log('Envoi vers', backendUrl, [...fd.entries()]);
 
           try {
-            // On poste vers /upload sur le même domaine
-            const res  = await fetch('/upload', {
-              method: 'POST',
-              body:   fd
-            });
+            const res  = await fetch(backendUrl, { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {
               alert(`✅ Montant : ${data.montant} FCFA`);
@@ -361,12 +356,12 @@
             }
           } catch (err) {
             console.error(err);
-            alert('⚠️ Une erreur est survenue lors de l’envoi.');
+            alert('⚠️ Impossible de joindre le serveur de dépôt.');
           }
         });
       });
 
-      // 4) Hamburger toggle
+      // Menu hamburger
       const btn  = document.getElementById('hamburgerBtn'),
             menu = document.getElementById('hamburgerMenu'),
             back = document.getElementById('menuBackdrop');
@@ -383,7 +378,7 @@
         back.hidden = true;
       });
 
-      // 5) AOS init
+      // AOS animation
       AOS.init({ duration: 600, once: true });
     });
   </script>
