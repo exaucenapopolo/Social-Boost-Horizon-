@@ -44,6 +44,7 @@
       width: 100%;
       padding: 30px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      margin-top: 20px; /* AJOUTÉ pour espacer du header */
     }
 
     .card h2 {
@@ -203,10 +204,10 @@
     AOS.init({ duration: 600, once: true });
 
     // Récupère le code de parrainage depuis l'URL
-    const urlParams        = new URLSearchParams(window.location.search);
-    const urlReferralCode  = urlParams.get('ref') || null;
+    const urlParams       = new URLSearchParams(window.location.search);
+    const urlReferralCode = urlParams.get('ref') || null;
 
-    // Gère l'indicatif pays
+    // Indicatifs
     function updateIndicatif() {
       const codes = {
         bj: "+229", bf: "+226", cm: "+237", ca: "+1",
@@ -219,7 +220,7 @@
         codes[document.getElementById("pays").value] || "";
     }
 
-    // Configuration Firebase
+    // Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -227,12 +228,11 @@
       storageBucket: "social-boost-horizon.firebasestorage.app",
       messagingSenderId: "43658165639",
       appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
-      measurementId: "G-JJXPNN90V1"
+      measurementId: "G-JJPNN90V1"
     };
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth(), db = firebase.firestore();
 
-    // Soumission du formulaire
     document.getElementById('registerForm').addEventListener('submit', async e => {
       e.preventDefault();
       const submitBtn = document.getElementById('submitBtn');
@@ -240,14 +240,14 @@
       errorEl.textContent = "";
       submitBtn.disabled  = true;
 
-      // Récupère les valeurs
-      const username      = document.getElementById('username').value.trim();
-      const email         = document.getElementById('email').value.trim();
-      const password      = document.getElementById('password').value;
-      const pays          = document.getElementById('pays').value;
-      const indicatif     = document.getElementById('indicatif').value;
-      const telephone     = document.getElementById('telephone').value.trim();
-      const manualReferral= document.getElementById('referral').value.trim();
+      // Valeurs du formulaire
+      const username       = document.getElementById('username').value.trim();
+      const email          = document.getElementById('email').value.trim();
+      const password       = document.getElementById('password').value;
+      const pays           = document.getElementById('pays').value;
+      const indicatif      = document.getElementById('indicatif').value;
+      const telephone      = document.getElementById('telephone').value.trim();
+      const manualReferral = document.getElementById('referral').value.trim();
 
       if (!username || !email || !pays || !telephone || !password) {
         errorEl.textContent = "Tous les champs sont requis.";
@@ -262,30 +262,45 @@
 
       try {
         // 1) Créer l’utilisateur
-        const userCred = await auth.createUserWithEmailAndPassword(email, password);
-        const userId   = userCred.user.uid;
+        const { user } = await auth.createUserWithEmailAndPassword(email, password);
+        const userId = user.uid;
 
-        // 2) Générer un code unique
+        // 2) Générer votre code unique
         const generatedCode = Math.random().toString(36).substring(2,10).toUpperCase();
 
-        // 3) Choisir le code du parrain (manuel > URL)
+        // 3) Choix du code (manuel > URL)
         const referralCodeUsed = manualReferral || urlReferralCode || null;
 
-        // 4) Écrire dans Firestore et attendre la confirmation
+        // 4) Rechercher l’UID du parrain (si code fourni)
+        let referrerUid = null;
+        if (referralCodeUsed) {
+          const q = await db.collection('users')
+                          .where('referralCode', '==', referralCodeUsed)
+                          .limit(1)
+                          .get();
+          if (!q.empty) {
+            referrerUid = q.docs[0].id;
+            // optionnel : incrémenter le compteur de parrainages
+            await db.collection('users').doc(referrerUid).update({
+              referralsCount: firebase.firestore.FieldValue.increment(1)
+            });
+          }
+        }
+
+        // 5) Enregistrer le nouvel utilisateur
         await db.collection("users").doc(userId).set({
           username,
           email,
           phone:            `${indicatif} ${telephone}`,
           country:          pays,
           referralCode:     generatedCode,
-          referredBy:       referralCodeUsed,
+          referredBy:       referrerUid,  // UID du parrain ou null
           balance:          0,
           referralBalance:  0,
           discountUsesLeft: 10,
           referralsCount:   0,
           createdAt:        firebase.firestore.FieldValue.serverTimestamp()
         });
-        console.log("User doc créé pour UID=", userId);
 
         alert("Inscription réussie !");
         window.location.href = "dashboard.html";
