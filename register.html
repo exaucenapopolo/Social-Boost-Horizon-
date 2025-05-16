@@ -44,7 +44,7 @@
       width: 100%;
       padding: 30px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      margin-top: 20px; /* AJOUTÉ pour espacer du header */
+      margin-top: 20px; /* espacement sous le header */
     }
 
     .card h2 {
@@ -170,15 +170,13 @@
 
         <label for="telephone"><i class="fas fa-phone"></i>Numéro de téléphone</label>
         <div class="phone-group">
-          <input type="text" id="indicatif" readonly placeholder="+229"
-                 style="max-width:100px;" />
+          <input type="text" id="indicatif" readonly placeholder="+229" style="max-width:100px;" />
           <input type="tel" id="telephone" required placeholder="xx xx xx xx" />
         </div>
 
         <!-- Champ optionnel de parrainage -->
         <label for="referral"><i class="fas fa-gift"></i>Code de parrainage (optionnel)</label>
-        <input type="text" id="referral"
-               placeholder="Entrez le code de votre parrain" />
+        <input type="text" id="referral" placeholder="Entrez le code de votre parrain" />
 
         <label for="password"><i class="fas fa-lock"></i>Mot de passe</label>
         <input type="password" id="password" required minlength="6" />
@@ -197,14 +195,13 @@
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
-  <!-- AOS JS -->
   <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 
   <script>
     AOS.init({ duration: 600, once: true });
 
     // Récupère le code de parrainage depuis l'URL
-    const urlParams       = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(window.location.search);
     const urlReferralCode = urlParams.get('ref') || null;
 
     // Indicatifs
@@ -235,12 +232,12 @@
 
     document.getElementById('registerForm').addEventListener('submit', async e => {
       e.preventDefault();
-      const submitBtn = document.getElementById('submitBtn');
-      const errorEl   = document.getElementById('errorMsg');
-      errorEl.textContent = "";
-      submitBtn.disabled  = true;
+      const btn = document.getElementById('submitBtn');
+      const err = document.getElementById('errorMsg');
+      err.textContent = "";
+      btn.disabled = true;
 
-      // Récupère les valeurs
+      // Valeurs du formulaire
       const username       = document.getElementById('username').value.trim();
       const email          = document.getElementById('email').value.trim();
       const password       = document.getElementById('password').value;
@@ -250,13 +247,13 @@
       const manualReferral = document.getElementById('referral').value.trim();
 
       if (!username || !email || !pays || !telephone || !password) {
-        errorEl.textContent = "Tous les champs sont requis.";
-        submitBtn.disabled  = false;
+        err.textContent = "Tous les champs sont requis.";
+        btn.disabled = false;
         return;
       }
       if (password.length < 6) {
-        errorEl.textContent = "Le mot de passe doit contenir au moins 6 caractères.";
-        submitBtn.disabled  = false;
+        err.textContent = "Le mot de passe doit contenir au moins 6 caractères.";
+        btn.disabled = false;
         return;
       }
 
@@ -280,10 +277,6 @@
                           .get();
           if (!q.empty) {
             referrerUid = q.docs[0].id;
-            // incrémente le compteur de parrainages
-            await db.collection('users').doc(referrerUid).update({
-              referralsCount: firebase.firestore.FieldValue.increment(1)
-            });
           }
         }
 
@@ -308,15 +301,15 @@
       } catch (error) {
         console.error("Erreur inscription :", error);
         if (error.code === 'auth/email-already-in-use') {
-          errorEl.textContent = "Cette adresse e-mail est déjà utilisée.";
+          err.textContent = "Cette adresse e-mail est déjà utilisée.";
         } else if (error.code === 'auth/invalid-email') {
-          errorEl.textContent = "Adresse e-mail invalide.";
+          err.textContent = "Adresse e-mail invalide.";
         } else if (error.code === 'auth/weak-password') {
-          errorEl.textContent = "Mot de passe trop faible.";
+          err.textContent = "Mot de passe trop faible.";
         } else {
-          errorEl.textContent = "Erreur : " + error.message;
+          err.textContent = "Erreur : " + error.message;
         }
-        submitBtn.disabled = false;
+        btn.disabled = false;
       }
     });
   </script>
