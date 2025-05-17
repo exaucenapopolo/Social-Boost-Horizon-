@@ -120,7 +120,7 @@
     </div>
   </main>
 
-  <!-- Firebase Auth + AOS -->
+  <!-- Firebase Auth & AOS JS -->
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
   <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
@@ -128,7 +128,10 @@
   <script>
     AOS.init({ duration: 600, once: true });
 
-    // Récupération du code de parrainage dans l'URL
+    // URL de votre projet Replit
+    const BACKEND_URL = 'https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev';
+
+    // Récupération du code de parrainage depuis l'URL
     const urlParams        = new URLSearchParams(window.location.search);
     const urlReferralCode  = urlParams.get('ref') || null;
 
@@ -145,7 +148,7 @@
         codes[document.getElementById("pays").value] || "";
     }
 
-    // Configuration de Firebase Auth
+    // Configuration Firebase Auth
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -164,7 +167,7 @@
       err.textContent = '';
       btn.disabled = true;
 
-      // Récupération des valeurs du formulaire
+      // Récupération des valeurs
       const username       = document.getElementById('username').value.trim();
       const email          = document.getElementById('email').value.trim();
       const password       = document.getElementById('password').value;
@@ -173,7 +176,14 @@
       const telephone      = document.getElementById('telephone').value.trim();
       const manualReferral = document.getElementById('referral').value.trim();
 
-      if (!username || !email || !pays || !telephone || !password) {
+      // Validation e-mail basique
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailPattern.test(email)) {
+        err.textContent = "Format d’e-mail invalide.";
+        btn.disabled = false;
+        return;
+      }
+      if (!username || !pays || !telephone || !password) {
         err.textContent = "Tous les champs sont requis.";
         btn.disabled = false;
         return;
@@ -185,18 +195,18 @@
       }
 
       try {
-        // 1) Création de l'utilisateur dans Firebase Auth
+        // 1) Création de l’utilisateur Firebase Auth
         const { user } = await auth.createUserWithEmailAndPassword(email, password);
         const userId = user.uid;
 
         // 2) Génération du code de parrainage unique
         const generatedCode = Math.random().toString(36).substring(2,10).toUpperCase();
 
-        // 3) Détermination du code de parrain à utiliser (manuel > URL)
+        // 3) Choix du code de parrain (manuel > URL)
         const referralCodeUsed = manualReferral || urlReferralCode || null;
 
-        // 4) Appel à ton back-end pour créer le doc Firestore et gérer le parrainage
-        const resp = await fetch('/register', {
+        // 4) Appel à votre back-end Replit pour créer le doc Firestore
+        const resp = await fetch(`${BACKEND_URL}/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -211,10 +221,10 @@
         });
         const data = await resp.json();
         if (!data.success) {
-          throw new Error(data.error || 'Erreur lors de l’enregistrement côté serveur');
+          throw new Error(data.error || 'Erreur serveur');
         }
 
-        alert('Inscription réussie !');
+        alert('Inscription réussie !');
         window.location.href = 'dashboard.html';
 
       } catch (error) {
