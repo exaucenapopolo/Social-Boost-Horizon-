@@ -66,7 +66,8 @@
   <main>
     <div class="card" data-aos="fade-up">
       <h2>Créer un compte</h2>
-      <form id="registerForm">
+      <!-- On passe en novalidate pour désactiver le validateur natif HTML5 -->
+      <form id="registerForm" novalidate>
         <label for="username"><i class="fas fa-user"></i>Nom d'utilisateur</label>
         <input type="text" id="username" required />
 
@@ -128,36 +129,31 @@
   <script>
     AOS.init({ duration: 600, once: true });
 
-    // URL de votre projet Replit
+    // Votre back-end Replit
     const BACKEND_URL = 'https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev';
 
-    // Récupération du code de parrainage depuis l'URL
-    const urlParams        = new URLSearchParams(window.location.search);
-    const urlReferralCode  = urlParams.get('ref') || null;
+    // Récupération du code de parrainage dans l'URL
+    const urlReferralCode = new URLSearchParams(location.search).get('ref') || null;
 
-    // Mise à jour de l'indicatif selon le pays sélectionné
+    // Mise à jour de l'indicatif
     function updateIndicatif() {
       const codes = {
-        bj: "+229", bf: "+226", cm: "+237", ca: "+1",
-        cf: "+236", cg: "+242", ci: "+225", ga: "+241",
-        ke: "+254", mw: "+265", ne: "+227", ng: "+234",
-        ug: "+256", cd: "+243", rw: "+250", sn: "+221",
-        tz: "+255", tg: "+228", zm: "+260"
+        bj: '+229', bf: '+226', cm: '+237', ca: '+1',
+        cf: '+236', cg: '+242', ci: '+225', ga: '+241',
+        ke: '+254', mw: '+265', ne: '+227', ng: '+234',
+        ug: '+256', cd: '+243', rw: '+250', sn: '+221',
+        tz: '+255', tg: '+228', zm: '+260'
       };
-      document.getElementById("indicatif").value =
-        codes[document.getElementById("pays").value] || "";
+      document.getElementById('indicatif').value =
+        codes[document.getElementById('pays').value] || '';
     }
 
-    // Configuration Firebase Auth
-    const firebaseConfig = {
+    // Config Firebase Auth
+    firebase.initializeApp({
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
-      projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.firebasestorage.app",
-      messagingSenderId: "43658165639",
-      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
-    };
-    firebase.initializeApp(firebaseConfig);
+      projectId: "social-boost-horizon"
+    });
     const auth = firebase.auth();
 
     document.getElementById('registerForm').addEventListener('submit', async e => {
@@ -167,7 +163,7 @@
       err.textContent = '';
       btn.disabled = true;
 
-      // Récupération des valeurs
+      // Valeurs
       const username       = document.getElementById('username').value.trim();
       const email          = document.getElementById('email').value.trim();
       const password       = document.getElementById('password').value;
@@ -176,39 +172,34 @@
       const telephone      = document.getElementById('telephone').value.trim();
       const manualReferral = document.getElementById('referral').value.trim();
 
-      // Validation e-mail basique
-      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailPattern.test(email)) {
+      // Validation email manuelle
+      const mailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!mailRe.test(email)) {
         err.textContent = "Format d’e-mail invalide.";
         btn.disabled = false;
         return;
       }
-      if (!username || !pays || !telephone || !password) {
-        err.textContent = "Tous les champs sont requis.";
-        btn.disabled = false;
-        return;
-      }
-      if (password.length < 6) {
-        err.textContent = "Le mot de passe doit contenir au moins 6 caractères.";
+      if (!username || !pays || !telephone || password.length < 6) {
+        err.textContent = "Tous les champs sont requis et mot de passe ≥ 6 caractères.";
         btn.disabled = false;
         return;
       }
 
       try {
-        // 1) Création de l’utilisateur Firebase Auth
+        // 1) Création Auth
         const { user } = await auth.createUserWithEmailAndPassword(email, password);
         const userId = user.uid;
 
-        // 2) Génération du code de parrainage unique
+        // 2) Code de parrainage unique
         const generatedCode = Math.random().toString(36).substring(2,10).toUpperCase();
 
-        // 3) Choix du code de parrain (manuel > URL)
+        // 3) Quel code de parrain utiliser ?
         const referralCodeUsed = manualReferral || urlReferralCode || null;
 
-        // 4) Appel à votre back-end Replit pour créer le doc Firestore
-        const resp = await fetch(`${BACKEND_URL}/register`, {
+        // 4) Appel back-end
+        const rsp = await fetch(`${BACKEND_URL}/register`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type':'application/json' },
           body: JSON.stringify({
             userId,
             username,
@@ -219,17 +210,15 @@
             referralCodeUsed
           })
         });
-        const data = await resp.json();
-        if (!data.success) {
-          throw new Error(data.error || 'Erreur serveur');
-        }
+        const j = await rsp.json();
+        if (!j.success) throw new Error(j.error||'Erreur serveur');
 
         alert('Inscription réussie !');
-        window.location.href = 'dashboard.html';
+        location.href = 'dashboard.html';
 
-      } catch (error) {
-        console.error('Erreur inscription :', error);
-        err.textContent = error.message;
+      } catch (er) {
+        console.error(er);
+        err.textContent = er.message;
         btn.disabled = false;
       }
     });
