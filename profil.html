@@ -120,9 +120,11 @@
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
   <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+
   <script>
     AOS.init({ duration: 500, once: true });
 
+    // --- Firebase init ---
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -135,71 +137,88 @@
     const auth = firebase.auth(), db = firebase.firestore();
 
     let initialized = false;
-    auth.onAuthStateChanged(user => {
-      if (!initialized) {
-        initialized = true;
-        if (!user) {
-          window.location.href = 'login.html';
-          return;
-        }
-        document.getElementById('displayName').value = user.displayName || '';
-        document.getElementById('email').value       = user.email || '';
-        document.getElementById('password').value    = '••••••••';
-        db.collection('users').doc(user.uid).get()
-          .then(doc => document.getElementById('phone').value = doc.data()?.phone || '');
-      }
+    auth.onAuthStateChanged(async user => {
+      if (initialized) return;
+      initialized = true;
+      if (!user) return window.location.href = 'login.html';
+
+      // remplir les champs
+      document.getElementById('displayName').value = user.displayName || '';
+      document.getElementById('email').value       = user.email || '';
+      document.getElementById('password').value    = '••••••••';
+
+      const doc = await db.collection('users').doc(user.uid).get();
+      document.getElementById('phone').value = doc.data()?.phone || '';
     });
 
+    // toggle password visibility
     document.getElementById('togglePassword').addEventListener('click', function(){
       const pwd = document.getElementById('password');
-      const type = pwd.getAttribute('type') === 'password' ? 'text' : 'password';
-      pwd.setAttribute('type', type);
+      const type = pwd.type === 'password' ? 'text' : 'password';
+      pwd.type = type;
       this.classList.toggle('fa-eye-slash');
     });
 
+    // éditer
     document.getElementById('editBtn').addEventListener('click', () => {
       ['displayName','email','phone','password'].forEach(id => {
         document.getElementById(id).readOnly = false;
       });
       document.getElementById('editBtn').style.display = 'none';
-      document.getElementById('saveBtn').style.display = 'inline-block';
+      document.getElementById('saveBtn').style.display  = 'inline-block';
     });
 
-    document.getElementById('profileForm').addEventListener('submit', e => {
+    // soumettre modifications
+    document.getElementById('profileForm').addEventListener('submit', async e => {
       e.preventDefault();
       const user = auth.currentUser;
-      const dn = document.getElementById('displayName').value;
-      const em = document.getElementById('email').value;
+      if (!user) return window.location.href = 'login.html';
+
+      const dn = document.getElementById('displayName').value.trim();
+      const em = document.getElementById('email').value.trim();
       const pw = document.getElementById('password').value;
-      const ph = document.getElementById('phone').value;
+      const ph = document.getElementById('phone').value.trim();
+
       const updates = [];
 
-      // Auth update
-      if (dn && dn !== user.displayName) {
-        updates.push(user.updateProfile({ displayName: dn }));
-        // <-- NOUVEAU : enregistrer username en Firestore
+      // 1) Firebase Auth updates
+      if (dn && dn !== user.displayName)  updates.push(user.updateProfile({ displayName: dn }));
+      if (em && em !== user.email)        updates.push(user.updateEmail(em));
+      if (pw && pw !== '••••••••')        updates.push(user.updatePassword(pw));
+
+      // 2) Back-end update pour username + phone
+      const backendPayload = {};
+      if (dn && dn !== user.displayName)  backendPayload.username = dn;
+      if (ph)                             backendPayload.phone    = ph;
+      if (Object.keys(backendPayload).length > 0) {
         updates.push(
-          db.collection('users').doc(user.uid)
-            .set({ username: dn }, { merge: true })
+          fetch(`/users/${encodeURIComponent(user.uid)}`, {
+            method:  'PUT',
+            headers: { 'Content-Type':'application/json' },
+            body:    JSON.stringify(backendPayload)
+          }).then(r => r.json()).then(json => {
+            if (!json.success) throw new Error(json.error);
+          })
         );
       }
-      if (em && em !== user.email)       updates.push(user.updateEmail(em));
-      if (pw && pw !== '••••••••')       updates.push(user.updatePassword(pw));
-      // stocker le téléphone
-      updates.push(db.collection('users').doc(user.uid).set({ phone: ph }, { merge: true }));
 
-      Promise.all(updates)
-        .then(() => {
-          alert('Profil mis à jour !');
-          ['displayName','email','phone','password'].forEach(id => {
-            document.getElementById(id).readOnly = true;
-          });
-          document.getElementById('saveBtn').style.display = 'none';
-          document.getElementById('editBtn').style.display = 'inline-block';
-        })
-        .catch(err => alert('Erreur : ' + err.message));
+      try {
+        await Promise.all(updates);
+        alert('Profil mis à jour !');
+        // repasser en read-only
+        ['displayName','email','phone','password'].forEach(id => {
+          const el = document.getElementById(id);
+          el.readOnly = true;
+          if (id === 'password') el.value = '••••••••';
+        });
+        document.getElementById('saveBtn').style.display  = 'none';
+        document.getElementById('editBtn').style.display  = 'inline-block';
+      } catch (err) {
+        alert('Erreur : ' + err.message);
+      }
     });
 
+    // déconnexion
     document.getElementById('logoutBtn').addEventListener('click', () => {
       if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
         auth.signOut().then(() => window.location.href = 'login.html');

@@ -27,12 +27,8 @@
       background: var(--bg-pastel);
       color: var(--text-dark);
     }
-
-    /* HEADER */
     .header { background: linear-gradient(45deg, var(--blue), #6a0dad); padding:12px 20px; text-align:center; position:relative; z-index:1; }
     .header h1 { color:#fff; font-size:1.4rem; }
-
-    /* SOLDE & DÉPÔT */
     .balance-section {
       background:#fff; display:flex; justify-content:space-between; align-items:center;
       padding:12px 20px; box-shadow:0 2px 4px rgba(0,0,0,0.1); margin-top:10px;
@@ -43,7 +39,6 @@
     }
     .balance-section button:hover { background:#0056b3; }
 
-    /* MAIN: two balances + activities */
     main {
       flex: 1; display: flex; flex-direction: column; gap:20px; padding:20px; overflow-y: auto;
     }
@@ -58,12 +53,8 @@
     .wallet-balance { background-color: var(--green); color:#fff; }
     .affiliate-balance { background-color: rgba(40,167,69,0.2); color:var(--text-dark); }
 
-    .wallet-balance h2, .affiliate-balance h2, .recent-activities h2 {
-      margin-bottom: 10px;
-    }
-    .wallet-balance p, .affiliate-balance p {
-      font-size:2rem; margin-bottom: 20px;
-    }
+    .wallet-balance h2, .affiliate-balance h2, .recent-activities h2 { margin-bottom: 10px; }
+    .wallet-balance p, .affiliate-balance p { font-size:2rem; margin-bottom: 20px; }
 
     .wallet-balance button, .affiliate-balance button {
       align-self: flex-end; padding:12px 24px; border:none; border-radius:50px; cursor:pointer; font-size:1rem;
@@ -71,25 +62,15 @@
     .wallet-balance button { background:#fff; color:var(--green); }
     .affiliate-balance button { background:var(--green); color:#fff; }
 
-    /* Recent activities list */
-    .recent-activities {
-      flex: 1; display: flex; flex-direction: column;
-    }
-    .recent-activities ul {
-      list-style:none; overflow-y:auto; flex:1; padding:0; margin:0;
-    }
-    .recent-activities li {
-      padding:10px; border-bottom:1px solid rgba(0,0,0,0.1);
-    }
+    .recent-activities { flex: 1; display: flex; flex-direction: column; }
+    .recent-activities ul { list-style:none; overflow-y:auto; flex:1; padding:0; margin:0; }
+    .recent-activities li { padding:10px; border-bottom:1px solid rgba(0,0,0,0.1); }
     .recent-activities li:last-of-type { border-bottom:none; }
 
-    /* FOOTER */
     .footer { background:#000; color:#fff; text-align:center; padding:15px 20px; }
     .footer small { display:block; margin-bottom:10px; }
     #logoutBtn { background:#dc3545; border:none; color:#fff; padding:8px 16px; border-radius:4px; cursor:pointer; }
     #logoutBtn:hover { background:#c82333; }
-
-    /* MENU HAMBURGER & BACKDROP (unchanged) */
     .menu-backdrop { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); opacity:0; visibility:hidden; transition:opacity 0.3s ease; z-index:9998; }
     .menu-backdrop.active { opacity:1; visibility:visible; }
     .hamburger-btn { position:absolute; top:12px; right:20px; background:transparent; border:none; font-size:1.5rem; color:#fff; cursor:pointer; z-index:9999; }
@@ -104,18 +85,11 @@
 </head>
 <body>
 
-  <!-- BACKDROP -->
   <div id="menuBackdrop" class="menu-backdrop"></div>
-
-  <!-- HEADER -->
   <div class="header" data-aos="fade-down">
     <h1 id="welcome">Bienvenue sur ton portefeuille</h1>
-    <button id="hamburgerBtn" class="hamburger-btn" aria-label="Menu">
-      <i class="fas fa-bars"></i>
-    </button>
+    <button id="hamburgerBtn" class="hamburger-btn" aria-label="Menu"><i class="fas fa-bars"></i></button>
   </div>
-
-  <!-- OFF-CANVAS MENU -->
   <nav id="hamburgerMenu" class="hamburger-menu">
     <ul>
       <li><a href="dashboard.html">Accueil</a></li>
@@ -129,13 +103,11 @@
     </ul>
   </nav>
 
-  <!-- SOLDE & DÉPÔT -->
   <div class="balance-section" data-aos="fade-up">
     <span id="balance">Solde : 0 XAF</span>
     <button id="quickDeposit">➕ Déposer</button>
   </div>
 
-  <!-- CONTENU PORTFOLIO -->
   <main id="content">
     <section class="wallet-balance" data-aos="fade-up">
       <div>
@@ -156,12 +128,11 @@
     <section class="recent-activities" data-aos="fade-up">
       <h2>Activités récentes</h2>
       <ul id="activityList">
-        <!-- Les dépôts personnels ET ceux des filleuls seront injectés ici -->
+        <li>Chargement…</li>
       </ul>
     </section>
   </main>
 
-  <!-- FOOTER -->
   <div class="footer" data-aos="fade-up">
     <small>Social Boost Horizon – Tous droits réservés ©2025</small>
     <button id="logoutBtn">Déconnexion</button>
@@ -176,6 +147,7 @@
   <script>
     AOS.init({ duration:600, once:true });
 
+    // --- Firebase client init ---
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -187,98 +159,82 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth(), db = firebase.firestore();
 
-    const welcomeEl      = document.getElementById('welcome'),
-          balanceEl      = document.getElementById('balance'),
-          mainBalEl      = document.getElementById('mainBalance'),
-          referralBalEl  = document.getElementById('referralBalance'),
-          activityList   = document.getElementById('activityList'),
-          addFundsBtn    = document.getElementById('addFunds'),
-          transferBtn    = document.getElementById('transferFunds'),
-          quickDeposit   = document.getElementById('quickDeposit'),
-          logoutBtn      = document.getElementById('logoutBtn'),
-          hamburgerBtn   = document.getElementById('hamburgerBtn'),
-          hamburgerMenu  = document.getElementById('hamburgerMenu'),
-          backdrop       = document.getElementById('menuBackdrop'),
-          showParrainage = document.getElementById('showParrainage');
+    // **URL EXACTE** de votre back-end (Replit ou autre)
+    const BACKEND_BASE = "https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev";
+
+    // Éléments UI
+    const welcomeEl     = document.getElementById('welcome'),
+          balanceEl     = document.getElementById('balance'),
+          mainBalEl     = document.getElementById('mainBalance'),
+          referralBalEl = document.getElementById('referralBalance'),
+          activityList  = document.getElementById('activityList'),
+          addFundsBtn   = document.getElementById('addFunds'),
+          transferBtn   = document.getElementById('transferFunds'),
+          quickDeposit  = document.getElementById('quickDeposit'),
+          logoutBtn     = document.getElementById('logoutBtn'),
+          hamburgerBtn  = document.getElementById('hamburgerBtn'),
+          hamburgerMenu = document.getElementById('hamburgerMenu'),
+          backdrop      = document.getElementById('menuBackdrop'),
+          showParrain   = document.getElementById('showParrainage');
+
+    let currentUid;
 
     auth.onAuthStateChanged(user => {
       if (!user) return window.location.href='login.html';
-      const userRef = db.collection('users').doc(user.uid);
-
-      // 1) Récupérer et afficher soldes
-      userRef.get().then(doc => {
+      currentUid = user.uid;
+      // 1) soldes
+      const uref = db.collection('users').doc(currentUid);
+      uref.onSnapshot(doc => {
         const d = doc.data()||{};
         balanceEl.textContent     = `Solde : ${d.balance||0} XAF`;
         mainBalEl.textContent     = `${d.balance||0} XAF`;
         referralBalEl.textContent = `${d.referralBalance||0} XAF`;
       });
-      userRef.onSnapshot(doc => {
-        const d = doc.data()||{};
-        balanceEl.textContent     = `Solde : ${d.balance||0} XAF`;
-        mainBalEl.textContent     = `${d.balance||0} XAF`;
-        referralBalEl.textContent = `${d.referralBalance||0} XAF`;
-      });
-
-      // 2) Récupérer dépôts personnels et dépôts de filleuls
-      Promise.all([
-        // dépôts personnels
-        userRef.collection('deposits').orderBy('date','desc').limit(10).get(),
-        // dépôts de filleuls
-        userRef.collection('referrals').orderBy('date','desc').limit(10).get()
-      ]).then(([depositsSnap, refsSnap]) => {
-        const items = [];
-
-        depositsSnap.forEach(doc => {
-          const d = doc.data();
-          items.push({
-            date: d.date.toDate(),
-            label: 'Mon dépôt',
-            amount: d.amount,
-            extra: null
-          });
-        });
-
-        refsSnap.forEach(doc => {
-          const d = doc.data();
-          items.push({
-            date: d.date.toDate(),
-            label: `Filleul ${d.refereeUid}`,
-            amount: d.amount,
-            extra: `(+${d.referrerShare} XAF)`
-          });
-        });
-
-        // trier par date décroissante
-        items.sort((a,b) => b.date - a.date);
-
-        // ne garder que les 10 premiers
-        activityList.innerHTML = '';
-        items.slice(0,10).forEach(item => {
-          const li = document.createElement('li');
-          const dateStr = item.date.toLocaleString();
-          li.textContent = `${dateStr} – ${item.label} : +${item.amount} XAF ${item.extra||''}`.trim();
-          activityList.appendChild(li);
-        });
-      });
-
+      // 2) activités récentes via back-end
+      loadActivities();
     });
+
+    // transférer
+    transferBtn.addEventListener('click', async () => {
+      if (!currentUid) return;
+      transferBtn.disabled = true;
+      try {
+        const res = await fetch(`${BACKEND_BASE}/users/${encodeURIComponent(currentUid)}/transfer-referral`, {
+          method: 'POST'
+        });
+        const j   = await res.json();
+        if (!j.success) throw new Error(j.error);
+        alert(`Transféré ${j.transferred} XAF vers le solde principal.`);
+      } catch (err) {
+        alert('Erreur : ' + err.message);
+      } finally {
+        transferBtn.disabled = false;
+      }
+    });
+
+    // charger activités
+    async function loadActivities(){
+      if (!currentUid) return;
+      activityList.innerHTML = '<li>Chargement…</li>';
+      try {
+        const res = await fetch(`${BACKEND_BASE}/users/${encodeURIComponent(currentUid)}/activities`);
+        const j   = await res.json();
+        if (!j.success) throw new Error(j.error);
+        const items = j.activities;
+        if (!items.length) {
+          activityList.innerHTML = '<li>Aucune activité récente.</li>';
+          return;
+        }
+        activityList.innerHTML = items.map(a =>
+          `<li>${new Date(a.date).toLocaleString('fr-FR')} – ${a.label} : +${a.amount} XAF${a.extra||''}</li>`
+        ).join('');
+      } catch(err) {
+        activityList.innerHTML = `<li>Erreur chargement : ${err.message}</li>`;
+      }
+    }
 
     addFundsBtn.addEventListener('click', ()=>window.location.href='depot.html');
     quickDeposit.addEventListener('click', ()=>window.location.href='depot.html');
-    transferBtn.addEventListener('click', async ()=>{
-      const user = firebase.auth().currentUser;
-      if (!user) return window.location.href='login.html';
-      const userRef = db.collection('users').doc(user.uid);
-      const doc = await userRef.get(); const d = doc.data()||{};
-      const amt = d.referralBalance||0;
-      if (amt>0) {
-        await userRef.update({
-          balance: firebase.firestore.FieldValue.increment(amt),
-          referralBalance: 0
-        });
-        alert(`Transféré ${amt} XAF vers solde principal.`);
-      } else alert("Pas de solde d'affiliation.");
-    });
 
     logoutBtn.addEventListener('click', ()=>{
       if (confirm("Voulez-vous vraiment vous déconnecter ?"))
@@ -292,10 +248,10 @@
     hamburgerBtn.addEventListener('click', toggleMenu);
     backdrop.addEventListener('click', toggleMenu);
 
-    showParrainage.addEventListener('click', async e=>{
+    showParrain.addEventListener('click', async e=>{
       e.preventDefault();
-      const user = firebase.auth().currentUser; if(!user) return window.location.href='login.html';
-      const d = (await db.collection('users').doc(user.uid).get()).data()||{};
+      const doc = await db.collection('users').doc(currentUid).get();
+      const d   = doc.data()||{};
       alert(`Votre code : ${d.referralCode||'N/A'}\nParrains : ${d.referralsCount||0}`);
     });
   </script>
