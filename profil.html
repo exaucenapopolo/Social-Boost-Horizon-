@@ -162,7 +162,7 @@
 
     // éditer
     document.getElementById('editBtn').addEventListener('click', () => {
-      ['displayName','email','phone','password'].forEach(id => {
+      ['displayName','phone'].forEach(id => { // Ne plus inclure 'email' et 'password' si vous ne voulez pas les modifier ici
         document.getElementById(id).readOnly = false;
       });
       document.getElementById('editBtn').style.display = 'none';
@@ -176,46 +176,46 @@
       if (!user) return window.location.href = 'login.html';
 
       const dn = document.getElementById('displayName').value.trim();
-      const em = document.getElementById('email').value.trim();
-      const pw = document.getElementById('password').value;
       const ph = document.getElementById('phone').value.trim();
 
-      const updates = [];
-
-      // 1) Firebase Auth updates
-      if (dn && dn !== user.displayName)  updates.push(user.updateProfile({ displayName: dn }));
-      if (em && em !== user.email)        updates.push(user.updateEmail(em));
-      if (pw && pw !== '••••••••')        updates.push(user.updatePassword(pw));
-
-      // 2) Back-end update pour username + phone
       const backendPayload = {};
       if (dn && dn !== user.displayName)  backendPayload.username = dn;
       if (ph)                             backendPayload.phone    = ph;
+
       if (Object.keys(backendPayload).length > 0) {
-        updates.push(
-          fetch(`${REPLIT_BASE_URL}/users/${encodeURIComponent(user.uid)}`, {
+        try {
+          const response = await fetch(`${REPLIT_BASE_URL}/users/${encodeURIComponent(user.uid)}`, {
             method:  'PUT',
             headers: { 'Content-Type':'application/json' },
             body:    JSON.stringify(backendPayload)
-          }).then(r => r.json()).then(json => {
-            if (!json.success) throw new Error(json.error);
-          })
-        );
-      }
+          });
+          const json = await response.json();
+          if (!json.success) {
+            throw new Error(json.error);
+          }
+          alert('Profil mis à jour !');
+          // repasser en read-only
+          ['displayName','phone'].forEach(id => {
+            document.getElementById(id).readOnly = true;
+          });
+          document.getElementById('saveBtn').style.display  = 'none';
+          document.getElementById('editBtn').style.display  = 'inline-block';
 
-      try {
-        await Promise.all(updates);
-        alert('Profil mis à jour !');
-        // repasser en read-only
-        ['displayName','email','phone','password'].forEach(id => {
-          const el = document.getElementById(id);
-          el.readOnly = true;
-          if (id === 'password') el.value = '••••••••';
-        });
-        document.getElementById('saveBtn').style.display  = 'none';
-        document.getElementById('editBtn').style.display  = 'inline-block';
-      } catch (err) {
-        alert('Erreur : ' + err.message);
+          // Mise à jour du nom d'affichage dans Firebase Auth (pour l'affichage immédiat)
+          if (dn && dn !== user.displayName) {
+            await user.updateProfile({ displayName: dn });
+          }
+
+          // Mise à jour du numéro de téléphone dans Firestore (pour le tableau de bord)
+          if (ph) {
+            await db.collection('users').doc(user.uid).update({ phone: ph });
+          }
+
+        } catch (err) {
+          alert('Erreur : ' + err.message);
+        }
+      } else {
+        alert('Aucune modification à enregistrer.');
       }
     });
 
