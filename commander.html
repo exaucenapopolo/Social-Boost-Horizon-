@@ -1,4 +1,3 @@
-<!-- commander.html -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -188,7 +187,7 @@
   </script>
 
   <script>
-    // 1) Variables et DOM
+    // Variables et DOM
     let servicesData = null;
     let selectedPlatform = null;
     const icons          = document.querySelectorAll('.platforms img');
@@ -210,21 +209,27 @@
     const remarkEl       = document.getElementById('remarkBox');
     const errBox         = document.getElementById('orderErrorBox');
 
-    // 2) Charger les tarifs
+    // Chargement dynamique des tarifs avec logs
     async function loadAllPrices() {
       try {
         const res = await fetch('/prices.json');
-        servicesData = await res.json();
-        // Listeners
+        console.log('[loadAllPrices] status:', res.status);
+        console.log('[loadAllPrices] content-type:', res.headers.get('content-type'));
+        const text = await res.text();
+        console.log('[loadAllPrices] raw text:', text);
+        servicesData = JSON.parse(text);
+
+        // Initialisation des listeners
         icons.forEach(i => i.addEventListener('click', () => selectPlatform(i.dataset.platform)));
         serviceSelect.addEventListener('change', updateDetails);
         contactType.addEventListener('change', toggleContactField);
         orderForm.addEventListener('submit', onSubmit);
-        // Affichage
+
+        // Affiche et initialise
         orderForm.style.display = 'block';
         selectPlatform('facebook');
       } catch (err) {
-        console.error('Erreur chargement prices.json', err);
+        console.error('[loadAllPrices] erreur détaillée →', err);
         alert('Impossible de charger les tarifs, réessaie plus tard.');
       }
     }
@@ -233,7 +238,7 @@
       loadAllPrices();
     });
 
-    // 3) Sélection plateforme
+    // Gestion de la sélection de plateforme
     function selectPlatform(p) {
       icons.forEach(i => i.classList.remove('active'));
       document.querySelector(`.platforms img[data-platform="${p}"]`).classList.add('active');
@@ -241,7 +246,7 @@
       loadServices();
     }
 
-    // 4) Remplir services
+    // Remplir le <select> services
     function loadServices() {
       serviceSelect.innerHTML = '<option value="">-- Choisir un service --</option>';
       Object.keys(servicesData[selectedPlatform]).forEach(key => {
@@ -252,7 +257,7 @@
       resetUI();
     }
 
-    // 5) Reset UI
+    // Réinitialiser l'UI du formulaire
     function resetUI() {
       if (qtyInput.tagName === 'TEXTAREA') {
         const inp = document.createElement('input');
@@ -275,7 +280,7 @@
       serviceSelect.value         = '';
     }
 
-    // 6) Update details
+    // Mettre à jour prix, délai, remarque selon le service choisi
     function updateDetails() {
       const key = serviceSelect.value;
       commentsError.style.display = 'none';
@@ -317,7 +322,7 @@
       timeEl.textContent   = `Temps de réalisation : ${d.time}`;
     }
 
-    // 7) Contact toggle
+    // Changer le champ de contact selon l’option sélectionnée
     function toggleContactField() {
       if (contactType.value === 'whatsapp') {
         whatsappFld.style.display = ''; emailFld.style.display = 'none';
@@ -331,13 +336,13 @@
       }
     }
 
-    // 8) Submit
+    // Envoi de la commande au backend Replit
     async function onSubmit(e) {
       e.preventDefault(); errBox.textContent = '';
-      const key       = serviceSelect.value;
+      const key = serviceSelect.value;
       const isComment = key.toLowerCase().includes('commentaires personnalisés');
       if (isComment) {
-        const count = qtyInput.value.split('\n').filter(l=>l.trim()).length;
+        const count = qtyInput.value.split('\n').filter(l => l.trim()).length;
         if (count < 10) { commentsError.style.display = 'block'; return; }
       }
       const payload = {
@@ -346,7 +351,7 @@
         service: key,
         link: linkInput.value,
         quantity: isComment ? undefined : Number(qtyInput.value),
-        comments: isComment ? qtyInput.value.split('\n').filter(l=>l.trim()) : undefined,
+        comments: isComment ? qtyInput.value.split('\n').filter(l => l.trim()) : undefined,
         contactType: contactType.value,
         contact: contactType.value==='whatsapp' ? contactInput.value : emailInput.value
       };
@@ -367,6 +372,7 @@
         orderForm.style.display = 'none';
         window.dispatchEvent(new Event('balanceChanged'));
       } catch (err) {
+        console.error('[onSubmit] erreur →', err);
         errBox.textContent = err.message;
       }
     }
