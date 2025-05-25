@@ -51,9 +51,7 @@
       padding: 0 15px; box-sizing: border-box;
     }
     .service-form {
-      /* resté display:none en CSS, on lève via JS */
-      display: none;
-      background: var(--bg-light);
+      display: none; background: var(--bg-light);
       padding: 25px; border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
@@ -94,11 +92,8 @@
       background: #000; color: #ddd; text-align: center;
       padding: 15px; font-size: 14px;
     }
-    #commentsError {
-      display: none; color: red; margin-top: .5rem;
-    }
-    #commentsCount {
-      display: none; margin-top: .5rem;
+    .error-message {
+      color: red; margin-top: .5rem; font-size: 0.9em;
     }
   </style>
 </head>
@@ -122,14 +117,12 @@
     <form id="orderForm" class="service-form">
       <input type="hidden" name="userId" id="userId">
 
-      <!-- 1. Service -->
       <div class="form-group">
         <label for="serviceSelect">Service</label>
         <select id="serviceSelect" name="service" required></select>
       </div>
 
-      <!-- 2. Qualité -->
-      <div class="form-group">
+      <div class="form-group" id="qualitySection">
         <label for="qualitySelect">Qualité</label>
         <select id="qualitySelect" name="quality" required>
           <option value="medium">Qualité moyenne</option>
@@ -137,27 +130,23 @@
         </select>
       </div>
 
-      <!-- 3. Sous-option (uniquement si nécessaire) -->
       <div class="form-group" id="subOptionSection" style="display:none;">
         <label for="subOptionSelect" id="subOptionLabel">Option</label>
         <select id="subOptionSelect" name="subOption"></select>
       </div>
 
-      <!-- 4. Lien -->
       <div class="form-group">
         <label for="linkInput">Lien du compte / publication</label>
         <input id="linkInput" name="link" type="url" required placeholder="https://...">
       </div>
 
-      <!-- 5. Quantité + Commentaires personnalisés -->
       <div class="form-group" id="quantitySection">
         <label for="quantityInput" id="quantLabel">Quantité</label>
         <input id="quantityInput" name="quantity" type="number" min="1" placeholder="Ex : 1000">
-        <div id="commentsError">Vous devez saisir au moins 10 commentaires.</div>
-        <p id="commentsCount">0 commentaire(s) (minimum 10)</p>
+        <div id="quantityError" class="error-message" style="display:none;"></div>
+        <p id="commentsCount" style="display:none;">0 commentaire(s) (minimum 10)</p>
       </div>
 
-      <!-- 6. Contact -->
       <div class="form-group">
         <label for="contactType">Mode de contact</label>
         <select id="contactType" name="contactType" required>
@@ -175,7 +164,7 @@
         <input id="emailInput" name="contact" type="email" placeholder="socialboosthorizon984@gmail.com">
       </div>
 
-      <div id="orderErrorBox"></div>
+      <div id="orderErrorBox" class="error-message"></div>
       <div class="price-estimate" id="priceEstimate">Prix estimé : 0 FCFA</div>
       <div class="time-estimate"  id="timeEstimate">Temps de réalisation : 2 h</div>
       <div class="remark-box"     id="remarkBox">Sélectionnez un service pour voir la remarque.</div>
@@ -186,7 +175,6 @@
 
   <footer>Social Boost Horizon – Tous droits réservés © 2025</footer>
 
-  <!-- Firebase Auth pour injecter userId -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
@@ -196,7 +184,7 @@
       projectId: "social-boost-horizon",
       storageBucket: "social-boost-horizon.firebasestorage.app",
       messagingSenderId: "43658165639",
-      appId: "1:43658165639:web:b8f492dc12fc6722",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
       measurementId: "G-JJPNN90V1"
     };
     const app  = initializeApp(firebaseConfig);
@@ -208,435 +196,649 @@
   </script>
 
   <script>
-    // === Tous vos services anciens + nouveaux ===
+    // === Données des services (tous vos services) ===
     const servicesData = {
       facebook: {
         "Followers (page)": {
           medium: { price: 2000, time: "4 h" },
           high:   { price: 2000, time: "3 h" },
-          remark: "VOTRE COMMANDE PEUT PRENDRE UN PEU PLUS DE TEMPS… (min: 100)"
+          remark: "VOTRE COMMANDE PEUT PRENDRE UN PEU PLUS DE TEMPS QUE D'HABITUDE… (min: 100)"
         },
         "Followers (profil)": {
           medium: { price: 2100, time: "8 h" },
           high:   { price: 2100, time: "7 h" },
-          remark: "ASSUREZ-VOUS QUE LE PROFIL… (min: 100)"
+          remark: "ASSUREZ-VOUS QUE LE PROFIL FACEBOOK EST EN MODE PROFESSIONNEL. (min: 100)"
         },
         "J’aime (page)": {
           medium: { price: 2500, time: "6 h" },
           high:   { price: 2500, time: "5 h" },
-          remark: "Followers en bonus… (min: 100)"
+          remark: "Vous obtiendrez des followers en bonus… (min: 100)"
         },
         "J’aime (publication)": {
           medium: { price: 1400, time: "4 h" },
           high:   { price: 1400, time: "3 h" },
-          remark: "Publication publique requise. (min: 100)"
+          remark: "Si la publication provient d'un compte… (min: 100)"
         },
         "Partages": {
           medium: { price: 500, time: "14 h" },
           high:   { price: 500, time: "12 h" },
-          remark: "Publication publique. (min: 1000)"
+          remark: "Assurez-vous que la publication est publique. (min: 1000)"
         },
         "Membres de groupe": {
           medium: { price: 2000, time: "7 h" },
           high:   { price: 2000, time: "6 h" },
-          remark: "Groupe public requis. (min: 100)"
+          remark: "Le groupe doit être public, sinon commande annulée. (min: 100)"
         },
         "Vues de vidéo": {
           medium: { price: 1500, time: "5 h" },
           high:   { price: 1500, time: "4 h" },
-          remark: "Vidéo publique. (min: 500)"
+          remark: "Lien direct de la vidéo publique requis. (min: 500)"
         },
-        "commentaires personnalisés": {
+        "Commentaires personnalisés": { // Capitalisé pour être cohérent avec le check
           medium: { price: 800, time: "30 h" },
           high:   { price: 800, time: "24 h" },
-          remark: "Comptes US (min: 10)"
+          remark: "Comptes US commenteront. (min: 10)"
         },
         "Réaction Emoji": {
+          subOptionLabel: "Emoji à choisir", // Nouveau libellé pour la sous-option
           options: {
-            "👍": { price:900, time:"Instantané" },
-            "❤️": { price:900, time:"Instantané" },
-            "😂": { price:900, time:"Instantané" },
-            "😮": { price:900, time:"Instantané" },
-            "😢": { price:900, time:"Instantané" },
-            "😡": { price:900, time:"Instantané" }
+            "👍": { price: 900, time: "Instantané" },
+            "❤️": { price: 900, time: "Instantané" },
+            "😂": { price: 900, time: "Instantané" },
+            "😮": { price: 900, time: "Instantané" },
+            "😢": { price: 900, time: "Instantané" },
+            "😡": { price: 900, time: "Instantané" }
           },
-          remark: "Choisissez l’emoji."
+          remark: "Choisissez l’emoji à appliquer aux publications."
         }
       },
       instagram: {
         "Followers": {
           medium: { price: 2300, time: "3 h" },
           high:   { price: 2300, time: "2 h" },
-          remark: "Ne changez pas votre nom… (min:100)"
+          remark: "Ne changez pas votre nom d’utilisateur… (min: 100)"
         },
         "J’aime": {
           medium: { price: 850, time: "3 h" },
           high:   { price: 850, time: "2 h" },
-          remark: "Baisse 3–5 %… (min:100)"
+          remark: "Baisse de 3–5 % des likes… (min: 100)"
         },
         "Vues de vidéos": {
           medium: { price: 500, time: "2 h" },
           high:   { price: 500, time: "1 h" },
-          remark: "Lien direct. (min:1000)"
+          remark: "Lien direct de la vidéo. (min: 1000)"
         },
-        "commentaires personnalisés": {
+        "Commentaires personnalisés": { // Capitalisé pour être cohérent avec le check
           medium: { price: 250, time: "12 h" },
           high:   { price: 250, time: "10 h" },
-          remark: "Pas de @ ni #. (min:10)"
+          remark: "Pas de “@” ni “#”… (min: 10)"
         },
         "Vues de story": {
           medium: { price: 500, time: "2 h" },
           high:   { price: 500, time: "1 h" },
-          remark: "Spectateurs asiatiques. (min:100)"
+          remark: "Spectateurs asiatiques. (min: 100)"
         }
       },
       youtube: {
         "Abonnés": {
           medium: { price: 4900, time: "30 h" },
           high:   { price: 4900, time: "24 h" },
-          remark: "Baisse 1–5 %. (min:50)"
+          remark: "Baisse de 1–5 % après livraison. (min: 50)"
         },
         "Vues": {
           medium: { price: 1400, time: "10 h" },
           high:   { price: 1400, time: "8 h" },
-          remark: "Presque aucune baisse. (min:100)"
+          remark: "Presque aucune baisse. (min: 100)"
         },
         "J’aime": {
           medium: { price: 1450, time: "2 h" },
           high:   { price: 1450, time: "1 h" },
-          remark: "Presque aucune baisse. (min:100)"
+          remark: "Presque aucune baisse. (min: 100)"
         }
       },
       tiktok: {
         "Followers": {
           medium: { price: 2350, time: "8 h" },
           high:   { price: 2350, time: "6 h" },
-          remark: "Profil public. (min:100)"
+          remark: "Profil public… (min: 100)"
         },
         "J’aime": {
           medium: { price: 850, time: "2 h" },
           high:   { price: 850, time: "1 h" },
-          remark: "Lien direct. (min:50)"
+          remark: "Lien direct de la vidéo. (min: 50)"
         },
         "Vues": {
           medium: { price: 500, time: "2 h" },
           high:   { price: 500, time: "1 h" },
-          remark: "Vidéo publique. (min:500)"
+          remark: "Vidéo publique. (min: 500)"
         },
         "Sauvegarde de vidéos": {
           medium: { price: 400, time: "2 h" },
           high:   { price: 400, time: "1 h" },
-          remark: "Vidéo publique. (min:10)"
+          remark: "Vidéo publique requise. (min: 10)"
         },
         "Partages de vidéos": {
           medium: { price: 350, time: "2 h" },
           high:   { price: 350, time: "1 h" },
-          remark: "Vidéo publique. (min:50)"
+          remark: "Vidéo publique. (min: 50)"
         },
-        "commentaires personnalisés": {
+        "Commentaires personnalisés": { // Capitalisé pour être cohérent avec le check
           medium: { price: 500, time: "4 h" },
           high:   { price: 500, time: "3 h" },
-          remark: "Pas de @ ni #. (min:10)"
+          remark: "Pas de “@” ni “#”. (min: 10)"
         },
         "J’aime pour direct": {
           medium: { price: 450, time: "15 min" },
           high:   { price: 450, time: "10 min" },
-          remark: "Likes en ~10 min. (min:100)"
+          remark: "Likes en ~10 minutes. (min: 100)"
         },
         "Téléspectateur en direct": {
+          subOptionLabel: "Durée", // Nouveau libellé pour la sous-option
           options: {
             "20 min": { medium:{price:2750,time:"20 min"}, high:{price:2750,time:"20 min"} },
             "1 h":    { medium:{price:3800,time:"1 h"},    high:{price:3800,time:"1 h"} },
             "1 h 30": { medium:{price:5850,time:"1 h 30"}, high:{price:5850,time:"1 h 30"} }
           },
-          remark: "Spectateurs live direct TikTok."
+          remark: "Spectateurs en live sur votre direct TikTok."
         }
       },
       telegram: {
         "Membres groupe/canal": {
-          medium: { price:2250, time:"3 h" },
-          high:   { price:2250, time:"3 h" },
-          remark:"Invit public requis. (min:500)"
+          medium: { price: 2250, time: "3 h" },
+          high:   { price: 2250, time: "3 h" },
+          remark: "Lien d’invitation public requis. (min: 500)"
         },
         "Vues publication spécifique": {
+          subOptionLabel: "Qualité des vues",
           options: {
-            "Qualité moyenne (150 FCFA)": { price:150, time:"Instantané" },
-            "Haute qualité (299 FCFA)":    { price:299, time:"Instantané" }
+            "Qualité moyenne": { price:150, time:"Instantané" }, // Renommé pour correspondre à qualitySelect
+            "Haute qualité":   { price:299, time:"Instantané" }
           },
-          remark:"Vues publication spécifique."
+          remark: "Vues sur la publication spécifique."
         },
         "Vues des publications précédentes": {
+          subOptionLabel: "Nombre de vues",
           options: {
             "20 vues":  { price:1000, time:"Instantané" },
             "50 vues":  { price:1400, time:"Instantané" },
             "100 vues": { price:2360, time:"Instantané" }
           },
-          remark:"Choisissez nombre de vues."
+          remark: "Choisissez le nombre de vues."
         },
         "Vues futures publications": {
+          subOptionLabel: "Nombre de vues futures",
           options: {
             "20 futures vues":  { price:970,  time:"Instantané" },
             "50 futures vues":  { price:1995, time:"Instantané" },
             "100 futures vues": { price:3999, time:"Instantané" }
           },
-          remark:"Vues futures publications."
+          remark: "Vues programmées pour futures publications."
         },
         "Réactions publication spécifique": {
           medium:{price:210,time:"Instantané"},
           high:{price:210,time:"Instantané"},
-          remark:"Reaction 👍 publication spécifique."
+          remark:"Réaction (👍) sur la publication spécifique. (min: 10)" // Ajouté un min
         },
         "Réactions précédentes": {
+          subOptionLabel: "Nombre de réactions",
           options: {
             "20 réactions":  { price:1250, time:"Instantané" },
             "50 réactions":  { price:3000, time:"Instantané" },
             "100 réactions": { price:5000, time:"Instantané" }
           },
-          remark:"Réactions publications précédentes."
+          remark:"Réactions (👍) sur publications précédentes."
         },
         "Réactions futures": {
+          subOptionLabel: "Nombre de réactions futures",
           options: {
             "20 réactions":  { price:1250, time:"Instantané" },
             "50 réactions":  { price:3000, time:"Instantané" },
             "100 réactions": { price:5000, time:"Instantané" }
           },
-          remark:"Réactions futures publications."
+          remark:"Réactions (👍) sur futures publications."
         }
       },
       whatsapp: {
         "Abonnés internationaux": {
           medium:{price:2700,time:"3 h"},
           high:{price:2700,time:"3 h"},
-          remark:"Abonnés pays aléatoires."
+          remark:"Abonnés de pays aléatoires. (min: 100)" // Ajouté un min
         },
         "Abonnés américains": {
           medium:{price:4430,time:"3 h"},
           high:{price:5500,time:"3 h"},
-          remark:"Ciblage USA."
+          remark:"Ciblage USA. (min: 100)" // Ajouté un min
         },
         "Abonnés indiens": {
           medium:{price:4430,time:"3 h"},
           high:{price:5500,time:"3 h"},
-          remark:"Ciblage Inde."
+          remark:"Ciblage Inde. (min: 100)" // Ajouté un min
         },
         "Réaction Emoji": {
+          subOptionLabel: "Emoji à choisir",
           options: {
-            "👍": { price:2040,time:"Instantané" },
-            "❤️": { price:2040,time:"Instantané" },
-            "😂": { price:2040,time:"Instantané" }
+            "👍": { price:2040, time:"Instantané" },
+            "❤️": { price:2040, time:"Instantané" },
+            "😂": { price:2040, time:"Instantané" }
           },
-          remark:"Emoji react messages."
+          remark:"Emoji react sur vos messages."
         }
       },
       spotify: {
         "Followers": {
           medium:{price:3950,time:"3 h"},
           high:{price:3950,time:"2 h"},
-          remark:"Profil public requis. (min:1000)"
+          remark:"Profil public requis. (min: 1000)"
         },
         "Abonnés à la playlist": {
           medium:{price:3500,time:"2 h"},
           high:{price:3500,time:"1 h"},
-          remark:"Lien playlist requis. (min:1)"
+          remark:"Lien de la playlist requis. (min: 1)"
         }
       },
       linkedin: {
         "Abonnés page": {
           medium:{price:7500,time:"5 h"},
           high:{price:7500,time:"4 h"},
-          remark:"Page publique requise. (min:1000)"
+          remark:"Page publique requise. (min: 1000)"
         },
         "Abonnés profil": {
           medium:{price:7700,time:"5 h"},
           high:{price:7700,time:"4 h"},
-          remark:"Profil pro requis. (min:1000)"
+          remark:"Profil professionnel requis. (min: 1000)"
         },
         "Likes postes": {
           medium:{price:35000,time:"7 h"},
           high:{price:35000,time:"6 h"},
-          remark:"Postes publics requis. (min:100)"
+          remark:"Postes publics requis. (min: 100)"
         }
       }
     };
 
-    // Références DOM
-    let selectedPlatform=null;
-    const icons=document.querySelectorAll('.platforms img');
-    const orderForm=document.getElementById('orderForm');
-    const serviceSelect=document.getElementById('serviceSelect');
-    const qualitySelect=document.getElementById('qualitySelect');
-    const subSection=document.getElementById('subOptionSection');
-    const subSelect=document.getElementById('subOptionSelect');
-    const linkInput=document.getElementById('linkInput');
-    let qtyInput=document.getElementById('quantityInput');
-    const quantLabel=document.getElementById('quantLabel');
-    const qtySection=document.getElementById('quantitySection');
-    const commentsError=document.getElementById('commentsError');
-    const commentsCount=document.getElementById('commentsCount');
-    const contactType=document.getElementById('contactType');
-    const whatsappFld=document.getElementById('whatsappField');
-    const emailFld=document.getElementById('emailField');
-    const contactInput=document.getElementById('contactInput');
-    const emailInput=document.getElementById('emailInput');
-    const priceEl=document.getElementById('priceEstimate');
-    const timeEl=document.getElementById('timeEstimate');
-    const remarkEl=document.getElementById('remarkBox');
-    const errBox=document.getElementById('orderErrorBox');
+    // DOM references
+    let selectedPlatform = null;
+    const icons           = document.querySelectorAll('.platforms img');
+    const orderForm       = document.getElementById('orderForm');
+    const serviceSelect   = document.getElementById('serviceSelect');
+    const qualitySection  = document.getElementById('qualitySection'); // Nouvelle référence
+    const qualitySelect   = document.getElementById('qualitySelect');
+    const subOptionSection= document.getElementById('subOptionSection');
+    const subOptionLabel  = document.getElementById('subOptionLabel'); // Nouvelle référence
+    const subOptionSelect = document.getElementById('subOptionSelect');
+    const linkInput       = document.getElementById('linkInput');
+    let   quantityInput   = document.getElementById('quantityInput'); // Renommé pour clarté
+    const quantLabel      = document.getElementById('quantLabel');
+    const quantitySection = document.getElementById('quantitySection'); // Renommé pour clarté
+    const quantityError   = document.getElementById('quantityError'); // Renommé
+    const commentsCount   = document.getElementById('commentsCount');
+    const contactType     = document.getElementById('contactType');
+    const whatsappField   = document.getElementById('whatsappField'); // Renommé
+    const emailField      = document.getElementById('emailField'); // Renommé
+    const contactInput    = document.getElementById('contactInput');
+    const emailInput      = document.getElementById('emailInput');
+    const priceEstimate   = document.getElementById('priceEstimate'); // Renommé
+    const timeEstimate    = document.getElementById('timeEstimate');  // Renommé
+    const remarkBox       = document.getElementById('remarkBox');      // Renommé
+    const orderErrorBox   = document.getElementById('orderErrorBox');  // Renommé
 
-    // 1) Afficher le formulaire dès que possible
-    window.addEventListener('DOMContentLoaded',()=>{
-      selectPlatform('facebook');
-      orderForm.style.display='';
-    });
+    // Events binding
+    icons.forEach(i => i.addEventListener('click', () => selectPlatform(i.dataset.platform)));
+    serviceSelect.addEventListener('change', onServiceChange);
+    qualitySelect.addEventListener('change', updateDetails);
+    subOptionSelect.addEventListener('change', updateDetails);
+    // Attach event listener directly to the variable that might change (quantityInput)
+    // We will re-attach this when quantityInput is replaced (textarea to input)
+    function attachQuantityInputListener() {
+        if (quantityInput) {
+            quantityInput.removeEventListener('input', updateDetails); // Remove previous if exists
+            quantityInput.addEventListener('input', updateDetails);
+        }
+    }
+    attachQuantityInputListener(); // Initial attachment
+    contactType.addEventListener('change', toggleContactField);
+    orderForm.addEventListener('submit', onSubmit);
+    window.addEventListener('DOMContentLoaded', () => selectPlatform('facebook'));
 
-    // 2) Événements
-    icons.forEach(i=>i.addEventListener('click',()=>selectPlatform(i.dataset.platform)));
-    serviceSelect.addEventListener('change',onServiceChange);
-    qualitySelect.addEventListener('change',updateDetails);
-    subSelect.addEventListener('change',updateDetails);
-    qtyInput.addEventListener('input',updateDetails);
-    contactType.addEventListener('change',toggleContactField);
-    orderForm.addEventListener('submit',onSubmit);
-
-    function selectPlatform(p){
-      icons.forEach(i=>i.classList.remove('active'));
-      document.querySelector(`.platforms img[data-platform="${p}"]`)
-        .classList.add('active');
-      selectedPlatform=p; loadServices();
+    function selectPlatform(p) {
+      icons.forEach(i => i.classList.remove('active'));
+      document.querySelector(`.platforms img[data-platform="${p}"]`).classList.add('active');
+      selectedPlatform = p;
+      loadServices();
+      orderForm.style.display = 'block'; // Assurez-vous que le formulaire est visible
     }
 
-    function loadServices(){
-      serviceSelect.innerHTML='<option value="">-- Choisir un service --</option>';
-      Object.keys(servicesData[selectedPlatform]).forEach(s=>{
-        const o=document.createElement('option');
-        o.value=s; o.textContent=s;
+    function loadServices() {
+      serviceSelect.innerHTML = '<option value="">-- Choisir un service --</option>';
+      Object.keys(servicesData[selectedPlatform]).forEach(s => {
+        const o = document.createElement('option');
+        o.value = s; o.textContent = s;
         serviceSelect.appendChild(o);
       });
       resetUI();
     }
 
-    function resetUI(){
-      subSection.style.display='none';
-      subSelect.innerHTML='';
-      qualitySelect.value='medium';
-      if(qtyInput.tagName==='TEXTAREA'){
-        const inp=document.createElement('input');
-        inp.id='quantityInput'; inp.name='quantity';
-        inp.type='number'; inp.min='1';
-        inp.placeholder='Ex : 1000';
-        inp.oninput=updateDetails;
-        qtySection.replaceChild(inp,qtyInput);
-        qtyInput=inp;
+    function resetUI() {
+      // Masquer la sous-option et la qualité par défaut
+      subOptionSection.style.display = 'none';
+      subOptionSelect.innerHTML = '';
+      qualitySection.style.display = ''; // Afficher la qualité par défaut
+      qualitySelect.value = 'medium';
+
+      // Restaurer le champ de quantité en input type="number" si c'était une textarea
+      if (quantityInput.tagName === 'TEXTAREA') {
+        const newInput = document.createElement('input');
+        newInput.id = 'quantityInput';
+        newInput.name = 'quantity';
+        newInput.type = 'number';
+        newInput.min = '1';
+        newInput.placeholder = 'Ex : 1000';
+        quantitySection.replaceChild(newInput, quantityInput);
+        quantityInput = newInput; // Mettre à jour la référence
+        attachQuantityInputListener(); // Ré-attacher l'écouteur d'événements
       }
-      quantLabel.textContent='Quantité';
-      qtyInput.value=''; qtyInput.style.height='';
-      commentsError.style.display='none';
-      commentsCount.style.display='none';
-      priceEl.textContent='Prix estimé : 0 FCFA';
-      timeEl.textContent='Temps de réalisation : 2 h';
-      remarkEl.textContent='Sélectionnez un service pour voir la remarque.';
+      quantLabel.textContent = 'Quantité';
+      quantityInput.value = '';
+      quantityInput.style.height = '';
+      quantityError.style.display = 'none';
+      quantityError.textContent = '';
+      commentsCount.style.display = 'none';
+
+      // Réinitialiser les estimations
+      priceEstimate.textContent = 'Prix estimé : 0 FCFA';
+      timeEstimate.textContent  = 'Temps de réalisation : 2 h';
+      remarkBox.textContent= 'Sélectionnez un service pour voir la remarque.';
+
+      // Réinitialiser les champs de contact
+      contactType.value = '';
+      toggleContactField(); // Cacher et désactiver les champs
     }
 
-    function onServiceChange(){
-      resetUI();
-      const key=serviceSelect.value;
-      if(!key)return;
-      const def=servicesData[selectedPlatform][key];
-      if(def.options){
-        subSection.style.display='';
-        subSelect.innerHTML=Object.keys(def.options)
-          .map(opt=>`<option value="${opt}">${opt}</option>`).join('');
-      }
-      updateDetails();
-    }
+    function onServiceChange() {
+      resetUI(); // Réinitialiser l'UI avant de configurer le nouveau service
+      const selectedServiceKey = serviceSelect.value;
 
-    function updateDetails(){
-      const key=serviceSelect.value; if(!key)return;
-      const def=servicesData[selectedPlatform][key];
+      if (!selectedServiceKey) return;
 
-      // a) Commentaires personnalisés
-      if(key.toLowerCase().includes('commentaires personnalisés')
-         && ['facebook','instagram','tiktok'].includes(selectedPlatform)){
-        // textarea géré automatiquement
-        const lines=qtyInput.value.split('\n').filter(l=>l.trim());
-        const count=lines.length;
-        commentsCount.textContent=count<10
-          ? `${count} commentaire(s) (minimum 10)`
-          : `${count} commentaire(s)`;
-        commentsCount.style.display='';
-        commentsError.style.display=count<10?'':'none';
-        const cfg=def[qualitySelect.value];
-        priceEl.textContent=`Prix estimé : ${count*cfg.price} FCFA`;
-        timeEl.textContent=`Temps de réalisation : ${cfg.time}`;
-        remarkEl.textContent=def.remark;
-        return;
-      }
+      const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
 
-      // b) Sous-options
-      if(def.options){
-        const cfg=def.options[subSelect.value];
-        priceEl.textContent=`Prix estimé : ${cfg.price} FCFA`;
-        timeEl.textContent=`Temps de réalisation : ${cfg.time}`;
-        remarkEl.textContent=def.remark;
-        return;
-      }
-
-      // c) Services classiques
-      const cfg=def[qualitySelect.value];
-      const qty=parseInt(qtyInput.value)||0;
-      const total=Math.round((cfg.price/1000)*qty);
-      priceEl.textContent=`Prix estimé : ${total} FCFA`;
-      timeEl.textContent=`Temps de réalisation : ${cfg.time}`;
-      remarkEl.textContent=def.remark;
-    }
-
-    function toggleContactField(){
-      if(contactType.value==='whatsapp'){
-        whatsappFld.style.display=''; emailFld.style.display='none';
-        contactInput.required=true; emailInput.required=false;
-      } else if(contactType.value==='email'){
-        whatsappFld.style.display='none'; emailFld.style.display='';
-        contactInput.required=false; emailInput.required=true;
+      // Gérer les commentaires personnalisés (textarea)
+      const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
+      if (isCommentService) {
+          if (quantityInput.tagName !== 'TEXTAREA') {
+              const newTextarea = document.createElement('textarea');
+              newTextarea.id = 'quantityInput';
+              newTextarea.name = 'comments'; // Changer le nom pour les commentaires
+              newTextarea.rows = '5';
+              newTextarea.placeholder = 'Un commentaire par ligne...';
+              quantitySection.replaceChild(newTextarea, quantityInput);
+              quantityInput = newTextarea; // Mettre à jour la référence
+              attachQuantityInputListener(); // Ré-attacher l'écouteur d'événements
+          }
+          quantLabel.textContent = 'Vos commentaires (un par ligne)';
+          commentsCount.style.display = 'block';
+          qualitySection.style.display = ''; // Les commentaires personnalisés ont toujours une qualité
       } else {
-        whatsappFld.style.display=emailFld.style.display='none';
-        contactInput.required=emailInput.required=false;
+          // Si ce n'est plus un service de commentaire, assurez-vous que c'est un input number
+          if (quantityInput.tagName === 'TEXTAREA') {
+              const newInput = document.createElement('input');
+              newInput.id = 'quantityInput';
+              newInput.name = 'quantity';
+              newInput.type = 'number';
+              newInput.min = '1';
+              newInput.placeholder = 'Ex : 1000';
+              quantitySection.replaceChild(newInput, quantityInput);
+              quantityInput = newInput; // Mettre à jour la référence
+              attachQuantityInputListener(); // Ré-attacher l'écouteur d'événements
+          }
+          quantLabel.textContent = 'Quantité';
+          commentsCount.style.display = 'none';
+      }
+
+      // Gérer les sous-options
+      if (serviceDef.options) {
+        subOptionSection.style.display = 'block';
+        subOptionSelect.innerHTML = ''; // Clear previous options
+        Object.keys(serviceDef.options).forEach(opt => {
+          const optionElement = document.createElement('option');
+          optionElement.value = opt;
+          optionElement.textContent = opt;
+          subOptionSelect.appendChild(optionElement);
+        });
+        // Mettre à jour le libellé de la sous-option si défini dans les données
+        subOptionLabel.textContent = serviceDef.subOptionLabel || 'Option';
+        qualitySection.style.display = 'none'; // Les services avec sous-options n'ont pas le sélecteur de qualité principal
+      } else {
+        subOptionSection.style.display = 'none';
+        qualitySection.style.display = ''; // Afficher la qualité si pas de sous-options
+      }
+
+      updateDetails(); // Mettre à jour les détails après avoir configuré les champs
+    }
+
+    function updateDetails() {
+      const selectedServiceKey = serviceSelect.value;
+      if (!selectedServiceKey) {
+        priceEstimate.textContent = 'Prix estimé : 0 FCFA';
+        timeEstimate.textContent  = 'Temps de réalisation : 2 h';
+        remarkBox.textContent= 'Sélectionnez un service pour voir la remarque.';
+        quantityError.style.display = 'none';
+        return;
+      }
+
+      const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
+      let currentConfig = null;
+      let calculatedPrice = 0;
+      let estimatedTime = 'N/A';
+      let minQuantity = 1; // Default minimum quantity
+
+      // Extraire le minimum de la remarque
+      const remarkMatch = serviceDef.remark && serviceDef.remark.match(/\(min:\s*(\d+)\)/);
+      if (remarkMatch && remarkMatch[1]) {
+          minQuantity = parseInt(remarkMatch[1], 10);
+      }
+
+      const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
+
+      if (serviceDef.options) {
+        // Service avec sous-options
+        const selectedSubOption = subOptionSelect.value;
+        if (!selectedSubOption) {
+            priceEstimate.textContent = 'Prix estimé : 0 FCFA';
+            timeEstimate.textContent  = 'Temps de réalisation : N/A';
+            remarkBox.textContent= serviceDef.remark;
+            quantityError.style.display = 'none';
+            return;
+        }
+
+        let optionData = serviceDef.options[selectedSubOption];
+
+        // Gérer les cas où l'option a elle-même medium/high (ex: Téléspectateur en direct TikTok)
+        if (optionData.medium || optionData.high) {
+            currentConfig = optionData[qualitySelect.value] || optionData.medium; // Fallback to medium
+            // Pour ces services, la quantité est souvent fixe ou non applicable
+            calculatedPrice = currentConfig.price;
+            estimatedTime = currentConfig.time;
+            // Assurez-vous que la qualité soit visible si le sous-service a medium/high
+            qualitySection.style.display = 'block';
+        } else {
+            // Option simple avec prix et temps directs
+            currentConfig = optionData;
+            calculatedPrice = currentConfig.price;
+            estimatedTime = currentConfig.time;
+            // Pour ces services, la quantité n'est pas utilisée, ou le prix est fixe
+            // La section quantité pourrait être masquée ou le champ rendu non modifiable
+            // On laisse la quantité visible mais on ignore sa valeur pour le calcul du prix
+            quantityInput.value = ''; // Réinitialiser le champ quantité si non pertinent
+            quantityInput.disabled = true; // Désactiver l'input quantité
+            minQuantity = 0; // Pas de min quantity pour ces services
+            quantityError.style.display = 'none';
+        }
+      } else {
+        // Service standard (avec qualité medium/high)
+        currentConfig = serviceDef[qualitySelect.value];
+        qualitySection.style.display = 'block'; // S'assurer que la qualité est visible
+
+        if (isCommentService) {
+            const lines = quantityInput.value.split('\n').filter(l => l.trim());
+            const count = lines.length;
+            commentsCount.textContent = count < minQuantity
+                ? `${count} commentaire(s) (minimum ${minQuantity})`
+                : `${count} commentaire(s)`;
+
+            if (count < minQuantity && count > 0) { // Afficher l'erreur seulement si quantité > 0 et < min
+                quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`;
+                quantityError.style.display = 'block';
+            } else {
+                quantityError.style.display = 'none';
+            }
+            calculatedPrice = count * currentConfig.price;
+            estimatedTime = currentConfig.time;
+
+            quantityInput.disabled = false; // S'assurer que le textarea est modifiable
+        } else {
+            const quantity = parseInt(quantityInput.value) || 0;
+            // Rétablir le champ quantité si on vient d'un service de commentaire
+            if (quantityInput.tagName === 'TEXTAREA') {
+                const newInput = document.createElement('input');
+                newInput.id = 'quantityInput';
+                newInput.name = 'quantity';
+                newInput.type = 'number';
+                newInput.min = '1';
+                newInput.placeholder = 'Ex : 1000';
+                quantitySection.replaceChild(newInput, quantityInput);
+                quantityInput = newInput;
+                attachQuantityInputListener();
+            }
+            quantityInput.disabled = false; // S'assurer que l'input est modifiable
+
+            if (quantity > 0 && quantity < minQuantity) {
+                quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
+                quantityError.style.display = 'block';
+            } else {
+                quantityError.style.display = 'none';
+            }
+
+            calculatedPrice = Math.round((currentConfig.price / 1000) * quantity);
+            estimatedTime = currentConfig.time;
+        }
+      }
+
+      priceEstimate.textContent = `Prix estimé : ${calculatedPrice.toLocaleString('fr-FR')} FCFA`;
+      timeEstimate.textContent  = `Temps de réalisation : ${estimatedTime}`;
+      remarkBox.textContent     = serviceDef.remark;
+    }
+
+    function toggleContactField() {
+      whatsappField.style.display = 'none';
+      emailField.style.display    = 'none';
+      contactInput.required       = false;
+      emailInput.required         = false;
+      contactInput.value          = ''; // Clear values
+      emailInput.value            = ''; // Clear values
+
+      if (contactType.value === 'whatsapp') {
+        whatsappField.style.display = 'block';
+        contactInput.required = true;
+      } else if (contactType.value === 'email') {
+        emailField.style.display = 'block';
+        emailInput.required = true;
       }
     }
 
-    async function onSubmit(e){
-      e.preventDefault(); errBox.textContent='';
-      const key=serviceSelect.value;
-      const payload={
+    async function onSubmit(e) {
+      e.preventDefault();
+      orderErrorBox.textContent = '';
+      quantityError.style.display = 'none'; // Réinitialiser le message d'erreur quantité
+
+      const selectedServiceKey = serviceSelect.value;
+      if (!selectedServiceKey) {
+          orderErrorBox.textContent = 'Veuillez sélectionner un service.';
+          return;
+      }
+
+      const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
+      let minQuantity = 1; // Default minimum
+
+      const remarkMatch = serviceDef.remark && serviceDef.remark.match(/\(min:\s*(\d+)\)/);
+      if (remarkMatch && remarkMatch[1]) {
+          minQuantity = parseInt(remarkMatch[1], 10);
+      }
+
+      const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
+      let quantityForValidation = 0;
+      let commentsArray = [];
+
+      if (isCommentService) {
+          commentsArray = quantityInput.value.split('\n').filter(l => l.trim());
+          quantityForValidation = commentsArray.length;
+          if (quantityForValidation < minQuantity) {
+              quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`;
+              quantityError.style.display = 'block';
+              return;
+          }
+      } else {
+          // If the quantity input is disabled, it means quantity is not applicable (fixed price option)
+          // So, skip quantity validation for this case.
+          if (!quantityInput.disabled) {
+            quantityForValidation = parseInt(quantityInput.value) || 0;
+            if (quantityForValidation < minQuantity) {
+                quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
+                quantityError.style.display = 'block';
+                return;
+            }
+          }
+      }
+
+
+      // Préparer le payload
+      const payload = {
         userId:      document.getElementById('userId').value,
         platform:    selectedPlatform,
-        service:     key,
+        service:     selectedServiceKey,
         quality:     qualitySelect.value,
-        subOption:   subSection.style.display==='none'?undefined:subSelect.value,
+        subOption:   subOptionSection.style.display === 'block' ? subOptionSelect.value : undefined,
         link:        linkInput.value,
-        quantity:    Number(qtyInput.value)||undefined,
-        comments:    undefined,
+        quantity:    isCommentService || quantityInput.disabled ? undefined : Number(quantityInput.value),
+        comments:    isCommentService ? commentsArray : undefined,
         contactType: contactType.value,
-        contact:     contactType.value==='whatsapp'?contactInput.value:emailInput.value
+        contact:     contactType.value === 'whatsapp' ? contactInput.value : emailInput.value
       };
-      if(key.toLowerCase().includes('commentaires personnalisés')){
-        payload.comments=qtyInput.value.split('\n').filter(l=>l.trim());
+
+      // Empêcher l'envoi si le userId est manquant (Firebase non chargé ou non connecté)
+      if (!payload.userId) {
+          orderErrorBox.textContent = "Erreur d'authentification : ID utilisateur manquant. Veuillez vous reconnecter.";
+          return;
       }
-      try{
-        const res=await fetch(
-          'https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev/order',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify(payload)
-          }
-        );
-        const data=await res.json();
-        if(!res.ok)throw new Error(data.error||'Erreur inattendue');
-        alert('✅ Commande envoyée !');
-        orderForm.reset(); resetUI();
-        icons.forEach(i=>i.classList.remove('active'));
-        orderForm.style.display='none';
-      }catch(err){
-        errBox.textContent=err.message;
+
+      // Valider les champs requis manuellement si nécessaire (le 'required' HTML aide déjà)
+      if (!payload.contactType) {
+          orderErrorBox.textContent = "Veuillez choisir un mode de contact.";
+          return;
+      }
+      if (payload.contactType === 'whatsapp' && !payload.contact) {
+          orderErrorBox.textContent = "Veuillez saisir votre numéro WhatsApp.";
+          return;
+      }
+      if (payload.contactType === 'email' && !payload.contact) {
+          orderErrorBox.textContent = "Veuillez saisir votre adresse Email.";
+          return;
+      }
+
+      try {
+        const res = await fetch('https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev/order',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.error||'Erreur inattendue');
+        alert('✅ Commande envoyée avec succès !');
+        orderForm.reset();
+        resetUI(); // Réinitialiser l'UI après succès
+        icons.forEach(i=>i.classList.remove('active')); // Désactiver la plateforme sélectionnée
+        orderForm.style.display='none'; // Cacher le formulaire
+      } catch(err) {
+        orderErrorBox.textContent = err.message;
       }
     }
   </script>
