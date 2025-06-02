@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Paiement Fapshi (Sandbox)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+    }
+    form {
+      margin-top: 1rem;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+    input, button {
+      font-size: 1rem;
+      padding: 0.5rem;
+    }
+    button {
+      margin-top: 1rem;
+      cursor: pointer;
+    }
+    .error {
+      color: red;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Page de paiement (Mode TEST)</h1>
+  <p>Montant minimum : 500 FCFA.</p>
+  <form id="payment-form">
+    <label>
+      Montant (en XAF) :
+      <input type="number" id="amount" value="10000" min="500" required />
+    </label>
+    <label>
+      Description :
+      <input type="text" id="description" value="Test de paiement" required />
+    </label>
+    <button type="submit">Payer (TEST)</button>
+  </form>
+  <div id="message" class="error"></div>
+
+  <script>
+    document.getElementById('payment-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const messageDiv = document.getElementById('message');
+      messageDiv.textContent = '';
+
+      const amount = parseInt(document.getElementById('amount').value);
+      const description = document.getElementById('description').value;
+      const redirectUrl = window.location.origin + '/success.html';
+
+      if (amount < 500) {
+        messageDiv.textContent = 'Le montant doit être au moins 500 FCFA.';
+        return;
+      }
+
+      try {
+        const res = await fetch('/.netlify/functions/create-fapshi-checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: amount,
+            currency: 'XAF',
+            description: description,
+            redirectUrl: redirectUrl
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          console.error('Erreur API Fapshi :', errData);
+          messageDiv.textContent = 'Erreur création lien : ' +
+                                    (errData.error?.message || JSON.stringify(errData.error));
+          return;
+        }
+
+        const { checkoutUrl } = await res.json();
+        window.location.href = checkoutUrl;
+      } catch (err) {
+        console.error('Erreur JS :', err);
+        messageDiv.textContent = 'Erreur réseau ou inattendue : ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
