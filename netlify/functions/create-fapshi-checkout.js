@@ -40,7 +40,7 @@ exports.handler = async (event) => {
   }
 
   // 4) URL API Fapshi (production)
-  const apiEndpoint = 'https://api.fapshi.com/api/v1/checkout/create';
+  const apiEndpoint = 'https://live.fapshi.com/initiate-pay';
 
   const payload = {
     amount: amount,
