@@ -155,6 +155,7 @@
       font-size: 0.9rem;
       margin-top: 10px;
       text-align: center;
+      white-space: pre-wrap; /* pour que les retours à la ligne s'affichent */
     }
 
     /* PIED DE PAGE MINIMAL */
@@ -218,6 +219,7 @@
       />
 
       <button type="submit">Payer maintenant</button>
+      <!-- La zone d'erreur affichera directement la réponse brute -->
       <div id="message" class="error"></div>
     </form>
   </div>
@@ -232,7 +234,7 @@
     AOS.init({ duration: 600, once: true });
   </script>
 
-  <!-- SCRIPT DE PAIEMENT MIS À JOUR -->
+  <!-- SCRIPT DE PAIEMENT MIS À JOUR POUR AFFICHER L'ERREUR BRUTE -->
   <script>
     document.getElementById('payment-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -249,8 +251,9 @@
       }
 
       try {
-        // URL ABSOLUE VERS LA NETLIFY FUNCTION
+        // URL ABSOLUE vers la Function Netlify
         const functionUrl = window.location.origin + '/.netlify/functions/create-fapshi-checkout';
+        // On fait l'appel POST
         const res = await fetch(functionUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -262,34 +265,34 @@
           })
         });
 
-        console.log('Statut HTTP :', res.status);
+        // On récupère le contenu renvoyé, quel que soit le content-type
+        let texte;
+        try {
+          texte = await res.text();
+        } catch {
+          texte = 'Impossible de lire la réponse du serveur.';
+        }
+
+        // Affiche toujours le statut et la réponse brute
+        messageDiv.textContent =
+          'Statut HTTP : ' + res.status + '\nRéponse brute :\n' + texte;
+
+        // Si le content-type contient bien "application/json", on peut rediriger
         const contentType = res.headers.get('content-type') || '';
-        console.log('Content-Type :', contentType);
-
-        if (!res.ok || !contentType.includes('application/json')) {
-          let texte;
+        if (res.ok && contentType.includes('application/json')) {
           try {
-            texte = await res.text();
+            const data = JSON.parse(texte);
+            if (data.checkoutUrl) {
+              // Redirection vers l'URL de checkout Fapshi
+              window.location.href = data.checkoutUrl;
+            } else if (data.error) {
+              messageDiv.textContent = 'Erreur API : ' + JSON.stringify(data.error);
+            }
           } catch {
-            texte = 'Impossible de lire la réponse.';
+            // Si JSON invalide, on laisse le texte complet affiché
           }
-          console.error('Réponse inattendue :', texte);
-          messageDiv.textContent = 'Erreur serveur ou URL incorrecte (voir console).';
-          return;
         }
-
-        const data = await res.json();
-        if (!res.ok) {
-          console.error('Erreur API Fapshi :', data);
-          messageDiv.textContent = 'Erreur création lien : ' +
-                                    (data.error?.message || JSON.stringify(data.error));
-          return;
-        }
-
-        // Redirige vers l'URL de checkout fournie par Fapshi
-        window.location.href = data.checkoutUrl;
       } catch (err) {
-        console.error('Erreur JS :', err);
         messageDiv.textContent = 'Erreur réseau ou inattendue : ' + err.message;
       }
     });
