@@ -198,7 +198,7 @@
     <h2>Déposer des fonds</h2>
     <p>Entrez le montant à ajouter (minimum 500 FCFA).</p>
     <form id="payment-form">
-      <label for="amount">Montant (en XAF) :</label>
+      <label for="amount">Montant (en XAF) :</label>
       <input
         type="number"
         id="amount"
@@ -208,7 +208,7 @@
         required
       />
 
-      <label for="description">Description :</label>
+      <label for="description">Description :</label>
       <input
         type="text"
         id="description"
@@ -232,7 +232,7 @@
     AOS.init({ duration: 600, once: true });
   </script>
 
-  <!-- SCRIPT DE PAIEMENT (identique à l’ancien payment.html) -->
+  <!-- SCRIPT DE PAIEMENT MIS À JOUR -->
   <script>
     document.getElementById('payment-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -249,7 +249,9 @@
       }
 
       try {
-        const res = await fetch('/.netlify/functions/create-fapshi-checkout', {
+        // URL ABSOLUE VERS LA NETLIFY FUNCTION
+        const functionUrl = window.location.origin + '/.netlify/functions/create-fapshi-checkout';
+        const res = await fetch(functionUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -260,27 +262,43 @@
           })
         });
 
-        if (!res.ok) {
-          const errData = await res.json();
-          console.error('Erreur API Fapshi :', errData);
-          messageDiv.textContent = 'Erreur lors de la création du lien de paiement : ' +
-                                    (errData.error?.message || JSON.stringify(errData.error));
+        console.log('Statut HTTP :', res.status);
+        const contentType = res.headers.get('content-type') || '';
+        console.log('Content-Type :', contentType);
+
+        if (!res.ok || !contentType.includes('application/json')) {
+          let texte;
+          try {
+            texte = await res.text();
+          } catch {
+            texte = 'Impossible de lire la réponse.';
+          }
+          console.error('Réponse inattendue :', texte);
+          messageDiv.textContent = 'Erreur serveur ou URL incorrecte (voir console).';
           return;
         }
 
-        const { checkoutUrl } = await res.json();
-        window.location.href = checkoutUrl;
+        const data = await res.json();
+        if (!res.ok) {
+          console.error('Erreur API Fapshi :', data);
+          messageDiv.textContent = 'Erreur création lien : ' +
+                                    (data.error?.message || JSON.stringify(data.error));
+          return;
+        }
+
+        // Redirige vers l'URL de checkout fournie par Fapshi
+        window.location.href = data.checkoutUrl;
       } catch (err) {
         console.error('Erreur JS :', err);
         messageDiv.textContent = 'Erreur réseau ou inattendue : ' + err.message;
       }
     });
 
-    // MENU HAMBURGER (identique à dashboard.js)
+    // MENU HAMBURGER (inchangé)
     const hamburgerBtn = document.getElementById('hamburgerBtn'),
           hamburgerMenu = document.getElementById('hamburgerMenu'),
           backdrop = document.getElementById('menuBackdrop');
-    function toggleMenu(){
+    function toggleMenu() {
       hamburgerMenu.classList.toggle('open');
       backdrop.classList.toggle('active');
     }
