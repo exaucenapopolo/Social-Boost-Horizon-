@@ -44,7 +44,7 @@ exports.handler = async (event) => {
   }
 
   // 4) Endpoint REST officiel Fapshi (production)
-  const apiEndpoint = 'https://api.fapshi.com/api/v1/checkout/create';
+  const apiEndpoint = 'https://live.fapshi.com/api/v1/checkout/create';
 
   // 5) Construire le payload JSON
   const payload = {
