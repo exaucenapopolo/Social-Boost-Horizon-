@@ -8,7 +8,7 @@ exports.handler = async (event) => {
     };
   }
 
-  const API_USER   = process.env.FAPSHI_API_USER;
+  const API_USER = process.env.FAPSHI_API_USER;
   const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
 
   if (!API_USER || !SECRET_KEY) {
@@ -32,21 +32,23 @@ exports.handler = async (event) => {
   if (!amount || !currency || !redirectUrl) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ error: 'Paramètres manquants : amount, currency ou redirectUrl' })
+      body: JSON.stringify({ error: 'Paramètres manquants : amount, currency ou redirectUrl' })
     };
   }
 
-  // ✅ BON ENDPOINT FAPSHI (PRODUCTION LIVE)
-  const apiEndpoint = 'https://pay.fapshi.com/api/v1/checkout/create';
+  // ⚠️ TU VEUX TESTER AVEC CE LIEN (attention, ce n’est probablement pas une API REST)
+  const apiEndpoint = 'https://live.fapshi.com';
 
   const payload = {
-    amount: amount,
-    currency: currency,
+    amount,
+    currency,
     description: description || 'Achat produit',
     redirect_url: redirectUrl
   };
 
   try {
+    console.log("Début de l'appel à https://live.fapshi.com ...");
+
     const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
@@ -64,7 +66,7 @@ exports.handler = async (event) => {
       return {
         statusCode: 502,
         body: JSON.stringify({
-          error: 'L’API Fapshi production a renvoyé un contenu non JSON',
+          error: 'Fapshi (live.fapshi.com) a renvoyé un contenu non JSON',
           details: rawText
         })
       };
@@ -77,7 +79,7 @@ exports.handler = async (event) => {
       return {
         statusCode: 502,
         body: JSON.stringify({
-          error: 'Impossible de parser le JSON renvoyé par Fapshi',
+          error: 'Impossible de parser le JSON Fapshi',
           details: rawText
         })
       };
@@ -96,6 +98,7 @@ exports.handler = async (event) => {
     };
 
   } catch (error) {
+    console.log("Erreur FETCH vers Fapshi :", error.message);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: error.message })
