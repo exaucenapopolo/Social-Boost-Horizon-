@@ -1,7 +1,7 @@
 // netlify/functions/create-fapshi-checkout.js
 
 exports.handler = async (event) => {
-  // 1) On n’accepte que POST
+  // 1) N’accepte que POST
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -47,10 +47,8 @@ exports.handler = async (event) => {
     redirect_url: redirectUrl
   };
 
-  // 5) Définir l’endpoint Fapshi (vérifiez si vous devez utiliser un endpoint "sandbox")
-  //    Par défaut, on essaie "https://api.fapshi.com/v1/checkout/create"
-  //    Si vous êtes sandbox, remplacez par l’URL sandbox fournie par Fapshi (ex. "https://sandbox-api.fapshi.com/v1/checkout/create").
-  const apiEndpoint = 'https://api.fapshi.com/v1/checkout/create';
+  // 5) POINT D’ACCÈS SANDBOX (à remplacer par l’URL exacte fournie par Fapshi)
+  const apiEndpoint = 'https://sandbox-api.fapshi.com/v1/checkout/create';
 
   try {
     // 6) Appel à l’API Fapshi
@@ -58,45 +56,42 @@ exports.handler = async (event) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Authentification Fapshi
         'Authorization': `Bearer ${SECRET_KEY}`,
         'X-Fapshi-Api-User': API_USER
       },
       body: JSON.stringify(payload)
     });
 
-    // 7) On lit la réponse brute (texte), quelle que soit sa nature (JSON ou HTML)
+    // 7) Lire la réponse brute (texte)
     const rawText = await response.text();
-
-    // 8) On vérifie le content-type renvoyé
     const contentType = response.headers.get('content-type') || '';
+
     if (!contentType.includes('application/json')) {
-      // Si ce n’est pas du JSON, on renvoie un 502 avec le contenu brut pour diagnostiquer
+      // 8) Si ce n’est pas JSON, renvoyer un 502 avec le contenu brut
       return {
         statusCode: 502,
         body: JSON.stringify({
-          error: 'L’API Fapshi a renvoyé un contenu non JSON',
+          error: 'L’API Fapshi sandbox a renvoyé un contenu non JSON',
           details: rawText
         })
       };
     }
 
-    // 9) Si c’est du JSON, on peut parser
+    // 9) Parser le JSON
     let respJson;
     try {
       respJson = JSON.parse(rawText);
     } catch (err) {
-      // Si JSON invalide
       return {
         statusCode: 502,
         body: JSON.stringify({
-          error: 'Impossible de parser le JSON renvoyé par Fapshi',
+          error: 'Impossible de parser le JSON renvoyé par Fapshi sandbox',
           details: rawText
         })
       };
     }
 
-    // 10) Si la réponse HTTP n’est pas OK, on renvoie l’erreur Fapshi
+    // 10) Si la réponse HTTP n’est pas OK, transmettre l’erreur Fapshi
     if (!response.ok) {
       return {
         statusCode: response.status,
@@ -104,14 +99,14 @@ exports.handler = async (event) => {
       };
     }
 
-    // 11) En cas de succès, on renvoie simplement l’URL de checkout
+    // 11) Succès : renvoyer l’URL de checkout
     return {
       statusCode: 200,
       body: JSON.stringify({ checkoutUrl: respJson.data.url })
     };
 
   } catch (error) {
-    // 12) En cas d’erreur réseau ou autre
+    // 12) Erreur réseau ou autre
     return {
       statusCode: 500,
       body: JSON.stringify({ error: error.message })
