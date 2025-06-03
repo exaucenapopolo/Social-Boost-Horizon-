@@ -9,7 +9,7 @@ exports.handler = async (event) => {
     };
   }
 
-  // 2) Récupérer les clés depuis les variables d’environnement Netlify
+  // 2) Lire les clés depuis les variables d’environnement Netlify
   const API_USER   = process.env.FAPSHI_API_USER;
   const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
 
@@ -47,11 +47,11 @@ exports.handler = async (event) => {
     redirect_url: redirectUrl
   };
 
-  // 5) POINT D’ACCÈS SANDBOX (à remplacer par l’URL exacte fournie par Fapshi)
-  const apiEndpoint = 'https://sandbox-api.fapshi.com/v1/checkout/create';
+  // 5) POINT D’ACCÈS SANDBOX CORRECT pour Fapshi
+  const apiEndpoint = 'https://sandbox.fapshi.com/v1/checkout/create';
 
   try {
-    // 6) Appel à l’API Fapshi
+    // 6) Appel à l’API Fapshi sandbox
     const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
@@ -62,12 +62,12 @@ exports.handler = async (event) => {
       body: JSON.stringify(payload)
     });
 
-    // 7) Lire la réponse brute (texte)
+    // 7) Lire la réponse brute (texte), peu importe son content-type
     const rawText = await response.text();
     const contentType = response.headers.get('content-type') || '';
 
+    // 8) Si ce n’est pas du JSON, renvoyer un 502 avec le HTML ou le texte brut
     if (!contentType.includes('application/json')) {
-      // 8) Si ce n’est pas JSON, renvoyer un 502 avec le contenu brut
       return {
         statusCode: 502,
         body: JSON.stringify({
@@ -91,7 +91,7 @@ exports.handler = async (event) => {
       };
     }
 
-    // 10) Si la réponse HTTP n’est pas OK, transmettre l’erreur Fapshi
+    // 10) Si Fapshi renvoie une erreur (response.ok false), renvoyer tel quel
     if (!response.ok) {
       return {
         statusCode: response.status,
