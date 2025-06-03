@@ -1,5 +1,4 @@
 exports.handler = async (event) => {
-  // 1) Vérifier que la requête est une POST
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -7,7 +6,6 @@ exports.handler = async (event) => {
     };
   }
 
-  // 2) Récupérer les variables d'environnement
   const API_USER = process.env.FAPSHI_API_USER;
   const API_KEY = process.env.FAPSHI_API_KEY;
 
@@ -18,7 +16,6 @@ exports.handler = async (event) => {
     };
   }
 
-  // 3) Parser le corps de la requête
   let bodyData;
   try {
     bodyData = JSON.parse(event.body);
@@ -37,10 +34,8 @@ exports.handler = async (event) => {
     };
   }
 
-  // 4) URL de l'API Fapshi en production
-  const apiEndpoint = 'https://live.fapshi.com/api/v1/checkout/create';
+  const apiEndpoint = 'https://live.fapshi.com/api/payments/init';
 
-  // 5) Construire le payload
   const payload = {
     amount: amount,
     currency: currency,
@@ -49,7 +44,6 @@ exports.handler = async (event) => {
   };
 
   try {
-    // 6) Appeler l’API Fapshi
     const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
@@ -63,7 +57,6 @@ exports.handler = async (event) => {
     const contentType = response.headers.get('content-type') || '';
     const rawText = await response.text();
 
-    // 7) Vérifier si la réponse est du JSON
     if (!contentType.includes('application/json')) {
       return {
         statusCode: 502,
@@ -74,7 +67,6 @@ exports.handler = async (event) => {
       };
     }
 
-    // 8) Parser le JSON
     let respJson;
     try {
       respJson = JSON.parse(rawText);
@@ -88,7 +80,6 @@ exports.handler = async (event) => {
       };
     }
 
-    // 9) Si la réponse est une erreur
     if (!response.ok) {
       return {
         statusCode: response.status,
@@ -96,14 +87,12 @@ exports.handler = async (event) => {
       };
     }
 
-    // 10) Succès : retourner l’URL de paiement
     return {
       statusCode: 200,
       body: JSON.stringify({ checkoutUrl: respJson.data.url })
     };
 
   } catch (error) {
-    // 11) Erreur de réseau ou interne
     return {
       statusCode: 500,
       body: JSON.stringify({ error: error.message })
