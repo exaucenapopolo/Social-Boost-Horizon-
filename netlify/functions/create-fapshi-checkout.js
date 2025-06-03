@@ -39,7 +39,10 @@ exports.handler = async (event) => {
     };
   }
 
-  // 4) Construire le payload pour l’API Fapshi
+  // ✅ 4) POINT D’ACCÈS FAPSHI **PRODUCTION (LIVE)**
+  const apiEndpoint = 'https://api.fapshi.com/v1/checkout/create';
+
+  // 5) Construire le payload
   const payload = {
     amount: amount,
     currency: currency,
@@ -47,11 +50,8 @@ exports.handler = async (event) => {
     redirect_url: redirectUrl
   };
 
-  // 5) POINT D’ACCÈS SANDBOX CORRECT pour Fapshi
-  const apiEndpoint = 'https://sandbox.fapshi.com/v1/checkout/create';
-
   try {
-    // 6) Appel à l’API Fapshi sandbox
+    // 6) Appel à l’API Fapshi live
     const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
@@ -71,7 +71,7 @@ exports.handler = async (event) => {
       return {
         statusCode: 502,
         body: JSON.stringify({
-          error: 'L’API Fapshi sandbox a renvoyé un contenu non JSON',
+          error: 'L’API Fapshi production a renvoyé un contenu non JSON',
           details: rawText
         })
       };
@@ -85,7 +85,7 @@ exports.handler = async (event) => {
       return {
         statusCode: 502,
         body: JSON.stringify({
-          error: 'Impossible de parser le JSON renvoyé par Fapshi sandbox',
+          error: 'Impossible de parser le JSON renvoyé par Fapshi production',
           details: rawText
         })
       };
@@ -99,7 +99,7 @@ exports.handler = async (event) => {
       };
     }
 
-    // 11) Succès : renvoyer l’URL de checkout
+    // ✅ 11) Succès : renvoyer l’URL de checkout
     return {
       statusCode: 200,
       body: JSON.stringify({ checkoutUrl: respJson.data.url })
