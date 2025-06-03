@@ -40,7 +40,7 @@ exports.handler = async (event) => {
   }
 
   // 4) POINT D’ACCÈS FAPSHI PRODUCTION (LIVE)
-  const apiEndpoint = 'https://live.fapshi.com/api/payments/init';
+  const apiEndpoint = 'https://live.fapshi.com/initiate-pay';
 
   // 5) Construire le payload
   const payload = {
