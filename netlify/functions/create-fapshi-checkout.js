@@ -1,7 +1,7 @@
 // netlify/functions/create-fapshi-checkout.js
 
 exports.handler = async (event) => {
-  // 1) S’assurer que la méthode est POST
+  // 1) N’acceptez que POST
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -9,9 +9,11 @@ exports.handler = async (event) => {
     };
   }
 
-  // 2) Récupérer les clés Fapshi depuis les variables d’environnement Netlify
-  const API_USER   = process.env.FAPSHI_API_USER;    // Ne pas renommer
-  const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;  // Ne pas renommer
+  // 2) Lire les clés dans les variables d’environnement Netlify
+  const API_USER   = process.env.FAPSHI_API_USER;    // ex. "4fda5adb-..."
+  const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;  // ex. "FAK_6dbefae..."
+  console.log(">>> API_USER   =", API_USER);
+  console.log(">>> SECRET_KEY =", SECRET_KEY);
 
   if (!API_USER || !SECRET_KEY) {
     return {
@@ -22,7 +24,7 @@ exports.handler = async (event) => {
     };
   }
 
-  // 3) Parser le JSON envoyé par le front‑end
+  // 3) Parser le JSON envoyé par le front-end
   let bodyData;
   try {
     bodyData = JSON.parse(event.body);
@@ -43,10 +45,10 @@ exports.handler = async (event) => {
     };
   }
 
-  // 4) Endpoint REST officiel Fapshi (production)
+  // 4) ENDPOINT CORRECT pour créer un paiement en prod
   const apiEndpoint = 'https://live.fapshi.com/initiate-pay';
 
-  // 5) Construire le payload JSON
+  // 5) Construire le payload JSON attendu
   const payload = {
     amount:       amount,
     currency:     currency,
@@ -54,20 +56,17 @@ exports.handler = async (event) => {
     redirect_url: redirectUrl
   };
 
-  // (logs de débogage — visibles dans Netlify Functions Logs)
-  console.log(">>> API_USER  =", API_USER);
-  console.log(">>> SECRET_KEY=", SECRET_KEY);
-  console.log(">>> Endpoint   =", apiEndpoint);
-  console.log(">>> Payload    =", JSON.stringify(payload));
+  console.log(">>> API Endpoint =", apiEndpoint);
+  console.log(">>> Payload      =", JSON.stringify(payload));
 
   try {
-    // 6) Appel POST vers Fapshi avec les headers “x-api-user” et “x-api-key”
+    // 6) Appeler l’API Fapshi en envoyant EXACTEMENT "apiuser" et "secretkey"
     const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-user': API_USER,
-        'x-api-key': SECRET_KEY
+        'apiuser': API_USER,
+        'secretkey': SECRET_KEY
       },
       body: JSON.stringify(payload)
     });
@@ -76,11 +75,11 @@ exports.handler = async (event) => {
     const rawText = await response.text();
     const contentType = response.headers.get('content-type') || '';
 
-    console.log(">>> Fapshi status        =", response.status);
-    console.log(">>> Fapshi content-type  =", contentType);
-    console.log(">>> Fapshi raw response  =", rawText);
+    console.log(">>> Fapshi status       =", response.status);
+    console.log(">>> Fapshi content-type =", contentType);
+    console.log(">>> Fapshi raw response =", rawText);
 
-    // 8) Si le contenu n’est pas JSON, renvoyer le HTML pour déboguer
+    // 8) Si ce n’est pas du JSON, renvoyer une 502 avec le HTML pour debugger
     if (!contentType.includes('application/json')) {
       return {
         statusCode: 502,
@@ -91,7 +90,7 @@ exports.handler = async (event) => {
       };
     }
 
-    // 9) Parser le JSON renvoyé par Fapshi
+    // 9) Parser le JSON renvoyé
     let respJson;
     try {
       respJson = JSON.parse(rawText);
@@ -105,7 +104,7 @@ exports.handler = async (event) => {
       };
     }
 
-    // 10) Si Fapshi retourne une erreur HTTP (4xx/5xx), transmettre ce JSON
+    // 10) Si l’API renvoie une erreur (status >= 400), transmettre ce JSON
     if (!response.ok) {
       return {
         statusCode: response.status,
@@ -113,14 +112,13 @@ exports.handler = async (event) => {
       };
     }
 
-    // 11) Succès : renvoyer l’URL de checkout au front‑end
+    // 11) Succès : renvoyer l’URL de checkout au frontend
     return {
       statusCode: 200,
       body: JSON.stringify({ checkoutUrl: respJson.data.url })
     };
 
   } catch (error) {
-    // 12) Erreur réseau ou inattendue
     console.log(">>> Erreur fetch:", error.message);
     return {
       statusCode: 500,
