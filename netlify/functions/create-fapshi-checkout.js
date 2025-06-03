@@ -71,7 +71,7 @@ exports.handler = async (event) => {
   if (message)     payload.message = message;
 
   // 6) URL de base pour l’API Fapshi (production)
-  const apiEndpoint = 'https://live.fapshi.com/api/payments/init';
+  const apiEndpoint = 'https://live.fapshi.com/initiate-pay';
 
   try {
     // 7) Appel POST vers Fapshi avec les headers requis
