@@ -1,24 +1,24 @@
 exports.handler = async (event) => {
-  // 1) Requête POST obligatoire
+  // 1) Vérifier que la requête est une POST
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
-      body: JSON.stringify({ error: 'Utilise POST, pas ' + event.httpMethod })
+      body: JSON.stringify({ error: 'Utilisez la méthode POST, pas ' + event.httpMethod })
     };
   }
 
-  // 2) Lire les variables d’environnement
+  // 2) Récupérer les variables d'environnement
   const API_USER = process.env.FAPSHI_API_USER;
-  const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
+  const API_KEY = process.env.FAPSHI_API_KEY;
 
-  if (!API_USER || !SECRET_KEY) {
+  if (!API_USER || !API_KEY) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Clés Fapshi non définies dans Netlify (FAPSHI_API_USER ou FAPSHI_SECRET_KEY)' })
+      body: JSON.stringify({ error: 'Clés Fapshi non définies dans les variables d’environnement (FAPSHI_API_USER ou FAPSHI_API_KEY)' })
     };
   }
 
-  // 3) Parser le corps JSON envoyé
+  // 3) Parser le corps de la requête
   let bodyData;
   try {
     bodyData = JSON.parse(event.body);
@@ -37,8 +37,8 @@ exports.handler = async (event) => {
     };
   }
 
-  // 4) URL API Fapshi en production (live)
-  const apiEndpoint = 'https://api.fapshi.com/api/v1/checkout/create';
+  // 4) URL de l'API Fapshi en production
+  const apiEndpoint = 'https://live.fapshi.com/api/v1/checkout/create';
 
   // 5) Construire le payload
   const payload = {
@@ -54,8 +54,8 @@ exports.handler = async (event) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SECRET_KEY}`,
-        'X-Fapshi-Api-User': API_USER
+        'apiuser': API_USER,
+        'apikey': API_KEY
       },
       body: JSON.stringify(payload)
     });
