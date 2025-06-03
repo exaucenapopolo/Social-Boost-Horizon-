@@ -1,26 +1,22 @@
 // netlify/functions/create-fapshi-checkout.js
 
-// Si ton runtime Netlify est Node 18+ ou plus récent, 'fetch' est déjà disponible.
-// Dans ce cas, TU PEUX COMMENTER la ligne ci‑dessous.
-const fetch = require('node-fetch'); // Sinon, si tu as installé "node-fetch" en dépendance, laisse cette ligne.
-
 exports.handler = async (event) => {
-  // On ne veut que des requêtes POST
+  // N’accepte que les requêtes POST
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
-      body: JSON.stringify({ error: 'Utilise POST, pas ' + event.httpMethod }),
+      body: JSON.stringify({ error: 'Utilise POST, pas ' + event.httpMethod })
     };
   }
 
-  // Récupérer les clés depuis les variables d'environnement Netlify
+  // Récupérer les clés depuis les variables d’environnement Netlify
   const API_USER   = process.env.FAPSHI_API_USER;
   const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
 
   if (!API_USER || !SECRET_KEY) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Clés Fapshi non définies en variables d’environnement' }),
+      body: JSON.stringify({ error: 'Clés Fapshi non définies en variables d’environnement' })
     };
   }
 
@@ -31,7 +27,7 @@ exports.handler = async (event) => {
   } catch (err) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ error: 'JSON mal formé dans la requête' }),
+      body: JSON.stringify({ error: 'JSON mal formé dans la requête' })
     };
   }
 
@@ -39,11 +35,11 @@ exports.handler = async (event) => {
   if (!amount || !currency || !redirectUrl) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ error: 'Paramètres manquants : amount, currency ou redirectUrl' }),
+      body: JSON.stringify({ error: 'Paramètres manquants : amount, currency ou redirectUrl' })
     };
   }
 
-  // Construire le payload pour Fapshi
+  // Construire le payload pour l’API Fapshi
   const payload = {
     amount: amount,
     currency: currency,
@@ -51,7 +47,7 @@ exports.handler = async (event) => {
     redirect_url: redirectUrl
   };
 
-  // URL de l’API Fapshi pour créer un lien de checkout en mode sandbox
+  // URL de l’API Fapshi pour créer un lien de checkout
   const apiEndpoint = 'https://api.fapshi.com/v1/checkout/create';
 
   try {
@@ -73,7 +69,7 @@ exports.handler = async (event) => {
       };
     }
 
-    // En cas de succès, renvoyer l'URL de checkout au front-end
+    // En cas de succès, renvoyer l’URL de checkout au front-end
     return {
       statusCode: 200,
       body: JSON.stringify({ checkoutUrl: respJson.data.url })
