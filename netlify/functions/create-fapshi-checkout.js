@@ -1,21 +1,26 @@
+// netlify/functions/create-fapshi-checkout.js
+
 exports.handler = async (event) => {
+  // 1) N’accepte que POST
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
-      body: JSON.stringify({ error: 'Utilisez la méthode POST, pas ' + event.httpMethod })
+      body: JSON.stringify({ error: 'Utilise POST, pas ' + event.httpMethod })
     };
   }
 
-  const API_USER = process.env.FAPSHI_API_USER;
-  const API_KEY = process.env.FAPSHI_API_KEY;
+  // 2) Lire les clés depuis les variables d’environnement Netlify
+  const API_USER   = process.env.FAPSHI_API_USER;
+  const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
 
-  if (!API_USER || !API_KEY) {
+  if (!API_USER || !SECRET_KEY) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Clés Fapshi non définies dans les variables d’environnement (FAPSHI_API_USER ou FAPSHI_API_KEY)' })
+      body: JSON.stringify({ error: 'Clés Fapshi non définies en variables d’environnement' })
     };
   }
 
+  // 3) Parser le body JSON envoyé par le front-end
   let bodyData;
   try {
     bodyData = JSON.parse(event.body);
@@ -30,43 +35,49 @@ exports.handler = async (event) => {
   if (!amount || !currency || !redirectUrl) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ error: 'Champs requis : amount, currency, redirectUrl' })
+      body: JSON.stringify({ error: 'Paramètres manquants : amount, currency ou redirectUrl' })
     };
   }
 
+  // 4) POINT D’ACCÈS FAPSHI PRODUCTION (LIVE)
   const apiEndpoint = 'https://live.fapshi.com/api/payments/init';
 
+  // 5) Construire le payload
   const payload = {
     amount: amount,
     currency: currency,
-    description: description || 'Paiement Fapshi',
+    description: description || 'Achat produit',
     redirect_url: redirectUrl
   };
 
   try {
+    // 6) Appel à l’API Fapshi live
     const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apiuser': API_USER,
-        'apikey': API_KEY
+        'Authorization': `Bearer ${SECRET_KEY}`,
+        'X-Fapshi-Api-User': API_USER
       },
       body: JSON.stringify(payload)
     });
 
-    const contentType = response.headers.get('content-type') || '';
+    // 7) Lire la réponse brute (texte), peu importe son content-type
     const rawText = await response.text();
+    const contentType = response.headers.get('content-type') || '';
 
+    // 8) Si ce n’est pas du JSON, renvoyer un 502 avec le HTML ou le texte brut
     if (!contentType.includes('application/json')) {
       return {
         statusCode: 502,
         body: JSON.stringify({
-          error: 'Fapshi a renvoyé un contenu non JSON',
+          error: 'L’API Fapshi production a renvoyé un contenu non JSON',
           details: rawText
         })
       };
     }
 
+    // 9) Parser le JSON
     let respJson;
     try {
       respJson = JSON.parse(rawText);
@@ -74,12 +85,13 @@ exports.handler = async (event) => {
       return {
         statusCode: 502,
         body: JSON.stringify({
-          error: 'Erreur de parsing JSON depuis Fapshi',
+          error: 'Impossible de parser le JSON renvoyé par Fapshi production',
           details: rawText
         })
       };
     }
 
+    // 10) Si Fapshi renvoie une erreur (response.ok false), renvoyer tel quel
     if (!response.ok) {
       return {
         statusCode: response.status,
@@ -87,12 +99,14 @@ exports.handler = async (event) => {
       };
     }
 
+    // 11) Succès : renvoyer l’URL de checkout
     return {
       statusCode: 200,
       body: JSON.stringify({ checkoutUrl: respJson.data.url })
     };
 
   } catch (error) {
+    // 12) Erreur réseau ou autre
     return {
       statusCode: 500,
       body: JSON.stringify({ error: error.message })
