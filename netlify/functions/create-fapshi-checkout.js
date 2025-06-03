@@ -1,8 +1,5 @@
 // netlify/functions/create-fapshi-checkout.js
 
-// Si fetch n’est pas défini (Node < 18), décommente cette ligne :
-// const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
-
 exports.handler = async (event) => {
   // 1) S’assurer que c’est un POST
   if (event.httpMethod !== 'POST') {
