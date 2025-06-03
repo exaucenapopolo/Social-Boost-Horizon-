@@ -39,8 +39,8 @@ exports.handler = async (event) => {
     };
   }
 
-  // ✅ 4) POINT D’ACCÈS FAPSHI **PRODUCTION (LIVE)**
-  const apiEndpoint = 'https://api.fapshi.com/v1/checkout/create';
+  // 4) POINT D’ACCÈS FAPSHI PRODUCTION (LIVE)
+  const apiEndpoint = 'https://api.fapshi.com/api/v1/checkout/create';
 
   // 5) Construire le payload
   const payload = {
@@ -99,7 +99,7 @@ exports.handler = async (event) => {
       };
     }
 
-    // ✅ 11) Succès : renvoyer l’URL de checkout
+    // 11) Succès : renvoyer l’URL de checkout
     return {
       statusCode: 200,
       body: JSON.stringify({ checkoutUrl: respJson.data.url })
