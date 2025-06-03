@@ -1,11 +1,10 @@
 // netlify/functions/create-fapshi-checkout.js
 
-// Si ton environnement Node n’a pas fetch global (versions Netlify antérieures à Node 18),
-// décommente cette ligne :
-// const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
+// Pour Node.js sans fetch global, décommenter la ligne ci‑dessous :
+const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
 
 exports.handler = async (event) => {
-  // 1) Vérifier que la méthode est bien POST
+  // 1) Vérifier que la méthode est POST
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -13,10 +12,9 @@ exports.handler = async (event) => {
     };
   }
 
-  // 2) Récupérer les clés dans les variables d’environnement Netlify
-  const API_USER   = process.env.FAPSHI_API_USER;    // Ne pas renommer
-  const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;  // Ne pas renommer
-
+  // 2) Lire les clés depuis les variables d’environnement Netlify
+  const API_USER   = process.env.FAPSHI_API_USER;
+  const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
   if (!API_USER || !SECRET_KEY) {
     return {
       statusCode: 500,
@@ -26,7 +24,7 @@ exports.handler = async (event) => {
     };
   }
 
-  // 3) Parser le JSON envoyé par le client
+  // 3) Parser le JSON envoyé par le front-end
   let bodyData;
   try {
     bodyData = JSON.parse(event.body);
@@ -47,34 +45,34 @@ exports.handler = async (event) => {
     };
   }
 
-  // 4) POINT D’ACCÈS OFFICIEL REST EN PRODUCTION
+  // 4) Endpoint REST officiel Fapshi (production)
   const apiEndpoint = 'https://api.fapshi.com/api/v1/checkout/create';
 
-  // 5) Construire le payload JSON attendu par Fapshi
+  // 5) Construire le payload JSON
   const payload = {
-    amount:        amount,
-    currency:      currency,
-    description:   description || 'Paiement Social Boost Horizon',
-    redirect_url:  redirectUrl
+    amount:       amount,
+    currency:     currency,
+    description:  description || 'Paiement Social Boost Horizon',
+    redirect_url: redirectUrl
   };
 
   try {
-    // 6) Appel POST vers l’API Fapshi avec les headers exacts “x-api-user” et “x-api-key”
+    // 6) Appeler l’API Fapshi avec les headers “x-api-user” et “x-api-key”
     const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-user': API_USER,   // <— clé utilisateur Fapshi
-        'x-api-key': SECRET_KEY   // <— clé secrète Fapshi
+        'x-api-user': API_USER,
+        'x-api-key': SECRET_KEY
       },
       body: JSON.stringify(payload)
     });
 
-    // 7) Lire la réponse brute comme texte (peu importe le content-type)
+    // 7) Récupérer la réponse brute (texte)
     const rawText = await response.text();
     const contentType = response.headers.get('content-type') || '';
 
-    // 8) Si la réponse n’est pas du JSON, renvoyer un 502 avec le HTML ou le texte brut
+    // 8) Si le contenu n’est pas JSON, renvoyer le HTML pour diagnostiquer
     if (!contentType.includes('application/json')) {
       return {
         statusCode: 502,
@@ -99,7 +97,7 @@ exports.handler = async (event) => {
       };
     }
 
-    // 10) Si Fapshi retourne une erreur (4xx/5xx), transmettre ce JSON d’erreur
+    // 10) Si Fapshi renvoie une erreur HTTP (>=400), transmettre ce JSON d’erreur
     if (!response.ok) {
       return {
         statusCode: response.status,
