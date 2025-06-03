@@ -1,11 +1,11 @@
 // netlify/functions/create-fapshi-checkout.js
 
-// Si Node n’a pas fetch global (selon la version de Netlify),
-// décommente la ligne suivante pour importer node-fetch :
+// Si tu es sur une version de Node qui n’inclut pas fetch global,
+// décommente la ligne suivante :
 // const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
 
 exports.handler = async (event) => {
-  // 1) Vérifier la méthode POST
+  // 1) N’accepte que POST
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -13,19 +13,20 @@ exports.handler = async (event) => {
     };
   }
 
-  // 2) Lire les variables d’environnement (clés Fapshi)
+  // 2) Lire les clés Fapshi depuis les variables d’environnement Netlify
   const API_USER   = process.env.FAPSHI_API_USER;    // Ne pas renommer
   const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;  // Ne pas renommer
+
   if (!API_USER || !SECRET_KEY) {
     return {
       statusCode: 500,
       body: JSON.stringify({
-        error: 'Clés Fapshi manquantes : vérifie FAPSHI_API_USER & FAPSHI_SECRET_KEY'
+        error: 'Clés Fapshi manquantes : vérifie FAPSHI_API_USER et FAPSHI_SECRET_KEY'
       })
     };
   }
 
-  // 3) Parser le JSON envoyé par le front‑end (font.html)
+  // 3) Parser le JSON envoyé par le front‑end
   let bodyData;
   try {
     bodyData = JSON.parse(event.body);
@@ -36,17 +37,7 @@ exports.handler = async (event) => {
     };
   }
 
-  // 4) Récupérer les champs requis et optionnels
-  const {
-    amount,
-    currency,
-    description = 'Paiement Social Boost Horizon',
-    redirectUrl,
-    email,       // Optionnel
-    externalId,  // Optionnel
-    message      // Optionnel
-  } = bodyData;
-
+  const { amount, currency, description, redirectUrl } = bodyData;
   if (!amount || !currency || !redirectUrl) {
     return {
       statusCode: 400,
@@ -56,25 +47,19 @@ exports.handler = async (event) => {
     };
   }
 
-  // 5) Construire le payload JSON pour Fapshi
-  // Inclure uniquement les clés non nulles
+  // 4) Endpoint exact de l’API Fapshi en PROD
+  const apiEndpoint = 'https://api.fapshi.com/api/v1/checkout/create';
+
+  // 5) Préparer le payload
   const payload = {
     amount:       amount,
     currency:     currency,
-    description:  description,
+    description:  description || 'Paiement Social Boost Horizon',
     redirect_url: redirectUrl
   };
 
-  // Ajouter les champs optionnels s’ils sont définis
-  if (email)       payload.email = email;
-  if (externalId)  payload.externalId = externalId;
-  if (message)     payload.message = message;
-
-  // 6) URL de base pour l’API Fapshi (production)
-  const apiEndpoint = 'https://live.fapshi.com/initiate-pay';
-
   try {
-    // 7) Appel POST vers Fapshi avec les headers requis
+    // 6) Appeler Fapshi avec les bons headers : x-api-user et x-api-key
     const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
@@ -85,22 +70,22 @@ exports.handler = async (event) => {
       body: JSON.stringify(payload)
     });
 
-    // 8) Lire la réponse brute (texte)
+    // 7) Récupérer la réponse brute (texte)
     const rawText = await response.text();
     const contentType = response.headers.get('content-type') || '';
 
-    // 9) Si la réponse n’est pas du JSON, renvoyer la page d’erreur brute
+    // 8) Si ce n’est pas du JSON, renvoyer le HTML pour débogage
     if (!contentType.includes('application/json')) {
       return {
         statusCode: 502,
         body: JSON.stringify({
-          error: 'Fapshi a renvoyé un contenu non JSON',
+          error:   'Fapshi a renvoyé un contenu non JSON',
           details: rawText
         })
       };
     }
 
-    // 10) Parser le JSON renvoyé par Fapshi
+    // 9) Parser le JSON
     let respJson;
     try {
       respJson = JSON.parse(rawText);
@@ -108,13 +93,13 @@ exports.handler = async (event) => {
       return {
         statusCode: 502,
         body: JSON.stringify({
-          error: 'Impossible de parser le JSON renvoyé par Fapshi',
+          error:   'Impossible de parser le JSON renvoyé par Fapshi',
           details: rawText
         })
       };
     }
 
-    // 11) Si Fapshi renvoie un code d’erreur HTTP (>=400), transmettre ce JSON d’erreur
+    // 10) Si Fapshi retourne une erreur HTTP (4xx/5xx), transmettre ce JSON
     if (!response.ok) {
       return {
         statusCode: response.status,
@@ -122,14 +107,14 @@ exports.handler = async (event) => {
       };
     }
 
-    // 12) Succès : renvoyer l’URL de checkout vers le frontend
+    // 11) Succès : renvoyer le checkoutUrl au front‑end
     return {
       statusCode: 200,
       body: JSON.stringify({ checkoutUrl: respJson.data.url })
     };
 
   } catch (error) {
-    // 13) Erreur réseau ou inattendue
+    // 12) Erreur réseau ou inattendue
     return {
       statusCode: 500,
       body: JSON.stringify({ error: error.message })
