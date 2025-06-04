@@ -1,11 +1,11 @@
 // netlify/functions/create-fapshi-checkout.js
 
 exports.handler = async (event) => {
-  // 1) Pour voir exactement ce qui est dans les env vars
-  console.log(">>> process.env.FAPSHI_API_USER  =", process.env.FAPSHI_API_USER);
-  console.log(">>> process.env.FAPSHI_SECRET_KEY =", process.env.FAPSHI_SECRET_KEY);
+  // Afficher en log la valeur exacte de l’API User et de la Secret Key
+  console.log(">>> process.env.FAPSHI_API_USER   =", JSON.stringify(process.env.FAPSHI_API_USER));
+  console.log(">>> process.env.FAPSHI_SECRET_KEY  =", JSON.stringify(process.env.FAPSHI_SECRET_KEY));
 
-  // 2) N’accepter que POST
+  // 1) Vérifier la méthode POST
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -13,11 +13,10 @@ exports.handler = async (event) => {
     };
   }
 
-  // 3) Récupérer les variables d’environnement
+  // 2) Récupérer les clés
   const API_USER   = process.env.FAPSHI_API_USER;
   const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
-  
-  // 4) Vérifier qu’elles ne sont pas vides
+
   if (!API_USER || !SECRET_KEY) {
     return {
       statusCode: 500,
@@ -25,7 +24,7 @@ exports.handler = async (event) => {
     };
   }
 
-  // 5) Parser le JSON envoyé par le front-end
+  // 3) Parser le JSON du front-end
   let bodyData;
   try {
     bodyData = JSON.parse(event.body);
@@ -46,10 +45,10 @@ exports.handler = async (event) => {
     };
   }
 
-  // 6) Définir le bon endpoint Fapshi
+  // 4) Endpoint de production
   const apiEndpoint = 'https://live.fapshi.com/initiate-pay';
 
-  // 7) Construire le payload
+  // 5) Payload attendu (avec redirect_url underscore)
   const payload = {
     amount:       amount,
     currency:     currency,
@@ -57,33 +56,37 @@ exports.handler = async (event) => {
     redirect_url: redirectUrl
   };
 
-  // 8) Logs pour vérifier ce qu’on envoie
-  console.log(">>> API Endpoint :", apiEndpoint);
-  console.log(">>> Payload      :", JSON.stringify(payload));
-  console.log(">>> Header apiuser  envoyé :", API_USER);
-  console.log(">>> Header secretkey envoyé :", SECRET_KEY);
+  console.log(">>> API Endpoint  =", apiEndpoint);
+  console.log(">>> Payload       =", JSON.stringify(payload));
 
   try {
-    // 9) Faire l’appel POST vers Fapshi
+    // 6) Envoyer la requête en testant plusieurs clés de header
     const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'apiuser': API_USER,
-        'secretkey': SECRET_KEY
+        'Content-Type':    'application/json',
+        // on envoie la même valeur sous plusieurs noms de header
+        'apiuser':          API_USER,
+        'APIUSER':          API_USER,
+        'x-api-user':       API_USER,
+        'X-API-USER':       API_USER,
+        'secretkey':        SECRET_KEY,
+        'SECRETKEY':        SECRET_KEY,
+        'x-api-key':        SECRET_KEY,
+        'X-API-KEY':        SECRET_KEY
       },
       body: JSON.stringify(payload)
     });
 
-    // 10) Lire la réponse brute
+    // 7) Lire la réponse brute
     const rawText = await response.text();
     const contentType = response.headers.get('content-type') || '';
 
-    console.log(">>> Fapshi HTTP status       =", response.status);
-    console.log(">>> Fapshi content-type      =", contentType);
-    console.log(">>> Fapshi raw response      =", rawText);
+    console.log(">>> Fapshi HTTP status      =", response.status);
+    console.log(">>> Fapshi content-type     =", contentType);
+    console.log(">>> Fapshi raw response     =", rawText);
 
-    // 11) Si ce n’est pas du JSON, renvoyer une 502 pour debugging
+    // 8) Si ce n’est pas du JSON, renvoyer le HTML pour déboguer
     if (!contentType.includes('application/json')) {
       return {
         statusCode: 502,
@@ -94,7 +97,7 @@ exports.handler = async (event) => {
       };
     }
 
-    // 12) Parser le JSON renvoyé
+    // 9) Parser le JSON renvoyé par Fapshi
     let respJson;
     try {
       respJson = JSON.parse(rawText);
@@ -108,7 +111,7 @@ exports.handler = async (event) => {
       };
     }
 
-    // 13) Si l’API Fapshi renvoie une erreur (>=400), transmettre
+    // 10) Si Fapshi retourne une erreur HTTP (4xx/5xx), transmettre ce JSON
     if (!response.ok) {
       return {
         statusCode: response.status,
@@ -116,14 +119,14 @@ exports.handler = async (event) => {
       };
     }
 
-    // 14) Succès : renvoyer l’URL de checkout
+    // 11) Succès : renvoyer l’URL de checkout au front-end
     return {
       statusCode: 200,
       body: JSON.stringify({ checkoutUrl: respJson.data.url })
     };
 
   } catch (error) {
-    console.log(">>> Erreur fetch vers Fapshi :", error.message);
+    console.log(">>> Erreur fetch:", error.message);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: error.message })
