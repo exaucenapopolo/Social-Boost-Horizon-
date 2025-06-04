@@ -1,7 +1,7 @@
 // netlify/functions/create-fapshi-checkout.js
 
 exports.handler = async (event) => {
-  // 1) Logs pour voir la valeur effective des variables d’environnement
+  // 1) Logs pour vérifier les variables d’environnement
   console.log(">>> process.env.FAPSHI_API_USER   =", JSON.stringify(process.env.FAPSHI_API_USER));
   console.log(">>> process.env.FAPSHI_SECRET_KEY  =", JSON.stringify(process.env.FAPSHI_SECRET_KEY));
 
@@ -13,7 +13,7 @@ exports.handler = async (event) => {
     };
   }
 
-  // 3) Récupérer les clés Fapshi
+  // 3) Récupérer les clés Fapshi stockées dans Netlify
   const API_USER   = process.env.FAPSHI_API_USER;
   const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
   if (!API_USER || !SECRET_KEY) {
@@ -44,10 +44,10 @@ exports.handler = async (event) => {
     };
   }
 
-  // 5) Définir l’endpoint en production
+  // 5) Endpoint de production pour Fapshi
   const apiEndpoint = 'https://live.fapshi.com/initiate-pay';
 
-  // 6) Construire le payload
+  // 6) Construire le payload JSON
   const payload = {
     amount:       amount,
     currency:     currency,
@@ -55,33 +55,33 @@ exports.handler = async (event) => {
     redirect_url: redirectUrl
   };
 
-  // 7) Logs pour le debug
-  console.log(">>> API Endpoint   =", apiEndpoint);
-  console.log(">>> Payload        =", JSON.stringify(payload));
-  console.log(">>> Header apiuser =", API_USER);
-  console.log(">>> Header apikey  =", SECRET_KEY);
+  // 7) Logs de débogage
+  console.log(">>> API Endpoint      =", apiEndpoint);
+  console.log(">>> Payload           =", JSON.stringify(payload));
+  console.log(">>> Header apiuser    =", API_USER);
+  console.log(">>> Header apikey     =", SECRET_KEY);
 
   try {
-    // 8) Appel POST vers Fapshi avec les bons headers
+    // 8) Faire l’appel POST vers Fapshi
     const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apiuser': API_USER,
-        'apikey': SECRET_KEY
+        'apiuser':       API_USER,
+        'apikey':        SECRET_KEY
       },
       body: JSON.stringify(payload)
     });
 
-    // 9) Lire la réponse brute
+    // 9) Lire la réponse brute (texte)
     const rawText = await response.text();
     const contentType = response.headers.get('content-type') || '';
 
-    console.log(">>> Fapshi HTTP status      =", response.status);
-    console.log(">>> Fapshi content-type     =", contentType);
-    console.log(">>> Fapshi raw response     =", rawText);
+    console.log(">>> Fapshi HTTP status     =", response.status);
+    console.log(">>> Fapshi content-type    =", contentType);
+    console.log(">>> Fapshi raw response    =", rawText);
 
-    // 10) Si ce n’est pas du JSON, renvoyer la 502 avec le HTML pour debug
+    // 10) Si le contenu n’est pas JSON, renvoyer la 502 pour debug
     if (!contentType.includes('application/json')) {
       return {
         statusCode: 502,
@@ -92,11 +92,11 @@ exports.handler = async (event) => {
       };
     }
 
-    // 11) Parser le JSON renvoyé par Fapshi
+    // 11) Parser le JSON
     let respJson;
     try {
       respJson = JSON.parse(rawText);
-    } catch (err) {
+    } catch {
       return {
         statusCode: 502,
         body: JSON.stringify({
@@ -106,7 +106,7 @@ exports.handler = async (event) => {
       };
     }
 
-    // 12) Si l’API Fapshi renvoie un code d’erreur (4xx/5xx), on renvoie directement ce JSON
+    // 12) Si la réponse HTTP n’est pas OK (4xx/5xx), renvoyer ce JSON d’erreur
     if (!response.ok) {
       return {
         statusCode: response.status,
@@ -114,7 +114,7 @@ exports.handler = async (event) => {
       };
     }
 
-    // 13) Si `respJson.data` existe, renvoyer son champ `url`
+    // 13) Si le JSON contient data.url (ancienne structure), on l’utilise
     if (respJson.data && respJson.data.url) {
       return {
         statusCode: 200,
@@ -122,11 +122,19 @@ exports.handler = async (event) => {
       };
     }
 
-    // 14) Sinon, la structure JSON a changé : on renvoie l’objet complet pour debug
+    // 14) Sinon, si le JSON contient link, on l’utilise
+    if (respJson.link) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ checkoutUrl: respJson.link })
+      };
+    }
+
+    // 15) Sinon, structure inattendue : renvoyer tout pour debug
     return {
       statusCode: 502,
       body: JSON.stringify({
-        error:   'Réponse inattendue de Fapshi (pas de data.url)',
+        error:   'Réponse inattendue de Fapshi (ni data.url ni link)',
         details: respJson
       })
     };
