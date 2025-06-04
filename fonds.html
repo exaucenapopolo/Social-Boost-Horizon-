@@ -234,14 +234,14 @@
     AOS.init({ duration: 600, once: true });
   </script>
 
-  <!-- SCRIPT DE PAIEMENT MIS À JOUR POUR AFFICHER L'ERREUR BRUTE -->
+  <!-- SCRIPT DE PAIEMENT MIS À JOUR POUR REDIRECTION -->
   <script>
     document.getElementById('payment-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const messageDiv = document.getElementById('message');
       messageDiv.textContent = '';
 
-      const amount = parseInt(document.getElementById('amount').value);
+      const amount = parseInt(document.getElementById('amount').value, 10);
       const description = document.getElementById('description').value.trim();
       const redirectUrl = window.location.origin + '/success.html';
 
@@ -265,32 +265,24 @@
           })
         });
 
-        // On récupère le contenu renvoyé, quel que soit le content-type
-        let texte;
+        // Tenter de parser immédiatement le JSON
+        let data;
         try {
-          texte = await res.text();
+          data = await res.json();
         } catch {
-          texte = 'Impossible de lire la réponse du serveur.';
+          // Si la réponse n'est pas du JSON, on affiche la réponse brute
+          const rawText = await res.text();
+          messageDiv.textContent =
+            'Statut HTTP : ' + res.status + '\nRéponse brute :\n' + rawText;
+          return;
         }
 
-        // Affiche toujours le statut et la réponse brute
-        messageDiv.textContent =
-          'Statut HTTP : ' + res.status + '\nRéponse brute :\n' + texte;
-
-        // Si le content-type contient bien "application/json", on peut rediriger
-        const contentType = res.headers.get('content-type') || '';
-        if (res.ok && contentType.includes('application/json')) {
-          try {
-            const data = JSON.parse(texte);
-            if (data.checkoutUrl) {
-              // Redirection vers l'URL de checkout Fapshi
-              window.location.href = data.checkoutUrl;
-            } else if (data.error) {
-              messageDiv.textContent = 'Erreur API : ' + JSON.stringify(data.error);
-            }
-          } catch {
-            // Si JSON invalide, on laisse le texte complet affiché
-          }
+        // Si on obtient un JSON valide avec checkoutUrl, on redirige
+        if (res.ok && data.checkoutUrl) {
+          window.location.href = data.checkoutUrl;
+        } else {
+          // Sinon, afficher l'erreur renvoyée
+          messageDiv.textContent = 'Erreur API : ' + JSON.stringify(data.error || data);
         }
       } catch (err) {
         messageDiv.textContent = 'Erreur réseau ou inattendue : ' + err.message;
