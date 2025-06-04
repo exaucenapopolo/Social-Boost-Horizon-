@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tableau de bord – Social Boost Horizon</title>
 
-  <!-- Google Fonts pour le logo stylé -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
     href="https://fonts.googleapis.com/css2?family=Lobster&display=swap"
@@ -16,13 +15,11 @@
     rel="stylesheet"
   />
 
-  <!-- AOS (Animate On Scroll) -->
   <link
     rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css"
   />
 
-  <!-- Font Awesome -->
   <link
     rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
@@ -394,13 +391,10 @@
   </style>
 </head>
 <body>
-  <!-- Fond animé (étoiles + nuages) -->
   <div class="background-animation"></div>
 
-  <!-- BACKDROP -->
   <div id="menuBackdrop" class="menu-backdrop"></div>
 
-  <!-- HEADER -->
   <header data-aos="fade-down">
     <div class="header-brand">
       <a href="dashboard.html" class="logo-text">
@@ -417,7 +411,6 @@
     </button>
   </header>
 
-  <!-- OFF-CANVAS MENU -->
   <nav id="hamburgerMenu" class="hamburger-menu" role="navigation">
     <ul>
       <li><a href="dashboard.html">Accueil</a></li>
@@ -431,18 +424,15 @@
     </ul>
   </nav>
 
-  <!-- SOLDE & DÉPÔT -->
   <div class="balance-section" data-aos="fade-up">
     <span id="balance">Solde : 0 XAF</span>
     <button id="quickDeposit">➕ Déposer</button>
   </div>
 
-  <!-- BIENVENUE -->
   <div class="welcome-container">
     <h1 id="welcome">Bienvenue sur ton tableau de bord</h1>
   </div>
 
-  <!-- CARTES -->
   <div class="container">
     <div class="card" data-aos="fade-up">
       <i class="fas fa-rocket"></i>
@@ -476,13 +466,15 @@
     </div>
   </div>
 
-  <!-- FOOTER -->
   <footer class="footer" data-aos="fade-up">
     <small>Social Boost Horizon – Mč Exau – Tous droits réservés © 2025</small>
     <button id="logoutBtn">Déconnexion</button>
   </footer>
 
-  <!-- Scripts AOS, Animation nuages et menu hamburger -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
   <script defer src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
@@ -531,6 +523,8 @@
 
     // Gestion du solde, dépôt, logout, et authentification Firebase
     AOS.init({ duration: 600, once: true });
+    
+    // Initialisation de Firebase (doit être fait une seule fois)
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -539,7 +533,12 @@
       messagingSenderId: "43658165639",
       appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
     };
-    firebase.initializeApp(firebaseConfig);
+    
+    // Vérifie si Firebase est déjà initialisé
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    
     const auth = firebase.auth();
     const db = firebase.firestore();
 
@@ -548,32 +547,68 @@
     const quickDeposit = document.getElementById('quickDeposit');
     const logoutBtn = document.getElementById('logoutBtn');
 
+    // Écoute les changements d'état d'authentification
     auth.onAuthStateChanged(user => {
-      if (!user) return window.location.href = 'login.html';
-      const userRef = db.collection('users').doc(user.uid);
-      userRef.get().then(doc => {
-        const d = doc.data() || {};
-        welcomeEl.textContent = `Bienvenue ${d.username || ''}`;
-      });
-      userRef.onSnapshot(doc => {
-        const d = doc.data() || {};
-        balanceEl.textContent = `Solde : ${d.balance || 0} XAF`;
-        if (d.username) welcomeEl.textContent = `Bienvenue ${d.username}`;
-      });
+      if (user) {
+        // L'utilisateur est connecté
+        const userRef = db.collection('users').doc(user.uid);
+
+        // Récupère le nom d'utilisateur une fois pour l'affichage initial
+        userRef.get().then(doc => {
+          if (doc.exists) {
+            const userData = doc.data();
+            const username = userData.username || 'utilisateur';
+            welcomeEl.textContent = `Bienvenue sur ton tableau de bord ${username}`;
+          } else {
+            console.log("Aucun document trouvé pour cet utilisateur !");
+            welcomeEl.textContent = `Bienvenue sur ton tableau de bord`; // Fallback
+          }
+        }).catch(error => {
+          console.error("Erreur lors de la récupération du document utilisateur :", error);
+          welcomeEl.textContent = `Bienvenue sur ton tableau de bord`; // Fallback en cas d'erreur
+        });
+
+        // Écoute les mises à jour en temps réel du solde et potentiellement du nom d'utilisateur
+        userRef.onSnapshot(doc => {
+          if (doc.exists) {
+            const userData = doc.data();
+            const balance = userData.balance !== undefined ? userData.balance : 0;
+            const username = userData.username || 'utilisateur';
+            balanceEl.textContent = `Solde : ${balance} XAF`;
+            welcomeEl.textContent = `Bienvenue sur ton tableau de bord ${username}`;
+          } else {
+            console.log("Le document utilisateur n'existe plus ! Redirection vers la page de connexion.");
+            window.location.href = 'login.html'; // Rediriger si le document utilisateur est supprimé
+          }
+        }, error => {
+          console.error("Erreur d'écoute en temps réel du document utilisateur :", error);
+          // Gère l'erreur, peut-être en déconnectant l'utilisateur ou en affichant un message
+        });
+
+      } else {
+        // L'utilisateur n'est pas connecté, redirige vers la page de connexion
+        window.location.href = 'login.html';
+      }
     });
 
+    // Redirige vers fonds.html quand le bouton est cliqué
     quickDeposit.addEventListener('click', () => {
       window.location.href = 'fonds.html';
     });
 
+    // Gère la déconnexion
     logoutBtn.addEventListener('click', () => {
-      if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
-        auth.signOut().then(() => window.location.href = 'login.html');
+      if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+        auth.signOut().then(() => {
+          window.location.href = 'login.html';
+        }).catch(error => {
+          console.error("Erreur de déconnexion :", error);
+          alert("Une erreur est survenue lors de la déconnexion.");
+        });
       }
     });
   </script>
 
-  <!-- Start of Tawk.to Script -->
   <script type="text/javascript">
     var Tawk_API = Tawk_API || {}, Tawk_LoadStart = new Date();
     (function(){
@@ -586,6 +621,5 @@
       s0.parentNode.insertBefore(s1, s0);
     })();
   </script>
-  <!-- End of Tawk.to Script -->
-</body>
+  </body>
 </html>
