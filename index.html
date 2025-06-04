@@ -5,13 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Social Boost Horizon</title>
 
-  <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800&family=Roboto:wght@400;500&display=swap" rel="stylesheet">  
 
-  <!-- AOS CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" />  
 
-  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
         integrity="sha512-pO9QXqX..." crossorigin="anonymous" referrerpolicy="no-referrer" />
 
@@ -20,12 +17,21 @@
        1) Variables & override du fond : forcer le fond sombre
        ======================================================= */
     :root {
-      --dark-blue-bg: #1a2a4a;
+      --dark-blue-bg: #0F1D32; /* Bleu nuit profond */ 
+      --gradient-start: #1e3c72;
+      --gradient-end:   #6a0dad;
+      --accent:         #ff6b6b;
+      --text-dark:      #212121;
+      --bg-pastel:      #F0F8F4; /* pastel vert clair */ 
     }
     body {
       background: var(--dark-blue-bg) !important;
       position: relative;
       min-height: 100vh;
+      font-family: Roboto, sans-serif;
+      color: var(--text-dark);
+      /* Assure que le body est au-dessus du fond, mais pas en couvrant tout */
+      z-index: 1; 
     }
 
     /* =======================================================
@@ -37,9 +43,10 @@
       left: 0;
       width: 100%;
       height: 100%;
-      z-index: -1;
+      /* C'est CRUCIAL : z-index négatif pour qu'il soit derrière tout le contenu */
+      z-index: -1; 
       overflow: hidden;
-      background-color: var(--dark-blue-bg);
+      background-color: var(--dark-blue-bg); 
     }
     .background-animation::before,
     .background-animation::after {
@@ -82,7 +89,7 @@
       position: absolute;
       background: white;
       border-radius: 50%;
-      opacity: 0.1;
+      opacity: 0.08; /* Légèrement moins opaque pour un effet plus doux */
       animation: moveClouds linear infinite;
     }
     @keyframes moveClouds {
@@ -91,22 +98,10 @@
     }
 
     /* ==========================
-       Ton CSS existant (inchangé)
+       Ton CSS existant
        ========================== */
-    /* === Variables CSS === */
-    :root {
-      --gradient-start: #1e3c72;
-      --gradient-end:   #6a0dad;
-      --accent:         #ff6b6b;
-      --text-dark:      #212121;
-      --bg-light:       #fafafa;
-      --bg-pastel:      #F0F8F4; /* pastel vert clair */
-    }
-
     /* Reset & typographie */
     * { margin:0; padding:0; box-sizing:border-box; }
-    /* Note : le background est déjà géré plus haut, on ne le redéfinit pas ici */
-    body { font-family: Roboto, sans-serif; color: var(--text-dark); }
 
     /* === HEADER minimaliste (logo seul) === */
     header {
@@ -126,6 +121,9 @@
       display:flex; align-items:center; justify-content:center; text-align:center;
       background: linear-gradient(to bottom right, var(--gradient-start), var(--gradient-end));
       color:#fff; padding:4rem 1rem;
+      /* Assure que la section hero est bien au-dessus, avec un z-index suffisant */
+      position: relative;
+      z-index: 2; 
     }
     #hero h1 { font-family: Montserrat, sans-serif; font-size:3rem; margin-bottom:0.5rem; }
     #hero p { font-size:1.1rem; margin-bottom:1.5rem; }
@@ -135,15 +133,27 @@
     }
 
     /* === WRAPPER FOND PASTEL === */
-    .section-bg { background-color: var(--bg-pastel); }
+    .section-bg { 
+      /* C'est la ligne clé ! Rends le fond de cette section transparent ou semi-transparent */
+      background-color: rgba(240, 248, 244, 0.2); /* bg-pastel avec une opacité de 20% */
+      /* Ou pour un fond complètement transparent (si tu veux seulement le fond animé) */
+      /* background-color: transparent; */
+      
+      position: relative; /* Nécessaire pour que le z-index fonctionne */
+      z-index: 2; /* S'assure que le contenu est au-dessus du fond animé */
+    }
     section { padding:3rem 1rem; max-width:1200px; margin:auto; }
     h2 { font-family: Montserrat, sans-serif; font-size:2rem; color: var(--gradient-start); margin-bottom:1.5rem; text-align:center; }
 
     /* === CARTES “Pourquoi” & SERVICES === */
     .why, .services .grid { display:flex; flex-wrap:wrap; gap:1.5rem; justify-content:center; }
     .why .card, .services .card {
-      background:#fff; border:1px solid #ddd; border-radius:6px;
+      /* Garde le fond blanc pour les cartes, car elles sont par-dessus le wrapper semi-transparent */
+      background:#fff; 
+      border:1px solid #ddd; border-radius:6px;
       padding:1.5rem; width:300px; box-shadow:0 2px 8px rgba(0,0,0,0.05);
+      position: relative; /* Pour s'assurer qu'elles sont au-dessus de tout */
+      z-index: 3; /* Un z-index plus élevé pour les cartes */
     }
     .why .card h3, .services .card h3 {
       font-family: Montserrat, sans-serif; margin-bottom:0.8rem; color: var(--gradient-start);
@@ -162,6 +172,8 @@
     /* === FAQ === */
     .faq details {
       background:#fff; border:1px solid #ddd; border-radius:6px; margin-bottom:1rem;
+      position: relative; /* Pour s'assurer qu'elles sont au-dessus de tout */
+      z-index: 3; /* Un z-index plus élevé pour les FAQ */
     }
     .faq summary { padding:1rem; cursor:pointer; font-weight:500; }
     .faq .content { padding:0 1rem 1rem; color:#555; }
@@ -170,15 +182,15 @@
     footer {
       background-color: #000 !important; color: #fff;
       text-align:center; padding:2rem 1rem; font-size:0.9rem;
+      position: relative; /* Pour s'assurer qu'il est au-dessus */
+      z-index: 2; 
     }
     footer a { color: #fff; text-decoration:none; }
   </style>
 </head>
 <body>
-  <!-- 1) Calque fixe pour le fond animé (étoiles+nuages) -->
   <div class="background-animation"></div>
 
-  <!-- 2) HEADER (logo seul) -->
   <header data-aos="fade-down">
     <div class="logo">
       <a href="index.html">
@@ -187,7 +199,6 @@
     </div>
   </header>
 
-  <!-- 3) HERO -->
   <section id="hero" data-aos="zoom-in">
     <div>
       <h1>Boostez tous vos canaux sociaux</h1>
@@ -196,10 +207,8 @@
     </div>
   </section>
 
-  <!-- 4) SECTIONS À FOND PASTEL VERT -->
   <div class="section-bg">
 
-    <!-- Pourquoi nous choisir -->
     <section id="why" class="why" data-aos="fade-up">
       <h2>Pourquoi choisir Social Boost Horizon&nbsp;?</h2>
       <div class="card" data-aos="fade-right">
@@ -220,7 +229,6 @@
       </div>
     </section>
 
-    <!-- Nos Services -->
     <section id="services" class="services" data-aos="fade-up">
       <h2>Nos Services</h2>
       <div class="grid">
@@ -255,7 +263,6 @@
       </div>
     </section>
 
-    <!-- Comment ça marche -->
     <section id="process" class="process" data-aos="fade-up">
       <h2>Comment ça marche ?</h2>
       <div class="step" data-aos="fade-right"><span>1</span><p>Cliquez sur « Commencer » pour vous inscrire ou vous connecter.</p></div>
@@ -264,7 +271,6 @@
       <div class="step" data-aos="fade-up"><span>4</span><p>Profitez de votre boost instantané !</p></div>
     </section>
 
-    <!-- FAQ -->
     <section id="faq" class="faq" data-aos="fade-up">
       <h2>FAQ</h2>
       <details>
@@ -287,10 +293,7 @@
       </details>
     </section>
 
-  </div> <!-- /.section-bg -->
-
-  <!-- FOOTER -->
-  <footer id="contact" data-aos="fade-up">
+  </div> <footer id="contact" data-aos="fade-up">
     <p>© 2025 Social Boost Horizon • <a href="legal.html">Mentions légales</a> • <a href="terms.html">CGV</a></p>
     <p>Suivez‑nous : 
       <a href="#"><i class="fa-brands fa-facebook-f"></i></a>
@@ -299,8 +302,44 @@
     </p>
   </footer>
 
-  <!-- AOS JS -->
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   <script> AOS.init({ duration: 800, once: true }); </script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const backgroundAnimation = document.querySelector('.background-animation');
+        const numberOfClouds = 15; // Vous pouvez ajuster le nombre de nuages
+
+        for (let i = 0; i < numberOfClouds; i++) {
+            const cloud = document.createElement('div');
+            cloud.classList.add('cloud');
+
+            // Taille aléatoire pour les nuages
+            const size = Math.random() * (180 - 70) + 70;
+            cloud.style.width = `${size}px`;
+            cloud.style.height = `${size * 0.6}px`;
+            cloud.style.borderRadius = `${size / 2}px / ${size * 0.3}px`;
+
+            // Position de départ aléatoire
+            cloud.style.left = `${Math.random() * 100 + 100}vw`;
+            cloud.style.top = `${Math.random() * 85}vh`;
+
+            // Durée d'animation aléatoire
+            const animationDuration = Math.random() * (50 - 25) + 25;
+            cloud.style.animationDuration = `${animationDuration}s`;
+
+            // Délai d'animation aléatoire
+            cloud.style.animationDelay = `${Math.random() * -animationDuration}s`; 
+
+            // Variables CSS pour les nuages
+            cloud.style.setProperty('--width', `${size}px`);
+            const scale = Math.random() * (1.1 - 0.9) + 0.9;
+            cloud.style.setProperty('--scale', scale);
+
+            backgroundAnimation.appendChild(cloud);
+        }
+    });
+  </script>
+
 </body>
 </html>
