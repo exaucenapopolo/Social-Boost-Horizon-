@@ -17,12 +17,7 @@
        1) Variables & override du fond : forcer le fond sombre
        ======================================================= */
     :root {
-      --dark-blue-bg: #0F1D32; /* Bleu nuit profond */ 
-      --gradient-start: #1e3c72;
-      --gradient-end:   #6a0dad;
-      --accent:         #ff6b6b;
-      --text-dark:      #212121;
-      --bg-pastel:      #F0F8F4; /* pastel vert clair */ 
+      --dark-blue-bg: #0F1D32; /* Bleu nuit plus profond */
     }
     body {
       background: var(--dark-blue-bg) !important;
@@ -30,8 +25,6 @@
       min-height: 100vh;
       font-family: Roboto, sans-serif;
       color: var(--text-dark);
-      /* Assure que le body est au-dessus du fond, mais pas en couvrant tout */
-      z-index: 1; 
     }
 
     /* =======================================================
@@ -43,10 +36,9 @@
       left: 0;
       width: 100%;
       height: 100%;
-      /* C'est CRUCIAL : z-index négatif pour qu'il soit derrière tout le contenu */
-      z-index: -1; 
+      z-index: -1; /* Assure que le fond est derrière tout le reste */
       overflow: hidden;
-      background-color: var(--dark-blue-bg); 
+      background-color: var(--dark-blue-bg); /* S'assure que le fond du div d'animation est aussi la variable */
     }
     .background-animation::before,
     .background-animation::after {
@@ -88,8 +80,8 @@
     .background-animation .cloud {
       position: absolute;
       background: white;
-      border-radius: 50%;
-      opacity: 0.08; /* Légèrement moins opaque pour un effet plus doux */
+      /* MODIFIÉ : Augmentation de l'opacité pour que les nuages soient plus visibles */
+      opacity: 0.15; /* Précédemment 0.08 */ 
       animation: moveClouds linear infinite;
     }
     @keyframes moveClouds {
@@ -100,6 +92,16 @@
     /* ==========================
        Ton CSS existant
        ========================== */
+    /* === Variables CSS === */
+    :root {
+      --gradient-start: #1e3c72;
+      --gradient-end:   #6a0dad;
+      --accent:         #ff6b6b;
+      --text-dark:      #212121;
+      /* Garde cette variable pour le moment, car elle est utilisée pour le wrapper .section-bg */
+      --bg-pastel:      rgba(220, 230, 240, 0.1); /* Bleu très clair, 10% opaque */
+    }
+
     /* Reset & typographie */
     * { margin:0; padding:0; box-sizing:border-box; }
 
@@ -121,9 +123,6 @@
       display:flex; align-items:center; justify-content:center; text-align:center;
       background: linear-gradient(to bottom right, var(--gradient-start), var(--gradient-end));
       color:#fff; padding:4rem 1rem;
-      /* Assure que la section hero est bien au-dessus, avec un z-index suffisant */
-      position: relative;
-      z-index: 2; 
     }
     #hero h1 { font-family: Montserrat, sans-serif; font-size:3rem; margin-bottom:0.5rem; }
     #hero p { font-size:1.1rem; margin-bottom:1.5rem; }
@@ -133,14 +132,11 @@
     }
 
     /* === WRAPPER FOND PASTEL === */
+    /* Garde cette section-bg transparente pour voir le fond animé derrière */
     .section-bg { 
-      /* C'est la ligne clé ! Rends le fond de cette section transparent ou semi-transparent */
-      background-color: rgba(240, 248, 244, 0.2); /* bg-pastel avec une opacité de 20% */
-      /* Ou pour un fond complètement transparent (si tu veux seulement le fond animé) */
-      /* background-color: transparent; */
-      
-      position: relative; /* Nécessaire pour que le z-index fonctionne */
-      z-index: 2; /* S'assure que le contenu est au-dessus du fond animé */
+      background-color: var(--bg-pastel); 
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
     }
     section { padding:3rem 1rem; max-width:1200px; margin:auto; }
     h2 { font-family: Montserrat, sans-serif; font-size:2rem; color: var(--gradient-start); margin-bottom:1.5rem; text-align:center; }
@@ -148,42 +144,68 @@
     /* === CARTES “Pourquoi” & SERVICES === */
     .why, .services .grid { display:flex; flex-wrap:wrap; gap:1.5rem; justify-content:center; }
     .why .card, .services .card {
-      /* Garde le fond blanc pour les cartes, car elles sont par-dessus le wrapper semi-transparent */
-      background:#fff; 
-      border:1px solid #ddd; border-radius:6px;
-      padding:1.5rem; width:300px; box-shadow:0 2px 8px rgba(0,0,0,0.05);
-      position: relative; /* Pour s'assurer qu'elles sont au-dessus de tout */
-      z-index: 3; /* Un z-index plus élevé pour les cartes */
+      /* MODIFIÉ : Fond semi-transparent pour les cartes */
+      background: rgba(255, 255, 255, 0.1); /* Blanc très léger (10% opaque) */
+      border:1px solid rgba(255, 255, 255, 0.2); /* Bordure également semi-transparente */
+      border-radius:6px;
+      padding:1.5rem; width:300px;
+      /* MODIFIÉ : Ombre de boîte plus douce et légèrement transparente */
+      box-shadow:0 2px 8px rgba(0,0,0,0.2); 
+      /* Ajout d'un filtre de flou sur l'arrière-plan des cartes pour un effet "verre dépoli" */
+      backdrop-filter: blur(8px); /* Flou plus prononcé pour les cartes */
+      -webkit-backdrop-filter: blur(8px);
+      color: white; /* Pour s'assurer que le texte est lisible sur le fond sombre */
     }
+    /* MODIFIÉ : Ajustement de la couleur du texte et des titres pour les cartes */
     .why .card h3, .services .card h3 {
-      font-family: Montserrat, sans-serif; margin-bottom:0.8rem; color: var(--gradient-start);
+      font-family: Montserrat, sans-serif; margin-bottom:0.8rem; color: #fff; /* Titres blancs */
     }
-    .why .card p, .services .card p { font-size:0.95rem; color:#555; }
+    .why .card p, .services .card p { 
+      font-size:0.95rem; 
+      color: rgba(255, 255, 255, 0.8); /* Texte légèrement transparent pour les cartes */
+    }
+    /* MODIFIÉ : Couleur des icônes à l'intérieur des cartes (si elles ne sont pas déjà colorées par Font Awesome) */
+    .why .card i, .services .card i {
+        color: var(--accent); /* Garde la couleur accent des icônes */
+    }
+
 
     /* === PROCESSUS === */
     .process { display:flex; flex-wrap:wrap; gap:2rem; justify-content:center; text-align:center; }
     .process .step { width:200px; }
+    /* Le texte de process .step p est déjà #555, qui pourrait être difficile à lire sur fond sombre. */
+    .process .step p { 
+      color: rgba(255, 255, 255, 0.8); /* Texte blanc semi-transparent */
+    }
     .process .step span {
       display:block; font-family: Montserrat, sans-serif;
       font-size:2rem; color: var(--accent); margin-bottom:0.5rem;
     }
-    .process .step p { color:#555; }
-
+    
     /* === FAQ === */
     .faq details {
-      background:#fff; border:1px solid #ddd; border-radius:6px; margin-bottom:1rem;
-      position: relative; /* Pour s'assurer qu'elles sont au-dessus de tout */
-      z-index: 3; /* Un z-index plus élevé pour les FAQ */
+      /* MODIFIÉ : Fond semi-transparent pour les éléments FAQ */
+      background: rgba(255, 255, 255, 0.1); /* Blanc très léger (10% opaque) */
+      border:1px solid rgba(255, 255, 255, 0.2); /* Bordure également semi-transparente */
+      border-radius:6px; margin-bottom:1rem;
+      /* Ajout d'un filtre de flou sur l'arrière-plan pour un effet "verre dépoli" */
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
     }
-    .faq summary { padding:1rem; cursor:pointer; font-weight:500; }
-    .faq .content { padding:0 1rem 1rem; color:#555; }
+    /* MODIFIÉ : Couleur du texte pour les résumés et contenus de la FAQ */
+    .faq summary { 
+      padding:1rem; cursor:pointer; font-weight:500; 
+      color: #fff; /* Texte du résumé blanc */
+    }
+    .faq .content { 
+      padding:0 1rem 1rem; 
+      color: rgba(255, 255, 255, 0.8); /* Texte du contenu FAQ légèrement transparent */
+    }
 
     /* === FOOTER noir === */
     footer {
       background-color: #000 !important; color: #fff;
       text-align:center; padding:2rem 1rem; font-size:0.9rem;
-      position: relative; /* Pour s'assurer qu'il est au-dessus */
-      z-index: 2; 
     }
     footer a { color: #fff; text-decoration:none; }
   </style>
@@ -251,6 +273,7 @@
         <div class="card" data-aos="fade-up">
           <h3><i class="fa-solid fa-graduation-cap"></i> Packs & Formations Pro</h3>
           <p>Plan d’affaires LinkedIn Premium, cours de formation professionnelle et coaching.</p>
+        </p>
         </div>
         <div class="card" data-aos="fade-left">
           <h3><i class="fa-solid fa-laptop"></i> Logiciels & Abonnements Pro</h3>
@@ -308,30 +331,25 @@
   <script>
     document.addEventListener('DOMContentLoaded', function() {
         const backgroundAnimation = document.querySelector('.background-animation');
-        const numberOfClouds = 15; // Vous pouvez ajuster le nombre de nuages
+        const numberOfClouds = 15; 
 
         for (let i = 0; i < numberOfClouds; i++) {
             const cloud = document.createElement('div');
             cloud.classList.add('cloud');
 
-            // Taille aléatoire pour les nuages
             const size = Math.random() * (180 - 70) + 70;
             cloud.style.width = `${size}px`;
             cloud.style.height = `${size * 0.6}px`;
             cloud.style.borderRadius = `${size / 2}px / ${size * 0.3}px`;
 
-            // Position de départ aléatoire
-            cloud.style.left = `${Math.random() * 100 + 100}vw`;
-            cloud.style.top = `${Math.random() * 85}vh`;
+            cloud.style.left = `${Math.random() * 100 + 100}vw`; 
+            cloud.style.top = `${Math.random() * 85}vh`; 
 
-            // Durée d'animation aléatoire
             const animationDuration = Math.random() * (50 - 25) + 25;
             cloud.style.animationDuration = `${animationDuration}s`;
 
-            // Délai d'animation aléatoire
             cloud.style.animationDelay = `${Math.random() * -animationDuration}s`; 
 
-            // Variables CSS pour les nuages
             cloud.style.setProperty('--width', `${size}px`);
             const scale = Math.random() * (1.1 - 0.9) + 0.9;
             cloud.style.setProperty('--scale', scale);
