@@ -14,15 +14,17 @@ if (!admin.apps.length) {
   });
 }
 
-// 2) Vérification de la signature que Fapshi envoie dans l'en-tête x-fapshi-signature
+// 2) Vérification de la signature que Fapshi envoie dans l'en‑tête x-fapshi-signature
 function verifySignature(event) {
   const signature = event.headers['x-fapshi-signature'];
   if (!signature) return false;
+
   const rawBody = event.body; // JSON brut envoyé
   const expected = crypto
-    .createHmac('sha256', process.env.FAPSHI_SECRET_KEY) // On utilise FAPSHI_SECRET_KEY ici
+    .createHmac('sha256', process.env.FAPSHI_SECRET_KEY)
     .update(rawBody)
     .digest('hex');
+
   return signature === expected;
 }
 
@@ -35,6 +37,11 @@ exports.handler = async (event) => {
 
     // 4) Vérifier la signature HMAC
     if (process.env.FAPSHI_SECRET_KEY) {
+      // Ajout de logs temporaires pour comparaison
+      console.log(">>> Header x-fapshi-signature:", event.headers['x-fapshi-signature']);
+      console.log(">>> Corps brut            :", event.body);
+      console.log(">>> Signature attendue    :", crypto.createHmac('sha256', process.env.FAPSHI_SECRET_KEY).update(event.body).digest('hex'));
+
       const isValid = verifySignature(event);
       if (!isValid) {
         return { statusCode: 401, body: 'Signature invalide' };
@@ -68,7 +75,13 @@ exports.handler = async (event) => {
       // Si le document n’existe pas, balance = 0 par défaut
       const oldBalance = doc.exists ? doc.data().balance || 0 : 0;
       const updated = oldBalance + amount;
-      tx.update(userRef, { balance: updated });
+
+      // Utiliser tx.set(..., { merge: true }) pour créer si besoin
+      if (doc.exists) {
+        tx.update(userRef, { balance: updated });
+      } else {
+        tx.set(userRef, { balance: updated }, { merge: true });
+      }
       return updated;
     });
 
@@ -76,8 +89,8 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       body: JSON.stringify({
-        message: 'Solde mis à jour avec succès',
-        uid: uid,
+        message:    'Solde mis à jour avec succès',
+        uid:        uid,
         newBalance: newBalance,
       }),
     };
