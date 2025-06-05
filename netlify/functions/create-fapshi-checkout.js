@@ -4,6 +4,7 @@ exports.handler = async (event) => {
   // 1) Logs pour vérifier les variables d’environnement
   console.log(">>> process.env.FAPSHI_API_USER   =", JSON.stringify(process.env.FAPSHI_API_USER));
   console.log(">>> process.env.FAPSHI_SECRET_KEY  =", JSON.stringify(process.env.FAPSHI_SECRET_KEY));
+  console.log(">>> process.env.FAPSHI_WEBHOOK_URL =", JSON.stringify(process.env.FAPSHI_WEBHOOK_URL));
 
   // 2) N’accepte que la méthode POST
   if (event.httpMethod !== 'POST') {
@@ -13,13 +14,14 @@ exports.handler = async (event) => {
     };
   }
 
-  // 3) Récupérer les clés Fapshi stockées dans Netlify
-  const API_USER   = process.env.FAPSHI_API_USER;
-  const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
-  if (!API_USER || !SECRET_KEY) {
+  // 3) Récupérer les clés Fapshi & l’URL du webhook stockées dans Netlify
+  const API_USER    = process.env.FAPSHI_API_USER;
+  const SECRET_KEY  = process.env.FAPSHI_SECRET_KEY;
+  const WEBHOOK_URL = process.env.FAPSHI_WEBHOOK_URL; // Ajouté : URL de ton webhook Fapshi
+  if (!API_USER || !SECRET_KEY || !WEBHOOK_URL) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Clés Fapshi manquantes ou vides' })
+      body: JSON.stringify({ error: 'Clés Fapshi ou webhook manquant' })
     };
   }
 
@@ -34,12 +36,13 @@ exports.handler = async (event) => {
     };
   }
 
-  const { amount, currency, description, redirectUrl } = bodyData;
-  if (!amount || !currency || !redirectUrl) {
+  // 4.1. Récupérer amount, currency, description, redirectUrl, uid
+  const { amount, currency, description, redirectUrl, uid } = bodyData;
+  if (!amount || !currency || !redirectUrl || !uid) {
     return {
       statusCode: 400,
       body: JSON.stringify({
-        error: 'Champs requis manquants : amount, currency, redirectUrl'
+        error: 'Champs requis manquants : amount, currency, redirectUrl, uid'
       })
     };
   }
@@ -47,12 +50,16 @@ exports.handler = async (event) => {
   // 5) Endpoint de production pour Fapshi
   const apiEndpoint = 'https://live.fapshi.com/initiate-pay';
 
-  // 6) Construire le payload JSON
+  // 6) Construire le payload JSON en ajoutant metadata & webhook_url
   const payload = {
     amount:       amount,
     currency:     currency,
     description:  description || 'Paiement Social Boost Horizon',
-    redirect_url: redirectUrl
+    redirect_url: redirectUrl,
+
+    // Ajouts nécessaires pour le webhook et l’UID
+    webhook_url: WEBHOOK_URL,
+    metadata: { userId: uid }
   };
 
   // 7) Logs de débogage
