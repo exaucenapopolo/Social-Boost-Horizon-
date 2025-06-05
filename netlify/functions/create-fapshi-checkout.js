@@ -1,5 +1,8 @@
 // netlify/functions/create-fapshi-checkout.js
 
+// Si votre runtime Netlify est Node 16 ou inférieur, décommentez la ligne suivante : 
+// const fetch = require('node-fetch');
+
 exports.handler = async (event) => {
   // 1) Logs pour vérifier les variables d’environnement
   console.log(">>> process.env.FAPSHI_API_USER   =", JSON.stringify(process.env.FAPSHI_API_USER));
@@ -17,7 +20,7 @@ exports.handler = async (event) => {
   // 3) Récupérer les clés Fapshi & l’URL du webhook stockées dans Netlify
   const API_USER    = process.env.FAPSHI_API_USER;
   const SECRET_KEY  = process.env.FAPSHI_SECRET_KEY;
-  const WEBHOOK_URL = process.env.FAPSHI_WEBHOOK_URL; // Ajouté : URL de ton webhook Fapshi
+  const WEBHOOK_URL = process.env.FAPSHI_WEBHOOK_URL;
   if (!API_USER || !SECRET_KEY || !WEBHOOK_URL) {
     return {
       statusCode: 500,
@@ -36,7 +39,7 @@ exports.handler = async (event) => {
     };
   }
 
-  // 4.1. Récupérer amount, currency, description, redirectUrl, uid
+  // 4.1) Récupérer amount, currency, description, redirectUrl, uid
   const { amount, currency, description, redirectUrl, uid } = bodyData;
   if (!amount || !currency || !redirectUrl || !uid) {
     return {
@@ -55,11 +58,9 @@ exports.handler = async (event) => {
     amount:       amount,
     currency:     currency,
     description:  description || 'Paiement Social Boost Horizon',
-    redirect_url: redirectUrl,
-
-    // Ajouts nécessaires pour le webhook et l’UID
-    webhook_url: WEBHOOK_URL,
-    metadata: { userId: uid }
+    redirect_url: redirectUrl,       // << clé exacte attendue par Fapshi
+    webhook_url:  WEBHOOK_URL,       // << clé exacte attendue par Fapshi
+    metadata:     { userId: uid }    // << on passe l’UID dans metadata.userId
   };
 
   // 7) Logs de débogage
