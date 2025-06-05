@@ -474,12 +474,13 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-
   <script defer src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       AOS.init({ duration: 800, once: true });
 
+      // Animation des nuages (maintenue de ta version précédente)
       const backgroundAnimation = document.querySelector(".background-animation");
       const numberOfClouds = 20;
 
@@ -507,7 +508,7 @@
         backgroundAnimation.appendChild(cloud);
       }
 
-      // Gestion du menu hamburger
+      // Gestion du menu hamburger (maintenue)
       const hamburgerBtn = document.getElementById("hamburgerBtn");
       const hamburgerMenu = document.getElementById("hamburgerMenu");
       const backdrop = document.getElementById("menuBackdrop");
@@ -521,20 +522,17 @@
       });
     });
 
-    // Gestion du solde, dépôt, logout, et authentification Firebase
-    AOS.init({ duration: 600, once: true });
-    
-    // Initialisation de Firebase (doit être fait une seule fois)
+    // Configuration Firebase (reprise de ton ancien code)
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
       projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.appspot.com",
+      storageBucket: "social-boost-horizon.appspot.com", // Utilise la valeur de ton ancien code
       messagingSenderId: "43658165639",
       appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
     };
     
-    // Vérifie si Firebase est déjà initialisé
+    // Initialisation de Firebase (doit être fait une seule fois)
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
     }
@@ -547,56 +545,48 @@
     const quickDeposit = document.getElementById('quickDeposit');
     const logoutBtn = document.getElementById('logoutBtn');
 
-    // Écoute les changements d'état d'authentification
+    // Écoute les changements d'état d'authentification (logique de ton ancien code)
     auth.onAuthStateChanged(user => {
-      if (user) {
-        // L'utilisateur est connecté
-        const userRef = db.collection('users').doc(user.uid);
-
-        // Récupère le nom d'utilisateur une fois pour l'affichage initial
-        userRef.get().then(doc => {
-          if (doc.exists) {
-            const userData = doc.data();
-            const username = userData.username || 'utilisateur';
-            welcomeEl.textContent = `Bienvenue sur ton tableau de bord ${username}`;
-          } else {
-            console.log("Aucun document trouvé pour cet utilisateur !");
-            welcomeEl.textContent = `Bienvenue sur ton tableau de bord`; // Fallback
-          }
-        }).catch(error => {
-          console.error("Erreur lors de la récupération du document utilisateur :", error);
-          welcomeEl.textContent = `Bienvenue sur ton tableau de bord`; // Fallback en cas d'erreur
-        });
-
-        // Écoute les mises à jour en temps réel du solde et potentiellement du nom d'utilisateur
-        userRef.onSnapshot(doc => {
-          if (doc.exists) {
-            const userData = doc.data();
-            const balance = userData.balance !== undefined ? userData.balance : 0;
-            const username = userData.username || 'utilisateur';
-            balanceEl.textContent = `Solde : ${balance} XAF`;
-            welcomeEl.textContent = `Bienvenue sur ton tableau de bord ${username}`;
-          } else {
-            console.log("Le document utilisateur n'existe plus ! Redirection vers la page de connexion.");
-            window.location.href = 'login.html'; // Rediriger si le document utilisateur est supprimé
-          }
-        }, error => {
-          console.error("Erreur d'écoute en temps réel du document utilisateur :", error);
-          // Gère l'erreur, peut-être en déconnectant l'utilisateur ou en affichant un message
-        });
-
-      } else {
+      if (!user) {
         // L'utilisateur n'est pas connecté, redirige vers la page de connexion
-        window.location.href = 'login.html';
+        return window.location.href = 'login.html';
       }
+
+      // L'utilisateur est connecté
+      const userRef = db.collection('users').doc(user.uid);
+      
+      // Récupère le nom d'utilisateur une fois pour l'affichage initial (reprise de ton ancien code)
+      userRef.get().then(doc => {
+        const userData = doc.data() || {}; // Si le document n'existe pas, utilise un objet vide
+        // Affiche le nom de l'utilisateur, ou une chaîne vide si non défini
+        welcomeEl.textContent = `Bienvenue sur ton tableau de bord ${userData.username || ''}`;
+      }).catch(error => {
+        console.error("Erreur lors de la récupération du nom d'utilisateur :", error);
+        welcomeEl.textContent = `Bienvenue sur ton tableau de bord`; // Fallback en cas d'erreur
+      });
+
+      // Écoute les mises à jour en temps réel du solde (reprise de ton ancien code)
+      userRef.onSnapshot(doc => {
+        const userData = doc.data() || {}; // Si le document n'existe pas, utilise un objet vide
+        // Affiche le solde, ou 0 par défaut si non défini
+        balanceEl.textContent = `Solde : ${userData.balance || 0} XAF`;
+        // Met également à jour le nom d'utilisateur si le snapshot le fournit (au cas où il changerait)
+        if (userData.username) {
+            welcomeEl.textContent = `Bienvenue sur ton tableau de bord ${userData.username}`;
+        }
+      }, error => {
+        console.error("Erreur d'écoute en temps réel du document utilisateur :", error);
+        // En cas d'erreur grave sur l'écouteur de snapshot, tu pourrais envisager une déconnexion
+        // ou un message d'erreur à l'utilisateur.
+      });
     });
 
-    // Redirige vers fonds.html quand le bouton est cliqué
+    // Le bouton “➕ Déposer” renvoie vers fonds.html (reprise de ton ancien code)
     quickDeposit.addEventListener('click', () => {
       window.location.href = 'fonds.html';
     });
 
-    // Gère la déconnexion
+    // Gère la déconnexion (reprise de ton ancien code)
     logoutBtn.addEventListener('click', () => {
       if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
         auth.signOut().then(() => {
