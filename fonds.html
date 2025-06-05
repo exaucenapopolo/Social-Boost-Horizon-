@@ -373,65 +373,97 @@
     AOS.init({ duration: 600, once: true });
   </script>
 
-  <!-- SCRIPT DE PAIEMENT MIS À JOUR POUR REDIRECTION -->
+  <!-- ============================
+       Firebase & AOS (Wallet) 
+       Repris depuis ton fichier “Mon portefeuille”
+       ============================ -->
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
   <script>
-    document.getElementById('payment-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const messageDiv = document.getElementById('message');
-      messageDiv.textContent = '';
+    // Ta configuration Firebase existante
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.firebasestorage.app",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+    };
+    // Initialisation Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth(), db = firebase.firestore();
 
-      const amount = parseInt(document.getElementById('amount').value, 10);
-      const description = document.getElementById('description').value.trim();
-      const redirectUrl = window.location.origin + '/success.html';
-
-      if (isNaN(amount) || amount < 500) {
-        messageDiv.textContent = 'Le montant doit être au moins 500 FCFA.';
+    // On écoute l'état de connexion pour récupérer l'UID
+    auth.onAuthStateChanged(user => {
+      if (!user) {
+        // Si l’utilisateur n’est pas connecté, on le redirige vers login.html
+        window.location.href = 'login.html';
         return;
       }
+      // L’UID à envoyer au moment du paiement
+      const uid = user.uid;
 
-      try {
-        const functionUrl = window.location.origin + '/.netlify/functions/create-fapshi-checkout';
-        const res = await fetch(functionUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount: amount,
-            currency: 'XAF',
-            description: description || 'Ajout de fonds',
-            redirectUrl: redirectUrl
-          })
-        });
+      // SCRIPT DE PAIEMENT MIS À JOUR POUR REDIRECTION (avec UID)
+      document.getElementById('payment-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const messageDiv = document.getElementById('message');
+        messageDiv.textContent = '';
 
-        let data;
-        try {
-          data = await res.json();
-        } catch {
-          const rawText = await res.text();
-          messageDiv.textContent =
-            'Statut HTTP : ' + res.status + '\nRéponse brute :\n' + rawText;
+        const amount = parseInt(document.getElementById('amount').value, 10);
+        const description = document.getElementById('description').value.trim();
+        const redirectUrl = window.location.origin + '/success.html';
+
+        if (isNaN(amount) || amount < 500) {
+          messageDiv.textContent = 'Le montant doit être au moins 500 FCFA.';
           return;
         }
 
-        if (res.ok && data.checkoutUrl) {
-          window.location.href = data.checkoutUrl;
-        } else {
-          messageDiv.textContent = 'Erreur API : ' + JSON.stringify(data.error || data);
-        }
-      } catch (err) {
-        messageDiv.textContent = 'Erreur réseau ou inattendue : ' + err.message;
-      }
-    });
+        try {
+          const functionUrl = window.location.origin + '/.netlify/functions/create-fapshi-checkout';
+          const res = await fetch(functionUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              amount: amount,
+              currency: 'XAF',
+              description: description || 'Ajout de fonds',
+              redirectUrl: redirectUrl,
+              uid: uid           // ← L’UID est désormais envoyé
+            })
+          });
 
-    // MENU HAMBURGER
-    const hamburgerBtn = document.getElementById('hamburgerBtn'),
-          hamburgerMenu = document.getElementById('hamburgerMenu'),
-          backdrop = document.getElementById('menuBackdrop');
-    function toggleMenu() {
-      hamburgerMenu.classList.toggle('open');
-      backdrop.classList.toggle('active');
-    }
-    hamburgerBtn.addEventListener('click', toggleMenu);
-    backdrop.addEventListener('click', toggleMenu);
+          let data;
+          try {
+            data = await res.json();
+          } catch {
+            const rawText = await res.text();
+            messageDiv.textContent =
+              'Statut HTTP : ' + res.status + '\nRéponse brute :\n' + rawText;
+            return;
+          }
+
+          if (res.ok && data.checkoutUrl) {
+            window.location.href = data.checkoutUrl;
+          } else {
+            messageDiv.textContent = 'Erreur API : ' + JSON.stringify(data.error || data);
+          }
+        } catch (err) {
+          messageDiv.textContent = 'Erreur réseau ou inattendue : ' + err.message;
+        }
+      });
+
+      // Gestion du menu hamburger (inchangé)
+      const hamburgerBtn = document.getElementById('hamburgerBtn'),
+            hamburgerMenu = document.getElementById('hamburgerMenu'),
+            backdrop = document.getElementById('menuBackdrop');
+      function toggleMenu() {
+        hamburgerMenu.classList.toggle('open');
+        backdrop.classList.toggle('active');
+      }
+      hamburgerBtn.addEventListener('click', toggleMenu);
+      backdrop.addEventListener('click', toggleMenu);
+    });
   </script>
 
   <!-- Start of Tawk.to Script (Assistant virtuel) -->

@@ -4,10 +4,197 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Paiement réussi</title>
+  <style>
+    /* Styles généraux pour le corps de la page */
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Police moderne */
+        background-color: #1a1a2e; /* Fond sombre profond */
+        color: #e0e0e0; /* Texte clair pour un bon contraste */
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        position: relative; /* Pour positionner les animations de fond */
+        overflow: hidden; /* Cache le débordement des animations de fond */
+        text-align: center;
+    }
+
+    /* Styles pour les titres */
+    h1 {
+        color: #4CAF50; /* Vert vif pour le succès */
+        margin-bottom: 25px;
+        font-size: 2.5em;
+        font-weight: 600;
+        letter-spacing: 1px;
+    }
+
+    /* Styles pour les paragraphes */
+    p {
+        color: #81D4FA; /* Bleu clair pour les informations */
+        margin-bottom: 20px;
+        font-size: 1.1em;
+        line-height: 1.6;
+    }
+
+    /* Styles pour les liens */
+    a {
+        color: #BBDEFB; /* Bleu plus doux pour les liens */
+        text-decoration: none;
+        padding: 10px 20px;
+        border: 2px solid #BBDEFB;
+        border-radius: 5px;
+        transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        display: inline-flex; /* Permet d'aligner l'icône et le texte */
+        align-items: center;
+        margin-top: 20px;
+    }
+
+    a:hover {
+        background-color: #BBDEFB;
+        color: #1a1a2e; /* Texte sombre au survol */
+        border-color: #BBDEFB;
+    }
+
+    /* --- Animations de fond (particules subtiles) --- */
+    .background-animation {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none; /* Permet aux clics de passer à travers */
+        opacity: 0.4; /* Effet subtil */
+        z-index: -1; /* Derrière le contenu */
+    }
+
+    .particle {
+        position: absolute;
+        background: radial-gradient(circle, #2196F3 0%, transparent 70%); /* Dégradé bleu */
+        border-radius: 50%;
+        animation: moveParticle linear infinite;
+    }
+
+    @keyframes moveParticle {
+        0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+        25% { opacity: 1; }
+        100% { transform: translate(var(--x), var(--y)) scale(1.5); opacity: 0; }
+    }
+
+    /* --- Animation au clic/toucher (effet d'ondulation) --- */
+    .click-animation {
+        position: absolute;
+        width: 40px; /* Taille de l'ondulation */
+        height: 40px;
+        border-radius: 50%;
+        background-color: rgba(76, 175, 80, 0.7); /* Vert semi-transparent */
+        pointer-events: none;
+        animation: ripple 0.6s ease-out forwards; /* 'forwards' maintient l'état final */
+        transform: scale(0); /* Commence petit */
+        opacity: 1;
+    }
+
+    @keyframes ripple {
+        0% {
+            transform: scale(0);
+            opacity: 1;
+        }
+        100% {
+            transform: scale(10); /* S'agrandit beaucoup */
+            opacity: 0; /* Disparaît */
+        }
+    }
+
+    /* --- Icônes (utilisation de Font Awesome via CDN) --- */
+    /* Assurez-vous d'avoir une connexion internet pour que les icônes s'affichent */
+    .icon {
+        margin-right: 8px; /* Espacement entre l'icône et le texte */
+        font-size: 1.2em;
+    }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
-  <h1>Merci, votre paiement a été pris en compte !</h1>
-  <p>Vous venez d’effectuer un paiement de test (sandbox). Cette page confirme la redirection Fapshi.</p>
-  <p><a href="/">Retour à l’accueil</a></p>
+  <div class="background-animation" id="backgroundAnimation"></div>
+
+  <h1><i class="fas fa-check-circle icon"></i>Merci, votre paiement a été pris en compte !</h1>
+  <p>Vous venez d’effectuer un paiement pour SOCIAL BOOST HORIZON. Votre solde a été bel et bien mis à jour. Merci pour votre fidelité.</p>
+  <p>
+    <a href="/">
+      <i class="fas fa-home icon"></i>Retour au tableau de bord
+    </a>
+  </p>
+
+  <script>
+    // --- Script pour les animations de fond (particules) ---
+    const backgroundAnimation = document.getElementById('backgroundAnimation');
+    const numberOfParticles = 30; // Nombre de particules
+
+    function createParticle() {
+      const particle = document.createElement('div');
+      particle.classList.add('particle');
+
+      const size = Math.random() * 10 + 5; // Taille aléatoire entre 5 et 15px
+      particle.style.width = `${size}px`;
+      particle.style.height = `${size}px`;
+
+      // Position de départ aléatoire
+      particle.style.left = `${Math.random() * 100}vw`;
+      particle.style.top = `${Math.random() * 100}vh`;
+
+      // Définir des variables CSS pour le déplacement aléatoire des particules
+      const endX = (Math.random() - 0.5) * 400 + 'vw'; // Déplacement horizontal aléatoire
+      const endY = (Math.random() - 0.5) * 400 + 'vh'; // Déplacement vertical aléatoire
+      particle.style.setProperty('--x', endX);
+      particle.style.setProperty('--y', endY);
+
+      // Durée de l'animation et délai de démarrage aléatoires
+      particle.style.animationDuration = `${Math.random() * 15 + 10}s`; // Entre 10 et 25 secondes
+      particle.style.animationDelay = `-${Math.random() * 10}s`; // Démarre à des moments différents
+
+      backgroundAnimation.appendChild(particle);
+
+      // Supprimer la particule après son animation pour éviter l'accumulation
+      particle.addEventListener('animationend', () => {
+        particle.remove();
+        createParticle(); // Recréer une particule pour un flux continu
+      });
+    }
+
+    // Crée le nombre initial de particules
+    for (let i = 0; i < numberOfParticles; i++) {
+      createParticle();
+    }
+
+    // --- Script pour l'animation au clic/toucher ---
+    document.addEventListener('click', (e) => {
+      const clickAnimation = document.createElement('div');
+      clickAnimation.classList.add('click-animation');
+      // Positionner l'animation au centre du clic
+      clickAnimation.style.left = `${e.clientX - 20}px`; /* Moitié de la largeur/hauteur de l'animation */
+      clickAnimation.style.top = `${e.clientY - 20}px`;
+      document.body.appendChild(clickAnimation);
+      // Supprimer l'élément après l'animation
+      clickAnimation.addEventListener('animationend', () => {
+        clickAnimation.remove();
+      });
+    });
+
+    document.addEventListener('touchstart', (e) => {
+      // Gère les multiples touchers
+      Array.from(e.changedTouches).forEach(touch => {
+        const clickAnimation = document.createElement('div');
+        clickAnimation.classList.add('click-animation');
+        clickAnimation.style.left = `${touch.clientX - 20}px`;
+        clickAnimation.style.top = `${touch.clientY - 20}px`;
+        document.body.appendChild(clickAnimation);
+        clickAnimation.addEventListener('animationend', () => {
+          clickAnimation.remove();
+        });
+      });
+    });
+  </script>
 </body>
 </html>
