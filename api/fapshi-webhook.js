@@ -1,32 +1,20 @@
 // api/fapshi-webhook.js
-
 import admin from ‘firebase-admin’;
 import crypto from ‘crypto’;
 
-// Initialisation Firebase avec gestion d’erreur
+// Initialisation Firebase
 if (!admin.apps.length) {
-try {
-// Formatage correct de la clé privée
-const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\n/g, ‘\n’);
-
-```
 admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: privateKey
-  }),
+credential: admin.credential.cert({
+projectId: process.env.FIREBASE_PROJECT_ID,
+clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\n/g, ‘\n’) // Correction clé privée
+}),
 });
-console.log('✅ Firebase initialisé avec succès');
-```
-
-} catch (error) {
-console.error(‘❌ Erreur initialisation Firebase:’, error);
-}
 }
 
 export default async function handler(req, res) {
-console.log(’>>> Webhook reçu:’, {
+console.log(”>>> WEBHOOK CALLED:”, {
 method: req.method,
 headers: req.headers,
 body: req.body
@@ -38,7 +26,7 @@ return res.status(405).json({ error: ‘Method Not Allowed’ });
 }
 
 try {
-// Récupération du corps brut pour la vérification de signature
+// Récupération du corps brut pour la signature
 let rawBody;
 if (typeof req.body === ‘string’) {
 rawBody = req.body;
@@ -47,121 +35,87 @@ rawBody = JSON.stringify(req.body);
 }
 
 ```
-// Vérification signature HMAC (si fournie)
+// Vérification signature HMAC
 const signature = req.headers['x-fapshi-signature'] || req.headers['X-Fapshi-Signature'];
-const secretKey = process.env.FAPSHI_SECRET_KEY;
+const expectedSig = crypto
+  .createHmac('sha256', process.env.FAPSHI_SECRET_KEY)
+  .update(rawBody)
+  .digest('hex');
 
-if (signature && secretKey) {
-  const expectedSignature = crypto
-    .createHmac('sha256', secretKey)
-    .update(rawBody)
-    .digest('hex');
+console.log(`>>> Signature check:\nReceived: ${signature}\nExpected: ${expectedSig}`);
 
-  console.log('>>> Vérification signature:', {
-    received: signature,
-    expected: expectedSignature,
-    match: signature === expectedSignature
-  });
-
-  if (signature !== expectedSignature) {
-    console.error('❌ Signature invalide');
-    return res.status(401).json({ error: 'Signature invalide' });
-  }
-} else {
-  console.warn('⚠️ Aucune signature fournie - vérification ignorée');
+if (signature !== expectedSig) {
+  console.error('❌ SIGNATURE INVALIDE');
+  return res.status(401).json({ error: 'Signature invalide' });
 }
 
 // Parsing du payload
 let payload;
-if (typeof req.body === 'object') {
-  payload = req.body;
-} else {
-  try {
-    payload = JSON.parse(rawBody);
-  } catch (err) {
-    console.error('Erreur parsing JSON:', err);
-    return res.status(400).json({ error: 'JSON invalide' });
-  }
+try {
+  payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+} catch (err) {
+  console.error('Erreur parsing JSON:', err);
+  return res.status(400).json({ error: 'JSON invalide' });
 }
 
-console.log('>>> Payload webhook:', payload);
+console.log(">>> Payload reçu:", payload);
 
-// Vérification du statut de paiement
-const status = payload.status || payload.payment_status || payload.state;
-
-if (status !== 'paid' && status !== 'completed' && status !== 'success') {
-  console.log(`Paiement non finalisé: ${status}`);
-  return res.status(200).json({ message: 'Paiement non finalisé', status });
+// Vérification statut paiement
+if (payload.status !== 'paid' && payload.status !== 'completed') {
+  console.log(`Paiement non finalisé, statut: ${payload.status}`);
+  return res.status(200).json({ message: 'Paiement non finalisé' });
 }
 
-// Extraction des données
-const uid = payload.metadata?.userId || payload.user_id || payload.custom_data?.userId;
-const amount = parseFloat(payload.amount || payload.total || payload.price || 0);
+// Validation des données
+const uid = payload.metadata?.userId;
+const amount = parseFloat(payload.amount);
 
 if (!uid) {
-  console.error('❌ UID utilisateur manquant dans:', payload);
-  return res.status(400).json({ error: 'ID utilisateur manquant' });
+  console.error('❌ USER ID manquant dans metadata');
+  return res.status(400).json({ error: 'User ID manquant' });
 }
 
 if (!amount || amount <= 0) {
-  console.error('❌ Montant invalide:', amount);
+  console.error('❌ Montant invalide:', payload.amount);
   return res.status(400).json({ error: 'Montant invalide' });
 }
 
-console.log(`>>> Mise à jour solde: ${uid} +${amount}`);
+console.log(`>>> Mise à jour du solde pour l'utilisateur ${uid}: +${amount}`);
 
-// Mise à jour Firestore avec transaction
+// Mise à jour Firestore
 const db = admin.firestore();
 const userRef = db.collection('users').doc(uid);
 
-await db.runTransaction(async (transaction) => {
-  const userDoc = await transaction.get(userRef);
-  const currentData = userDoc.exists ? userDoc.data() : {};
-  const currentBalance = currentData.balance || 0;
+await db.runTransaction(async (tx) => {
+  const doc = await tx.get(userRef);
+  const currentBalance = doc.exists ? (doc.data().balance || 0) : 0;
   const newBalance = currentBalance + amount;
   
-  const updateData = {
+  console.log(`>>> Balance update: ${currentBalance} → ${newBalance}`);
+  
+  tx.set(userRef, { 
     balance: newBalance,
     lastPayment: {
       amount: amount,
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      transactionId: payload.id || payload.transaction_id || Date.now().toString()
+      date: admin.firestore.FieldValue.serverTimestamp(),
+      transactionId: payload.id || payload.transaction_id
     }
-  };
-
-  transaction.set(userRef, updateData, { merge: true });
-  
-  console.log(`✅ Solde mis à jour: ${currentBalance} → ${newBalance}`);
+  }, { merge: true });
 });
 
-// Optionnel: Enregistrer la transaction
-try {
-  await db.collection('transactions').add({
-    userId: uid,
-    amount: amount,
-    status: 'completed',
-    provider: 'fapshi',
-    transactionId: payload.id || payload.transaction_id,
-    timestamp: admin.firestore.FieldValue.serverTimestamp(),
-    rawPayload: payload
-  });
-  console.log('✅ Transaction enregistrée');
-} catch (transError) {
-  console.warn('⚠️ Erreur enregistrement transaction:', transError);
-  // Ne pas faire échouer le webhook pour cela
-}
+console.log('✅ PAIEMENT TRAITÉ AVEC SUCCÈS');
 
 return res.status(200).json({ 
   success: true, 
-  message: 'Paiement traité avec succès' 
+  message: `Solde mis à jour: +${amount}` 
 });
 ```
 
-} catch (error) {
-console.error(‘🔥 ERREUR WEBHOOK:’, error);
+} catch (err) {
+console.error(“🔥 ERREUR FIRESTORE:”, err);
 return res.status(500).json({
-error: ‘Erreur serveur’,
-details: process.env.NODE_ENV === ‘development’ ? error.message : null
+error: ‘Erreur base de données’,
+details: err.message
 });
 }
 }
