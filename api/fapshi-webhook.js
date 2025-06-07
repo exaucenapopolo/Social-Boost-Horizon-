@@ -30,7 +30,6 @@ module.exports = async (req, res) => {
     console.log(">>> Firebase Private Key (End):", firebasePrivateKey.substring(firebasePrivateKey.length - 50));
 
     // La vérification de fin de ligne est un peu tricky, mais c'est un bon indicateur
-    // Nous allons être un peu plus souples ici pour le log, car la clé semble être reçue
     const isPemFormattedCheck = firebasePrivateKey.startsWith('-----BEGIN PRIVATE KEY-----') &&
                                 firebasePrivateKey.endsWith('-----END PRIVATE KEY-----') &&
                                 firebasePrivateKey.includes('\n'); // Vérifie au moins un saut de ligne
@@ -60,7 +59,10 @@ module.exports = async (req, res) => {
     console.log("✅ Firebase already initialized.");
   }
 
-  // Récupération et vérification de la signature
+  // >>>>>>>>>>>>>>>>>>>>>>>>>>> ATTENTION : DÉSACTIVATION DE LA VÉRIFICATION DE SIGNATURE <<<<<<<<<<<<<<<<<<<<<<<<<
+  // Cette section est commentée car Fapshi ne semble pas fournir de Webhook Secret dans ton interface.
+  // Cela rend ton webhook VULNÉRABLE. N'UTILISE CECI QUE POUR LE DÉPANNAGE et réactive une protection ASAP.
+  /*
   const fapshiSignature = req.headers['x-fapshi-signature'];
   console.log('>>> X-Fapshi-Signature Header:', fapshiSignature);
 
@@ -69,8 +71,6 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Signature Fapshi manquante.' });
   }
 
-  // Fapshi envoie du JSON dans req.body, qui est automatiquement parsé par Vercel.
-  // Nous devons s'assurer que req.body n'est pas vide avant de le stringifier.
   let rawBody;
   try {
       rawBody = JSON.stringify(req.body);
@@ -84,6 +84,8 @@ module.exports = async (req, res) => {
   }
 
   try {
+    // Note: FAPSHI_WEBHOOK_SECRET doit toujours être défini même si on ne l'utilise pas ici,
+    // pour éviter des erreurs si la ligne hmac.createHmac n'était pas commentée.
     const hmac = crypto.createHmac('sha256', process.env.FAPSHI_WEBHOOK_SECRET);
     hmac.update(rawBody);
     const expectedSignature = hmac.digest('hex');
@@ -100,6 +102,10 @@ module.exports = async (req, res) => {
     console.error('❌ Error verifying Fapshi signature:', signatureError.message);
     return res.status(500).json({ error: 'Erreur lors de la vérification de la signature Fapshi.', details: signatureError.message });
   }
+  */
+  // >>>>>>>>>>>>>>>>>>>>>>>>>>> FIN DE LA VÉRIFICATION DE SIGNATURE COMMENTÉE <<<<<<<<<<<<<<<<<<<<<<<<<
+
+  console.warn('⚠️ WARNING: Fapshi signature verification is DISABLED for testing purposes. Re-enable for production!');
 
   // Traitement du webhook
   const { transaction } = req.body;
