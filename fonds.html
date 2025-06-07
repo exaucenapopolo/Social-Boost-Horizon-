@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="fr">
 <head>
   <meta charset="UTF-8"/>
@@ -7,13 +6,11 @@
   <title>Ajouter des fonds - Social Boost Horizon</title>
 
   <!-- Google Fonts pour le logo stylé -->
-
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Lobster&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&display=swap" rel="stylesheet">
 
   <!-- Font Awesome for icons -->
-
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <!-- AOS CSS -->
   <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>
@@ -143,39 +140,18 @@
       animation: spin 1s ease-in-out infinite;
     }
 
-    /* Toast notifications */
-    .toast {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 12px 20px;
-      border-radius: 6px;
-      color: white;
-      font-weight: 500;
-      z-index: 10000;
-      opacity: 0;
-      transform: translateX(300px);
-      transition: all 0.3s ease;
-    }
-    
-    .toast.show {
-      opacity: 1;
-      transform: translateX(0);
-    }
-    
-    .toast.error {
-      background-color: var(--red);
-    }
-    
-    .toast.success {
-      background-color: var(--green);
-    }
-    
-    .toast.info {
-      background-color: var(--blue);
+    /* Debug info */
+    .debug-info {
+      margin-top: 20px;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      color: #666;
+      border-left: 3px solid var(--blue);
+      display: none;
     }
   </style>
-
 </head>
 <body>
   <div class="background-animation"></div>
@@ -212,37 +188,40 @@
       <div class="form-overlay" id="formOverlay">
         <div class="spinner"></div>
       </div>
+      
+      <label for="amount">Montant (en XAF) :</label>
+      <input type="number" id="amount" name="amount" value="1000" min="100" required 
+             aria-required="true" aria-describedby="amount-help" />
+      <p id="amount-help" style="font-size: 0.8rem; color: #666; margin-top: -10px; margin-bottom: 15px;">
+        Montant minimum: 100 FCFA
+      </p>
 
-```
-  <label for="amount">Montant (en XAF) :</label>
-  <input type="number" id="amount" name="amount" value="1000" min="100" required 
-         aria-required="true" aria-describedby="amount-help" />
-  <p id="amount-help" style="font-size: 0.8rem; color: #666; margin-top: -10px; margin-bottom: 15px;">
-    Montant minimum: 100 FCFA
-  </p>
+      <label for="description">Description :</label>
+      <input type="text" id="description" name="description" value="Ajout de fonds pour SBH" required 
+             aria-required="true" />
 
-  <label for="description">Description :</label>
-  <input type="text" id="description" name="description" value="Ajout de fonds pour SBH" required 
-         aria-required="true" />
+      <button type="submit" id="submitBtn">
+        <div class="loader" id="submitLoader"></div>
+        <span id="submitText">Payer maintenant</span>
+      </button>
+      <div id="message" class="error" role="alert" aria-live="assertive"></div>
+    </form>
 
-  <button type="submit" id="submitBtn">
-    <div class="loader" id="submitLoader"></div>
-    <span id="submitText">Payer maintenant</span>
-  </button>
-  <div id="message" class="error" role="alert" aria-live="assertive"></div>
-</form>
+    <!-- Debug info (masqué par défaut) -->
+    <div id="debugInfo" class="debug-info">
+      <strong>Informations de débogage :</strong>
+      <div id="debugContent"></div>
+    </div>
 
-<div style="text-align:center; margin-top:20px;">
-  <p style="font-size:.95rem; color:#555; margin-bottom:8px;">
-    Vous n'êtes pas au Cameroun ? Si vous souhaitez payer par un autre mode de paiement, cliquez ci-dessous :
-  </p>
-  <button type="button" onclick="window.location.href='payment.html'"
-    style="background: var(--blue); color:#fff; border:none; padding:10px 20px; font-size:1rem; border-radius:6px; cursor:pointer;">
-    Autre moyen de paiement
-  </button>
-</div>
-```
-
+    <div style="text-align:center; margin-top:20px;">
+      <p style="font-size:.95rem; color:#555; margin-bottom:8px;">
+        Vous n'êtes pas au Cameroun ? Si vous souhaitez payer par un autre mode de paiement, cliquez ci-dessous :
+      </p>
+      <button type="button" onclick="window.location.href='payment.html'"
+        style="background: var(--blue); color:#fff; border:none; padding:10px 20px; font-size:1rem; border-radius:6px; cursor:pointer;">
+        Autre moyen de paiement
+      </button>
+    </div>
   </div>
 
   <div class="footer-small" data-aos="fade-up" data-aos-delay="400">
@@ -250,19 +229,13 @@
   </div>
 
   <!-- AOS JS -->
-
   <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-
   <script> AOS.init({ duration:600, once:true }); </script>
 
   <!-- Firebase & logique front‑end -->
-
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
-
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
-
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
-
   <script>
     // Configuration Firebase
     const firebaseConfig = {
@@ -281,22 +254,30 @@
 
     // Variables globales
     let currentUser = null;
+    const DEBUG_MODE = window.location.hostname === 'localhost' || window.location.search.includes('debug=1');
 
-    // Fonction pour afficher des notifications toast
-    function showToast(message, type = 'info') {
-      const toast = document.createElement('div');
-      toast.className = `toast ${type}`;
-      toast.textContent = message;
-      document.body.appendChild(toast);
-      
-      // Animer l'apparition
-      setTimeout(() => toast.classList.add('show'), 100);
-      
-      // Supprimer après 4 secondes
-      setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => document.body.removeChild(toast), 300);
-      }, 4000);
+    // Fonction de debug
+    function debugLog(message, data = null) {
+      if (DEBUG_MODE) {
+        console.log(`[DEBUG] ${message}`, data);
+        const debugContent = document.getElementById('debugContent');
+        const debugInfo = document.getElementById('debugInfo');
+        if (debugContent && debugInfo) {
+          debugInfo.style.display = 'block';
+          debugContent.innerHTML += `<div><strong>${new Date().toLocaleTimeString()}:</strong> ${message}</div>`;
+          if (data) {
+            debugContent.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+          }
+        }
+      }
+    }
+
+    // Fonction pour afficher les messages
+    function showMessage(text, type = 'error') {
+      const msg = document.getElementById('message');
+      msg.textContent = text;
+      msg.className = type; // 'error' ou 'success'
+      debugLog(`Message affiché (${type}): ${text}`);
     }
 
     // Fonction pour afficher/masquer le loader
@@ -305,6 +286,8 @@
       const submitText = document.getElementById('submitText');
       const submitBtn = document.getElementById('submitBtn');
       const formOverlay = document.getElementById('formOverlay');
+      
+      debugLog(`Loader ${show ? 'activé' : 'désactivé'}`);
       
       if (show) {
         loader.style.display = 'block';
@@ -321,13 +304,28 @@
 
     // Fonction pour gérer les erreurs de l'API
     async function handleApiResponse(response) {
+      debugLog('Réponse API reçue', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
       if (!response.ok) {
         let errorData;
+        const contentType = response.headers.get('content-type');
+        
         try {
-          errorData = await response.json();
+          if (contentType && contentType.includes('application/json')) {
+            errorData = await response.json();
+            debugLog('Données d\'erreur JSON', errorData);
+          } else {
+            const text = await response.text();
+            debugLog('Données d\'erreur texte', text);
+            throw new Error(`Erreur ${response.status}: ${text || response.statusText}`);
+          }
         } catch (e) {
-          const text = await response.text();
-          throw new Error(`Erreur ${response.status}: ${text || response.statusText}`);
+          debugLog('Erreur lors du parsing de la réponse d\'erreur', e);
+          throw new Error(`Erreur ${response.status}: ${response.statusText}`);
         }
         
         const errorMessage = errorData.error || 
@@ -337,29 +335,21 @@
         throw new Error(`Erreur ${response.status}: ${errorMessage}`);
       }
       
-      return await response.json();
-    }
-
-    // Fonction pour obtenir l'URL de base de l'API
-    function getApiBaseUrl() {
-      // En production, utilisez votre URL Vercel
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return 'http://localhost:3000'; // Pour le développement local
-      }
-      
-      // Remplacez par votre vraie URL Vercel
-      return 'https://votre-site.vercel.app';
+      const data = await response.json();
+      debugLog('Données de succès', data);
+      return data;
     }
 
     // Vérifier l'authentification
     auth.onAuthStateChanged(user => {
       if (!user) {
+        debugLog('Utilisateur non connecté, redirection vers login');
         window.location.href = 'login.html';
         return;
       }
       
       currentUser = user;
-      console.log('Utilisateur connecté:', user.uid);
+      debugLog('Utilisateur connecté', { uid: user.uid, email: user.email });
       
       // Configurer le menu hamburger
       const btn = document.getElementById('hamburgerBtn');
@@ -379,16 +369,16 @@
       document.getElementById('payment-form').addEventListener('submit', async e => {
         e.preventDefault();
         
-        const msg = document.getElementById('message');
-        msg.textContent = '';
-        msg.className = '';
-        
+        debugLog('Formulaire soumis');
+        showMessage(''); // Effacer les messages précédents
         toggleLoader(true);
         
         try {
           // Récupération et validation du montant
           const amountInput = document.getElementById('amount').value;
           const amountValue = parseFloat(amountInput);
+          
+          debugLog('Validation du montant', { input: amountInput, parsed: amountValue });
           
           if (isNaN(amountValue)) {
             throw new Error('Veuillez entrer un montant valide');
@@ -402,68 +392,92 @@
           
           const description = document.getElementById('description').value.trim();
           
-          if (!description) {
-            throw new Error('Veuillez entrer une description');
-          }
-          
-          // URL de redirection vers une page de succès
+          // URL de redirection dynamique
           const redirectUrl = `${window.location.origin}/success.html`;
           
-          console.log('Envoi de la requête de paiement:', {
+          debugLog('Paramètres du paiement', {
             amount,
             currency: 'XAF',
             description,
             redirectUrl,
             uid: currentUser.uid
           });
+
+          // Obtenir le token d'authentification
+          const idToken = await currentUser.getIdToken();
+          debugLog('Token d\'authentification obtenu');
           
           // Appeler l'API backend
-          const apiUrl = `${getApiBaseUrl()}/api/create-fapshi-checkout`;
+          const apiUrl = `${window.location.origin}/api/create-fapshi-checkout`;
+          debugLog('URL de l\'API', apiUrl);
+          
+          const requestPayload = { 
+            amount, 
+            currency: 'XAF', 
+            description, 
+            redirectUrl, 
+            uid: currentUser.uid 
+          };
+          
+          debugLog('Envoi de la requête à l\'API', {
+            url: apiUrl,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${idToken.substring(0, 20)}...` // Log partiel du token
+            },
+            body: requestPayload
+          });
           
           const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${idToken}`
             },
-            body: JSON.stringify({ 
-              amount, 
-              currency: 'XAF', 
-              description, 
-              redirectUrl, 
-              uid: currentUser.uid 
-            })
+            body: JSON.stringify(requestPayload)
           });
           
-          console.log('Réponse reçue:', response.status, response.statusText);
-          
-          // Gérer la réponse de l'API
+          // Gérer la réponse de l'API de manière robuste
           const data = await handleApiResponse(response);
           
-          console.log('Données reçues:', data);
-          
           if (data.checkoutUrl) {
-            showToast('Redirection vers le processeur de paiement...', 'success');
+            debugLog('URL de checkout reçue', data.checkoutUrl);
+            showMessage('Redirection vers Fapshi...', 'success');
             
-            // Attendre un peu avant la redirection pour que l'utilisateur voie le message
+            // Petite pause pour que l'utilisateur voie le message
             setTimeout(() => {
               window.location.href = data.checkoutUrl;
-            }, 1500);
+            }, 1000);
           } else {
-            throw new Error('URL de paiement non reçue dans la réponse');
+            debugLog('URL de checkout manquante dans la réponse', data);
+            throw new Error('URL de paiement non reçue du serveur');
           }
           
         } catch (err) {
-          console.error('Erreur paiement:', err);
+          debugLog('Erreur lors du paiement', {
+            name: err.name,
+            message: err.message,
+            stack: err.stack
+          });
           
-          const errorMessage = err.message || 'Une erreur est survenue';
+          console.error('Erreur paiement complète:', err);
           
-          // Afficher l'erreur dans le formulaire
-          msg.textContent = errorMessage;
-          msg.className = 'error';
+          let errorMessage = 'Une erreur est survenue lors du traitement du paiement.';
           
-          // Afficher aussi un toast
-          showToast(errorMessage, 'error');
+          if (err.message) {
+            if (err.message.includes('Failed to fetch')) {
+              errorMessage = 'Erreur de connexion. Vérifiez votre connexion internet et réessayez.';
+            } else if (err.message.includes('401')) {
+              errorMessage = 'Erreur d\'authentification. Veuillez vous reconnecter.';
+            } else if (err.message.includes('500')) {
+              errorMessage = 'Erreur serveur. Veuillez réessayer dans quelques instants.';
+            } else {
+              errorMessage = err.message;
+            }
+          }
           
+          showMessage(errorMessage, 'error');
           toggleLoader(false);
         }
       });
@@ -471,6 +485,8 @@
 
     // Initialiser Tawk.to après le chargement de la page
     window.addEventListener('load', () => {
+      debugLog('Page chargée, initialisation de Tawk.to');
+      
       // Tawk.to Script
       var Tawk_API=Tawk_API||{},Tawk_LoadStart=new Date();
       (function(){
@@ -480,7 +496,13 @@
         s0.parentNode.insertBefore(s1,s0);
       })();
     });
-  </script>
 
+    // Debug: afficher les informations de debug si nécessaire
+    if (DEBUG_MODE) {
+      debugLog('Mode debug activé');
+      debugLog('URL actuelle', window.location.href);
+      debugLog('Origine', window.location.origin);
+    }
+  </script>
 </body>
 </html>
