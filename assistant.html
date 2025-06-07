@@ -132,6 +132,8 @@
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.15);
+      position: relative;
+      min-height: 500px;
     }
 
     .chat-header {
@@ -161,61 +163,48 @@
       margin-top: 5px;
     }
 
-    .chat-messages {
-      height: 300px;
-      overflow-y: auto;
-      margin-bottom: 20px;
-      padding: 15px;
+    .tawk-container {
+      height: 400px;
+      overflow: hidden;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
       background: rgba(20, 35, 60, 0.6);
-      border-radius: 10px;
     }
 
-    .message {
-      margin-bottom: 15px;
-      padding: 10px 15px;
-      border-radius: 10px;
-      max-width: 80%;
-    }
-
-    .assistant-message {
-      background: rgba(155, 89, 182, 0.2);
-      border-left: 3px solid var(--assistant-color);
-      margin-right: auto;
-    }
-
-    .user-message {
-      background: rgba(30, 144, 255, 0.2);
-      border-right: 3px solid var(--sbh-light-blue);
-      margin-left: auto;
-    }
-
-    .chat-input {
+    .tawk-placeholder {
       display: flex;
-      gap: 10px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 20px;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.8);
     }
 
-    .chat-input input {
-      flex: 1;
-      padding: 15px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 8px;
-      background: rgba(20, 35, 60, 0.6);
-      color: var(--sbh-text-white);
-      font-size: 1rem;
+    .tawk-placeholder i {
+      font-size: 3rem;
+      color: var(--assistant-color);
+      margin-bottom: 20px;
     }
 
-    .chat-input button {
-      background: linear-gradient(135deg, var(--assistant-color), #8e44ad);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 0 20px;
-      cursor: pointer;
-      transition: opacity 0.3s;
+    .tawk-placeholder p {
+      margin-bottom: 15px;
     }
 
-    .chat-input button:hover {
-      opacity: 0.9;
+    .loader {
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(155, 89, 182, 0.2);
+      border-top: 5px solid var(--assistant-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
 
     @media (max-width: 768px) {
@@ -293,68 +282,78 @@
         </div>
       </div>
       
-      <div class="chat-messages">
-        <div class="message assistant-message">
-          Bonjour ! Je suis l'assistante virtuelle de Social Boost Horizon. Comment puis-je vous aider aujourd'hui ?
+      <div class="tawk-container" id="tawk-container">
+        <div class="tawk-placeholder">
+          <div class="loader"></div>
+          <p>Chargement de l'assistante virtuelle...</p>
+          <p>Veuillez patienter pendant que nous connectons votre session</p>
         </div>
-        <div class="message user-message">
-          Bonjour, j'aimerais booster mon compte Instagram. Quels services me recommandez-vous ?
-        </div>
-        <div class="message assistant-message">
-          Excellente initiative ! Pour Instagram, je vous recommande notre pack "Boost Complet" qui inclut :
-          - 1000 followers de qualité
-          - 5000 likes répartis sur vos publications
-          - 500 commentaires authentiques
-          - Analyse de votre compte pour des suggestions d'optimisation
-        </div>
-      </div>
-      
-      <div class="chat-input">
-        <input type="text" placeholder="Tapez votre message ici...">
-        <button><i class="fas fa-paper-plane"></i></button>
       </div>
     </div>
   </div>
 
-  <script>
-    document.querySelector('.chat-input button').addEventListener('click', function() {
-      const input = document.querySelector('.chat-input input');
-      const message = input.value.trim();
-      
-      if (message) {
-        const messagesContainer = document.querySelector('.chat-messages');
-        
-        // Ajouter le message de l'utilisateur
-        const userMessage = document.createElement('div');
-        userMessage.className = 'message user-message';
-        userMessage.textContent = message;
-        messagesContainer.appendChild(userMessage);
-        
-        // Réponse automatique de l'assistante
-        setTimeout(() => {
-          const assistantMessage = document.createElement('div');
-          assistantMessage.className = 'message assistant-message';
-          assistantMessage.textContent = "Merci pour votre message ! Notre équipe vous répondra dans les plus brefs délais. En attendant, vous pouvez consulter notre FAQ ou explorer nos services.";
-          messagesContainer.appendChild(assistantMessage);
-          
-          // Faire défiler vers le bas
-          messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }, 1000);
-        
-        // Effacer le champ de saisie
-        input.value = '';
-        
-        // Faire défiler vers le bas
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      }
-    });
+  <!-- Script Tawk.to -->
+  <script type="text/javascript">
+    var Tawk_API = Tawk_API || {}, Tawk_LoadStart = new Date();
     
-    // Permettre d'envoyer avec la touche Entrée
-    document.querySelector('.chat-input input').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        document.querySelector('.chat-input button').click();
-      }
-    });
+    // Configuration personnalisée de Tawk.to
+    Tawk_API.customStyle = {
+        visibility : {
+            desktop : {
+                position : 'inline',
+                horizontal : 'right',
+                vertical : 'bottom'
+            },
+            mobile : {
+                position : 'inline',
+                horizontal : 'right',
+                vertical : 'bottom'
+            }
+        }
+    };
+    
+    // Fonction pour masquer le placeholder et afficher le chat
+    function showChatWidget() {
+        const placeholder = document.querySelector('.tawk-placeholder');
+        if (placeholder) {
+            placeholder.style.display = 'none';
+        }
+    }
+    
+    // Initialisation du widget Tawk.to
+    (function(){
+        var s1 = document.createElement("script"),
+            s0 = document.getElementsByTagName("script")[0];
+        s1.async = true;
+        s1.src = 'https://embed.tawk.to/6820b4dbbca8a11909dc7b3e/default';
+        s1.charset = 'UTF-8';
+        s1.setAttribute('crossorigin','*');
+        s0.parentNode.insertBefore(s1, s0);
+        
+        // Délai pour s'assurer que le widget est chargé
+        setTimeout(() => {
+            if (typeof Tawk_API !== 'undefined') {
+                // Masquer le placeholder une fois le widget chargé
+                Tawk_API.onLoad = function() {
+                    showChatWidget();
+                };
+            } else {
+                showChatWidget();
+            }
+        }, 3000);
+    })();
+    
+    // Fonction pour ouvrir le chat
+    function openChat() {
+        if (typeof Tawk_API !== 'undefined') {
+            Tawk_API.maximize();
+        }
+    }
+    
+    // Ouvrir le chat automatiquement après 10 secondes
+    setTimeout(() => {
+        openChat();
+    }, 10000);
   </script>
 </body>
 </html>
