@@ -107,20 +107,20 @@ module.exports = async (req, res) => {
 
   console.warn('⚠️ WARNING: Fapshi signature verification is DISABLED for testing purposes. Re-enable for production!');
 
-  // >>>>>>>>>>>>>>>>>>>>>>>>>>> DÉBUT DU LOG POUR ANALYSER LE CORPS DU WEBHOOK <<<<<<<<<<<<<<<<<<<<<<<<<
+  // Log pour analyser le corps du webhook
   console.log('>>> Fapshi Webhook Body:', JSON.stringify(req.body, null, 2)); 
-  // >>>>>>>>>>>>>>>>>>>>>>>>>>> FIN DU LOG POUR ANALYSER LE CORPS DU WEBHOOK <<<<<<<<<<<<<<<<<<<<<<<<<
 
-  // Traitement du webhook - ADAPTÉ À LA NOUVELLE STRUCTURE DE DONNÉES FAPSHI
-  const { status, amount, userId, email } = req.body; // On extrait directement les propriétés de req.body
+  // Traitement du webhook - ADAPTÉ À LA STRUCTURE DE DONNÉES FAPSHI et utilisation de externalId
+  const { status, amount, userId, email, externalId } = req.body; // On extrait les propriétés nécessaires
 
-  if (status !== 'SUCCESSFUL') { // On vérifie le statut en MAJUSCULES
+  if (status !== 'SUCCESSFUL') { // On vérifie que le statut est bien "SUCCESSFUL" (en majuscules)
     console.warn(`>>> Transaction status is "${status}". Ignoring non-successful transaction.`);
     return res.status(200).json({ message: 'Ignoring non-successful transaction.' });
   }
 
-  // Décider quel ID utiliser: userId (si présent) ou email
-  const userIdentifier = userId || email; 
+  // Décider quel ID utiliser: externalId (prioritaire si non null), puis userId (si non null), sinon email
+  // L'ordre est important pour privilégier l'ID de ton système si tu le passes à Fapshi
+  const userIdentifier = externalId || userId || email; 
 
   if (!userIdentifier || isNaN(amount)) {
     console.error('❌ Invalid user ID or amount in transaction data. User Identifier:', userIdentifier, 'Amount:', amount);
@@ -129,6 +129,7 @@ module.exports = async (req, res) => {
 
   const db = admin.firestore();
   // Utilise l'identifiant choisi pour le document utilisateur
+  // Assure-toi que userIdentifier est une chaîne (toString() est une bonne pratique au cas où il serait un nombre, bien que ce soit improbable ici)
   const userRef = db.collection('users').doc(userIdentifier.toString()); 
 
   try {
@@ -136,6 +137,7 @@ module.exports = async (req, res) => {
       const userDoc = await t.get(userRef);
 
       if (!userDoc.exists) {
+        // C'est le cas si c'est la première transaction pour cet identifiant
         console.warn(`>>> User ${userIdentifier} not found in Firestore. Creating new user with initial balance.`);
         t.set(userRef, { balance: amount });
       } else {
