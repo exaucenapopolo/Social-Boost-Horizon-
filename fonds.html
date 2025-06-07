@@ -334,8 +334,11 @@
           
           const description = document.getElementById('description').value.trim();
           
-          // URL de redirection dynamique
-          const redirectUrl = `${window.location.origin}/success.html`;
+          // --- MODIFICATION ICI : URL de redirection pour Fapshi ---
+          // C'est l'URL où Fapshi redirigera l'utilisateur après le paiement.
+          // Assure-toi que cette URL est correctement configurée DANS TON TABLEAU DE BORD FAPSHI
+          // pour correspondre à ta page de succès.
+          const fapshiRedirectUrl = `${window.location.origin}/success.html`; 
           
           // Ajouts pour le débogage (maintenus)
           console.log("--- Début de l'appel Fapshi ---");
@@ -343,8 +346,8 @@
           console.log("  Montant:", amount);
           console.log("  Devise:", 'XAF'); 
           console.log("  Description:", description);
-          console.log("  URL de redirection:", redirectUrl);
-          console.log("  UID de l'utilisateur:", currentUser.uid);
+          console.log("  URL de redirection (pour Fapshi):", fapshiRedirectUrl);
+          console.log("  UID de l'utilisateur (externalId):", currentUser.uid); // Ajouté ici
           console.log("  Endpoint de l'API:", 'https://social-boost-horizon-new-sbh.vercel.app/api/create-fapshi-checkout');
 
 
@@ -361,8 +364,8 @@
                 amount, 
                 currency: 'XAF', 
                 description, 
-                redirectUrl, 
-                uid: currentUser.uid 
+                redirectUrl: fapshiRedirectUrl, // *** MODIFIÉ ICI : Utilise la nouvelle variable ***
+                externalId: currentUser.uid // *** AJOUTÉ ICI : C'est le champ clé ! ***
               })
             }
           );
@@ -378,7 +381,7 @@
 
           if (data.checkoutUrl) {
             console.log("URL de paiement Fapshi reçue. Redirection vers:", data.checkoutUrl);
-            window.location.href = data.checkoutUrl;
+            window.location.href = data.checkoutUrl; // Redirige l'utilisateur vers la page de paiement Fapshi
           } else {
             console.error("Erreur: Aucune URL de paiement ('checkoutUrl') trouvée dans la réponse de l'API.");
             throw new Error('URL de paiement non reçue. Veuillez réessayer.');
