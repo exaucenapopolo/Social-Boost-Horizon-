@@ -1,100 +1,127 @@
 // api/create-fapshi-checkout.js
-import fetch from 'node-fetch';
 
-export default async function handler(req, res) {
-  console.log(">>> REQUEST RECEIVED:", {
-    method: req.method,
-    headers: req.headers,
-    body: req.body
-  });
+// Version compatible Node 16+
+const fetch = (...args) => 
+  import('node-fetch').then(({default: fetch}) => fetch(...args));
 
+exports.handler = async (event) => {
+  console.log(">>> EVENT RECEIVED:", JSON.stringify({
+    httpMethod: event.httpMethod,
+    headers: event.headers,
+    body: event.body
+  }));
+  
   console.log(">>> ENV CHECK:", {
     FAPSHI_API_USER: !!process.env.FAPSHI_API_USER,
     FAPSHI_SECRET_KEY: !!process.env.FAPSHI_SECRET_KEY,
     FAPSHI_WEBHOOK_URL: !!process.env.FAPSHI_WEBHOOK_URL
   });
 
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
   try {
-    if (req.method !== 'POST') {
-      return res.status(405).json({ error: 'Use POST only' });
+    if (event.httpMethod !== 'POST') {
+      return { statusCode: 405, body: 'Use POST only' };
     }
 
-    const API_USER = process.env.FAPSHI_API_USER;
-    const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
+    const API_USER    = process.env.FAPSHI_API_USER;
+    const SECRET_KEY  = process.env.FAPSHI_SECRET_KEY;
     const WEBHOOK_URL = process.env.FAPSHI_WEBHOOK_URL;
-
+    
     if (!API_USER || !SECRET_KEY || !WEBHOOK_URL) {
       console.error('CRITICAL: Missing env vars');
-      return res.status(500).json({ error: 'Configuration serveur incomplète' });
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: 'Configuration serveur incomplète' })
+      };
     }
 
-    const { amount, currency, redirectUrl, uid } = req.body;
+    let body;
+    try {
+      body = JSON.parse(event.body);
+    } catch (err) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'JSON invalide' }) };
+    }
+
+    const { amount, currency, redirectUrl, uid } = body;
     if (!amount || !currency || !redirectUrl || !uid) {
-      return res.status(400).json({ error: 'Paramètres manquants' });
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Paramètres manquants' })
+      };
     }
 
     const payload = {
-      amount: parseFloat(amount),
+      amount,
       currency,
       description: 'Paiement Social Boost Horizon',
       redirect_url: redirectUrl,
-      webhook_url: WEBHOOK_URL,
+      webhook_url:  WEBHOOK_URL,
       metadata: { userId: uid }
     };
 
-    console.log(">>> Payload envoyé à Fapshi:", payload);
-
-    const response = await fetch('https://live.fapshi.com/initiate-pay', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apiuser': API_USER,
-        'apikey': SECRET_KEY
-      },
-      body: JSON.stringify(payload),
-      timeout: 8000
-    });
-
-    const rawText = await response.text();
-    console.log('>>> Fapshi response:', response.status, rawText);
-
-    let respJson;
+    // Debug: Vérification des credentials
+    console.log(">>> API Credentials:", Buffer.from(`${API_USER}:${SECRET_KEY}`).toString('base64'));
+    
+    // Configuration du timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    
     try {
-      respJson = JSON.parse(rawText);
+      const response = await fetch('https://live.fapshi.com/initiate-pay', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apiuser': API_USER,
+          'apikey': SECRET_KEY
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+
+      const rawText = await response.text();
+      console.log('>>> Fapshi response:', response.status, rawText);
+
+      if (!response.headers.get('content-type')?.includes('application/json')) {
+        return {
+          statusCode: 502,
+          body: JSON.stringify({ error: 'Réponse invalide du processeur' })
+        };
+      }
+
+      const respJson = JSON.parse(rawText);
+      
+      if (!response.ok) {
+        return { 
+          statusCode: response.status, 
+          body: JSON.stringify(respJson) 
+        };
+      }
+
+      const checkoutUrl = respJson.data?.url || respJson.link;
+      if (!checkoutUrl) throw new Error('Structure de réponse inattendue');
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ checkoutUrl })
+      };
+
     } catch (err) {
-      console.error('Erreur parsing JSON:', err);
-      return res.status(502).json({ error: 'Réponse invalide du processeur' });
+      if (err.name === 'AbortError') {
+        console.error('Fapshi API timeout');
+        return { statusCode: 504, body: JSON.stringify({ error: 'Timeout' }) };
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
     }
-
-    if (!response.ok) {
-      console.error('Erreur Fapshi:', respJson);
-      return res.status(response.status).json(respJson);
-    }
-
-    const checkoutUrl = respJson.data?.url || respJson.link || respJson.checkout_url;
-    if (!checkoutUrl) {
-      console.error('URL de checkout manquante:', respJson);
-      return res.status(500).json({ error: 'URL de paiement manquante' });
-    }
-
-    return res.status(200).json({ checkoutUrl });
 
   } catch (err) {
-    console.error('❌ ERREUR GRAVE:', err);
-    return res.status(500).json({
-      error: 'Erreur serveur',
-      details: process.env.NODE_ENV === 'development' ? err.message : null
-    });
+    console.error('❌ ERREUR GRAVE:', err.stack);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ 
+        error: 'Erreur serveur',
+        details: process.env.NODE_ENV === 'development' ? err.message : null
+      })
+    };
   }
-}
+};
