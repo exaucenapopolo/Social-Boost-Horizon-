@@ -16,9 +16,6 @@
   <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>
 
   <style>
-    /* =======================================================
-       Variables & fond global bleu sombre
-    ======================================================= */
     :root {
       --sbh-dark-blue: #0A162B;
       --sbh-gradient-start: #1e3c72;
@@ -44,53 +41,33 @@
       display: flex; flex-direction: column;
       min-height: 100vh; overflow-x: hidden;
     }
-
-    /* Animation étoiles + nuages */
     .background-animation { position: fixed; top:0; left:0; width:100%; height:100%; z-index:-1; background:var(--sbh-dark-blue); overflow:hidden; }
     .background-animation::before,
     .background-animation::after {
-      content:""; position:absolute; border-radius:50%; background-color:rgba(255,255,255,0.4);
-      animation:twinkle 5s infinite alternate;
+      content:""; position:absolute; border-radius:50%; background-color:rgba(255,255,255,0.4); animation:twinkle 5s infinite alternate;
     }
-    .background-animation::before {
-      width:2px; height:2px;
-      box-shadow: /* étoiles 1px */ 100px 50px,200px 150px,300px 250px,/* etc */;
-      animation-delay:0s;
-    }
-    .background-animation::after {
-      width:3px; height:3px;
-      box-shadow: /* étoiles 2px */ 150px 200px,250px 300px,/* etc */; 
-      animation-delay:2s;
-    }
+    .background-animation::before { width:2px; height:2px; box-shadow:100px 50px,200px 150px,300px 250px; }
+    .background-animation::after  { width:3px; height:3px; box-shadow:150px 200px,250px 300px,350px 100px; animation-delay:2s; }
     @keyframes twinkle { 0%{opacity:0.3;}50%{opacity:0.7;transform:scale(1.1);}100%{opacity:0.3;} }
-    .background-animation .cloud { position:absolute; background:white; border-radius:50%; opacity:0.1; filter:blur(20px); animation:moveClouds linear infinite; }
-    @keyframes moveClouds { from{transform:translateX(0);} to{transform:translateX(100vw);} }
-
-    /* HEADER */
     header {
       background:linear-gradient(45deg,var(--sbh-gradient-start),var(--sbh-gradient-end));
       padding:12px 20px; display:flex; justify-content:space-between; align-items:center; position:relative; z-index:1;
     }
-    .logo-text { display:flex; flex-direction:column; font-family:'Lobster',cursive; color:var(--sbh-text-white); text-decoration:none; }
+    .logo-text { display:flex; flex-direction:column; font-family:'Lobster', cursive; color:var(--sbh-text-white); text-decoration:none; }
     .logo-text .boost-line { display:flex; align-items:center; font-size:1.2rem; font-weight:700; color:var(--sbh-icon-color); }
     .logo-text .boost-line i { margin-right:4px; color:var(--sbh-icon-color); }
     .hamburger-btn { background:transparent; border:none; font-size:1.5rem; color:var(--sbh-text-white); cursor:pointer; z-index:9999; }
-
-    /* MENU OFF-CANVAS */
     .menu-backdrop { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); opacity:0; visibility:hidden; transition:opacity .3s; z-index:9998; }
     .menu-backdrop.active { opacity:1; visibility:visible; }
     .hamburger-menu {
       position:fixed; top:0; right:0; width:240px; max-width:80%; height:100vh; background:#fff; border-left:1px solid var(--card-border);
-      box-shadow:-2px 0 8px rgba(0,0,0,0.2); transform:translateX(100%); transition:transform .3s; z-index:9999;
-      display:flex; flex-direction:column;
+      box-shadow:-2px 0 8px rgba(0,0,0,0.2); transform:translateX(100%); transition:transform .3s; z-index:9999; display:flex; flex-direction:column;
     }
     .hamburger-menu.open { transform:translateX(0); }
     .hamburger-menu ul { list-style:none; flex:1; display:flex; flex-direction:column; justify-content:space-evenly; margin:0; padding:0; }
     .hamburger-menu ul li { border-bottom:1px solid rgba(0,0,0,0.1); }
     .hamburger-menu ul li:last-child { border-bottom:none; }
     .hamburger-menu a { display:block; padding:12px 20px; color:#000; text-decoration:none; }
-
-    /* CONTENEUR FORMULAIRE */
     .payment-container {
       max-width:380px; margin:40px auto; background:#fff; border:2px solid var(--card-border);
       border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.1); padding:20px;
@@ -111,8 +88,6 @@
     }
     .payment-container form button:hover { background:#218838; }
     .payment-container .error { color:#dc3545; font-size:.9rem; margin-top:10px; text-align:center; white-space:pre-wrap; }
-
-    /* FOOTER */
     .footer-small { text-align:center; margin-top:auto; margin-bottom:20px; font-size:.85rem; color:#777; }
   </style>
 </head>
@@ -203,6 +178,7 @@
         const amount = parseInt(document.getElementById('amount').value, 10);
         const description = document.getElementById('description').value.trim();
         const redirectUrl = 'https://social-boost-horizon-new-sbh.vercel.app/success.html';
+
         if (isNaN(amount) || amount < 100) {
           msg.textContent = 'Le montant doit être au moins 100 FCFA.';
           return;
@@ -217,13 +193,17 @@
               body: JSON.stringify({ amount, currency: 'XAF', description, redirectUrl, uid })
             }
           );
+
+          // Lire le body une seule fois
+          const raw = await res.text();
           let data;
-          try { data = await res.json(); }
-          catch {
-            const raw = await res.text();
+          try {
+            data = JSON.parse(raw);
+          } catch {
             msg.textContent = `Statut HTTP : ${res.status}\nRéponse brute :\n${raw}`;
             return;
           }
+
           if (res.ok && data.checkoutUrl) {
             window.location.href = data.checkoutUrl;
           } else {
