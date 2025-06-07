@@ -24,15 +24,13 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: 'Clé privée Firebase non configurée.' });
     }
 
-    // Ajout de logs pour vérifier la clé PEM directement
     console.log(">>> Firebase Private Key (Length):", firebasePrivateKey.length);
     console.log(">>> Firebase Private Key (Start):", firebasePrivateKey.substring(0, 50));
     console.log(">>> Firebase Private Key (End):", firebasePrivateKey.substring(firebasePrivateKey.length - 50));
 
-    // La vérification de fin de ligne est un peu tricky, mais c'est un bon indicateur
     const isPemFormattedCheck = firebasePrivateKey.startsWith('-----BEGIN PRIVATE KEY-----') &&
                                 firebasePrivateKey.endsWith('-----END PRIVATE KEY-----') &&
-                                firebasePrivateKey.includes('\n'); // Vérifie au moins un saut de ligne
+                                firebasePrivateKey.includes('\n');
 
     if (isPemFormattedCheck) {
         console.log(">>> Key APPEARS to be in correct PEM format.");
@@ -52,84 +50,65 @@ module.exports = async (req, res) => {
     } catch (firebaseInitError) {
         console.error("❌ Firebase initialization failed:", firebaseInitError.message);
         console.error("Firebase error details:", firebaseInitError.errorInfo);
-        // Retourne une erreur 500 pour indiquer que le webhook n'a pas pu traiter la requête
         return res.status(500).json({ error: 'Échec de l\'initialisation de Firebase.', details: firebaseInitError.message });
     }
   } else {
     console.log("✅ Firebase already initialized.");
   }
 
-  // >>>>>>>>>>>>>>>>>>>>>>>>>>> ATTENTION : DÉSACTIVATION DE LA VÉRIFICATION DE SIGNATURE <<<<<<<<<<<<<<<<<<<<<<<<<
-  // Cette section est commentée car Fapshi ne semble pas fournir de Webhook Secret dans ton interface.
-  // Cela rend ton webhook VULNÉRABLE. N'UTILISE CECI QUE POUR LE DÉPANNAGE et réactive une protection ASAP.
-  /*
-  const fapshiSignature = req.headers['x-fapshi-signature'];
-  console.log('>>> X-Fapshi-Signature Header:', fapshiSignature);
-
-  if (!fapshiSignature) {
-    console.warn('>>> Missing X-Fapshi-Signature header.');
-    return res.status(400).json({ error: 'Signature Fapshi manquante.' });
-  }
-
-  let rawBody;
-  try {
-      rawBody = JSON.stringify(req.body);
-      if (rawBody === '{}' && Object.keys(req.body).length === 0) {
-          console.error('❌ Request body is empty, cannot verify signature.');
-          return res.status(400).json({ error: 'Corps de requête vide.' });
-      }
-  } catch (jsonError) {
-      console.error('❌ Error stringifying request body:', jsonError.message);
-      return res.status(400).json({ error: 'Corps de requête JSON invalide.' });
-  }
-
-  try {
-    // Note: FAPSHI_WEBHOOK_SECRET doit toujours être défini même si on ne l'utilise pas ici,
-    // pour éviter des erreurs si la ligne hmac.createHmac n'était pas commentée.
-    const hmac = crypto.createHmac('sha256', process.env.FAPSHI_WEBHOOK_SECRET);
-    hmac.update(rawBody);
-    const expectedSignature = hmac.digest('hex');
-
-    console.log('>>> Raw Body (for signature check):', rawBody);
-    console.log('>>> Expected Signature:', expectedSignature);
-
-    if (expectedSignature !== fapshiSignature) {
-      console.error('❌ Invalid Fapshi signature. Expected:', expectedSignature, 'Got:', fapshiSignature);
-      return res.status(403).json({ error: 'Signature Fapshi invalide.' });
-    }
-    console.log('✅ Fapshi signature verified.');
-  } catch (signatureError) {
-    console.error('❌ Error verifying Fapshi signature:', signatureError.message);
-    return res.status(500).json({ error: 'Erreur lors de la vérification de la signature Fapshi.', details: signatureError.message });
-  }
-  */
-  // >>>>>>>>>>>>>>>>>>>>>>>>>>> FIN DE LA VÉRIFICATION DE SIGNATURE COMMENTÉE <<<<<<<<<<<<<<<<<<<<<<<<<
-
   console.warn('⚠️ WARNING: Fapshi signature verification is DISABLED for testing purposes. Re-enable for production!');
 
   // Log pour analyser le corps du webhook
   console.log('>>> Fapshi Webhook Body:', JSON.stringify(req.body, null, 2)); 
 
-  // Traitement du webhook - ADAPTÉ À LA STRUCTURE DE DONNÉES FAPSHI et utilisation de externalId
-  const { status, amount, userId, email, externalId } = req.body; // On extrait les propriétés nécessaires
+  // Traitement du webhook
+  const { status, amount, transId } = req.body; // Nous utilisons maintenant transId du webhook
 
-  if (status !== 'SUCCESSFUL') { // On vérifie que le statut est bien "SUCCESSFUL" (en majuscules)
+  if (status !== 'SUCCESSFUL') {
     console.warn(`>>> Transaction status is "${status}". Ignoring non-successful transaction.`);
     return res.status(200).json({ message: 'Ignoring non-successful transaction.' });
   }
 
-  // Décider quel ID utiliser: externalId (prioritaire si non null), puis userId (si non null), sinon email
-  // L'ordre est important pour privilégier l'ID de ton système si tu le passes à Fapshi
-  const userIdentifier = externalId || userId || email; 
-
-  if (!userIdentifier || isNaN(amount)) {
-    console.error('❌ Invalid user ID or amount in transaction data. User Identifier:', userIdentifier, 'Amount:', amount);
-    return res.status(400).json({ error: 'Données de transaction invalides (ID utilisateur ou montant manquant/invalide).' });
+  // --- NOUVEAU : Récupérer l'ID de l'utilisateur à partir de notre collection Firestore ---
+  if (!transId || isNaN(amount)) {
+    console.error('❌ Invalid transaction ID or amount in webhook data. transId:', transId, 'Amount:', amount);
+    return res.status(400).json({ error: 'Données de transaction webhook invalides (ID ou montant manquant/invalide).' });
   }
 
   const db = admin.firestore();
-  // Utilise l'identifiant choisi pour le document utilisateur
-  // Assure-toi que userIdentifier est une chaîne (toString() est une bonne pratique au cas où il serait un nombre, bien que ce soit improbable ici)
+  const fapshiTransactionRef = db.collection('fapshiTransactions').doc(transId); // Cherche par transId Fapshi
+
+  let userIdentifier;
+  try {
+    const fapshiTransactionDoc = await fapshiTransactionRef.get();
+
+    if (!fapshiTransactionDoc.exists) {
+      console.error(`❌ Transaction Fapshi (${transId}) not found in our fapshiTransactions collection. Cannot link to user.`);
+      // IMPORTANT: Retourne 200 pour éviter que Fapshi ne réessaie indéfiniment un webhook inconnu.
+      return res.status(200).json({ message: 'Transaction Fapshi inconnue, ignorée.' });
+    }
+
+    const transactionData = fapshiTransactionDoc.data();
+    userIdentifier = transactionData.userId; // C'est ici que nous récupérons l'ID de l'utilisateur
+    
+    if (!userIdentifier) {
+      console.error(`❌ userId missing in fapshiTransactions document for transId: ${transId}`);
+      return res.status(500).json({ error: 'Impossible de trouver l\'ID utilisateur lié à cette transaction.' });
+    }
+
+    // Optionnel: Mettre à jour le statut de la transaction Fapshi dans notre base de données
+    await fapshiTransactionRef.update({
+      status: 'CONFIRMED',
+      dateConfirmed: admin.firestore.FieldValue.serverTimestamp()
+    });
+    console.log(`✅ Status updated for fapshiTransaction ${transId} to CONFIRMED.`);
+
+  } catch (lookupError) {
+    console.error('❌ Error looking up fapshi transaction in Firestore:', lookupError.message);
+    return res.status(500).json({ error: 'Erreur lors de la recherche de la transaction Fapshi.', details: lookupError.message });
+  }
+  // --- FIN NOUVEAU ---
+
   const userRef = db.collection('users').doc(userIdentifier.toString()); 
 
   try {
@@ -137,8 +116,7 @@ module.exports = async (req, res) => {
       const userDoc = await t.get(userRef);
 
       if (!userDoc.exists) {
-        // C'est le cas si c'est la première transaction pour cet identifiant
-        console.warn(`>>> User ${userIdentifier} not found in Firestore. Creating new user with initial balance.`);
+        console.warn(`>>> User ${userIdentifier} not found in Firestore (during balance update). Creating with initial balance.`);
         t.set(userRef, { balance: amount });
       } else {
         const currentBalance = userDoc.data().balance || 0;
@@ -151,7 +129,7 @@ module.exports = async (req, res) => {
     return res.status(200).json({ message: 'Webhook processed successfully.' });
 
   } catch (firestoreError) {
-    console.error('❌ Firestore transaction failed:', firestoreError.message);
+    console.error('❌ Firestore balance update transaction failed:', firestoreError.message);
     console.error('Firestore error details:', firestoreError);
     return res.status(500).json({ error: 'Erreur lors de la mise à jour du solde Firebase.', details: firestoreError.message });
   }
