@@ -1,127 +1,115 @@
 // api/create-fapshi-checkout.js
 
-// Version compatible Node 16+
-const fetch = (...args) => 
-  import('node-fetch').then(({default: fetch}) => fetch(...args));
+export default async function handler(req, res) {
+// Permettre CORS pour votre domaine
+res.setHeader(‘Access-Control-Allow-Origin’, ‘*’);
+res.setHeader(‘Access-Control-Allow-Methods’, ‘POST, OPTIONS’);
+res.setHeader(‘Access-Control-Allow-Headers’, ‘Content-Type’);
 
-exports.handler = async (event) => {
-  console.log(">>> EVENT RECEIVED:", JSON.stringify({
-    httpMethod: event.httpMethod,
-    headers: event.headers,
-    body: event.body
-  }));
-  
-  console.log(">>> ENV CHECK:", {
-    FAPSHI_API_USER: !!process.env.FAPSHI_API_USER,
-    FAPSHI_SECRET_KEY: !!process.env.FAPSHI_SECRET_KEY,
-    FAPSHI_WEBHOOK_URL: !!process.env.FAPSHI_WEBHOOK_URL
-  });
+if (req.method === ‘OPTIONS’) {
+return res.status(200).end();
+}
 
-  try {
-    if (event.httpMethod !== 'POST') {
-      return { statusCode: 405, body: 'Use POST only' };
-    }
+console.log(”>>> REQUEST RECEIVED:”, {
+method: req.method,
+body: req.body,
+headers: req.headers
+});
 
-    const API_USER    = process.env.FAPSHI_API_USER;
-    const SECRET_KEY  = process.env.FAPSHI_SECRET_KEY;
-    const WEBHOOK_URL = process.env.FAPSHI_WEBHOOK_URL;
-    
-    if (!API_USER || !SECRET_KEY || !WEBHOOK_URL) {
-      console.error('CRITICAL: Missing env vars');
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: 'Configuration serveur incomplète' })
-      };
-    }
+console.log(”>>> ENV CHECK:”, {
+FAPSHI_API_USER: !!process.env.FAPSHI_API_USER,
+FAPSHI_SECRET_KEY: !!process.env.FAPSHI_SECRET_KEY,
+FAPSHI_WEBHOOK_URL: !!process.env.FAPSHI_WEBHOOK_URL
+});
 
-    let body;
-    try {
-      body = JSON.parse(event.body);
-    } catch (err) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'JSON invalide' }) };
-    }
+try {
+if (req.method !== ‘POST’) {
+return res.status(405).json({ error: ‘Méthode non autorisée’ });
+}
 
-    const { amount, currency, redirectUrl, uid } = body;
-    if (!amount || !currency || !redirectUrl || !uid) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Paramètres manquants' })
-      };
-    }
+```
+const API_USER = process.env.FAPSHI_API_USER;
+const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
+const WEBHOOK_URL = process.env.FAPSHI_WEBHOOK_URL;
 
-    const payload = {
-      amount,
-      currency,
-      description: 'Paiement Social Boost Horizon',
-      redirect_url: redirectUrl,
-      webhook_url:  WEBHOOK_URL,
-      metadata: { userId: uid }
-    };
+if (!API_USER || !SECRET_KEY || !WEBHOOK_URL) {
+  console.error('CRITICAL: Missing env vars');
+  return res.status(500).json({ error: 'Configuration serveur incomplète' });
+}
 
-    // Debug: Vérification des credentials
-    console.log(">>> API Credentials:", Buffer.from(`${API_USER}:${SECRET_KEY}`).toString('base64'));
-    
-    // Configuration du timeout
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-    
-    try {
-      const response = await fetch('https://live.fapshi.com/initiate-pay', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apiuser': API_USER,
-          'apikey': SECRET_KEY
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal
-      });
+const { amount, currency, redirectUrl, uid } = req.body;
 
-      const rawText = await response.text();
-      console.log('>>> Fapshi response:', response.status, rawText);
+if (!amount || !currency || !redirectUrl || !uid) {
+  return res.status(400).json({ error: 'Paramètres manquants: amount, currency, redirectUrl, uid' });
+}
 
-      if (!response.headers.get('content-type')?.includes('application/json')) {
-        return {
-          statusCode: 502,
-          body: JSON.stringify({ error: 'Réponse invalide du processeur' })
-        };
-      }
-
-      const respJson = JSON.parse(rawText);
-      
-      if (!response.ok) {
-        return { 
-          statusCode: response.status, 
-          body: JSON.stringify(respJson) 
-        };
-      }
-
-      const checkoutUrl = respJson.data?.url || respJson.link;
-      if (!checkoutUrl) throw new Error('Structure de réponse inattendue');
-
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ checkoutUrl })
-      };
-
-    } catch (err) {
-      if (err.name === 'AbortError') {
-        console.error('Fapshi API timeout');
-        return { statusCode: 504, body: JSON.stringify({ error: 'Timeout' }) };
-      }
-      throw err;
-    } finally {
-      clearTimeout(timeout);
-    }
-
-  } catch (err) {
-    console.error('❌ ERREUR GRAVE:', err.stack);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ 
-        error: 'Erreur serveur',
-        details: process.env.NODE_ENV === 'development' ? err.message : null
-      })
-    };
-  }
+const payload = {
+  amount: parseFloat(amount),
+  currency,
+  description: 'Paiement Social Boost Horizon',
+  redirect_url: redirectUrl,
+  webhook_url: WEBHOOK_URL,
+  metadata: { userId: uid }
 };
+
+console.log(">>> Payload envoyé à Fapshi:", payload);
+
+// Utilisation de fetch natif (Node.js 18+ sur Vercel)
+const response = await fetch('https://live.fapshi.com/initiate-pay', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'apiuser': API_USER,
+    'apikey': SECRET_KEY
+  },
+  body: JSON.stringify(payload)
+});
+
+const responseText = await response.text();
+console.log('>>> Fapshi response:', {
+  status: response.status,
+  statusText: response.statusText,
+  body: responseText
+});
+
+let respJson;
+try {
+  respJson = JSON.parse(responseText);
+} catch (parseError) {
+  console.error('Erreur parsing JSON:', parseError);
+  return res.status(502).json({ 
+    error: 'Réponse invalide du processeur de paiement',
+    details: responseText.substring(0, 200)
+  });
+}
+
+if (!response.ok) {
+  console.error('Erreur API Fapshi:', respJson);
+  return res.status(response.status).json(respJson);
+}
+
+// Vérification de la structure de réponse
+const checkoutUrl = respJson.data?.url || respJson.link || respJson.checkout_url;
+
+if (!checkoutUrl) {
+  console.error('Structure de réponse inattendue:', respJson);
+  return res.status(502).json({ 
+    error: 'URL de paiement non trouvée',
+    response: respJson
+  });
+}
+
+return res.status(200).json({ 
+  checkoutUrl,
+  transactionId: respJson.data?.id || respJson.id
+});
+```
+
+} catch (error) {
+console.error(‘❌ ERREUR GRAVE:’, error);
+return res.status(500).json({
+error: ‘Erreur serveur interne’,
+details: process.env.NODE_ENV === ‘development’ ? error.message : null
+});
+}
+}
