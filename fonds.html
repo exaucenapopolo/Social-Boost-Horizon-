@@ -257,6 +257,30 @@
       }
     }
 
+    // Fonction pour gérer les erreurs de l'API
+    async function handleApiResponse(response) {
+      if (!response.ok) {
+        let errorData;
+        try {
+          // Essayons de lire le corps comme JSON
+          errorData = await response.json();
+        } catch (e) {
+          // Si le JSON échoue, on lit en texte
+          const text = await response.text();
+          throw new Error(`Erreur ${response.status}: ${text || response.statusText}`);
+        }
+        
+        // Si nous avons des données JSON, les utiliser pour le message d'erreur
+        const errorMessage = errorData.error || 
+                             errorData.message || 
+                             JSON.stringify(errorData);
+        
+        throw new Error(`Erreur ${response.status}: ${errorMessage}`);
+      }
+      
+      return await response.json();
+    }
+
     // Vérifier l'authentification
     auth.onAuthStateChanged(user => {
       if (!user) {
@@ -291,16 +315,21 @@
         toggleLoader(true);
         
         try {
-          const amount = parseInt(document.getElementById('amount').value, 10);
-          const description = document.getElementById('description').value.trim();
+          // Récupération et validation du montant
+          const amountInput = document.getElementById('amount').value;
+          const amountValue = parseFloat(amountInput);
           
-          // Validation côté client
-          if (isNaN(amount) || amount < 100) {
-            msg.textContent = 'Le montant doit être au moins 100 FCFA.';
-            msg.classList.add('error');
-            toggleLoader(false);
-            return;
+          if (isNaN(amountValue)) {
+            throw new Error('Veuillez entrer un montant valide');
           }
+          
+          const amount = Math.round(amountValue);
+          
+          if (amount < 100) {
+            throw new Error('Le montant doit être au moins 100 FCFA.');
+          }
+          
+          const description = document.getElementById('description').value.trim();
           
           // URL de redirection dynamique
           const redirectUrl = `${window.location.origin}/success.html`;
@@ -324,13 +353,8 @@
             }
           );
           
-          // Vérifier la réponse
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `Erreur ${response.status}: ${response.statusText}`);
-          }
-          
-          const data = await response.json();
+          // Gérer la réponse de l'API de manière robuste
+          const data = await handleApiResponse(response);
           
           if (data.checkoutUrl) {
             window.location.href = data.checkoutUrl;
