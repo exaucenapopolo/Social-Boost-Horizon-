@@ -111,39 +111,41 @@ module.exports = async (req, res) => {
   console.log('>>> Fapshi Webhook Body:', JSON.stringify(req.body, null, 2)); 
   // >>>>>>>>>>>>>>>>>>>>>>>>>>> FIN DU LOG POUR ANALYSER LE CORPS DU WEBHOOK <<<<<<<<<<<<<<<<<<<<<<<<<
 
-  // Traitement du webhook
-  const { transaction } = req.body;
-  if (!transaction || transaction.status !== 'successful') {
-    console.warn('>>> Transaction not successful or missing transaction object.');
+  // Traitement du webhook - ADAPTÉ À LA NOUVELLE STRUCTURE DE DONNÉES FAPSHI
+  const { status, amount, userId, email } = req.body; // On extrait directement les propriétés de req.body
+
+  if (status !== 'SUCCESSFUL') { // On vérifie le statut en MAJUSCULES
+    console.warn(`>>> Transaction status is "${status}". Ignoring non-successful transaction.`);
     return res.status(200).json({ message: 'Ignoring non-successful transaction.' });
   }
 
-  const userId = transaction.customer_id; // Ou toute autre propriété pertinente de la transaction
-  const amount = parseFloat(transaction.amount); // Convertir le montant en nombre
+  // Décider quel ID utiliser: userId (si présent) ou email
+  const userIdentifier = userId || email; 
 
-  if (!userId || isNaN(amount)) {
-    console.error('❌ Invalid user ID or amount in transaction data.');
-    return res.status(400).json({ error: 'Données de transaction invalides.' });
+  if (!userIdentifier || isNaN(amount)) {
+    console.error('❌ Invalid user ID or amount in transaction data. User Identifier:', userIdentifier, 'Amount:', amount);
+    return res.status(400).json({ error: 'Données de transaction invalides (ID utilisateur ou montant manquant/invalide).' });
   }
 
   const db = admin.firestore();
-  const userRef = db.collection('users').doc(userId);
+  // Utilise l'identifiant choisi pour le document utilisateur
+  const userRef = db.collection('users').doc(userIdentifier.toString()); 
 
   try {
     await db.runTransaction(async (t) => {
       const userDoc = await t.get(userRef);
 
       if (!userDoc.exists) {
-        console.warn(`>>> User ${userId} not found in Firestore. Creating new user with initial balance.`);
+        console.warn(`>>> User ${userIdentifier} not found in Firestore. Creating new user with initial balance.`);
         t.set(userRef, { balance: amount });
       } else {
         const currentBalance = userDoc.data().balance || 0;
         const newBalance = currentBalance + amount;
         t.update(userRef, { balance: newBalance });
-        console.log(`>>> Updated balance for user ${userId}: ${currentBalance} -> ${newBalance}`);
+        console.log(`>>> Updated balance for user ${userIdentifier}: ${currentBalance} -> ${newBalance}`);
       }
     });
-    console.log(`✅ Transaction successful for user ${userId}. Balance updated by ${amount}.`);
+    console.log(`✅ Transaction successful for user ${userIdentifier}. Balance updated by ${amount}.`);
     return res.status(200).json({ message: 'Webhook processed successfully.' });
 
   } catch (firestoreError) {
