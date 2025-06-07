@@ -252,17 +252,19 @@
       }
     }
 
-    // Fonction pour gérer les erreurs de l'API
+    // FONCTION handleApiResponse CORRIGÉE
     async function handleApiResponse(response) {
+      // Lire le corps de la réponse UNE SEULE FOIS, quel que soit le type
+      const rawText = await response.text(); // Lire en texte brut d'abord
+
       if (!response.ok) {
         let errorData;
         try {
-          // Essayons de lire le corps comme JSON
-          errorData = await response.json();
+          // Tenter de parser comme JSON
+          errorData = JSON.parse(rawText);
         } catch (e) {
-          // Si le JSON échoue, on lit en texte
-          const text = await response.text();
-          throw new Error(`Erreur ${response.status}: ${text || response.statusText}`);
+          // Si ce n'est pas du JSON, utiliser le texte brut comme message
+          throw new Error(`Erreur ${response.status}: ${rawText || response.statusText}`);
         }
         
         // Si nous avons des données JSON, les utiliser pour le message d'erreur
@@ -273,7 +275,13 @@
         throw new Error(`Erreur ${response.status}: ${errorMessage}`);
       }
       
-      return await response.json();
+      // Si la réponse est OK, elle devrait être du JSON valide
+      try {
+        return JSON.parse(rawText);
+      } catch (e) {
+        // Si ce n'est pas un JSON valide alors qu'on attend un succès, c'est une erreur inattendue
+        throw new Error(`Erreur: Réponse du serveur inattendue (non-JSON valide): ${rawText}`);
+      }
     }
 
     // Vérifier l'authentification
@@ -329,11 +337,11 @@
           // URL de redirection dynamique
           const redirectUrl = `${window.location.origin}/success.html`;
           
-          // NOUVEAU: Ajouts pour le débogage
+          // Ajouts pour le débogage (maintenus)
           console.log("--- Début de l'appel Fapshi ---");
           console.log("Préparation de l'appel API Fapshi avec les données suivantes:");
           console.log("  Montant:", amount);
-          console.log("  Devise:", 'XAF'); // La devise est fixe dans ton code
+          console.log("  Devise:", 'XAF'); 
           console.log("  Description:", description);
           console.log("  URL de redirection:", redirectUrl);
           console.log("  UID de l'utilisateur:", currentUser.uid);
@@ -359,26 +367,25 @@
             }
           );
           
-          // NOUVEAU: Log la réponse brute avant de la traiter
+          // Log la réponse brute avant de la traiter
           console.log("Réponse HTTP reçue de l'API (status, headers):", response.status, response.headers);
 
-          // Gérer la réponse de l'API de manière robuste
+          // Gérer la réponse de l'API de manière robuste avec la fonction corrigée
           const data = await handleApiResponse(response);
           
-          // NOUVEAU: Log les données parsées
+          // Log les données parsées
           console.log("Données de réponse de l'API (parsées):", data);
 
           if (data.checkoutUrl) {
-            console.log("URL de paiement Fapshi reçue. Redirection vers:", data.checkoutUrl); // NOUVEAU: Log la redirection
+            console.log("URL de paiement Fapshi reçue. Redirection vers:", data.checkoutUrl);
             window.location.href = data.checkoutUrl;
           } else {
-            // NOUVEAU: Plus de détails en cas d'absence d'URL
             console.error("Erreur: Aucune URL de paiement ('checkoutUrl') trouvée dans la réponse de l'API.");
             throw new Error('URL de paiement non reçue. Veuillez réessayer.');
           }
           
         } catch (err) {
-          console.error('Erreur attrapée pendant le paiement:', err); // NOUVEAU: Assurez-vous que l'erreur est loguée ici
+          console.error('Erreur attrapée pendant le paiement:', err);
           msg.textContent = 'Erreur: ' + (err.message || 'Une erreur est survenue lors du traitement de votre paiement. Veuillez vérifier votre connexion et réessayer.');
           msg.classList.add('error');
           toggleLoader(false);
