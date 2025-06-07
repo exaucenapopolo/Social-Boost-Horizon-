@@ -11,10 +11,9 @@ export default async function handler(req, res) {
   console.log(">>> REQ RECEIVED:", JSON.stringify({
     method: req.method,
     headers: req.headers,
-    // Ne log pas le body en entier directement pour des raisons de sécurité/taille si c'est gros
-    // Mais on peut log une partie si besoin pour le debug
-    // body: req.body 
-  }));
+    // Pour un debug rapide, on peut log le body ici:
+    body: req.body // Log le body pour voir ce qui est reçu
+  }, null, 2)); // Ajout de null, 2 pour un JSON formaté lisible
 
   console.log(">>> ENV CHECK:", {
     FAPSHI_API_USER: !!process.env.FAPSHI_API_USER,
@@ -47,9 +46,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'JSON invalide ou malformé' });
     }
 
-    const { amount, currency, redirectUrl, uid } = body;
-    if (!amount || !currency || !redirectUrl || !uid) {
-      return res.status(400).json({ error: 'Paramètres manquants: amount, currency, redirectUrl ou uid' });
+    // *** MODIFICATION MAJEURE ICI : Extraire externalId au lieu de uid ***
+    const { amount, currency, redirectUrl, externalId } = body; 
+
+    // *** MODIFICATION MAJEURE ICI : Valider externalId au lieu de uid ***
+    if (!amount || !currency || !redirectUrl || !externalId) {
+      console.error('Paramètres manquants:', { amount, currency, redirectUrl, externalId });
+      return res.status(400).json({ error: 'Paramètres manquants: amount, currency, redirectUrl ou externalId' });
     }
 
     const payload = {
@@ -58,11 +61,12 @@ export default async function handler(req, res) {
       description: 'Paiement Social Boost Horizon',
       redirect_url: redirectUrl,
       webhook_url: WEBHOOK_URL,
-      metadata: { userId: uid }
+      metadata: { userId: externalId } // *** MODIFICATION MAJEURE ICI : Utiliser externalId pour Fapshi ***
     };
 
     // Debug: Vérification des credentials
     console.log(">>> API Credentials:", Buffer.from(`${API_USER}:${SECRET_KEY}`).toString('base64'));
+    console.log(">>> Fapshi Payload:", JSON.stringify(payload, null, 2)); // Log le payload envoyé à Fapshi
 
     // Configuration du timeout
     const controller = new AbortController();
@@ -100,7 +104,10 @@ export default async function handler(req, res) {
         return res.status(fapshiResponse.status).json(respJson); 
       }
 
+      // La structure de réponse Fapshi semble être respJson.data.url ou respJson.link
+      // Utilisons data?.url en premier, puis link en fallback.
       const checkoutUrl = respJson.data?.url || respJson.link;
+
       if (!checkoutUrl) {
         console.error('Structure de réponse Fapshi inattendue: pas de checkoutUrl', respJson);
         return res.status(502).json({ error: 'Réponse du processeur incomplète: URL de paiement manquante', details: respJson });
