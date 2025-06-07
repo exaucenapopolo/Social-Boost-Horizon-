@@ -1,21 +1,32 @@
 // api/create-fapshi-checkout.js
-
-// Version compatible Node 16+
-// Pas besoin de 'node-fetch' si Vercel utilise Node.js 18+ ou 20+
-// car 'fetch' est globalement disponible.
-// Si tu es sur Node 16, conserve l'import. Si tu es sur 18/20, tu peux le retirer.
 const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+const admin = require('firebase-admin'); // Importez admin
 
-// Syntaxe Vercel : export default function avec req et res
+// Initialisation Firebase (comme dans le webhook)
+if (!admin.apps.length) {
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY
+      }),
+    });
+    console.log("✅ Firebase initialized in create-fapshi-checkout.js.");
+  } catch (firebaseInitError) {
+    console.error("❌ Firebase initialization failed in create-fapshi-checkout.js:", firebaseInitError.message);
+    // Continue l'exécution pour que l'erreur soit renvoyée au client si la config est mauvaise
+  }
+}
+
 export default async function handler(req, res) {
-  console.log(">>> REQ RECEIVED:", JSON.stringify({
+  console.log(">>> create-fapshi-checkout REQ RECEIVED:", JSON.stringify({
     method: req.method,
     headers: req.headers,
-    // Pour un debug rapide, on peut log le body ici:
     body: req.body // Log le body pour voir ce qui est reçu
-  }, null, 2)); // Ajout de null, 2 pour un JSON formaté lisible
+  }, null, 2));
 
-  console.log(">>> ENV CHECK:", {
+  console.log(">>> ENV CHECK (create-fapshi-checkout):", {
     FAPSHI_API_USER: !!process.env.FAPSHI_API_USER,
     FAPSHI_SECRET_KEY: !!process.env.FAPSHI_SECRET_KEY,
     FAPSHI_WEBHOOK_URL: !!process.env.FAPSHI_WEBHOOK_URL
@@ -23,7 +34,6 @@ export default async function handler(req, res) {
 
   try {
     if (req.method !== 'POST') {
-      // Utilisation de res.status().json() pour Vercel
       return res.status(405).json({ error: 'Method Not Allowed. Use POST only' });
     }
 
@@ -32,43 +42,30 @@ export default async function handler(req, res) {
     const WEBHOOK_URL = process.env.FAPSHI_WEBHOOK_URL;
 
     if (!API_USER || !SECRET_KEY || !WEBHOOK_URL) {
-      console.error('CRITICAL: Missing env vars');
+      console.error('CRITICAL: Missing env vars in create-fapshi-checkout.js');
       return res.status(500).json({ error: 'Configuration serveur incomplète' });
     }
 
-    let body;
-    try {
-      // req.body est déjà parsé par Vercel si Content-Type est application/json
-      body = req.body; 
-    } catch (err) {
-      // Ce bloc catch est moins probable avec req.body, mais on le garde par précaution
-      console.error('JSON parsing error (should not happen with req.body):', err);
-      return res.status(400).json({ error: 'JSON invalide ou malformé' });
-    }
+    const { amount, currency, description, redirectUrl, externalId } = req.body; 
 
-    // *** MODIFICATION MAJEURE ICI : Extraire externalId au lieu de uid ***
-    const { amount, currency, redirectUrl, externalId } = body; 
-
-    // *** MODIFICATION MAJEURE ICI : Valider externalId au lieu de uid ***
+    // Validation des paramètres reçus du frontend
     if (!amount || !currency || !redirectUrl || !externalId) {
-      console.error('Paramètres manquants:', { amount, currency, redirectUrl, externalId });
+      console.error('Paramètres manquants dans la requête client:', { amount, currency, redirectUrl, externalId });
       return res.status(400).json({ error: 'Paramètres manquants: amount, currency, redirectUrl ou externalId' });
     }
 
     const payload = {
       amount,
       currency,
-      description: 'Paiement Social Boost Horizon',
+      description: description || 'Paiement Social Boost Horizon',
       redirect_url: redirectUrl,
       webhook_url: WEBHOOK_URL,
-      metadata: { userId: externalId } // *** MODIFICATION MAJEURE ICI : Utiliser externalId pour Fapshi ***
+      // On passe externalId comme metadata.userId pour le cas où Fapshi le renverrait un jour
+      metadata: { userId: externalId } 
     };
 
-    // Debug: Vérification des credentials
-    console.log(">>> API Credentials:", Buffer.from(`${API_USER}:${SECRET_KEY}`).toString('base64'));
-    console.log(">>> Fapshi Payload:", JSON.stringify(payload, null, 2)); // Log le payload envoyé à Fapshi
+    console.log(">>> Fapshi Payload (create-fapshi-checkout):", JSON.stringify(payload, null, 2));
 
-    // Configuration du timeout
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
 
@@ -85,43 +82,58 @@ export default async function handler(req, res) {
       });
 
       const rawText = await fapshiResponse.text();
-      console.log('>>> Fapshi response:', fapshiResponse.status, rawText);
-
-      // Vercel gère les headers de réponse, donc on utilise res.json directement.
-      // Pas besoin de vérifier 'content-type' ici côté Vercel, car on renvoie notre propre JSON.
-      // La vérification de la réponse Fapshi est toujours pertinente.
+      console.log('>>> Fapshi raw response (create-fapshi-checkout):', fapshiResponse.status, rawText);
       
       let respJson;
       try {
         respJson = JSON.parse(rawText);
       } catch (parseErr) {
-        console.error('Erreur parsing réponse Fapshi non-JSON:', parseErr);
+        console.error('Erreur parsing réponse Fapshi non-JSON (create-fapshi-checkout):', parseErr);
         return res.status(502).json({ error: 'Réponse invalide du processeur (non-JSON)', details: rawText });
       }
 
       if (!fapshiResponse.ok) {
-        // Renvoie le statut et les détails de l'erreur Fapshi
+        console.error('Fapshi API error response:', respJson);
         return res.status(fapshiResponse.status).json(respJson); 
       }
 
-      // La structure de réponse Fapshi semble être respJson.data.url ou respJson.link
-      // Utilisons data?.url en premier, puis link en fallback.
       const checkoutUrl = respJson.data?.url || respJson.link;
+      const fapshiTransId = respJson.transId || null; // Essayer de récupérer le transId si Fapshi le renvoie ici
 
       if (!checkoutUrl) {
         console.error('Structure de réponse Fapshi inattendue: pas de checkoutUrl', respJson);
         return res.status(502).json({ error: 'Réponse du processeur incomplète: URL de paiement manquante', details: respJson });
       }
 
+      // --- NOUVEAU : Enregistrer la transaction dans Firestore ---
+      const db = admin.firestore();
+      const transactionsRef = db.collection('fapshiTransactions'); // Nouvelle collection pour suivre les transactions
+
+      // Créer un document pour suivre cette transaction Fapshi
+      // Utilisez le transId de Fapshi comme ID du document si disponible, sinon un ID généré.
+      const transactionDocId = fapshiTransId || (Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
+      
+      await transactionsRef.doc(transactionDocId).set({
+        fapshiTransId: fapshiTransId, // L'ID de transaction de Fapshi (si disponible)
+        userId: externalId, // L'ID de ton utilisateur Firebase
+        amount: amount,
+        currency: currency,
+        status: 'PENDING', // Statut initial
+        dateInitiated: admin.firestore.FieldValue.serverTimestamp(),
+        checkoutUrl: checkoutUrl // Utile pour le debug si besoin
+      });
+      console.log(`✅ Transaction (${transactionDocId}) recorded in Firestore for user ${externalId}.`);
+      // --- FIN NOUVEAU ---
+
       // Succès: renvoie l'URL de paiement
       return res.status(200).json({ checkoutUrl });
 
     } catch (err) {
       if (err.name === 'AbortError') {
-        console.error('Fapshi API timeout');
+        console.error('Fapshi API timeout (create-fapshi-checkout)');
         return res.status(504).json({ error: 'Timeout lors de la connexion à Fapshi' });
       }
-      console.error('❌ ERREUR LORS DE L\'APPEL FAPSHI:', err.stack);
+      console.error('❌ ERREUR LORS DE L\'APPEL FAPSHI (create-fapshi-checkout):', err.stack);
       return res.status(500).json({ 
         error: 'Erreur interne lors de la communication avec Fapshi',
         details: process.env.NODE_ENV === 'development' ? err.message : null
@@ -131,8 +143,7 @@ export default async function handler(req, res) {
     }
 
   } catch (err) {
-    console.error('❌ ERREUR GÉNÉRALE DANS HANDLER:', err.stack);
-    // Gestion des erreurs inattendues de la fonction elle-même
+    console.error('❌ ERREUR GÉNÉRALE DANS HANDLER (create-fapshi-checkout):', err.stack);
     return res.status(500).json({
       error: 'Erreur serveur interne',
       details: process.env.NODE_ENV === 'development' ? err.message : null
