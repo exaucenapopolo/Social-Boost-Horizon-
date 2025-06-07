@@ -5,6 +5,12 @@ const crypto = require('crypto');
 
 // Initialisation Firebase corrigée et plus robuste pour la clé privée
 if (!admin.apps.length) {
+  // AJOUT DES LIGNES DE DÉBOGAGE POUR LES VARIABLES D'ENVIRONNEMENT
+  console.log(">>> Checking FIREBASE_PROJECT_ID:", process.env.FIREBASE_PROJECT_ID);
+  console.log(">>> Checking FIREBASE_CLIENT_EMAIL:", process.env.FIREBASE_CLIENT_EMAIL);
+  // Log de la clé privée Base64 (seulement les 50 premiers caractères pour ne pas surcharger les logs)
+  console.log(">>> Raw FIREBASE_PRIVATE_KEY (Base64 from ENV):", process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.substring(0, 50) + '...' : 'NOT SET'); 
+
   admin.initializeApp({
     credential: admin.credential.cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
@@ -23,17 +29,10 @@ export default async function handler(req, res) {
   }
 
   // Récupération du corps BRUT
-  // Vercel fournit req.rawBody déjà si le Content-Type est un type de webhook
-  // et si 'bodyParser' est désactivé dans la configuration Vercel (ce qui est souvent le cas pour les webhooks).
-  // Si req.rawBody n'est pas disponible, il faudrait lire le stream manuellement,
-  // mais cela devrait fonctionner par défaut avec les webhooks Vercel.
   const rawBody = req.rawBody; 
 
   if (!rawBody) {
       console.error('Webhook: Corps brut de la requête manquant.');
-      // Envoie une réponse 200 même si le corps est manquant pour éviter les ré-essais excessifs
-      // de la part de Fapshi si c'est un problème ponctuel. Une meilleure pratique serait 400.
-      // Pour le moment, gardons 400 pour un diagnostic clair.
       return res.status(400).json({ error: 'Corps de la requête manquant' });
   }
 
@@ -69,20 +68,16 @@ export default async function handler(req, res) {
   }
 
   // Vérification statut paiement
-  // Assurez-vous que le statut "paid" est bien celui envoyé par Fapshi pour un paiement réussi.
-  // D'autres statuts pourraient être "success", "completed", etc.
   if (payload.status !== 'paid') {
     console.log(`Webhook: Paiement non finalisé ou statut inattendu: ${payload.status}`);
-    // Si le statut n'est pas 'paid', on retourne 200 OK pour ne pas re-tenter inutilement
-    // mais on ne met pas à jour le solde.
     return res.status(200).json({ message: 'Paiement non finalisé ou statut inattendu' });
   }
 
   // Validation des données nécessaires
-  const uid = payload.metadata?.userId; // Accès sécurisé à metadata.userId
+  const uid = payload.metadata?.userId; 
   const amount = payload.amount;
   
-  if (!uid || typeof amount === 'undefined' || amount === null) { // Vérifie aussi si amount est défini
+  if (!uid || typeof amount === 'undefined' || amount === null) {
     console.error('Webhook: Données essentielles manquantes (userId ou amount) dans le payload:', payload);
     return res.status(400).json({ error: 'Données (userId ou amount) manquantes dans le webhook' });
   }
@@ -99,11 +94,11 @@ export default async function handler(req, res) {
     const db = admin.firestore();
     const userRef = db.collection('users').doc(uid);
 
-    let newBalance = 0; // Initialise avec une valeur par défaut
+    let newBalance = 0; 
     await db.runTransaction(async (tx) => {
       const doc = await tx.get(userRef);
       const currentBalance = doc.exists ? doc.data().balance || 0 : 0;
-      newBalance = currentBalance + parsedAmount; // Calcul du nouveau solde
+      newBalance = currentBalance + parsedAmount; 
       tx.set(userRef, { balance: newBalance }, { merge: true });
     });
 
@@ -112,7 +107,6 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error("🔥 ERREUR FIRESTORE LORS DU WEBHOOK:", err);
-    // En cas d'erreur Firebase, renvoie une erreur 500 pour que Fapshi puisse re-tenter plus tard
     return res.status(500).json({ error: 'Erreur base de données lors de la mise à jour du solde', details: err.message });
   }
 }
