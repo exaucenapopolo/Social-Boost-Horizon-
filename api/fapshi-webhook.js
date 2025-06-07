@@ -107,6 +107,10 @@ module.exports = async (req, res) => {
 
   console.warn('⚠️ WARNING: Fapshi signature verification is DISABLED for testing purposes. Re-enable for production!');
 
+  // >>>>>>>>>>>>>>>>>>>>>>>>>>> DÉBUT DU LOG POUR ANALYSER LE CORPS DU WEBHOOK <<<<<<<<<<<<<<<<<<<<<<<<<
+  console.log('>>> Fapshi Webhook Body:', JSON.stringify(req.body, null, 2)); 
+  // >>>>>>>>>>>>>>>>>>>>>>>>>>> FIN DU LOG POUR ANALYSER LE CORPS DU WEBHOOK <<<<<<<<<<<<<<<<<<<<<<<<<
+
   // Traitement du webhook
   const { transaction } = req.body;
   if (!transaction || transaction.status !== 'successful') {
