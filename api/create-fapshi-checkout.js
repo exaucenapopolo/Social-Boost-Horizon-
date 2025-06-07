@@ -1,20 +1,31 @@
 // api/create-fapshi-checkout.js
 
-// 1) Pour Node 16 sur Vercel, importer fetch
+// 1) Pour Node 16 sur Vercel, importer fetch
 const fetch = require('node-fetch');
 
 exports.handler = async (event) => {
+  // 🪵 Logs d’entrée pour diagnostiquer
+  console.log(">>> EVENT RECEIVED:", JSON.stringify({
+    httpMethod: event.httpMethod,
+    headers: event.headers,
+    body: event.body
+  }));
+  console.log(">>> ENV:", {
+    FAPSHI_API_USER: process.env.FAPSHI_API_USER,
+    FAPSHI_SECRET_KEY: !!process.env.FAPSHI_SECRET_KEY,
+    FAPSHI_WEBHOOK_URL: process.env.FAPSHI_WEBHOOK_URL
+  });
+
   try {
-    // 2) Seule la méthode POST est acceptée
+    // 2) Accepter uniquement POST
     if (event.httpMethod !== 'POST') {
       return { statusCode: 405, body: 'Use POST only' };
     }
 
-    // 3) Récupérer les variables d’environnement
+    // 3) Récupérer variables d’environnement
     const API_USER    = process.env.FAPSHI_API_USER;
     const SECRET_KEY  = process.env.FAPSHI_SECRET_KEY;
     const WEBHOOK_URL = process.env.FAPSHI_WEBHOOK_URL;
-
     if (!API_USER || !SECRET_KEY || !WEBHOOK_URL) {
       console.error('Missing env vars:', { API_USER, SECRET_KEY, WEBHOOK_URL });
       return {
@@ -41,7 +52,7 @@ exports.handler = async (event) => {
       };
     }
 
-    // 5) Construire le payload Fapshi
+    // 5) Construire le payload pour Fapshi
     const payload = {
       amount,
       currency,
@@ -50,7 +61,7 @@ exports.handler = async (event) => {
       webhook_url:  WEBHOOK_URL,
       metadata:     { userId: uid }
     };
-    console.log('Payload to Fapshi:', payload);
+    console.log('>>> Payload to Fapshi:', JSON.stringify(payload));
 
     // 6) Appel à l’API Fapshi
     const response = await fetch('https://live.fapshi.com/initiate-pay', {
@@ -65,8 +76,8 @@ exports.handler = async (event) => {
 
     const rawText = await response.text();
     const contentType = response.headers.get('content-type') || '';
-    console.log('Fapshi status:', response.status, 'content-type:', contentType);
-    console.log('Fapshi raw response:', rawText);
+    console.log('>>> Fapshi status:', response.status, 'content-type:', contentType);
+    console.log('>>> Fapshi raw response:', rawText);
 
     if (!contentType.includes('application/json')) {
       return {
@@ -97,8 +108,8 @@ exports.handler = async (event) => {
     };
 
   } catch (err) {
-    // 8) Attraper toute exception non gérée
-    console.error('Unhandled error in create-fapshi-checkout:', err);
+    // 🛑 Log d’erreur complet
+    console.error('❌ Unhandled error in create-fapshi-checkout:', err.stack || err);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: 'Server error', details: err.message })
