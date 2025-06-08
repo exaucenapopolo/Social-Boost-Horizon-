@@ -663,6 +663,9 @@
     const db = firebase.firestore();
     const provider = new firebase.auth.GoogleAuthProvider();
     
+    // URL du backend Replit
+    const BACKEND_URL = 'https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev';
+    
     document.addEventListener("DOMContentLoaded", function () {
       AOS.init({ duration: 800, once: true, offset: 100 });
 
@@ -797,7 +800,7 @@
       }
     });
     
-    // Gestion de l'inscription par email
+    // Gestion de l'inscription par email avec backend Replit
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.querySelector('#registerForm button[type="submit"]');
@@ -862,24 +865,33 @@
         const userId = user.uid;
         
         // Générer un code de parrainage
-        const referralCode = Math.random().toString(36).substring(2,10).toUpperCase();
+        const generatedCode = Math.random().toString(36).substring(2,10).toUpperCase();
         
         // Déterminer le code de parrainage utilisé
-        const urlParams = new URLSearchParams(window.location.search);
-        const referralCodeUsed = referral || urlParams.get('ref') || null;
+        const referralCodeUsed = referral || new URLSearchParams(location.search).get('ref') || null;
         
-        // Enregistrer l'utilisateur dans Firestore
-        await db.collection('users').doc(userId).set({
-          userId,
-          username,
-          email,
-          phone: `${indicatif} ${telephone}`,
-          country: pays,
-          referralCode,
-          referralCodeUsed,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          provider: 'email'
+        // Envoyer les données au backend Replit
+        const response = await fetch(`${BACKEND_URL}/register`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${await user.getIdToken()}`
+          },
+          body: JSON.stringify({
+            userId,
+            username,
+            email,
+            phone: `${indicatif} ${telephone}`,
+            country: pays,
+            referralCode: generatedCode,
+            referralCodeUsed
+          })
         });
+        
+        const responseData = await response.json();
+        if (!responseData.success) {
+          throw new Error(responseData.error || 'Erreur du serveur Replit');
+        }
         
         alert('Inscription réussie !');
         window.location.href = 'dashboard.html';
@@ -892,6 +904,8 @@
           errorMessage = "Cet email est déjà utilisé";
         } else if (error.code === 'auth/weak-password') {
           errorMessage = "Le mot de passe est trop faible";
+        } else if (error.message) {
+          errorMessage = error.message;
         }
         
         document.getElementById('passwordError').textContent = errorMessage;
