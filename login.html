@@ -279,6 +279,7 @@
       text-transform: uppercase;
       letter-spacing: 1px;
       cursor: pointer;
+      position: relative;
     }
     .btn-whatsapp {
       background: linear-gradient(45deg, #25D366, #128C7E);
@@ -483,11 +484,72 @@
         padding: 1.25rem;
       }
     }
+
+    /* Notifications */
+    .notification {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 15px 25px;
+      border-radius: 8px;
+      color: white;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s, top 0.3s;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .notification.show {
+      opacity: 1;
+      top: 30px;
+    }
+    .notification.success {
+      background: #4CAF50;
+      border-left: 4px solid #2E7D32;
+    }
+    .notification.error {
+      background: #f44336;
+      border-left: 4px solid #c62828;
+    }
+    
+    /* Chargement */
+    .loader {
+      display: none;
+      width: 24px;
+      height: 24px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top: 3px solid white;
+      animation: spin 1s linear infinite;
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    @keyframes spin {
+      0% { transform: translateY(-50%) rotate(0deg); }
+      100% { transform: translateY(-50%) rotate(360deg); }
+    }
+    .btn-loading .loader {
+      display: block;
+    }
+    .btn-loading .btn-text {
+      opacity: 0.7;
+    }
   </style>
 </head>
 <body>
   <!-- Fond animé (étoiles + nuages) -->
   <div class="background-animation"></div>
+
+  <!-- Notification -->
+  <div id="notification" class="notification">
+    <span id="notification-message"></span>
+  </div>
 
   <!-- En-tête avec logo sur trois lignes et hamburger menu -->
   <header data-aos="fade-down">
@@ -534,12 +596,16 @@
         </div>
         
         <div class="btn-container">
-          <button type="submit" class="btn">Se connecter</button>
+          <button type="submit" class="btn" id="loginBtn">
+            <span class="btn-text">Se connecter</span>
+            <div class="loader" id="loginLoader"></div>
+          </button>
           
           <div class="divider">OU</div>
           
           <button type="button" class="btn btn-google" id="googleLogin">
-            <i class="fab fa-google"></i> Se connecter avec Google
+            <i class="fab fa-google"></i> <span>Se connecter avec Google</span>
+            <div class="loader" id="googleLoader"></div>
           </button>
         </div>
         
@@ -572,11 +638,32 @@
   <!-- Scripts Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   
   <!-- Scripts AOS -->
   <script defer src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   
   <script>
+    // Fonction pour afficher les notifications
+    function showNotification(message, type) {
+      const notification = document.getElementById('notification');
+      const messageElement = document.getElementById('notification-message');
+      
+      notification.className = 'notification';
+      notification.classList.add(type);
+      messageElement.textContent = message;
+      
+      // Afficher la notification
+      setTimeout(() => {
+        notification.classList.add('show');
+      }, 100);
+      
+      // Cacher après 5 secondes
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, 5000);
+    }
+
     // Initialisation Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
@@ -590,6 +677,7 @@
     // Initialiser Firebase
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
+    const db = firebase.firestore();
     const provider = new firebase.auth.GoogleAuthProvider();
     
     document.addEventListener("DOMContentLoaded", function () {
@@ -639,16 +727,22 @@
 
     // Gestion de la connexion avec Google
     document.getElementById('googleLogin').addEventListener('click', async () => {
+      const btn = document.getElementById('googleLogin');
+      const loader = document.getElementById('googleLoader');
+      
       try {
+        btn.classList.add('btn-loading');
+        loader.style.display = 'block';
+        
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
         
         // Vérifier si l'utilisateur existe dans Firestore
-        const userDoc = await firebase.firestore().collection('users').doc(user.uid).get();
+        const userDoc = await db.collection('users').doc(user.uid).get();
         
         if (!userDoc.exists) {
           // Créer l'utilisateur dans Firestore s'il n'existe pas
-          await firebase.firestore().collection('users').doc(user.uid).set({
+          await db.collection('users').doc(user.uid).set({
             userId: user.uid,
             username: user.displayName.replace(/\s+/g, '_').toLowerCase(),
             email: user.email,
@@ -660,20 +754,34 @@
           });
         }
         
-        alert("Connexion réussie avec Google !");
-        window.location.href = "dashboard.html";
+        showNotification('✅ Connexion réussie avec Google ! Redirection...', 'success');
+        setTimeout(() => window.location.href = 'dashboard.html', 1500);
+        
       } catch (error) {
         console.error("Erreur de connexion Google:", error);
-        document.getElementById('passwordError').textContent = error.message;
-        document.getElementById('passwordError').style.display = 'block';
+        let errorMessage = "Erreur de connexion avec Google";
+        
+        if (error.code === 'auth/popup-closed-by-user') {
+          errorMessage = "Vous avez fermé la fenêtre de connexion Google";
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        showNotification(`❌ ${errorMessage}`, 'error');
+      } finally {
+        btn.classList.remove('btn-loading');
+        loader.style.display = 'none';
       }
     });
     
     // Gestion de la connexion par email
     document.getElementById('loginForm').addEventListener('submit', async e => {
       e.preventDefault();
-      const btn = document.querySelector('#loginForm button[type="submit"]');
-      btn.disabled = true;
+      const btn = document.getElementById('loginBtn');
+      const loader = document.getElementById('loginLoader');
+      
+      btn.classList.add('btn-loading');
+      loader.style.display = 'block';
       
       // Réinitialiser les erreurs
       document.querySelectorAll('.error').forEach(el => {
@@ -701,20 +809,20 @@
       }
       
       if (!isValid) {
-        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+        loader.style.display = 'none';
         return;
       }
       
       try {
-        await auth.signInWithEmailAndPassword(email, password);
+        const { user } = await auth.signInWithEmailAndPassword(email, password);
         
         // Vérifier si l'utilisateur existe dans Firestore
-        const user = auth.currentUser;
-        const userDoc = await firebase.firestore().collection('users').doc(user.uid).get();
+        const userDoc = await db.collection('users').doc(user.uid).get();
         
         if (!userDoc.exists) {
           // Créer l'utilisateur dans Firestore s'il n'existe pas
-          await firebase.firestore().collection('users').doc(user.uid).set({
+          await db.collection('users').doc(user.uid).set({
             userId: user.uid,
             username: user.email.split('@')[0],
             email: user.email,
@@ -726,8 +834,9 @@
           });
         }
         
-        alert("Connexion réussie !");
-        window.location.href = "dashboard.html";
+        showNotification('✅ Connexion réussie ! Redirection...', 'success');
+        setTimeout(() => window.location.href = 'dashboard.html', 1500);
+        
       } catch (error) {
         console.error("Erreur de connexion:", error);
         
@@ -742,9 +851,10 @@
           errorMessage = "Trop de tentatives. Veuillez réessayer plus tard";
         }
         
-        document.getElementById('passwordError').textContent = errorMessage;
-        document.getElementById('passwordError').style.display = 'block';
-        btn.disabled = false;
+        showNotification(`❌ ${errorMessage}`, 'error');
+      } finally {
+        btn.classList.remove('btn-loading');
+        loader.style.display = 'none';
       }
     });
   </script>
