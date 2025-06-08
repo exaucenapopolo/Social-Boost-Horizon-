@@ -723,9 +723,52 @@
           header.classList.remove("open");
         }
       });
+      
+      // Vérifier si on revient d'une redirection Google
+      handleGoogleRedirect();
     });
 
-    // Gestion de la connexion avec Google
+    // Gestion de la redirection Google
+    async function handleGoogleRedirect() {
+      try {
+        const result = await auth.getRedirectResult();
+        if (result.user) {
+          const user = result.user;
+          const btn = document.getElementById('googleLogin');
+          const loader = document.getElementById('googleLoader');
+          
+          btn.classList.add('btn-loading');
+          loader.style.display = 'block';
+          
+          // Vérifier si l'utilisateur existe dans Firestore
+          const userDoc = await db.collection('users').doc(user.uid).get();
+          
+          if (!userDoc.exists) {
+            // Créer l'utilisateur dans Firestore s'il n'existe pas
+            await db.collection('users').doc(user.uid).set({
+              userId: user.uid,
+              username: user.displayName.replace(/\s+/g, '_').toLowerCase(),
+              email: user.email,
+              phone: '',
+              country: '',
+              referralCode: Math.random().toString(36).substring(2,10).toUpperCase(),
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              provider: 'google'
+            });
+          }
+          
+          showNotification('✅ Connexion réussie avec Google ! Redirection...', 'success');
+          setTimeout(() => window.location.href = 'dashboard.html', 1500);
+        }
+      } catch (error) {
+        console.error("Erreur lors du retour de redirection Google:", error);
+        if (error.code !== 'auth/popup-closed-by-user') {
+          showNotification(`❌ Erreur lors de la connexion Google: ${error.message}`, 'error');
+        }
+      }
+    }
+
+    // Gestion de la connexion avec Google (redirection)
     document.getElementById('googleLogin').addEventListener('click', async () => {
       const btn = document.getElementById('googleLogin');
       const loader = document.getElementById('googleLoader');
@@ -734,41 +777,11 @@
         btn.classList.add('btn-loading');
         loader.style.display = 'block';
         
-        const result = await auth.signInWithPopup(provider);
-        const user = result.user;
-        
-        // Vérifier si l'utilisateur existe dans Firestore
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        
-        if (!userDoc.exists) {
-          // Créer l'utilisateur dans Firestore s'il n'existe pas
-          await db.collection('users').doc(user.uid).set({
-            userId: user.uid,
-            username: user.displayName.replace(/\s+/g, '_').toLowerCase(),
-            email: user.email,
-            phone: '',
-            country: '',
-            referralCode: Math.random().toString(36).substring(2,10).toUpperCase(),
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            provider: 'google'
-          });
-        }
-        
-        showNotification('✅ Connexion réussie avec Google ! Redirection...', 'success');
-        setTimeout(() => window.location.href = 'dashboard.html', 1500);
-        
+        // Utilisation de la redirection au lieu de la popup
+        await auth.signInWithRedirect(provider);
       } catch (error) {
-        console.error("Erreur de connexion Google:", error);
-        let errorMessage = "Erreur de connexion avec Google";
-        
-        if (error.code === 'auth/popup-closed-by-user') {
-          errorMessage = "Vous avez fermé la fenêtre de connexion Google";
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
-        
-        showNotification(`❌ ${errorMessage}`, 'error');
-      } finally {
+        console.error("Erreur d'initiation de la connexion Google:", error);
+        showNotification(`❌ Erreur lors de la connexion Google: ${error.message}`, 'error');
         btn.classList.remove('btn-loading');
         loader.style.display = 'none';
       }
