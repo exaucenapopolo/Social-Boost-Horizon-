@@ -26,7 +26,7 @@
 
   <style>
     /* =======================================================
-       Variables & fond global bleu sombre (identique à index.html)
+       Variables & fond global bleu sombre
        ======================================================= */
     :root {
       --sbh-dark-blue: #0A162B;
@@ -46,7 +46,7 @@
       --sbh-error-color: #d00;
     }
 
-    /* Body et fond animé (étoiles + nuages) - identique à index.html */
+    /* Body et fond animé (étoiles + nuages) */
     body {
       margin: 0;
       padding: 0;
@@ -121,7 +121,7 @@
       100% { transform: translateX(calc(100vw + var(--width, 200px))) scale(var(--scale, 1)); }
     }
 
-    /* Reset global & typographie - identique à index.html */
+    /* Reset global & typographie */
     * {
       margin: 0;
       padding: 0;
@@ -168,7 +168,7 @@
       padding: 0 20px;
     }
 
-    /* Header (logo sur trois lignes avec icône à gauche de BOOST + hamburger) - identique à index.html */
+    /* Header */
     header {
       position: sticky;
       top: 0;
@@ -219,7 +219,7 @@
     .icon-hamburger:hover {
       transform: scale(1.1);
     }
-    /* Menu mobile caché par défaut */
+    /* Menu mobile */
     .mobile-menu {
       display: none;
       position: absolute;
@@ -262,7 +262,7 @@
       transform: translateX(5px);
     }
 
-    /* Boutons (bleu vif) - identique à index.html */
+    /* Boutons */
     .btn {
       display: inline-block;
       background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
@@ -326,6 +326,7 @@
       width: 100%;
       box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
       backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
     }
     .form-container h2 {
       text-align: center;
@@ -410,7 +411,7 @@
       text-decoration: underline;
     }
 
-    /* Footer - version simplifiée */
+    /* Footer simplifié */
     footer {
       background: linear-gradient(to right, var(--sbh-gradient-start), var(--sbh-gradient-end));
       color: var(--sbh-text-white);
@@ -560,7 +561,7 @@
         <a href="http://www.youtube.com/@SocialBoostHorizon-d7t" target="_blank" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
       </div>
       <div class="footer-bottom">
-        © 2025 Social Boost Horizon Mč Exau - Tout Droit Reservé • 
+        © 2025 Social Boost Horizon • 
         <a href="legal.html">Mentions légales</a> • 
         <a href="terms.html">CGV</a> • 
         <a href="privacy.html">Confidentialité</a>
@@ -568,9 +569,29 @@
     </div>
   </footer>
 
-  <!-- Scripts -->
+  <!-- Scripts Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  
+  <!-- Scripts AOS -->
   <script defer src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  
   <script>
+    // Initialisation Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.appspot.com",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+    };
+    
+    // Initialiser Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const provider = new firebase.auth.GoogleAuthProvider();
+    
     document.addEventListener("DOMContentLoaded", function () {
       AOS.init({ duration: 800, once: true, offset: 100 });
 
@@ -616,29 +637,33 @@
       });
     });
 
-    // Firebase Auth
-    const firebaseConfig = {
-      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-      authDomain: "social-boost-horizon.firebaseapp.com",
-      projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.appspot.com",
-      messagingSenderId: "43658165639",
-      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
-    };
-    
-    // Initialiser Firebase
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const provider = new firebase.auth.GoogleAuthProvider();
-    
     // Gestion de la connexion avec Google
     document.getElementById('googleLogin').addEventListener('click', async () => {
       try {
-        await auth.signInWithPopup(provider);
+        const result = await auth.signInWithPopup(provider);
+        const user = result.user;
+        
+        // Vérifier si l'utilisateur existe dans Firestore
+        const userDoc = await firebase.firestore().collection('users').doc(user.uid).get();
+        
+        if (!userDoc.exists) {
+          // Créer l'utilisateur dans Firestore s'il n'existe pas
+          await firebase.firestore().collection('users').doc(user.uid).set({
+            userId: user.uid,
+            username: user.displayName.replace(/\s+/g, '_').toLowerCase(),
+            email: user.email,
+            phone: '',
+            country: '',
+            referralCode: Math.random().toString(36).substring(2,10).toUpperCase(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            provider: 'google'
+          });
+        }
+        
         alert("Connexion réussie avec Google !");
         window.location.href = "dashboard.html";
       } catch (error) {
-        console.error(error);
+        console.error("Erreur de connexion Google:", error);
         document.getElementById('passwordError').textContent = error.message;
         document.getElementById('passwordError').style.display = 'block';
       }
@@ -682,10 +707,29 @@
       
       try {
         await auth.signInWithEmailAndPassword(email, password);
+        
+        // Vérifier si l'utilisateur existe dans Firestore
+        const user = auth.currentUser;
+        const userDoc = await firebase.firestore().collection('users').doc(user.uid).get();
+        
+        if (!userDoc.exists) {
+          // Créer l'utilisateur dans Firestore s'il n'existe pas
+          await firebase.firestore().collection('users').doc(user.uid).set({
+            userId: user.uid,
+            username: user.email.split('@')[0],
+            email: user.email,
+            phone: '',
+            country: '',
+            referralCode: Math.random().toString(36).substring(2,10).toUpperCase(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            provider: 'email'
+          });
+        }
+        
         alert("Connexion réussie !");
         window.location.href = "dashboard.html";
       } catch (error) {
-        console.error(error);
+        console.error("Erreur de connexion:", error);
         
         let errorMessage = "Une erreur s'est produite";
         if (error.code === 'auth/user-not-found') {

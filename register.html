@@ -26,7 +26,7 @@
 
   <style>
     /* =======================================================
-       Variables & fond global bleu sombre (identique à index.html)
+       Variables & fond global bleu sombre
        ======================================================= */
     :root {
       --sbh-dark-blue: #0A162B;
@@ -44,9 +44,10 @@
       --sbh-input-bg: rgba(255, 255, 255, 0.1);
       --sbh-input-border: rgba(255, 255, 255, 0.15);
       --sbh-error-color: #d00;
+      --sbh-success-color: #4CAF50;
     }
 
-    /* Body et fond animé (étoiles + nuages) - identique à index.html */
+    /* Body et fond animé (étoiles + nuages) */
     body {
       margin: 0;
       padding: 0;
@@ -121,7 +122,7 @@
       100% { transform: translateX(calc(100vw + var(--width, 200px))) scale(var(--scale, 1)); }
     }
 
-    /* Reset global & typographie - identique à index.html */
+    /* Reset global & typographie */
     * {
       margin: 0;
       padding: 0;
@@ -168,7 +169,7 @@
       padding: 0 20px;
     }
 
-    /* Header (logo sur trois lignes avec icône à gauche de BOOST + hamburger) - identique à index.html */
+    /* Header */
     header {
       position: sticky;
       top: 0;
@@ -219,7 +220,7 @@
     .icon-hamburger:hover {
       transform: scale(1.1);
     }
-    /* Menu mobile caché par défaut */
+    /* Menu mobile */
     .mobile-menu {
       display: none;
       position: absolute;
@@ -262,7 +263,7 @@
       transform: translateX(5px);
     }
 
-    /* Boutons (bleu vif) - identique à index.html */
+    /* Boutons */
     .btn {
       display: inline-block;
       background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
@@ -326,6 +327,7 @@
       width: 100%;
       box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
       backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
     }
     .form-container h2 {
       text-align: center;
@@ -375,6 +377,12 @@
       margin-top: 5px;
       display: none;
     }
+    .success {
+      color: var(--sbh-success-color);
+      font-size: 0.9rem;
+      margin-top: 5px;
+      display: none;
+    }
     .btn-container {
       margin-top: 2rem;
       display: flex;
@@ -417,7 +425,7 @@
       text-decoration: underline;
     }
 
-    /* Footer - version simplifiée */
+    /* Footer simplifié */
     footer {
       background: linear-gradient(to right, var(--sbh-gradient-start), var(--sbh-gradient-end));
       color: var(--sbh-text-white);
@@ -488,6 +496,12 @@
       .form-container {
         padding: 1.25rem;
       }
+      .phone-group {
+        flex-direction: column;
+      }
+      .phone-group input:first-child {
+        max-width: 100%;
+      }
     }
   </style>
 </head>
@@ -543,7 +557,7 @@
           <label for="pays"><i class="fas fa-globe"></i>Pays</label>
           <select id="pays" onchange="updateIndicatif()" required>
             <option value="">— Sélectionnez votre pays —</option>
-            <option value="bj">Bénin 🇧 (+229)</option>
+            <option value="bj">Bénin 🇧🇯 (+229)</option>
             <option value="bf">Burkina Faso 🇧🇫 (+226)</option>
             <option value="cm">Cameroun 🇨🇲 (+237)</option>
             <option value="ca">Canada 🇨🇦 (+1)</option>
@@ -571,7 +585,7 @@
           <label for="telephone"><i class="fas fa-phone"></i>Numéro de téléphone</label>
           <div class="phone-group">
             <input type="text" id="indicatif" readonly placeholder="+229" style="max-width:100px;">
-            <input type="tel" id="telephone" required placeholder="699 85 36 65">
+            <input type="tel" id="telephone" required placeholder="xx xx xx xx">
           </div>
           <div class="error" id="phoneError"></div>
         </div>
@@ -579,6 +593,7 @@
         <div class="form-group">
           <label for="referral"><i class="fas fa-gift"></i>Code de parrainage (optionnel)</label>
           <input type="text" id="referral" placeholder="Entrez le code de votre parrain">
+          <div class="success" id="referralSuccess"></div>
         </div>
         
         <div class="form-group">
@@ -623,9 +638,31 @@
     </div>
   </footer>
 
-  <!-- Scripts -->
+  <!-- Scripts Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  
+  <!-- Scripts AOS -->
   <script defer src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  
   <script>
+    // Initialisation Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.appspot.com",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+    };
+    
+    // Initialiser Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const provider = new firebase.auth.GoogleAuthProvider();
+    
     document.addEventListener("DOMContentLoaded", function () {
       AOS.init({ duration: 800, once: true, offset: 100 });
 
@@ -684,56 +721,79 @@
         codes[document.getElementById('pays').value] || '';
     }
 
-    // Firebase Auth & AOS JS
-    // Firebase Auth & AOS JS
-    const firebaseConfig = {
-      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-      authDomain: "social-boost-horizon.firebaseapp.com",
-      projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.appspot.com",
-      messagingSenderId: "43658165639",
-      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
-    };
-    
-    // Initialiser Firebase
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const provider = new firebase.auth.GoogleAuthProvider();
-    
+    // Vérification du code de parrainage
+    document.getElementById('referral').addEventListener('blur', async function() {
+      const referralCode = this.value.trim();
+      if (!referralCode) return;
+      
+      const referralSuccess = document.getElementById('referralSuccess');
+      referralSuccess.textContent = '';
+      referralSuccess.style.display = 'none';
+      
+      try {
+        // Vérification dans Firestore
+        const querySnapshot = await db.collection('users')
+          .where('referralCode', '==', referralCode.toUpperCase())
+          .limit(1)
+          .get();
+        
+        if (!querySnapshot.empty) {
+          referralSuccess.textContent = '✅ Code de parrainage valide !';
+          referralSuccess.style.display = 'block';
+        } else {
+          referralSuccess.textContent = '⚠️ Code de parrainage invalide';
+          referralSuccess.style.color = 'var(--sbh-error-color)';
+          referralSuccess.style.display = 'block';
+        }
+      } catch (error) {
+        console.error("Erreur de vérification du parrainage:", error);
+      }
+    });
+
     // Gestion de l'inscription avec Google
     document.getElementById('googleSignup').addEventListener('click', async () => {
       try {
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
         
+        // Vérifier si l'utilisateur existe déjà
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        if (userDoc.exists) {
+          alert('Vous êtes déjà inscrit !');
+          window.location.href = 'dashboard.html';
+          return;
+        }
+        
         // Créer un nom d'utilisateur basé sur le nom Google
         const username = user.displayName.replace(/\s+/g, '_').toLowerCase();
         
-        // Envoyer les données au backend (similaire à l'inscription par email)
-        const BACKEND_URL = 'https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev';
-        const rsp = await fetch(`${BACKEND_URL}/register`, {
-          method: 'POST',
-          headers: { 'Content-Type':'application/json' },
-          body: JSON.stringify({
-            userId: user.uid,
-            username,
-            email: user.email,
-            phone: '',
-            country: '',
-            referralCode: Math.random().toString(36).substring(2,10).toUpperCase(),
-            referralCodeUsed: new URLSearchParams(location.search).get('ref') || null
-          })
+        // Générer un code de parrainage
+        const referralCode = Math.random().toString(36).substring(2,10).toUpperCase();
+        
+        // Déterminer le code de parrainage utilisé
+        const urlParams = new URLSearchParams(window.location.search);
+        const referralCodeUsed = urlParams.get('ref') || null;
+        
+        // Enregistrer l'utilisateur dans Firestore
+        await db.collection('users').doc(user.uid).set({
+          userId: user.uid,
+          username,
+          email: user.email,
+          phone: '',
+          country: '',
+          referralCode,
+          referralCodeUsed,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          provider: 'google'
         });
         
-        const response = await rsp.json();
-        if (!response.success) throw new Error(response.error || 'Erreur serveur');
-        
         alert('Inscription réussie avec Google !');
-        location.href = 'dashboard.html';
+        window.location.href = 'dashboard.html';
         
       } catch (error) {
-        console.error(error);
-        document.getElementById('errorMsg').textContent = error.message;
+        console.error("Erreur d'inscription Google:", error);
+        document.getElementById('passwordError').textContent = error.message;
+        document.getElementById('passwordError').style.display = 'block';
       }
     });
     
@@ -802,36 +862,39 @@
         const userId = user.uid;
         
         // Générer un code de parrainage
-        const generatedCode = Math.random().toString(36).substring(2,10).toUpperCase();
+        const referralCode = Math.random().toString(36).substring(2,10).toUpperCase();
         
         // Déterminer le code de parrainage utilisé
-        const referralCodeUsed = referral || new URLSearchParams(location.search).get('ref') || null;
+        const urlParams = new URLSearchParams(window.location.search);
+        const referralCodeUsed = referral || urlParams.get('ref') || null;
         
-        // Envoyer les données au backend
-        const BACKEND_URL = 'https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev';
-        const rsp = await fetch(`${BACKEND_URL}/register`, {
-          method: 'POST',
-          headers: { 'Content-Type':'application/json' },
-          body: JSON.stringify({
-            userId,
-            username,
-            email,
-            phone: `${indicatif} ${telephone}`,
-            country: pays,
-            referralCode: generatedCode,
-            referralCodeUsed
-          })
+        // Enregistrer l'utilisateur dans Firestore
+        await db.collection('users').doc(userId).set({
+          userId,
+          username,
+          email,
+          phone: `${indicatif} ${telephone}`,
+          country: pays,
+          referralCode,
+          referralCodeUsed,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          provider: 'email'
         });
         
-        const response = await rsp.json();
-        if (!response.success) throw new Error(response.error || 'Erreur serveur');
-        
         alert('Inscription réussie !');
-        location.href = 'dashboard.html';
+        window.location.href = 'dashboard.html';
         
       } catch (error) {
-        console.error(error);
-        document.getElementById('passwordError').textContent = error.message;
+        console.error("Erreur d'inscription:", error);
+        
+        let errorMessage = "Une erreur s'est produite lors de l'inscription";
+        if (error.code === 'auth/email-already-in-use') {
+          errorMessage = "Cet email est déjà utilisé";
+        } else if (error.code === 'auth/weak-password') {
+          errorMessage = "Le mot de passe est trop faible";
+        }
+        
+        document.getElementById('passwordError').textContent = errorMessage;
         document.getElementById('passwordError').style.display = 'block';
         btn.disabled = false;
       }
