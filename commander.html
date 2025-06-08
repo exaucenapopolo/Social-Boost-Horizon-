@@ -14,10 +14,12 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" />
 
   <!-- Font Awesome -->
-  <link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
-  />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
   <style>
     /* =======================================================
@@ -47,7 +49,7 @@
       --error-bg: rgba(255, 107, 107, 0.2);
     }
 
-    /* Body et fond animé (étoiles + nuages) */
+    /* Body et fond animé (étoiles) */
     body {
       margin: 0;
       padding: 0;
@@ -62,7 +64,7 @@
       flex-direction: column;
     }
 
-    /* Animation étoiles + nuages */
+    /* Animation étoiles */
     .background-animation {
       position: fixed;
       top: 0;
@@ -670,6 +672,24 @@
   <!-- Scripts AOS, Animation nuages et menu hamburger -->
   <script defer src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   <script>
+    // Configuration Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.appspot.com",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+    };
+    
+    // Initialisation de Firebase
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
     document.addEventListener("DOMContentLoaded", function () {
       AOS.init({ duration: 800, once: true });
 
@@ -689,40 +709,13 @@
       
       // Gestion de la notification
       const notification = document.getElementById('orderNotification');
-      const notificationIcon = document.getElementById('notificationIcon');
-      const notificationMessage = document.getElementById('notificationMessage');
       const notificationClose = document.getElementById('notificationClose');
       
       notificationClose.addEventListener('click', function() {
         notification.style.display = 'none';
       });
       
-      function showNotification(icon, message, type) {
-        notificationIcon.innerHTML = icon;
-        notificationMessage.textContent = message;
-        notification.className = 'order-notification notification-' + type;
-        notification.style.display = 'block';
-      }
-      
-      // Configuration Firebase
-      const firebaseConfig = {
-        apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-        authDomain: "social-boost-horizon.firebaseapp.com",
-        projectId: "social-boost-horizon",
-        storageBucket: "social-boost-horizon.firebasestorage.app",
-        messagingSenderId: "43658165639",
-        appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
-        measurementId: "G-JJPNN90V1"
-      };
-      
-      // Initialisation de Firebase
-      if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-      }
-      
-      const auth = firebase.auth();
-      
-      // Écoute les changements d'état d'authentification
+      // Vérifier l'authentification
       auth.onAuthStateChanged(user => {
         if (!user) {
           window.location.href = 'login.html';
@@ -1244,7 +1237,6 @@
         if (isQuantityFixedByOption) {
           calculatedPrice = currentConfig.price;
           estimatedTime = currentConfig.time;
-          unitPrice = calculatedPrice;
           pricePerThousand = calculatedPrice;
         } else {
           const quantity = parseInt(quantityInput.value) || 0;
@@ -1279,7 +1271,7 @@
           } else {
             quantityError.style.display = 'none';
           }
-          calculatedPrice = count * unitPrice;
+          calculatedPrice = Math.round(count * unitPrice);
           estimatedTime = currentConfig.time;
         } else {
           const quantity = parseInt(quantityInput.value) || 0;
@@ -1289,13 +1281,15 @@
           } else {
             quantityError.style.display = 'none';
           }
-          calculatedPrice = Math.round(unitPrice * quantity);
+          calculatedPrice = Math.round(quantity * unitPrice);
           estimatedTime = currentConfig.time;
         }
       }
 
       priceEstimate.textContent = `Prix estimé : ${calculatedPrice.toLocaleString('fr-FR')} FCFA`;
-      if (!isCommentService && !quantityInput.disabled) {
+      if (serviceDef.options && !isQuantityFixedByOption) {
+        priceDetails.textContent = `(Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
+      } else if (!serviceDef.options && !isCommentService) {
         priceDetails.textContent = `(Prix pour 1 : ${unitPrice.toLocaleString('fr-FR')} FCFA, Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
       } else if (isCommentService) {
         priceDetails.textContent = `(Prix par commentaire : ${unitPrice.toLocaleString('fr-FR')} FCFA)`;
@@ -1379,7 +1373,6 @@
           if (quantityForValidation < minQuantity) {
             quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
             quantityError.style.display = 'block';
-            return;
           }
         }
       }
@@ -1398,30 +1391,25 @@
       };
 
       if (!payload.userId) {
-        orderErrorBox.textContent = "Erreur d'authentification : ID utilisateur manquant. Veuillez vous reconnecter.";
-        orderErrorBox.style.display = 'block';
+        showNotification('❌', "❌ Erreur d'authentification. Veuillez vous reconnecter.", 'error');
         return;
       }
 
       if (payload.subOption === "" && subOptionSection.style.display !== 'none') {
-        orderErrorBox.textContent = "Veuillez choisir une option de service.";
-        orderErrorBox.style.display = 'block';
+        showNotification('❌', "❌ Veuillez choisir une option de service.", 'error');
         return;
       }
 
       if (!payload.contactType) {
-        orderErrorBox.textContent = "Veuillez choisir un mode de contact.";
-        orderErrorBox.style.display = 'block';
+        showNotification('❌', "❌ Veuillez choisir un mode de contact.", 'error');
         return;
       }
       if (payload.contactType === 'whatsapp' && !payload.contact) {
-        orderErrorBox.textContent = "Veuillez saisir votre numéro WhatsApp.";
-        orderErrorBox.style.display = 'block';
+        showNotification('❌', "❌ Veuillez saisir votre numéro WhatsApp.", 'error');
         return;
       }
       if (payload.contactType === 'email' && !payload.contact) {
-        orderErrorBox.textContent = "Veuillez saisir votre adresse Email.";
-        orderErrorBox.style.display = 'block';
+        showNotification('❌', "❌ Veuillez saisir votre adresse Email.", 'error');
         return;
       }
 
