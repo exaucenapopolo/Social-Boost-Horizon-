@@ -705,11 +705,10 @@
   </footer>
 
   <!-- Scripts Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   
-  <!-- Scripts AOS -->
   <script defer src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   
   <script>
@@ -733,7 +732,7 @@
       }, 5000);
     }
 
-    // Initialisation Firebase
+    // Configuration Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -743,8 +742,12 @@
       appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
     };
     
-    // Initialiser Firebase
-    firebase.initializeApp(firebaseConfig);
+    // Initialiser Firebase si ce n'est pas déjà fait
+    // C'est le "guard" pour s'assurer que l'initialisation n'arrive qu'une fois.
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    
     const auth = firebase.auth();
     const db = firebase.firestore();
     const provider = new firebase.auth.GoogleAuthProvider();
@@ -905,21 +908,9 @@
         btn.classList.add('btn-loading');
         loader.style.display = 'block';
         
-        // Définir dynamiquement l'URL de redirection
-        const currentHost = window.location.host;
-        const isLocalhost = currentHost.includes('localhost');
-        
-        // Configuration dynamique pour le domaine actuel
-        const authDomain = isLocalhost ? 'localhost' : currentHost;
-        
-        // Réinitialiser Firebase avec le domaine dynamique
-        firebase.app().delete();
-        firebase.initializeApp({
-          ...firebaseConfig,
-          authDomain: `${authDomain}`
-        });
-        
-        // Utilisation de la redirection
+        // La réinitialisation de l'app Firebase n'est plus nécessaire ici
+        // car l'app est déjà initialisée une fois au début du script.
+        // authDomain sera configuré par Firebase.
         await firebase.auth().useDeviceLanguage();
         await firebase.auth().signInWithRedirect(provider);
       } catch (error) {
@@ -1049,5 +1040,3 @@
       }
     });
   </script>
-</body>
-</html>
