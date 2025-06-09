@@ -891,12 +891,12 @@
       } catch (error) {
         console.error("Erreur lors du retour de redirection Google:", error);
         if (error.code !== 'auth/popup-closed-by-user') {
-          showNotification(`❌ Erreur lors de la connexion Google: ${error.message}`, 'error');
+          showNotification(`❌ Erreur Google: ${error.message}`, 'error');
         }
       }
     }
 
-    // Gestion de l'inscription avec Google (redirection)
+    // Gestion de l'inscription avec Google (redirection dynamique)
     document.getElementById('googleSignup').addEventListener('click', async () => {
       const btn = document.getElementById('googleSignup');
       const loader = document.getElementById('googleLoader');
@@ -905,11 +905,26 @@
         btn.classList.add('btn-loading');
         loader.style.display = 'block';
         
-        // Utilisation de la redirection au lieu de la popup
-        await auth.signInWithRedirect(provider);
+        // Définir dynamiquement l'URL de redirection
+        const currentHost = window.location.host;
+        const isLocalhost = currentHost.includes('localhost');
+        
+        // Configuration dynamique pour le domaine actuel
+        const authDomain = isLocalhost ? 'localhost' : currentHost;
+        
+        // Réinitialiser Firebase avec le domaine dynamique
+        firebase.app().delete();
+        firebase.initializeApp({
+          ...firebaseConfig,
+          authDomain: `${authDomain}`
+        });
+        
+        // Utilisation de la redirection
+        await firebase.auth().useDeviceLanguage();
+        await firebase.auth().signInWithRedirect(provider);
       } catch (error) {
         console.error("Erreur d'initiation de la connexion Google:", error);
-        showNotification(`❌ Erreur lors de la connexion Google: ${error.message}`, 'error');
+        showNotification(`❌ Erreur Google: ${error.message}`, 'error');
         btn.classList.remove('btn-loading');
         loader.style.display = 'none';
       }
