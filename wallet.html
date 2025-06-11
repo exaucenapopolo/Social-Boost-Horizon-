@@ -1,258 +1,1161 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8"/>  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>  
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Mon portefeuille - Social Boost Horizon</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@600;700;800&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
 
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&display=swap" rel="stylesheet">
+  <!-- AOS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
+
   <!-- Font Awesome -->
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <!-- AOS CSS -->
-  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
   <style>
+    /* =======================================================
+       Variables & fond global bleu sombre
+       ======================================================= */
     :root {
-      --blue:        #004080;
-      --green:       #28a745;
-      --bg-pastel:   #F0F8F4;
-      --text-dark:   #212121;
-      --card-border: var(--blue);
+      --sbh-dark-blue: #0A162B;
+      --sbh-gradient-start: #1e3c72;
+      --sbh-gradient-end: #6a0dad;
+      --sbh-btn-color: #1E90FF;
+      --sbh-btn-hover: #187bcd;
+      --sbh-icon-color: #4CAF50;
+      --sbh-text-white: #FFFFFF;
+      --sbh-text-green: #4CAF50;
+      --sbh-card-bg: rgba(17, 32, 58, 0.6);
+      --sbh-card-border: rgba(255, 255, 255, 0.1);
+      --sbh-text-light: rgba(255, 255, 255, 0.9);
+      --sbh-accent: #FF6B6B;
+      --sbh-light-blue: #4DA6FF;
     }
-    * { margin:0; padding:0; box-sizing:border-box; }
+
+    /* Body et fond animé (étoiles + nuages) */
     body {
-      display: flex; flex-direction: column; height: 100vh;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Roboto', sans-serif;
+      color: var(--sbh-text-white);
+      background: var(--sbh-dark-blue);
+      position: relative;
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Animation étoiles + nuages */
+    .background-animation {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      background-color: var(--sbh-dark-blue);
+      overflow: hidden;
+    }
+    .background-animation::before,
+    .background-animation::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.4);
+      animation: twinkle 5s infinite alternate;
+    }
+    .background-animation::before {
+      width: 2px;
+      height: 2px;
+      box-shadow:
+        100px  50px  0 0 white, 200px 150px  0 0 white, 300px 250px  0 0 white,
+        400px  70px  0 0 white,  50px 300px  0 0 white, 350px 100px  0 0 white,
+        500px 400px  0 0 white, 600px 120px  0 0 white, 700px 350px  0 0 white,
+        80px  10px  0 0 white, 420px 220px 0 0 white, 680px 50px 0 0 white,
+        150px 450px 0 0 white, 550px 320px 0 0 white, 220px 180px 0 0 white,
+        780px 280px 0 0 white, 120px 70px 0 0 white, 480px 380px 0 0 white,
+        850px 150px 0 0 white, 90px 390px 0 0 white;
+      animation-delay: 0s;
+    }
+    .background-animation::after {
+      width: 3px;
+      height: 3px;
+      box-shadow:
+        150px 200px  0 0 white, 250px 300px  0 0 white,  50px 100px  0 0 white,
+        300px  10px  0 0 white, 450px 200px  0 0 white,  10px 250px  0 0 white,
+        550px  50px  0 0 white, 650px 280px  0 0 white, 750px  150px  0 0 white,
+        20px  400px 0 0 white, 380px 180px 0 0 white, 620px 430px 0 0 white,
+        250px 20px 0 0 white, 700px 480px 0 0 white, 330px 50px 0 0 white,
+        800px 300px 0 0 white, 50px 500px 0 0 white, 900px 200px 0 0 white,
+        180px 420px 0 0 white, 720px 100px 0 0 white;
+      animation-delay: 2s;
+    }
+    @keyframes twinkle {
+      0%   { opacity: 0.3; transform: scale(1); }
+      50%  { opacity: 0.7; transform: scale(1.1); }
+      100% { opacity: 0.3; transform: scale(1); }
+    }
+    .background-animation .cloud {
+      position: absolute;
+      background: white;
+      border-radius: 50%;
+      opacity: 0.1;
+      filter: blur(20px);
+      animation: moveClouds linear infinite;
+    }
+    @keyframes moveClouds {
+      0%   { transform: translateX(0) scale(var(--scale, 1)); }
+      100% { transform: translateX(calc(100vw + var(--width, 200px))) scale(var(--scale, 1)); }
+    }
+
+    /* Reset global & typographie */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    h1, h2, h3 {
       font-family: 'Montserrat', sans-serif;
-      background: var(--bg-pastel);
-      color: var(--text-dark);
+      color: var(--sbh-text-white);
     }
-    .header { background: linear-gradient(45deg, var(--blue), #6a0dad); padding:12px 20px; text-align:center; position:relative; z-index:1; }
-    .header h1 { color:#fff; font-size:1.4rem; }
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      position: relative;
+      display: inline-block;
+      width: 100%;
+    }
+    h1::after {
+      content: "";
+      position: absolute;
+      bottom: -15px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 5px;
+      background: linear-gradient(90deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      border-radius: 3px;
+    }
+    h2 {
+      font-size: 2rem;
+      margin-bottom: 1.5rem;
+      position: relative;
+      display: inline-block;
+    }
+    h2::after {
+      content: "";
+      position: absolute;
+      bottom: -10px;
+      left: 0;
+      width: 60px;
+      height: 4px;
+      background: linear-gradient(90deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      border-radius: 2px;
+    }
+    p {
+      font-size: 1rem;
+      color: var(--sbh-text-light);
+      margin-bottom: 1rem;
+      line-height: 1.6;
+    }
+
+    /* HEADER */
+    header {
+      position: sticky;
+      top: 0;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    .logo-text {
+      display: flex;
+      flex-direction: column;
+      font-family: 'Poppins', sans-serif;
+      text-decoration: none;
+      line-height: 1.2;
+    }
+    .logo-text .text-social,
+    .logo-text .text-horizon {
+      color: var(--sbh-text-white);
+      font-size: 1.3rem;
+      font-weight: 600;
+    }
+    .logo-text .boost-line {
+      display: flex;
+      align-items: center;
+      color: var(--sbh-text-green);
+      font-size: 1.8rem;
+      font-weight: 800;
+    }
+    .logo-text .boost-line img {
+      height: 1.8rem;
+      margin-right: 0.4rem;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    .icon-hamburger {
+      font-size: 1.8rem;
+      color: var(--sbh-text-white);
+      cursor: pointer;
+      transition: transform 0.3s;
+    }
+    .icon-hamburger:hover {
+      transform: scale(1.1);
+    }
+    /* Menu mobile caché par défaut */
+    .mobile-menu {
+      display: none;
+      position: absolute;
+      top: 68px;
+      right: 2rem;
+      background: rgba(10, 22, 43, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      padding: 1.5rem;
+      flex-direction: column;
+      z-index: 200;
+      min-width: 250px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+    header.open .mobile-menu {
+      display: flex;
+    }
+    .mobile-menu a {
+      color: var(--sbh-text-white);
+      text-decoration: none;
+      padding: 0.8rem 1rem;
+      font-weight: 500;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+    }
+    .mobile-menu a:last-child {
+      border-bottom: none;
+    }
+    .mobile-menu a i {
+      margin-right: 10px;
+      color: var(--sbh-light-blue);
+      width: 24px;
+      text-align: center;
+    }
+    .mobile-menu a:hover {
+      background: rgba(30, 60, 114, 0.3);
+      border-radius: 6px;
+      transform: translateX(5px);
+    }
+
+    /* Section solde rapide */
     .balance-section {
-      background:#fff; display:flex; justify-content:space-between; align-items:center;
-      padding:12px 20px; box-shadow:0 2px 4px rgba(0,0,0,0.1); margin-top:10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 25px;
+      margin: 20px;
+      background: rgba(20, 35, 60, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 15px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
     }
-    .balance-section span { font-size:1rem; }
+    .balance-section:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 30px rgba(30, 144, 255, 0.3);
+    }
+    .balance-section span {
+      font-family: 'Montserrat', sans-serif;
+      color: var(--sbh-text-white);
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
     .balance-section button {
-      background:var(--blue); border:none; color:#fff; padding:6px 12px; border-radius:4px; cursor:pointer;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      border: none;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 50px;
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 600;
+      font-size: 1rem;
+      box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3);
+      transition: all 0.3s ease;
     }
-    .balance-section button:hover { background:#0056b3; }
+    .balance-section button:hover {
+      background: linear-gradient(45deg, var(--sbh-gradient-start), #2a7fff);
+      transform: translateY(-3px);
+      box-shadow: 0 7px 20px rgba(30, 144, 255, 0.4);
+    }
 
+    /* Contenu principal */
     main {
-      flex: 1; display: flex; flex-direction: column; gap:20px; padding:20px; overflow-y: auto;
+      padding: 0 20px 40px;
+      max-width: 1000px;
+      margin: 0 auto;
+      width: 100%;
     }
-    .wallet-balance, .affiliate-balance, .recent-activities {
-      background:#fff; border:2px solid var(--card-border); border-radius:10px;
-      padding:20px; box-shadow:0 4px 10px rgba(0,0,0,0.1);
+
+    /* Grille des soldes */
+    .wallet-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
     }
-    .wallet-balance, .affiliate-balance {
-      display: flex; flex-direction: column; justify-content: space-between;
-      height: 200px;
+
+    /* Cartes de solde */
+    .balance-card {
+      background: rgba(20, 35, 60, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 15px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      padding: 25px;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(5px);
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      display: flex;
+      flex-direction: column;
     }
-    .wallet-balance { background-color: var(--green); color:#fff; }
-    .affiliate-balance { background-color: rgba(40,167,69,0.2); color:var(--text-dark); }
-
-    .wallet-balance h2, .affiliate-balance h2, .recent-activities h2 { margin-bottom: 10px; }
-    .wallet-balance p, .affiliate-balance p { font-size:2rem; margin-bottom: 20px; }
-
-    .wallet-balance button, .affiliate-balance button {
-      align-self: flex-end; padding:12px 24px; border:none; border-radius:50px; cursor:pointer; font-size:1rem;
+    .balance-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      transform: translateY(-100%);
+      transition: transform 0.4s ease;
     }
-    .wallet-balance button { background:#fff; color:var(--green); }
-    .affiliate-balance button { background:var(--green); color:#fff; }
+    .balance-card:hover::before {
+      transform: translateY(0);
+    }
+    .balance-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+      border-color: rgba(77, 166, 255, 0.4);
+    }
+    
+    .balance-card.main-balance {
+      background: linear-gradient(135deg, rgba(30, 60, 114, 0.7), rgba(106, 13, 173, 0.7));
+    }
+    
+    .balance-card.affiliate-balance {
+      background: linear-gradient(135deg, rgba(40, 167, 69, 0.3), rgba(30, 60, 114, 0.7));
+    }
+    
+    .balance-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .balance-icon {
+      width: 50px;
+      height: 50px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 15px;
+      font-size: 1.5rem;
+      color: var(--sbh-light-blue);
+    }
+    .balance-header h2 {
+      margin-bottom: 0;
+    }
+    
+    .balance-amount {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 25px;
+      text-align: center;
+      font-family: 'Montserrat', sans-serif;
+      color: var(--sbh-text-white);
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    .balance-actions {
+      margin-top: auto;
+      display: flex;
+      justify-content: center;
+    }
+    .balance-btn {
+      display: inline-flex;
+      align-items: center;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      color: #fff;
+      padding: 12px 25px;
+      border: none;
+      border-radius: 50px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1rem;
+      box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3);
+      cursor: pointer;
+    }
+    .balance-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 7px 20px rgba(30, 144, 255, 0.4);
+      background: linear-gradient(45deg, var(--sbh-gradient-start), #2a7fff);
+    }
+    .balance-btn i {
+      margin-right: 8px;
+    }
 
-    .recent-activities { flex: 1; display: flex; flex-direction: column; }
-    .recent-activities ul { list-style:none; overflow-y:auto; flex:1; padding:0; margin:0; }
-    .recent-activities li { padding:10px; border-bottom:1px solid rgba(0,0,0,0.1); }
-    .recent-activities li:last-of-type { border-bottom:none; }
+    /* Section activités récentes */
+    .activities-container {
+      background: rgba(20, 35, 60, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 15px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      padding: 25px;
+      backdrop-filter: blur(5px);
+      position: relative;
+      overflow: hidden;
+    }
+    .activities-container::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      transform: translateY(-100%);
+      transition: transform 0.4s ease;
+    }
+    .activities-container:hover::before {
+      transform: translateY(0);
+    }
+    
+    .activities-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .activities-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .activities-table th {
+      text-align: left;
+      padding: 12px 15px;
+      background: rgba(10, 22, 43, 0.7);
+      color: var(--sbh-light-blue);
+      font-weight: 600;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    }
+    .activities-table td {
+      padding: 12px 15px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .activities-table tr:last-child td {
+      border-bottom: none;
+    }
+    .activities-table tr:hover {
+      background: rgba(30, 60, 114, 0.3);
+    }
+    
+    .activity-amount {
+      font-weight: 600;
+      color: var(--sbh-text-green);
+      text-align: right;
+    }
+    
+    .activity-date {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.9rem;
+    }
+    
+    .activity-label {
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 30px;
+    }
+    .loading i {
+      font-size: 2rem;
+      color: var(--sbh-light-blue);
+      margin-bottom: 15px;
+      animation: spin 1s infinite linear;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
 
-    .footer { background:#000; color:#fff; text-align:center; padding:15px 20px; }
-    .footer small { display:block; margin-bottom:10px; }
-    #logoutBtn { background:#dc3545; border:none; color:#fff; padding:8px 16px; border-radius:4px; cursor:pointer; }
-    #logoutBtn:hover { background:#c82333; }
-    .menu-backdrop { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); opacity:0; visibility:hidden; transition:opacity 0.3s ease; z-index:9998; }
-    .menu-backdrop.active { opacity:1; visibility:visible; }
-    .hamburger-btn { position:absolute; top:12px; right:20px; background:transparent; border:none; font-size:1.5rem; color:#fff; cursor:pointer; z-index:9999; }
-    .hamburger-menu { position:fixed; top:0; right:0; width:240px; height:100vh; background:#fff; border-left:1px solid var(--card-border); box-shadow:-2px 0 8px rgba(0,0,0,0.2); transform:translateX(100%); transition:transform 0.3s ease; z-index:9999; display:flex; flex-direction:column; }
-    .hamburger-menu.open { transform:translateX(0); }
-    .hamburger-menu ul { list-style:none; margin:0; padding:0; flex:1; display:flex; flex-direction:column; justify-content:space-evenly; }
-    .hamburger-menu li { border-bottom:1px solid rgba(0,0,0,0.1); }
-    .hamburger-menu li:last-of-type { border-bottom:none; }
-    .hamburger-menu a { display:block; padding:12px 20px; color:var(--green); text-decoration:none; }
-    .hamburger-menu a:hover { background:var(--bg-pastel); }
+    /* FOOTER */
+    footer {
+      background: linear-gradient(to right, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      color: var(--sbh-text-white);
+      padding: 3rem 1rem 1.5rem;
+      margin-top: 50px;
+      position: relative;
+      overflow: hidden;
+    }
+    .footer-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+    }
+    .footer-section {
+      padding: 0 1rem;
+    }
+    .footer-section h3 {
+      font-size: 1.3rem;
+      margin-bottom: 1.2rem;
+      text-align: left;
+      position: relative;
+      padding-bottom: 8px;
+    }
+    .footer-section h3::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 40px;
+      height: 3px;
+      background: var(--sbh-text-green);
+    }
+    .footer-logo {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 1.2rem;
+    }
+    .footer-logo .text-social,
+    .footer-logo .text-horizon {
+      font-family: 'Poppins', sans-serif;
+      font-weight: 600;
+      color: var(--sbh-text-white);
+    }
+    .footer-logo .boost-line {
+      display: flex;
+      align-items: center;
+      color: var(--sbh-text-green);
+      font-weight: 800;
+    }
+    .footer-logo .boost-line img {
+      height: 1.6rem;
+      margin-right: 0.4rem;
+    }
+    .footer-about p {
+      text-align: left;
+      font-size: 0.9rem;
+      line-height: 1.7;
+    }
+    .footer-links ul {
+      list-style: none;
+      padding: 0;
+    }
+    .footer-links li {
+      margin-bottom: 0.7rem;
+    }
+    .footer-links a {
+      color: rgba(255, 255, 255, 0.85);
+      text-decoration: none;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      font-size: 0.95rem;
+    }
+    .footer-links a i {
+      margin-right: 8px;
+      color: var(--sbh-light-blue);
+      transition: transform 0.3s;
+    }
+    .footer-links a:hover {
+      color: var(--sbh-text-white);
+      transform: translateX(5px);
+    }
+    .footer-links a:hover i {
+      transform: translateX(5px);
+    }
+    .footer-contact p {
+      text-align: left;
+      margin-bottom: 0.8rem;
+      display: flex;
+      align-items: center;
+      font-size: 0.95rem;
+    }
+    .footer-contact i {
+      margin-right: 8px;
+      color: var(--sbh-light-blue);
+      width: 18px;
+      text-align: center;
+    }
+    .social-icons {
+      display: flex;
+      gap: 12px;
+      margin-top: 1.2rem;
+    }
+    .social-icons a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      color: white;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+    .social-icons a:hover {
+      background: var(--sbh-light-blue);
+      transform: translateY(-3px);
+    }
+    .footer-newsletter p {
+      text-align: left;
+      margin-bottom: 1.2rem;
+      font-size: 0.95rem;
+    }
+    .newsletter-form {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .newsletter-form input {
+      padding: 10px 12px;
+      border: none;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 0.9rem;
+    }
+    .newsletter-form input::placeholder {
+      color: rgba(255, 255, 255, 0.7);
+    }
+    .newsletter-form .btn {
+      padding: 10px;
+      font-size: 0.95rem;
+      border-radius: 6px;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+    }
+
+    .footer-bottom {
+      max-width: 1200px;
+      margin: 2rem auto 0;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+    .footer-bottom p {
+      margin: 0;
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.7);
+      text-align: left;
+    }
+    .footer-bottom a {
+      color: rgba(255, 255, 255, 0.7);
+      text-decoration: none;
+      transition: color 0.3s;
+      margin: 0 0.4rem;
+      font-size: 0.85rem;
+    }
+    .footer-bottom a:hover {
+      color: var(--sbh-text-white);
+    }
+    .payment-methods {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .payment-methods i {
+      font-size: 1.6rem;
+      color: rgba(255, 255, 255, 0.7);
+    }
+    #logoutBtn {
+      background: #dc3545;
+      border: none;
+      color: #fff;
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      border-radius: 50px;
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+    }
+    #logoutBtn:hover {
+      background: #c82333;
+      transform: translateY(-2px);
+      box-shadow: 0 7px 20px rgba(220, 53, 69, 0.4);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .wallet-grid {
+        grid-template-columns: 1fr;
+      }
+      header {
+        padding: 1rem;
+      }
+      .mobile-menu {
+        right: 1rem;
+        top: 60px;
+      }
+      .balance-section {
+        margin: 20px 10px;
+        padding: 12px 15px;
+      }
+      .activities-table {
+        display: block;
+        overflow-x: auto;
+      }
+    }
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 2rem;
+      }
+      .logo-text .text-social,
+      .logo-text .text-horizon {
+        font-size: 1.1rem;
+      }
+      .logo-text .boost-line {
+        font-size: 1.5rem;
+      }
+      .logo-text .boost-line img {
+        height: 1.5rem;
+      }
+      .balance-amount {
+        font-size: 2rem;
+      }
+    }
   </style>
 </head>
 <body>
+  <!-- Fond animé (étoiles + nuages) -->
+  <div class="background-animation"></div>
 
-  <div id="menuBackdrop" class="menu-backdrop"></div>
-  <div class="header" data-aos="fade-down">
-    <h1 id="welcome">Bienvenue sur ton portefeuille</h1>
-    <button id="hamburgerBtn" class="hamburger-btn" aria-label="Menu"><i class="fas fa-bars"></i></button>
-  </div>
-  <nav id="hamburgerMenu" class="hamburger-menu">
-    <ul>
-      <li><a href="dashboard.html">Accueil</a></li>
-      <li><a href="wallet.html">Mon portefeuille</a></li>
-      <li><a href="resources.html">Ressources & aide</a></li>
-      <li><a href="community.html">Communauté & feedback</a></li>
-      <li><a href="payment.html">Autre moyen de paiement</a></li>
-      <li><a href="#" id="showParrainage">Programme de parrainage</a></li>
-      <li><a href="privacy.html">Politiques de confidentialité</a></li>
-      <li><a href="assistance.html">Assistance</a></li>
-    </ul>
-  </nav>
+  <!-- Header avec logo et menu hamburger -->
+  <header data-aos="fade-down">
+    <a href="dashboard.html" class="logo-text">
+      <span class="text-social">SOCIAL</span>
+      <div class="boost-line">
+        <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Rocket Icon">
+        <span class="text-boost">BOOST</span>
+      </div>
+      <span class="text-horizon">HORIZON</span>
+    </a>
+    <i class="fa-solid fa-bars icon-hamburger" id="hamburgerBtn"></i>
+    <div class="mobile-menu">
+      <a href="dashboard.html"><i class="fa-solid fa-house"></i> Accueil</a>
+      <a href="wallet.html" class="active"><i class="fa-solid fa-wallet"></i> Mon portefeuille</a>
+      <a href="resources.html"><i class="fa-solid fa-book"></i> Ressources & aide</a>
+      <a href="community.html"><i class="fa-solid fa-users"></i> Communauté</a>
+      <a href="payment.html"><i class="fa-solid fa-money-bill"></i> Autre paiement</a>
+      <a href="parrainage.html"><i class="fa-solid fa-handshake"></i> Parrainage</a>
+      <a href="privacy.html"><i class="fa-solid fa-shield"></i> Confidentialité</a>
+      <a href="assistant.html"><i class="fa-solid fa-headset"></i> Assistance</a>
+      <a href="https://chat.whatsapp.com/HRgWJFxTgkiEkEC0Ou2028" target="_blank"><i class="fab fa-whatsapp"></i> Rejoindre WhatsApp</a>
+    </div>
+  </header>
 
+  <!-- Section solde -->
   <div class="balance-section" data-aos="fade-up">
     <span id="balance">Solde : 0 XAF</span>
     <button id="quickDeposit">➕ Déposer</button>
   </div>
 
-  <main id="content">
-    <section class="wallet-balance" data-aos="fade-up">
-      <div>
-        <h2>Solde principal</h2>
-        <p id="mainBalance">0 XAF</p>
+  <main>
+    <!-- Grille des soldes -->
+    <div class="wallet-grid">
+      <!-- Solde principal -->
+      <div class="balance-card main-balance" data-aos="fade-up">
+        <div class="balance-header">
+          <div class="balance-icon">
+            <i class="fas fa-wallet"></i>
+          </div>
+          <h2>Solde principal</h2>
+        </div>
+        <div class="balance-amount" id="mainBalance">0 XAF</div>
+        <div class="balance-actions">
+          <button id="addFunds" class="balance-btn">
+            <i class="fas fa-plus"></i> Ajouter des fonds
+          </button>
+        </div>
       </div>
-      <button id="addFunds">➕ Ajouter des fonds</button>
-    </section>
-
-    <section class="affiliate-balance" data-aos="fade-up">
-      <div>
-        <h2>Solde d’affiliation</h2>
-        <p id="referralBalance">0 XAF</p>
+      
+      <!-- Solde d'affiliation -->
+      <div class="balance-card affiliate-balance" data-aos="fade-up" data-aos-delay="100">
+        <div class="balance-header">
+          <div class="balance-icon">
+            <i class="fas fa-handshake"></i>
+          </div>
+          <h2>Solde d'affiliation</h2>
+        </div>
+        <div class="balance-amount" id="referralBalance">0 XAF</div>
+        <div class="balance-actions">
+          <button id="transferFunds" class="balance-btn">
+            <i class="fas fa-exchange-alt"></i> Transférer
+          </button>
+        </div>
       </div>
-      <button id="transferFunds">🔄 Transférer vers solde principal</button>
-    </section>
+    </div>
 
-    <section class="recent-activities" data-aos="fade-up">
-      <h2>Activités récentes</h2>
-      <ul id="activityList">
-        <li>Chargement…</li>
-      </ul>
-    </section>
+    <!-- Activités récentes -->
+    <div class="activities-container" data-aos="fade-up">
+      <div class="activities-header">
+        <h2>Activités récentes</h2>
+      </div>
+      
+      <table class="activities-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Montant</th>
+          </tr>
+        </thead>
+        <tbody id="activityList">
+          <tr>
+            <td colspan="3" class="loading">
+              <i class="fas fa-spinner"></i>
+              <p>Chargement des activités...</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </main>
 
-  <div class="footer" data-aos="fade-up">
-    <small>Social Boost Horizon – Tous droits réservés ©2025</small>
-    <button id="logoutBtn">Déconnexion</button>
-  </div>
+  <!-- Footer -->
+  <footer id="contact">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-section">
+          <div class="footer-logo">
+            <span class="text-social">SOCIAL</span>
+            <div class="boost-line">
+              <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Rocket Icon">
+              <span class="text-boost">BOOST</span>
+            </div>
+            <span class="text-horizon">HORIZON</span>
+          </div>
+          <div class="footer-about">
+            <p>Social Boost Horizon est votre partenaire pour développer votre présence sur les réseaux sociaux. Nous offrons des solutions innovantes et fiables pour booster votre audience et votre engagement.</p>
+            <div class="social-icons">
+              <a href="https://www.facebook.com/share/1ACQ14Cg9h/?mibextid=wwXIfr" target="_blank" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+              <a href="https://www.instagram.com/social.boost.horizon?igsh=MXJvZ2h2azQ0NjhicA%3D%3D&utm_source=qr" target="_blank" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+              <a href="https://x.com/mcexau?s=21" target="_blank" aria-label="Twitter"><i class="fa-brands fa-twitter"></i></a>
+              <a href="https://www.tiktok.com/@social.boost.hori?_t=ZN-8x1AOi6jZP4&_r=1" target="_blank" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i></a>
+              <a href="http://www.youtube.com/@SocialBoostHorizon-d7t" target="_blank" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
+            </div>
+          </div>
+        </div>
+        
+        <div class="footer-section footer-links">
+          <h3>Liens Rapides</h3>
+          <ul>
+            <li><a href="dashboard.html"><i class="fa-solid fa-chevron-right"></i> Accueil</a></li>
+            <li><a href="services.html"><i class="fa-solid fa-chevron-right"></i> Services</a></li>
+            <li><a href="commander.html"><i class="fa-solid fa-chevron-right"></i> Commander</a></li>
+            <li><a href="commandes.html"><i class="fa-solid fa-chevron-right"></i> Mes commandes</a></li>
+            <li><a href="profil.html"><i class="fa-solid fa-chevron-right"></i> Mon profil</a></li>
+            <li><a href="https://chat.whatsapp.com/HRgWJFxTgkiEkEC0Ou2028" target="_blank"><i class="fa-solid fa-chevron-right"></i> Rejoindre WhatsApp</a></li>
+          </ul>
+        </div>
+        
+        <div class="footer-section footer-contact">
+          <h3>Contactez-nous</h3>
+          <p><i class="fa-solid fa-envelope"></i> socialboosthorizon984@gmail.com</p>
+          <p><i class="fa-solid fa-phone"></i> +237 699 85 36 65</p>
+          <p><i class="fa-solid fa-location-dot"></i> Douala, Cameroun</p>
+          <p><i class="fa-solid fa-clock"></i> Support 24/7</p>
+          <a href="https://chat.whatsapp.com/HRgWJFxTgkiEkEC0Ou2028" target="_blank" class="btn btn-whatsapp" style="margin-top: 15px;">
+            <i class="fab fa-whatsapp"></i> Rejoindre notre groupe
+          </a>
+        </div>
+        
+        <div class="footer-section footer-newsletter">
+          <h3>Newsletter</h3>
+          <p>Inscrivez-vous pour recevoir nos dernières offres et astuces pour booster vos réseaux sociaux.</p>
+          <form class="newsletter-form" id="newsletterForm">
+            <input type="email" placeholder="Votre adresse email" required>
+            <button type="submit" class="btn">S'abonner</button>
+          </form>
+          <p id="newsletterMessage" style="display: none; text-align: center; margin-top: 10px; color: #4CAF50;"></p>
+        </div>
+      </div>
+      
+      <div class="footer-bottom">
+        <p>© 2025 Social Boost Horizon. Mč Exau - Tous droits réservés.</p>
+        <div>
+          <a href="legal.html">Mentions légales</a>
+          <a href="terms.html">CGV</a>
+          <a href="privacy.html">Confidentialité</a>
+          <a href="cookies.html">Cookies</a>
+        </div>
+        <button id="logoutBtn">Déconnexion</button>
+        <div class="payment-methods">
+          <i class="fa-brands fa-cc-visa"></i>
+          <i class="fa-brands fa-cc-mastercard"></i>
+          <i class="fa-brands fa-cc-paypal"></i>
+          <i class="fa-solid fa-money-bill-wave"></i>
+        </div>
+      </div>
+    </div>
+  </footer>
 
-  <!-- Firebase & AOS JS -->
-  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
-  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  
   <script>
-    AOS.init({ duration:600, once:true });
+    document.addEventListener("DOMContentLoaded", function () {
+      AOS.init({ duration: 800, once: true, offset: 100 });
 
-    // --- Firebase client init ---
-    const firebaseConfig = {
-      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-      authDomain: "social-boost-horizon.firebaseapp.com",
-      projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.firebasestorage.app",
-      messagingSenderId: "43658165639",
-      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth(), db = firebase.firestore();
+      // Animation des nuages
+      const backgroundAnimation = document.querySelector(".background-animation");
+      const numberOfClouds = 20;
 
-    // **URL EXACTE** de votre back-end (Replit ou autre)
-    const BACKEND_BASE = "https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev";
+      for (let i = 0; i < numberOfClouds; i++) {
+        const cloud = document.createElement("div");
+        cloud.classList.add("cloud");
 
-    // Éléments UI
-    const welcomeEl     = document.getElementById('welcome'),
-          balanceEl     = document.getElementById('balance'),
-          mainBalEl     = document.getElementById('mainBalance'),
-          referralBalEl = document.getElementById('referralBalance'),
-          activityList  = document.getElementById('activityList'),
-          addFundsBtn   = document.getElementById('addFunds'),
-          transferBtn   = document.getElementById('transferFunds'),
-          quickDeposit  = document.getElementById('quickDeposit'),
-          logoutBtn     = document.getElementById('logoutBtn'),
-          hamburgerBtn  = document.getElementById('hamburgerBtn'),
-          hamburgerMenu = document.getElementById('hamburgerMenu'),
-          backdrop      = document.getElementById('menuBackdrop'),
-          showParrain   = document.getElementById('showParrainage');
+        const size = Math.random() * (250 - 150) + 150;
+        cloud.style.width = `${size}px`;
+        cloud.style.height = `${size * 0.6}px`;
+        cloud.style.borderRadius = `${size / 2}px / ${size * 0.3}px`;
 
-    let currentUid;
+        cloud.style.left = `${Math.random() * 100 + 100}vw`;
+        cloud.style.top = `${Math.random() * 85}vh`;
 
-    auth.onAuthStateChanged(user => {
-      if (!user) return window.location.href='login.html';
-      currentUid = user.uid;
-      // 1) soldes
-      const uref = db.collection('users').doc(currentUid);
-      uref.onSnapshot(doc => {
-        const d = doc.data()||{};
-        balanceEl.textContent     = `Solde : ${d.balance||0} XAF`;
-        mainBalEl.textContent     = `${d.balance||0} XAF`;
-        referralBalEl.textContent = `${d.referralBalance||0} XAF`;
+        const animationDuration = Math.random() * (60 - 30) + 30;
+        cloud.style.animationDuration = `${animationDuration}s`;
+
+        cloud.style.animationDelay = `${Math.random() * -animationDuration}s`;
+
+        cloud.style.setProperty("--width", `${size}px`);
+        const scale = Math.random() * (1.1 - 0.9) + 0.9;
+        cloud.style.setProperty("--scale", scale);
+
+        backgroundAnimation.appendChild(cloud);
+      }
+
+      // Gestion du menu hamburger
+      const header = document.querySelector("header");
+      const hamburger = document.querySelector(".icon-hamburger");
+      hamburger.addEventListener("click", () => {
+        header.classList.toggle("open");
       });
-      // 2) activités récentes via back-end
-      loadActivities();
-    });
-
-    // transférer
-    transferBtn.addEventListener('click', async () => {
-      if (!currentUid) return;
-      transferBtn.disabled = true;
-      try {
-        const res = await fetch(`${BACKEND_BASE}/users/${encodeURIComponent(currentUid)}/transfer-referral`, {
-          method: 'POST'
-        });
-        const j   = await res.json();
-        if (!j.success) throw new Error(j.error);
-        alert(`Transféré ${j.transferred} XAF vers le solde principal.`);
-      } catch (err) {
-        alert('Erreur : ' + err.message);
-      } finally {
-        transferBtn.disabled = false;
-      }
-    });
-
-    // charger activités
-    async function loadActivities(){
-      if (!currentUid) return;
-      activityList.innerHTML = '<li>Chargement…</li>';
-      try {
-        const res = await fetch(`${BACKEND_BASE}/users/${encodeURIComponent(currentUid)}/activities`);
-        const j   = await res.json();
-        if (!j.success) throw new Error(j.error);
-        const items = j.activities;
-        if (!items.length) {
-          activityList.innerHTML = '<li>Aucune activité récente.</li>';
-          return;
+      
+      // Fermer le menu quand on clique en dehors
+      document.addEventListener("click", (e) => {
+        if (!header.contains(e.target) && header.classList.contains("open")) {
+          header.classList.remove("open");
         }
-        activityList.innerHTML = items.map(a =>
-          `<li>${new Date(a.date).toLocaleString('fr-FR')} – ${a.label} : +${a.amount} XAF${a.extra||''}</li>`
-        ).join('');
-      } catch(err) {
-        activityList.innerHTML = `<li>Erreur chargement : ${err.message}</li>`;
+      });
+      
+      // Gestion de la newsletter
+      const newsletterForm = document.getElementById("newsletterForm");
+      const newsletterMessage = document.getElementById("newsletterMessage");
+      
+      newsletterForm.addEventListener("submit", function(e) {
+        e.preventDefault();
+        const emailInput = this.querySelector('input[type="email"]');
+        
+        // Simulation d'envoi
+        newsletterMessage.textContent = "Merci pour votre inscription! Vous recevrez bientôt nos actualités.";
+        newsletterMessage.style.display = "block";
+        emailInput.value = "";
+        
+        // Cacher le message après 5 secondes
+        setTimeout(() => {
+          newsletterMessage.style.display = "none";
+        }, 5000);
+      });
+
+      // Configuration Firebase
+      const firebaseConfig = {
+        apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+        authDomain: "social-boost-horizon.firebaseapp.com",
+        projectId: "social-boost-horizon",
+        storageBucket: "social-boost-horizon.appspot.com",
+        messagingSenderId: "43658165639",
+        appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+      };
+      
+      // Initialisation de Firebase
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
       }
-    }
+      
+      const auth = firebase.auth();
+      const db = firebase.firestore();
+      const logoutBtn = document.getElementById('logoutBtn');
+      const quickDeposit = document.getElementById('quickDeposit');
+      const addFundsBtn = document.getElementById('addFunds');
+      const transferBtn = document.getElementById('transferFunds');
 
-    addFundsBtn.addEventListener('click', ()=>window.location.href='depot.html');
-    quickDeposit.addEventListener('click', ()=>window.location.href='depot.html');
+      // URL du backend
+      const BACKEND_BASE = "https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev";
 
-    logoutBtn.addEventListener('click', ()=>{
-      if (confirm("Voulez-vous vraiment vous déconnecter ?"))
-        auth.signOut().then(()=>window.location.href='login.html');
-    });
+      // Éléments UI
+      const welcomeEl = document.getElementById('welcome');
+      const balanceEl = document.getElementById('balance');
+      const mainBalEl = document.getElementById('mainBalance');
+      const referralBalEl = document.getElementById('referralBalance');
+      const activityList = document.getElementById('activityList');
 
-    function toggleMenu(){
-      hamburgerMenu.classList.toggle('open');
-      backdrop.classList.toggle('active');
-    }
-    hamburgerBtn.addEventListener('click', toggleMenu);
-    backdrop.addEventListener('click', toggleMenu);
+      let currentUid;
 
-    showParrain.addEventListener('click', async e=>{
-      e.preventDefault();
-      const doc = await db.collection('users').doc(currentUid).get();
-      const d   = doc.data()||{};
-      alert(`Votre code : ${d.referralCode||'N/A'}\nParrains : ${d.referralsCount||0}`);
+      auth.onAuthStateChanged(user => {
+        if (!user) return window.location.href = 'login.html';
+        currentUid = user.uid;
+        
+        // Récupérer le nom d'utilisateur
+        db.collection('users').doc(user.uid).get().then(doc => {
+          if (doc.exists) {
+            const userData = doc.data();
+            welcomeEl.textContent = `Bienvenue ${userData.username || ''} sur votre portefeuille`;
+          }
+        });
+        
+        // 1) Soldes
+        const uref = db.collection('users').doc(currentUid);
+        uref.onSnapshot(doc => {
+          const d = doc.data() || {};
+          balanceEl.textContent = `Solde : ${d.balance || 0} XAF`;
+          mainBalEl.textContent = `${d.balance || 0} XAF`;
+          referralBalEl.textContent = `${d.referralBalance || 0} XAF`;
+        });
+        
+        // 2) Activités récentes
+        loadActivities();
+      });
+
+      // Transférer le solde d'affiliation
+      transferBtn.addEventListener('click', async () => {
+        if (!currentUid) return;
+        transferBtn.disabled = true;
+        try {
+          const res = await fetch(`${BACKEND_BASE}/users/${encodeURIComponent(currentUid)}/transfer-referral`, {
+            method: 'POST'
+          });
+          const j = await res.json();
+          if (!j.success) throw new Error(j.error);
+          alert(`Transféré ${j.transferred} XAF vers le solde principal.`);
+          // Recharger les données
+          loadActivities();
+        } catch (err) {
+          alert('Erreur : ' + err.message);
+        } finally {
+          transferBtn.disabled = false;
+        }
+      });
+
+      // Charger les activités
+      async function loadActivities() {
+        if (!currentUid) return;
+        activityList.innerHTML = `
+          <tr>
+            <td colspan="3" class="loading">
+              <i class="fas fa-spinner"></i>
+              <p>Chargement des activités...</p>
+            </td>
+          </tr>
+        `;
+        
+        try {
+          const res = await fetch(`${BACKEND_BASE}/users/${encodeURIComponent(currentUid)}/activities`);
+          const j = await res.json();
+          if (!j.success) throw new Error(j.error);
+          
+          const items = j.activities;
+          if (!items || items.length === 0) {
+            activityList.innerHTML = `
+              <tr>
+                <td colspan="3" style="text-align: center; padding: 30px;">
+                  <i class="fas fa-info-circle"></i>
+                  <p>Aucune activité récente</p>
+                </td>
+              </tr>
+            `;
+            return;
+          }
+          
+          let html = '';
+          items.forEach(a => {
+            html += `
+              <tr>
+                <td class="activity-date">${new Date(a.date).toLocaleString('fr-FR')}</td>
+                <td class="activity-label">${a.label}</td>
+                <td class="activity-amount">+${a.amount} XAF</td>
+              </tr>
+            `;
+          });
+          activityList.innerHTML = html;
+        } catch(err) {
+          activityList.innerHTML = `
+            <tr>
+              <td colspan="3" style="text-align: center; padding: 30px; color: var(--sbh-accent);">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Erreur de chargement : ${err.message}</p>
+              </td>
+            </tr>
+          `;
+        }
+      }
+
+      // Redirection pour les dépôts
+      quickDeposit.addEventListener('click', () => {
+        window.location.href = 'fonds.html';
+      });
+      
+      addFundsBtn.addEventListener('click', () => {
+        window.location.href = 'fonds.html';
+      });
+
+      // Gère la déconnexion
+      logoutBtn.addEventListener('click', () => {
+        if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+          auth.signOut().then(() => {
+            window.location.href = 'login.html';
+          }).catch(error => {
+            console.error("Erreur de déconnexion :", error);
+            alert("Une erreur est survenue lors de la déconnexion.");
+          });
+        }
+      });
     });
   </script>
 </body>
