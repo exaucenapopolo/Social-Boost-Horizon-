@@ -34,6 +34,7 @@
       --sbh-text-light: rgba(255, 255, 255, 0.9);
       --sbh-accent: #FF6B6B;
       --sbh-light-blue: #4DA6FF;
+      --sbh-details-bg: rgba(30, 60, 114, 0.3);
     }
 
     /* Body et fond animé (étoiles + nuages) */
@@ -475,6 +476,61 @@
       font-size: 1rem;
     }
 
+    /* Styles pour les détails supplémentaires */
+    .order-details-row {
+      display: none;
+      background: var(--sbh-details-bg);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .order-details-cell {
+      padding: 15px 20px;
+      grid-column: 1 / -1;
+    }
+    .order-details-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+    }
+    .order-detail-item {
+      background: rgba(10, 22, 43, 0.5);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .detail-label {
+      font-size: 0.85rem;
+      color: var(--sbh-light-blue);
+      margin-bottom: 5px;
+    }
+    .detail-value {
+      font-weight: 500;
+      word-break: break-word;
+    }
+    .detail-link {
+      color: var(--sbh-text-green);
+      text-decoration: none;
+      transition: color 0.3s;
+    }
+    .detail-link:hover {
+      text-decoration: underline;
+      color: #4CAF50;
+    }
+    .detail-contact {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .toggle-details {
+      background: transparent;
+      border: none;
+      color: var(--sbh-light-blue);
+      cursor: pointer;
+      font-size: 1.2rem;
+      padding: 0 8px;
+    }
+    .toggle-details:hover {
+      color: var(--sbh-btn-color);
+    }
+
     /* FOOTER */
     footer {
       background: linear-gradient(to right, var(--sbh-gradient-start), var(--sbh-gradient-end));
@@ -704,6 +760,9 @@
       .order-date {
         white-space: normal;
       }
+      .order-details-grid {
+        grid-template-columns: 1fr;
+      }
     }
     @media (max-width: 480px) {
       h1 {
@@ -762,17 +821,20 @@
       <table class="orders-table">
         <thead>
           <tr>
+            <th>ID</th>
             <th>Date</th>
             <th>Plateforme</th>
             <th>Service</th>
+            <th>Qualité</th>
             <th>Quantité</th>
             <th>Montant</th>
             <th>Statut</th>
+            <th></th>
           </tr>
         </thead>
         <tbody id="ordersTableBody">
           <tr>
-            <td colspan="6" class="loading">
+            <td colspan="9" class="loading">
               <i class="fas fa-spinner"></i>
               <p>Chargement de vos commandes...</p>
             </td>
@@ -971,7 +1033,7 @@
         
         ordersTableBody.innerHTML = `
           <tr>
-            <td colspan="6" class="loading">
+            <td colspan="9" class="loading">
               <i class="fas fa-spinner"></i>
               <p>Chargement de vos commandes...</p>
             </td>
@@ -993,7 +1055,7 @@
           if (!orders || orders.length === 0) {
             ordersTableBody.innerHTML = `
               <tr>
-                <td colspan="6" class="no-orders">
+                <td colspan="9" class="no-orders">
                   <i class="fas fa-box-open"></i>
                   <h3>Aucune commande pour le moment</h3>
                   <p>Vous n'avez pas encore passé de commande. Parcourez nos services pour booster vos réseaux sociaux.</p>
@@ -1024,7 +1086,8 @@
             if (order.platform.toLowerCase().includes("twitter")) platformIcon = "fab fa-twitter";
             
             html += `
-              <tr>
+              <tr class="order-row">
+                <td class="order-id">${order.orderId || 'N/A'}</td>
                 <td class="order-date">${new Date(order.createdAt).toLocaleString('fr-FR')}</td>
                 <td>
                   <div class="order-platform">
@@ -1035,10 +1098,69 @@
                   </div>
                 </td>
                 <td class="order-service">${order.service}</td>
+                <td class="order-quality">${order.quality}</td>
                 <td class="order-quantity">${order.quantity}</td>
-                <td class="order-amount">${order.amount || '0'} XAF</td>
+                <td class="order-amount">${order.totalCost || '0'} XAF</td>
                 <td>
                   <span class="order-status ${statusClass}">${order.status}</span>
+                </td>
+                <td>
+                  <button class="toggle-details">
+                    <i class="fas fa-chevron-down"></i>
+                  </button>
+                </td>
+              </tr>
+              <tr class="order-details-row">
+                <td colspan="9" class="order-details-cell">
+                  <div class="order-details-grid">
+                    <div class="order-detail-item">
+                      <div class="detail-label">ID de commande</div>
+                      <div class="detail-value">${order.orderId || 'N/A'}</div>
+                    </div>
+                    <div class="order-detail-item">
+                      <div class="detail-label">Date</div>
+                      <div class="detail-value">${new Date(order.createdAt).toLocaleString('fr-FR')}</div>
+                    </div>
+                    <div class="order-detail-item">
+                      <div class="detail-label">Plateforme</div>
+                      <div class="detail-value">${order.platform}</div>
+                    </div>
+                    <div class="order-detail-item">
+                      <div class="detail-label">Service</div>
+                      <div class="detail-value">${order.service}</div>
+                    </div>
+                    <div class="order-detail-item">
+                      <div class="detail-label">Qualité</div>
+                      <div class="detail-value">${order.quality}</div>
+                    </div>
+                    <div class="order-detail-item">
+                      <div class="detail-label">Quantité</div>
+                      <div class="detail-value">${order.quantity}</div>
+                    </div>
+                    <div class="order-detail-item">
+                      <div class="detail-label">Montant</div>
+                      <div class="detail-value">${order.totalCost || '0'} XAF</div>
+                    </div>
+                    <div class="order-detail-item">
+                      <div class="detail-label">Lien</div>
+                      <div class="detail-value">
+                        <a href="${order.link}" target="_blank" class="detail-link">
+                          ${order.link ? 'Voir publication' : 'Non spécifié'}
+                        </a>
+                      </div>
+                    </div>
+                    <div class="order-detail-item">
+                      <div class="detail-label">Statut</div>
+                      <div class="detail-value">${order.status}</div>
+                    </div>
+                    <div class="order-detail-item">
+                      <div class="detail-label">Contact</div>
+                      <div class="detail-contact">
+                        <i class="fas ${order.contactType === 'whatsapp' ? 'fa-whatsapp' : 'fa-envelope'}"></i>
+                        <span class="detail-value">${order.contact || 'Non spécifié'}</span>
+                      </div>
+                    </div>
+                  </div>
                 </td>
               </tr>
             `;
@@ -1046,11 +1168,28 @@
           
           ordersTableBody.innerHTML = html;
           
+          // Ajouter les gestionnaires d'événements pour les boutons de détails
+          document.querySelectorAll('.toggle-details').forEach(button => {
+            button.addEventListener('click', function() {
+              const row = this.closest('.order-row');
+              const detailsRow = row.nextElementSibling;
+              const icon = this.querySelector('i');
+              
+              if (detailsRow.style.display === 'table-row') {
+                detailsRow.style.display = 'none';
+                icon.className = 'fas fa-chevron-down';
+              } else {
+                detailsRow.style.display = 'table-row';
+                icon.className = 'fas fa-chevron-up';
+              }
+            });
+          });
+          
         } catch (err) {
           console.error('Erreur fetchOrders():', err);
           ordersTableBody.innerHTML = `
             <tr>
-              <td colspan="6" style="text-align: center; padding: 40px; color: var(--sbh-accent);">
+              <td colspan="9" style="text-align: center; padding: 40px; color: var(--sbh-accent);">
                 <i class="fas fa-exclamation-triangle"></i>
                 <h3>Erreur lors du chargement</h3>
                 <p>${err.message}</p>
