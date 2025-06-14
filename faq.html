@@ -421,6 +421,86 @@
       padding: 20px;
       height: 400px;
       margin-top: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    /* Simulation de conversation */
+    .chat-container {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    .chat-header {
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-weight: 600;
+    }
+    .chat-messages {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    .message {
+      max-width: 80%;
+      padding: 12px 15px;
+      border-radius: 18px;
+      position: relative;
+      animation: fadeIn 0.3s ease;
+    }
+    .bot-message {
+      background: #f0f4ff;
+      color: #333;
+      align-self: flex-start;
+      border-bottom-left-radius: 5px;
+    }
+    .user-message {
+      background: #4DA6FF;
+      color: white;
+      align-self: flex-end;
+      border-bottom-right-radius: 5px;
+    }
+    .chat-input {
+      padding: 15px;
+      border-top: 1px solid #eee;
+      display: flex;
+      gap: 10px;
+    }
+    .chat-input input {
+      flex: 1;
+      padding: 12px 15px;
+      border: 1px solid #ddd;
+      border-radius: 30px;
+      outline: none;
+    }
+    .chat-input button {
+      background: var(--sbh-btn-color);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 45px;
+      height: 45px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .chat-input button:hover {
+      background: var(--sbh-btn-hover);
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     /* Footer */
@@ -605,6 +685,30 @@
       color: rgba(255, 255, 255, 0.7);
     }
 
+    /* Bouton flottant pour ouvrir le chat */
+    .chat-float-button {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 24px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      z-index: 999;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .chat-float-button:hover {
+      transform: scale(1.1) translateY(-5px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    }
+
     /* Styles responsives */
     @media (max-width: 768px) {
       #hero h1 {
@@ -638,6 +742,13 @@
       .assistant-container {
         height: 300px;
       }
+      .chat-float-button {
+        bottom: 20px;
+        right: 20px;
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+      }
     }
     @media (max-width: 480px) {
       header {
@@ -670,6 +781,11 @@
 <body>
   <!-- Fond animé (étoiles + nuages) -->
   <div class="background-animation"></div>
+
+  <!-- Bouton flottant pour ouvrir le chat -->
+  <div class="chat-float-button" id="openChatButton">
+    <i class="fa-solid fa-comment-dots"></i>
+  </div>
 
   <!-- En-tête avec logo sur trois lignes et hamburger menu -->
   <header>
@@ -923,11 +1039,28 @@
           <p>Notre assistant virtuel est disponible 24/7 pour répondre à vos questions en temps réel.</p>
           
           <div class="assistant-container">
-            <iframe 
-              src="https://embed.tawk.to/6820b4dbbca8a11909dc7b3e/default?popup=show" 
-              style="width:100%; height:100%; border:none; border-radius:10px;"
-              allowfullscreen
-            ></iframe>
+            <!-- Simulation de conversation -->
+            <div class="chat-container">
+              <div class="chat-header">Assistant Virtuel</div>
+              <div class="chat-messages" id="chatMessages">
+                <div class="message bot-message">
+                  Bonjour 👋 Je suis l'assistant de Social Boost Horizon. Comment puis-je vous aider aujourd'hui ?
+                </div>
+                <div class="message bot-message">
+                  Voici quelques sujets que je peux traiter :<br>
+                  - Informations sur les services<br>
+                  - Problèmes de commande<br>
+                  - Support technique<br>
+                  - Questions sur les paiements
+                </div>
+              </div>
+              <div class="chat-input">
+                <input type="text" id="chatInput" placeholder="Tapez votre message...">
+                <button onclick="sendMessage()">
+                  <i class="fa-solid fa-paper-plane"></i>
+                </button>
+              </div>
+            </div>
           </div>
           
           <div style="margin-top: 30px;">
@@ -1017,6 +1150,20 @@
     </div>
   </footer>
 
+  <!-- Script Tawk.to pour le chat réel -->
+  <script type="text/javascript">
+    var Tawk_API = Tawk_API || {}, Tawk_LoadStart = new Date();
+    (function(){
+      var s1 = document.createElement("script"),
+          s0 = document.getElementsByTagName("script")[0];
+      s1.async = true;
+      s1.src = 'https://embed.tawk.to/6820b4dbbca8a11909dc7b3e/default';
+      s1.charset = 'UTF-8';
+      s1.setAttribute('crossorigin','*');
+      s0.parentNode.insertBefore(s1, s0);
+    })();
+  </script>
+  
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       // Gestion du menu hamburger
@@ -1051,6 +1198,14 @@
           newsletterMessage.style.display = "none";
         }, 5000);
       });
+      
+      // Ouvrir le chat Tawk.to
+      const openChatButton = document.getElementById("openChatButton");
+      openChatButton.addEventListener("click", function() {
+        if (typeof Tawk_API !== 'undefined') {
+          Tawk_API.maximize();
+        }
+      });
     });
     
     // Fonction pour afficher/masquer les réponses
@@ -1069,6 +1224,60 @@
         icon.classList.add('fa-chevron-up');
       }
     }
+    
+    // Simulation de conversation
+    function sendMessage() {
+      const chatInput = document.getElementById('chatInput');
+      const chatMessages = document.getElementById('chatMessages');
+      const message = chatInput.value.trim();
+      
+      if (message) {
+        // Ajouter le message de l'utilisateur
+        const userMessage = document.createElement('div');
+        userMessage.className = 'message user-message';
+        userMessage.textContent = message;
+        chatMessages.appendChild(userMessage);
+        
+        // Réinitialiser le champ de saisie
+        chatInput.value = '';
+        
+        // Simulation de réponse du bot
+        setTimeout(() => {
+          const botMessage = document.createElement('div');
+          botMessage.className = 'message bot-message';
+          
+          // Réponses prédéfinies
+          if (message.toLowerCase().includes('service') || message.toLowerCase().includes('tarif')) {
+            botMessage.innerHTML = 'Nous proposons une large gamme de services pour booster votre présence sur les réseaux sociaux. Voici quelques exemples :<br>' +
+                                   '- Augmentation d\'abonnés Instagram<br>' +
+                                   '- Vues YouTube<br>' +
+                                   '- Likes et commentaires<br>' +
+                                   'Pour plus de détails, visitez notre page de services.';
+          } else if (message.toLowerCase().includes('paiement') || message.toLowerCase().includes('payer')) {
+            botMessage.innerHTML = 'Nous acceptons les paiements par Mobile Money (MTN et Orange) ainsi que par carte bancaire. Toutes nos transactions sont sécurisées.';
+          } else if (message.toLowerCase().includes('livraison') || message.toLowerCase().includes('délai')) {
+            botMessage.innerHTML = 'La plupart de nos services sont livrés dans les 24 à 48 heures. Certains services complexes peuvent prendre jusqu\'à 72 heures.';
+          } else {
+            botMessage.innerHTML = 'Merci pour votre message ! Pour une assistance plus détaillée, vous pouvez :<br>' +
+                                   '1. Rejoindre notre groupe WhatsApp<br>' +
+                                   '2. Contacter notre support par email<br>' +
+                                   '3. Ouvrir le chat en direct avec un agent en cliquant sur l\'icône en bas à droite';
+          }
+          
+          chatMessages.appendChild(botMessage);
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }, 1000);
+        
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+    }
+    
+    // Permettre d'envoyer un message avec la touche Entrée
+    document.getElementById('chatInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        sendMessage();
+      }
+    });
   </script>
 </body>
 </html>
