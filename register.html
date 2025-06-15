@@ -875,17 +875,22 @@
           const referralCodeUsed = urlParams.get('ref') || null;
           
           // Enregistrer l'utilisateur dans Firestore
-          await db.collection('users').doc(user.uid).set({
-            userId: user.uid,
-            username,
-            email: user.email,
-            phone: '',
-            country: '',
-            referralCode,
-            referralCodeUsed,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            provider: 'google'
-          });
+          // Dans la section d'inscription sans parrainage
+await db.collection('users').doc(userId).set({
+  userId,
+  username,
+  email,
+  phone: `${indicatif} ${telephone}`,
+  country: pays,
+  referralCode: generatedCode,
+  referredBy: referralCodeUsed || null, // Champ renommé
+  balance: 0, // Valeur par défaut
+  referralBalance: 0, // Valeur par défaut
+  discountUsesLeft: 10, // Valeur par défaut
+  referralsCount: 0, // Valeur par défaut
+  createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  provider: 'email'
+});
           
           showNotification('✅ Inscription réussie avec Google ! Redirection...', 'success');
           setTimeout(() => window.location.href = 'dashboard.html', 1500);
