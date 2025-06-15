@@ -705,7 +705,7 @@
   </footer>
 
   <!-- Scripts Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   
@@ -743,7 +743,6 @@
     };
     
     // Initialiser Firebase si ce n'est pas déjà fait
-    // C'est le "guard" pour s'assurer que l'initialisation n'arrive qu'une fois.
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
     }
@@ -908,9 +907,6 @@
         btn.classList.add('btn-loading');
         loader.style.display = 'block';
         
-        // La réinitialisation de l'app Firebase n'est plus nécessaire ici
-        // car l'app est déjà initialisée une fois au début du script.
-        // authDomain sera configuré par Firebase.
         await firebase.auth().useDeviceLanguage();
         await firebase.auth().signInWithRedirect(provider);
       } catch (error) {
@@ -921,7 +917,7 @@
       }
     });
     
-    // Gestion de l'inscription par email avec backend Replit
+    // Gestion de l'inscription par email avec backend Replit conditionnel
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('registerBtn');
@@ -995,30 +991,50 @@
         // Déterminer le code de parrainage utilisé
         const referralCodeUsed = referral || new URLSearchParams(location.search).get('ref') || null;
         
-        // Envoyer les données au backend Replit
-        const response = await fetch(`${BACKEND_URL}/register`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${await user.getIdToken()}`
-          },
-          body: JSON.stringify({
+        // LOGIQUE CONDITIONNELLE POUR LE PARRAINAGE
+        if (referral) {
+          // Cas 1: Code de parrainage fourni -> utiliser le backend Replit
+          const response = await fetch(`${BACKEND_URL}/register`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${await user.getIdToken()}`
+            },
+            body: JSON.stringify({
+              userId,
+              username,
+              email,
+              phone: `${indicatif} ${telephone}`,
+              country: pays,
+              referralCode: generatedCode,
+              referralCodeUsed
+            })
+          });
+          
+          const responseData = await response.json();
+          if (!responseData.success) {
+            throw new Error(responseData.error || 'Erreur du serveur Replit');
+          }
+          
+          showNotification('✅ Inscription réussie avec parrainage ! Redirection...', 'success');
+        } else {
+          // Cas 2: Pas de code de parrainage -> enregistrement direct dans Firestore
+          await db.collection('users').doc(userId).set({
             userId,
             username,
             email,
             phone: `${indicatif} ${telephone}`,
             country: pays,
             referralCode: generatedCode,
-            referralCodeUsed
-          })
-        });
-        
-        const responseData = await response.json();
-        if (!responseData.success) {
-          throw new Error(responseData.error || 'Erreur du serveur Replit');
+            referralCodeUsed,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            provider: 'email'
+          });
+          
+          showNotification('✅ Inscription réussie ! Redirection...', 'success');
         }
         
-        showNotification('✅ Inscription réussie ! Redirection...', 'success');
+        // Redirection vers le dashboard après 1.5s
         setTimeout(() => window.location.href = 'dashboard.html', 1500);
         
       } catch (error) {
@@ -1040,3 +1056,5 @@
       }
     });
   </script>
+</body>
+</html>
