@@ -648,16 +648,13 @@
     function showNotification(message, type) {
       const notification = document.getElementById('notification');
       const messageElement = document.getElementById('notification-message');
-      
       notification.className = 'notification';
       notification.classList.add(type);
       messageElement.textContent = message;
-      
       // Afficher la notification
       setTimeout(() => {
         notification.classList.add('show');
       }, 100);
-      
       // Cacher après 5 secondes
       setTimeout(() => {
         notification.classList.remove('show');
@@ -673,121 +670,161 @@
       messagingSenderId: "43658165639",
       appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
     };
-    
-    // Initialiser Firebase
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
     const provider = new firebase.auth.GoogleAuthProvider();
-    
+
+    // -------------------------
+    // Bloc de debug / logique Google pour la page de connexion
+    // -------------------------
+    // 1) Afficher domaine et URL au chargement pour vérification
+    document.addEventListener("DOMContentLoaded", () => {
+      console.log("=== Debug Google Auth (Login) ===");
+      console.log("Host (window.location.host) =", window.location.host);
+      console.log("Full URL (window.location.href) =", window.location.href);
+    });
+
+    // 2) onAuthStateChanged : détecte connexion (popup ou redirect) et redirige / crée doc si besoin
+    firebase.auth().onAuthStateChanged(async (user) => {
+      console.log("onAuthStateChanged (Login) appelé, user =", user);
+      if (user) {
+        // L'utilisateur est connecté : vérifier/enregistrer dans Firestore si nécessaire
+        const userId = user.uid;
+        try {
+          const userDoc = await db.collection('users').doc(userId).get();
+          if (!userDoc.exists) {
+            console.log("onAuthStateChanged (Login) : document Firestore absent, création pour utilisateur Google.");
+            const email = user.email || '';
+            const displayName = user.displayName || '';
+            const username = displayName
+              ? displayName.replace(/\s+/g, '_').toLowerCase()
+              : (email.split('@')[0] || userId);
+            const referralCode = Math.random().toString(36).substring(2,10).toUpperCase();
+            await db.collection('users').doc(userId).set({
+              userId,
+              username,
+              email,
+              phone: '',
+              country: '',
+              referralCode: referralCode,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              provider: 'google'
+            });
+            console.log("onAuthStateChanged (Login) : document créé.");
+          } else {
+            console.log("onAuthStateChanged (Login) : document Firestore existant, pas de création.");
+          }
+        } catch (err) {
+          console.error("onAuthStateChanged (Login) : erreur Firestore lors de la vérification/creation :", err);
+        }
+        // Redirection après connexion réussie
+        console.log("onAuthStateChanged (Login) : redirection vers dashboard.html");
+        showNotification('✅ Authentifié via Google, redirection...', 'success');
+        setTimeout(() => {
+          window.location.href = 'dashboard.html';
+        }, 1500);
+      } else {
+        console.log("onAuthStateChanged (Login) : pas d’utilisateur connecté.");
+      }
+    });
+
+    // 3) Fonction qui traite getRedirectResult au chargement, pour logger résultat ou erreur
+    async function handleGoogleRedirectDebugLogin() {
+      try {
+        console.log("handleGoogleRedirectDebugLogin : appel getRedirectResult()");
+        const result = await firebase.auth().getRedirectResult();
+        console.log("handleGoogleRedirectDebugLogin : résultat getRedirectResult() =", result);
+        if (result && result.user) {
+          console.log("handleGoogleRedirectDebugLogin : result.user détecté :", result.user);
+          showNotification('✅ Retour Google détecté, traitement en cours...', 'success');
+          // L'enregistrement / redirection se fera via onAuthStateChanged
+        } else {
+          console.log("handleGoogleRedirectDebugLogin : result.user undefined. Pas de redirection Google à traiter ou déjà consommé.");
+          // Si vous souhaitez indiquer à l'utilisateur qu'aucune connexion Google n'a été détectée, décommentez :
+          // showNotification('ℹ️ Aucune connexion Google à traiter.', 'success');
+        }
+      } catch (error) {
+        console.error("handleGoogleRedirectDebugLogin : erreur dans getRedirectResult() :", error);
+        showNotification(`❌ Erreur Google redirect: ${error.code || ''} — ${error.message}`, 'error');
+      }
+    }
+
+    // 4) Listener pour le clic "Se connecter avec Google": essai popup puis fallback redirect
+    document.getElementById('googleLogin').addEventListener('click', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('googleLogin');
+      const loader = document.getElementById('googleLoader');
+      try {
+        console.log("googleLogin click : début du flux Google Sign-In (Login)");
+        btn.classList.add('btn-loading');
+        if (loader) loader.style.display = 'block';
+        await firebase.auth().useDeviceLanguage();
+
+        // Essai popup en premier
+        console.log("Tentative signInWithPopup (Login)...");
+        const result = await firebase.auth().signInWithPopup(provider);
+        console.log("signInWithPopup (Login) résultat :", result);
+        // onAuthStateChanged prendra la suite
+      } catch (error) {
+        console.error("Erreur signInWithPopup Google (Login) :", error);
+        showNotification(`❌ Erreur Google popup: ${error.code || ''} — ${error.message}`, 'error');
+        // Fallback redirect si popup bloquée ou non supportée
+        if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request' 
+            || error.code === 'auth/operation-not-supported-in-this-environment') {
+          console.log("Popup Google bloquée ou non supportée, fallback signInWithRedirect (Login)...");
+          try {
+            await firebase.auth().signInWithRedirect(provider);
+          } catch (err2) {
+            console.error("Erreur signInWithRedirect fallback (Login) :", err2);
+            showNotification(`❌ Erreur Google redirect fallback: ${err2.code || ''} — ${err2.message}`, 'error');
+          }
+        }
+      } finally {
+        if (btn) btn.classList.remove('btn-loading');
+        if (loader) loader.style.display = 'none';
+      }
+    });
+
+    // 5) Au chargement de la page, appeler handleGoogleRedirectDebugLogin()
     document.addEventListener("DOMContentLoaded", function () {
       AOS.init({ duration: 800, once: true, offset: 100 });
+      console.log("DOMContentLoaded (Login): appel handleGoogleRedirectDebugLogin()");
+      handleGoogleRedirectDebugLogin();
 
+      // Code existant pour animation nuages et hamburger
       const backgroundAnimation = document.querySelector(".background-animation");
       const numberOfClouds = 20;
-
       for (let i = 0; i < numberOfClouds; i++) {
         const cloud = document.createElement("div");
         cloud.classList.add("cloud");
-
         const size = Math.random() * (250 - 150) + 150;
         cloud.style.width = `${size}px`;
         cloud.style.height = `${size * 0.6}px`;
         cloud.style.borderRadius = `${size / 2}px / ${size * 0.3}px`;
-
         cloud.style.left = `${Math.random() * 100 + 100}vw`;
         cloud.style.top = `${Math.random() * 85}vh`;
-
         const animationDuration = Math.random() * (60 - 30) + 30;
         cloud.style.animationDuration = `${animationDuration}s`;
-
         cloud.style.animationDelay = `${Math.random() * -animationDuration}s`;
-
         cloud.style.setProperty("--width", `${size}px`);
         const scale = Math.random() * (1.1 - 0.9) + 0.9;
         cloud.style.setProperty("--scale", scale);
-
         backgroundAnimation.appendChild(cloud);
       }
-
-      // Gestion du menu hamburger
       const header = document.querySelector("header");
       const hamburger = document.querySelector(".icon-hamburger");
       hamburger.addEventListener("click", () => {
         header.classList.toggle("open");
       });
-      
-      // Fermer le menu quand on clique en dehors
       document.addEventListener("click", (e) => {
         if (!header.contains(e.target) && header.classList.contains("open")) {
           header.classList.remove("open");
         }
       });
-      
-      // Vérifier si on revient d'une redirection Google
-      handleGoogleRedirect();
     });
 
-    // Gestion de la redirection Google
-    async function handleGoogleRedirect() {
-      try {
-        const result = await auth.getRedirectResult();
-        if (result.user) {
-          const user = result.user;
-          const btn = document.getElementById('googleLogin');
-          const loader = document.getElementById('googleLoader');
-          
-          btn.classList.add('btn-loading');
-          loader.style.display = 'block';
-          
-          // Vérifier si l'utilisateur existe dans Firestore
-          const userDoc = await db.collection('users').doc(user.uid).get();
-          
-          if (!userDoc.exists) {
-            // Créer l'utilisateur dans Firestore s'il n'existe pas
-            await db.collection('users').doc(user.uid).set({
-              userId: user.uid,
-              username: user.displayName.replace(/\s+/g, '_').toLowerCase(),
-              email: user.email,
-              phone: '',
-              country: '',
-              referralCode: Math.random().toString(36).substring(2,10).toUpperCase(),
-              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-              provider: 'google'
-            });
-          }
-          
-          showNotification('✅ Connexion réussie avec Google ! Redirection...', 'success');
-          setTimeout(() => window.location.href = 'dashboard.html', 1500);
-        }
-      } catch (error) {
-        console.error("Erreur lors du retour de redirection Google:", error);
-        if (error.code !== 'auth/popup-closed-by-user') {
-          showNotification(`❌ Erreur lors de la connexion Google: ${error.message}`, 'error');
-        }
-      }
-    }
-
-    // Gestion de la connexion avec Google (redirection)
-    document.getElementById('googleLogin').addEventListener('click', async () => {
-      const btn = document.getElementById('googleLogin');
-      const loader = document.getElementById('googleLoader');
-      
-      try {
-        btn.classList.add('btn-loading');
-        loader.style.display = 'block';
-        
-        // Utilisation de la redirection au lieu de la popup
-        await auth.signInWithRedirect(provider);
-      } catch (error) {
-        console.error("Erreur d'initiation de la connexion Google:", error);
-        showNotification(`❌ Erreur lors de la connexion Google: ${error.message}`, 'error');
-        btn.classList.remove('btn-loading');
-        loader.style.display = 'none';
-      }
-    });
-    
-    // Gestion de la connexion par email
+    // Gestion de la connexion par email (inchangé)
     document.getElementById('loginForm').addEventListener('submit', async e => {
       e.preventDefault();
       const btn = document.getElementById('loginBtn');
