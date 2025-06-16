@@ -45,7 +45,6 @@
       --sbh-input-border: rgba(255, 255, 255, 0.15);
       --sbh-error-color: #d00;
       --sbh-success-color: #4CAF50;
-      --sbh-tutorial-color: #8a2be2;
     }
 
     /* Body et fond animé (étoiles + nuages) */
@@ -292,15 +291,6 @@
       transform: translateY(-3px);
       box-shadow: 0 7px 20px rgba(37, 211, 102, 0.4);
     }
-    .btn-tutorial {
-      background: linear-gradient(45deg, var(--sbh-tutorial-color), #6a0dad);
-      box-shadow: 0 4px 15px rgba(138, 43, 226, 0.3);
-    }
-    .btn-tutorial:hover {
-      background: linear-gradient(45deg, #6a0dad, var(--sbh-tutorial-color));
-      transform: translateY(-3px);
-      box-shadow: 0 7px 20px rgba(138, 43, 226, 0.4);
-    }
     .btn:hover {
       transform: translateY(-3px);
       box-shadow: 0 7px 20px rgba(30, 144, 255, 0.4);
@@ -400,7 +390,7 @@
       flex-direction: column;
       gap: 15px;
     }
-    .btn-container button {
+    .btn-container button, .btn-container a.btn {
       width: 100%;
     }
     .divider {
@@ -434,10 +424,6 @@
     }
     .link a:hover {
       text-decoration: underline;
-    }
-    .tutorial-link {
-      text-align: center;
-      margin: 15px 0;
     }
 
     /* Footer simplifié */
@@ -679,13 +665,11 @@
         </div>
         
         <div class="btn-container">
-          <!-- Bouton tutoriel ajouté ici -->
-          <div class="tutorial-link">
-            <a href="https://youtube.com/shorts/GX4ONTzHmlg?feature=share" target="_blank" class="btn btn-tutorial">
-              <i class="fas fa-video"></i> Tutoriel d'inscription
-            </a>
-          </div>
-          
+          <!-- ========== BOUTON TUTORIEL AJOUTÉ ========== -->
+          <a href="https://youtube.com/shorts/GX4ONTzHmlg?feature=share" target="_blank" class="btn">
+            <i class="fas fa-video"></i>&nbsp;Voir le tutoriel d'inscription
+          </a>
+          <!-- ========================================== -->
           <button type="submit" class="btn" id="registerBtn">
             <span class="btn-text">S'inscrire</span>
             <div class="loader" id="registerLoader"></div>
@@ -865,7 +849,7 @@
       }
     });
 
-    // Gestion de la redirection Google - CORRIGÉ
+    // Gestion de la redirection Google (corrigée pour définir correctement userId, username, etc.)
     async function handleGoogleRedirect() {
       try {
         const result = await auth.getRedirectResult();
@@ -877,35 +861,36 @@
           btn.classList.add('btn-loading');
           loader.style.display = 'block';
           
-          // Vérifier si l'utilisateur existe déjà
-          const userDoc = await db.collection('users').doc(user.uid).get();
+          // Récupérer ID et infos Google
+          const userId = user.uid;
+          const email = user.email || '';
+          const displayName = user.displayName || '';
+          // Générer un pseudo à partir du displayName ou de l'email si displayName absent
+          const username = displayName 
+            ? displayName.replace(/\s+/g, '_').toLowerCase() 
+            : (email.split('@')[0] || userId);
+          // Générer un code de parrainage pour l'utilisateur
+          const referralCode = Math.random().toString(36).substring(2,10).toUpperCase();
+          // Récupérer paramètre ref éventuel dans l'URL
+          const urlParams = new URLSearchParams(window.location.search);
+          const referralCodeUsed = urlParams.get('ref') || null;
           
+          // Vérifier si l'utilisateur existe déjà
+          const userDoc = await db.collection('users').doc(userId).get();
           if (userDoc.exists) {
-            // Utilisateur existant - redirection
             showNotification('✅ Vous êtes déjà inscrit ! Redirection...', 'success');
             setTimeout(() => window.location.href = 'dashboard.html', 1500);
             return;
           }
           
-          // Nouvel utilisateur - création du profil
-          const urlParams = new URLSearchParams(window.location.search);
-          const referralCodeUsed = urlParams.get('ref') || null;
-          
-          // Générer un nom d'utilisateur
-          let username = user.displayName || user.email.split('@')[0];
-          username = username.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
-          
-          // Générer un code de parrainage
-          const referralCode = Math.random().toString(36).substring(2,10).toUpperCase();
-          
-          // Créer le profil utilisateur
-          await db.collection('users').doc(user.uid).set({
-            userId: user.uid,
+          // Créer un enregistrement minimal dans Firestore pour Google signup
+          await db.collection('users').doc(userId).set({
+            userId,
             username,
-            email: user.email,
-            phone: '',
-            country: '',
-            referralCode,
+            email,
+            phone: '',       // VIDE pour l'instant, vous pouvez compléter plus tard
+            country: '',     // VIDE pour l'instant
+            referralCode: referralCode,
             referredBy: referralCodeUsed,
             balance: 0,
             referralBalance: 0,
@@ -919,22 +904,20 @@
           setTimeout(() => window.location.href = 'dashboard.html', 1500);
         }
       } catch (error) {
-        console.error("Erreur Google:", error);
-        const btn = document.getElementById('googleSignup');
-        const loader = document.getElementById('googleLoader');
-        
-        if (btn && loader) {
-          btn.classList.remove('btn-loading');
-          loader.style.display = 'none';
-        }
-        
+        console.error("Erreur lors du retour de redirection Google:", error);
         if (error.code !== 'auth/popup-closed-by-user') {
           showNotification(`❌ Erreur Google: ${error.message}`, 'error');
         }
+      } finally {
+        // Retirer loader si nécessaire
+        const btn = document.getElementById('googleSignup');
+        const loader = document.getElementById('googleLoader');
+        if (btn) btn.classList.remove('btn-loading');
+        if (loader) loader.style.display = 'none';
       }
     }
 
-    // Gestion de l'inscription avec Google
+    // Gestion de l'inscription avec Google (redirection dynamique) – inchangé
     document.getElementById('googleSignup').addEventListener('click', async () => {
       const btn = document.getElementById('googleSignup');
       const loader = document.getElementById('googleLoader');
@@ -946,14 +929,14 @@
         await firebase.auth().useDeviceLanguage();
         await firebase.auth().signInWithRedirect(provider);
       } catch (error) {
-        console.error("Erreur Google:", error);
+        console.error("Erreur d'initiation de la connexion Google:", error);
         showNotification(`❌ Erreur Google: ${error.message}`, 'error');
         btn.classList.remove('btn-loading');
         loader.style.display = 'none';
       }
     });
     
-    // Gestion de l'inscription par email
+    // Gestion de l'inscription par email avec backend Replit conditionnel – inchangé
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('registerBtn');
