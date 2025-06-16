@@ -390,7 +390,7 @@
       flex-direction: column;
       gap: 15px;
     }
-    .btn-container button {
+    .btn-container button, .btn-container a.btn {
       width: 100%;
     }
     .divider {
@@ -424,11 +424,6 @@
     }
     .link a:hover {
       text-decoration: underline;
-    }
-    .tutorial-link {
-      text-align: center;
-      margin-top: 15px;
-      font-size: 0.9rem;
     }
 
     /* Footer simplifié */
@@ -670,16 +665,11 @@
         </div>
         
         <div class="btn-container">
+          <!-- Pas de gros bouton tutoriel ici -->
           <button type="submit" class="btn" id="registerBtn">
             <span class="btn-text">S'inscrire</span>
             <div class="loader" id="registerLoader"></div>
           </button>
-          
-          <div class="tutorial-link">
-            <a href="https://youtube.com/shorts/GX4ONTzHmlg?feature=share" target="_blank" style="color: var(--sbh-light-blue);">
-              <i class="fas fa-video"></i> Tutoriel d'inscription
-            </a>
-          </div>
           
           <div class="divider">OU</div>
           
@@ -691,6 +681,10 @@
         
         <div class="link">
           Vous avez déjà un compte ? <a href="login.html">Se connecter</a>
+        </div>
+        <!-- Petit lien tutoriel en dessous -->
+        <div class="link">
+          Vous ne savez pas comment faire pour vous inscrire ? <a href="https://youtube.com/shorts/GX4ONTzHmlg?feature=share" target="_blank">Voir le tutoriel complet</a>
         </div>
       </form>
     </div>
@@ -720,6 +714,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   
+  <!-- AOS -->
   <script defer src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   
   <script>
@@ -764,13 +759,135 @@
     
     // URL du backend Replit
     const BACKEND_URL = 'https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev';
-    
+
+    // -------------------------
+    //  Bloc de debug Google Auth
+    // -------------------------
+    // 1) Afficher domaine et URL au chargement
+    document.addEventListener("DOMContentLoaded", () => {
+      console.log("=== Debug Google Auth ===");
+      console.log("Host (window.location.host) =", window.location.host);
+      console.log("Full URL (window.location.href) =", window.location.href);
+    });
+
+    // 2) onAuthStateChanged : détecte toute connexion Firebase (popup ou redirect).
+    firebase.auth().onAuthStateChanged(async (user) => {
+      console.log("onAuthStateChanged appelé, user =", user);
+      if (user) {
+        // Si on arrive ici, Firebase nous dit que l’utilisateur est connecté.
+        // Vérifier/créer document Firestore si nécessaire
+        const userId = user.uid;
+        try {
+          const userDoc = await firebase.firestore().collection('users').doc(userId).get();
+          if (!userDoc.exists) {
+            console.log("onAuthStateChanged : document Firestore absent, création pour nouvel utilisateur Google.");
+            const email = user.email || '';
+            const displayName = user.displayName || '';
+            const username = displayName
+              ? displayName.replace(/\s+/g, '_').toLowerCase()
+              : (email.split('@')[0] || userId);
+            const referralCode = Math.random().toString(36).substring(2,10).toUpperCase();
+            const urlParams = new URLSearchParams(window.location.search);
+            const referralCodeUsed = urlParams.get('ref') || null;
+            await firebase.firestore().collection('users').doc(userId).set({
+              userId,
+              username,
+              email,
+              phone: '',
+              country: '',
+              referralCode: referralCode,
+              referredBy: referralCodeUsed,
+              balance: 0,
+              referralBalance: 0,
+              discountUsesLeft: 10,
+              referralsCount: 0,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              provider: 'google'
+            });
+            console.log("onAuthStateChanged : document créé.");
+          } else {
+            console.log("onAuthStateChanged : document Firestore existant, pas de création.");
+          }
+        } catch (err) {
+          console.error("onAuthStateChanged : erreur Firestore lors de la vérification/creation :", err);
+        }
+        // Redirection après connexion
+        console.log("onAuthStateChanged : redirection vers dashboard.html");
+        showNotification('✅ Authentifié via Google, redirection...', 'success');
+        setTimeout(() => {
+          window.location.href = 'dashboard.html';
+        }, 1500);
+      } else {
+        console.log("onAuthStateChanged : pas d’utilisateur connecté.");
+      }
+    });
+
+    // 3) Fonction qui traite getRedirectResult au chargement, pour logger le résultat ou l’erreur
+    async function handleGoogleRedirectDebug() {
+      try {
+        console.log("handleGoogleRedirectDebug : appel getRedirectResult()");
+        const result = await firebase.auth().getRedirectResult();
+        console.log("handleGoogleRedirectDebug : résultat getRedirectResult() =", result);
+        if (result && result.user) {
+          console.log("handleGoogleRedirectDebug : result.user détecté :", result.user);
+          showNotification('✅ Retour Google détecté, traitement en cours...', 'success');
+          // Enregistrement en Firestore et redirection gérés dans onAuthStateChanged
+        } else {
+          console.log("handleGoogleRedirectDebug : result.user undefined. Pas de redirection Google à traiter ou déjà consommé.");
+          // Pour info discrète, on peut décommenter :
+          // showNotification('ℹ️ Aucune connexion Google à traiter.', 'success');
+        }
+      } catch (error) {
+        console.error("handleGoogleRedirectDebug : erreur dans getRedirectResult() :", error);
+        showNotification(`❌ Erreur Google redirect: ${error.code || ''} — ${error.message}`, 'error');
+      }
+    }
+
+    // 4) Listener pour le clic "S'inscrire avec Google" : utilise signInWithPopup avec fallback redirect en cas de popup bloquée
+    document.getElementById('googleSignup').addEventListener('click', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('googleSignup');
+      const loader = document.getElementById('googleLoader');
+      try {
+        console.log("googleSignup click : début du flux Google Sign-In");
+        btn.classList.add('btn-loading');
+        if (loader) loader.style.display = 'block';
+        await firebase.auth().useDeviceLanguage();
+
+        // Premier essai : popup
+        console.log("Tentative signInWithPopup...");
+        const result = await firebase.auth().signInWithPopup(provider);
+        console.log("signInWithPopup résultat :", result);
+        // onAuthStateChanged s'en chargera
+      } catch (error) {
+        console.error("Erreur signInWithPopup Google :", error);
+        showNotification(`❌ Erreur Google popup: ${error.code || ''} — ${error.message}`, 'error');
+        // Fallback redirect si popup bloquée ou non supportée
+        if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request' 
+            || error.code === 'auth/operation-not-supported-in-this-environment') {
+          console.log("Popup Google bloquée ou non supportée, on passe à signInWithRedirect...");
+          try {
+            await firebase.auth().signInWithRedirect(provider);
+          } catch (err2) {
+            console.error("Erreur signInWithRedirect fallback :", err2);
+            showNotification(`❌ Erreur Google redirect fallback: ${err2.code || ''} — ${err2.message}`, 'error');
+          }
+        }
+      } finally {
+        if (btn) btn.classList.remove('btn-loading');
+        if (loader) loader.style.display = 'none';
+      }
+    });
+
+    // 5) Au chargement de la page, appeler handleGoogleRedirectDebug
     document.addEventListener("DOMContentLoaded", function () {
       AOS.init({ duration: 800, once: true, offset: 100 });
-
+      console.log("DOMContentLoaded: appel handleGoogleRedirectDebug()");
+      handleGoogleRedirectDebug();
+      
+      // Code existant pour le menu hamburger et animation clouds :
       const backgroundAnimation = document.querySelector(".background-animation");
       const numberOfClouds = 20;
-
       for (let i = 0; i < numberOfClouds; i++) {
         const cloud = document.createElement("div");
         cloud.classList.add("cloud");
@@ -801,19 +918,15 @@
       hamburger.addEventListener("click", () => {
         header.classList.toggle("open");
       });
-      
       // Fermer le menu quand on clique en dehors
       document.addEventListener("click", (e) => {
         if (!header.contains(e.target) && header.classList.contains("open")) {
           header.classList.remove("open");
         }
       });
-      
-      // Vérifier si on revient d'une redirection Google
-      handleGoogleRedirect();
     });
 
-    // Mise à jour de l'indicatif
+    // Mise à jour de l’indicatif
     function updateIndicatif() {
       const codes = {
         bj: '+229', bf: '+226', cm: '+237', ca: '+1',
@@ -855,95 +968,7 @@
       }
     });
 
-    // Gestion de la redirection Google - Méthode améliorée
-    async function handleGoogleRedirect() {
-      try {
-        const result = await auth.getRedirectResult();
-        if (result.user) {
-          const user = result.user;
-          const btn = document.getElementById('googleSignup');
-          const loader = document.getElementById('googleLoader');
-          
-          btn.classList.add('btn-loading');
-          loader.style.display = 'block';
-          
-          // Vérifier si l'utilisateur existe déjà
-          const userDoc = await db.collection('users').doc(user.uid).get();
-          
-          if (userDoc.exists) {
-            // Utilisateur existant - redirection
-            showNotification('✅ Vous êtes déjà inscrit ! Redirection...', 'success');
-            setTimeout(() => window.location.href = 'dashboard.html', 1500);
-            return;
-          }
-          
-          // Nouvel utilisateur - création du profil
-          const urlParams = new URLSearchParams(window.location.search);
-          const referralCodeUsed = urlParams.get('ref') || null;
-          
-          // Générer un nom d'utilisateur
-          let username = user.displayName || user.email.split('@')[0];
-          username = username.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
-          
-          // Générer un code de parrainage
-          const referralCode = Math.random().toString(36).substring(2,10).toUpperCase();
-          
-          // Créer le profil utilisateur
-          await db.collection('users').doc(user.uid).set({
-            userId: user.uid,
-            username,
-            email: user.email,
-            phone: '',
-            country: '',
-            referralCode,
-            referredBy: referralCodeUsed,
-            balance: 0,
-            referralBalance: 0,
-            discountUsesLeft: 10,
-            referralsCount: 0,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            provider: 'google'
-          });
-          
-          showNotification('✅ Inscription réussie avec Google ! Redirection...', 'success');
-          setTimeout(() => window.location.href = 'dashboard.html', 1500);
-        }
-      } catch (error) {
-        console.error("Erreur Google:", error);
-        const btn = document.getElementById('googleSignup');
-        const loader = document.getElementById('googleLoader');
-        
-        if (btn && loader) {
-          btn.classList.remove('btn-loading');
-          loader.style.display = 'none';
-        }
-        
-        if (error.code !== 'auth/popup-closed-by-user') {
-          showNotification(`❌ Erreur Google: ${error.message}`, 'error');
-        }
-      }
-    }
-
-    // Gestion de l'inscription avec Google
-    document.getElementById('googleSignup').addEventListener('click', async () => {
-      const btn = document.getElementById('googleSignup');
-      const loader = document.getElementById('googleLoader');
-      
-      try {
-        btn.classList.add('btn-loading');
-        loader.style.display = 'block';
-        
-        await firebase.auth().useDeviceLanguage();
-        await firebase.auth().signInWithRedirect(provider);
-      } catch (error) {
-        console.error("Erreur Google:", error);
-        showNotification(`❌ Erreur Google: ${error.message}`, 'error');
-        btn.classList.remove('btn-loading');
-        loader.style.display = 'none';
-      }
-    });
-    
-    // Gestion de l'inscription par email
+    // Gestion de l'inscription par email avec backend Replit conditionnel – inchangé
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('registerBtn');
