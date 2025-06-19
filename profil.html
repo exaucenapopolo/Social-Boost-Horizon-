@@ -34,6 +34,8 @@
       --sbh-text-light: rgba(255, 255, 255, 0.9);
       --sbh-accent: #FF6B6B;
       --sbh-light-blue: #4DA6FF;
+      --notification-success: #4CAF50;
+      --notification-error: #f44336;
     }
 
     /* Body et fond animé (étoiles + nuages) */
@@ -658,11 +660,91 @@
         padding: 20px;
       }
     }
+    
+    /* Ajout: Style pour les notifications */
+    .notification-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .notification {
+      display: flex;
+      align-items: center;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+      background: #fff;
+      color: #333;
+      font-weight: 500;
+      max-width: 350px;
+      transform: translateX(100%);
+      opacity: 0;
+      animation: slideIn 0.3s forwards, fadeOut 0.3s forwards 2.7s;
+      transition: all 0.3s ease;
+    }
+    
+    .notification.success {
+      border-left: 4px solid var(--notification-success);
+    }
+    
+    .notification.error {
+      border-left: 4px solid var(--notification-error);
+    }
+    
+    .notification-icon {
+      font-size: 24px;
+      margin-right: 15px;
+    }
+    
+    .notification.success .notification-icon {
+      color: var(--notification-success);
+    }
+    
+    .notification.error .notification-icon {
+      color: var(--notification-error);
+    }
+    
+    @keyframes slideIn {
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes fadeOut {
+      to {
+        opacity: 0;
+      }
+    }
+    
+    /* Ajout: Style pour le spinner de chargement */
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s linear infinite;
+      margin-right: 8px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
   <!-- Fond animé (étoiles + nuages) -->
   <div class="background-animation"></div>
+  
+  <!-- Conteneur pour les notifications -->
+  <div class="notification-container"></div>
 
   <!-- Header avec logo et menu hamburger -->
   <header data-aos="fade-down">
@@ -723,7 +805,8 @@
             <i class="fas fa-edit"></i> Modifier
           </button>
           <button type="submit" id="saveBtn" class="btn btn-save" style="display:none;">
-            <i class="fas fa-save"></i> Enregistrer
+            <span id="saveSpinner" style="display:none;" class="spinner"></span>
+            <span id="saveText"><i class="fas fa-save"></i> Enregistrer</span>
           </button>
           <button type="button" id="logoutBtn" class="btn btn-logout">
             <i class="fas fa-sign-out-alt"></i> Déconnexion
@@ -931,6 +1014,8 @@ document.addEventListener("DOMContentLoaded", function () {
   const btnSave          = document.getElementById('saveBtn');
   const btnLogout        = document.getElementById('logoutBtn');
   const profileForm      = document.getElementById('profileForm');
+  const saveSpinner      = document.getElementById('saveSpinner');
+  const saveText         = document.getElementById('saveText');
 
   // Désactiver/sécuriser l’édition initiale
   if (inputDisplayName) inputDisplayName.readOnly = true;
@@ -993,8 +1078,39 @@ document.addEventListener("DOMContentLoaded", function () {
       if (btnSave) btnSave.style.display = 'inline-block';
     });
   }
+  
+  // 10. Fonction pour afficher les notifications stylisées
+  function showNotification(message, isSuccess) {
+    const container = document.querySelector('.notification-container');
+    const notification = document.createElement('div');
+    notification.className = `notification ${isSuccess ? 'success' : 'error'}`;
+    
+    const icon = document.createElement('div');
+    icon.className = 'notification-icon';
+    icon.innerHTML = isSuccess ? '✅' : '❌';
+    
+    const text = document.createElement('div');
+    text.className = 'notification-text';
+    text.textContent = message;
+    
+    notification.appendChild(icon);
+    notification.appendChild(text);
+    container.appendChild(notification);
+    
+    // Supprimer la notification après l'animation
+    setTimeout(() => {
+      notification.remove();
+    }, 3000);
+  }
+  
+  // 11. Fonction pour activer/désactiver le spinner de sauvegarde
+  function toggleSaveSpinner(show) {
+    if (saveSpinner) saveSpinner.style.display = show ? 'inline-block' : 'none';
+    if (saveText) saveText.innerHTML = show ? 'Enregistrement...' : '<i class="fas fa-save"></i> Enregistrer';
+    if (btnSave) btnSave.disabled = show;
+  }
 
-  // 10. Soumission du formulaire : enregistrer modifications
+  // 12. Soumission du formulaire : enregistrer modifications
   if (profileForm) {
     profileForm.addEventListener('submit', async e => {
       e.preventDefault();
@@ -1003,6 +1119,10 @@ document.addEventListener("DOMContentLoaded", function () {
         window.location.href = 'login.html';
         return;
       }
+      
+      // Activer le spinner et désactiver le bouton
+      toggleSaveSpinner(true);
+      
       const newDisplayName = inputDisplayName.value.trim();
       const newEmail       = inputEmail.value.trim();
       const newPhone       = inputPhone.value.trim();
@@ -1023,13 +1143,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Si rien à faire
       if (Object.keys(updatesAuth).length === 0 && Object.keys(updatesFS).length === 0) {
-        alert('Aucune modification à enregistrer.');
-        // repasser en readonly
-        if (inputDisplayName) inputDisplayName.readOnly = true;
-        if (inputEmail)       inputEmail.readOnly = true;
-        if (inputPhone)       inputPhone.readOnly = true;
-        if (btnSave) btnSave.style.display = 'none';
-        if (btnEdit) btnEdit.style.display = 'inline-block';
+        showNotification('Aucune modification à enregistrer.', false);
+        toggleSaveSpinner(false);
         return;
       }
 
@@ -1043,7 +1158,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       try {
-        // 10.1. Si email doit changer : 
+        // 12.1. Si email doit changer : 
         if (updatesAuth.email) {
           try {
             // Tenter updateEmail directement
@@ -1062,7 +1177,7 @@ document.addEventListener("DOMContentLoaded", function () {
             }
           }
         }
-        // 10.2. Si displayName doit changer :
+        // 12.2. Si displayName doit changer :
         if (updatesAuth.displayName) {
           try {
             await user.updateProfile({ displayName: updatesAuth.displayName });
@@ -1071,7 +1186,7 @@ document.addEventListener("DOMContentLoaded", function () {
             // On ne stoppe pas nécessairement, on continue
           }
         }
-        // 10.3. Mise à jour Firestore (téléphone)
+        // 12.3. Mise à jour Firestore (téléphone)
         try {
           await db.collection('users').doc(user.uid).set(
             { phone: updatesFS.phone },
@@ -1082,7 +1197,9 @@ document.addEventListener("DOMContentLoaded", function () {
           // On continue, ou on peut alerter
         }
 
-        alert("Profil mis à jour avec succès !");
+        // Afficher notification de succès
+        showNotification("Profil mis à jour avec succès !", true);
+        
         // Repasser en readonly
         if (inputDisplayName) inputDisplayName.readOnly = true;
         if (inputEmail)       inputEmail.readOnly = true;
@@ -1098,12 +1215,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
       } catch (err) {
         console.error("Erreur enregistrement profil :", err);
-        alert("Erreur lors de la mise à jour du profil : " + err.message);
+        // Afficher notification d'erreur
+        showNotification("Erreur : " + err.message, false);
+      } finally {
+        // Désactiver le spinner et réactiver le bouton
+        toggleSaveSpinner(false);
       }
     });
   }
 
-  // 11. Déconnexion
+  // 13. Déconnexion
   if (btnLogout) {
     btnLogout.addEventListener('click', () => {
       if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
@@ -1111,7 +1232,7 @@ document.addEventListener("DOMContentLoaded", function () {
           window.location.href = 'login.html';
         }).catch(err => {
           console.error("Erreur déconnexion :", err);
-          alert("Erreur lors de la déconnexion.");
+          showNotification("Erreur lors de la déconnexion.", false);
         });
       }
     });
