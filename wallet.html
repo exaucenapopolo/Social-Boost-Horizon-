@@ -511,6 +511,43 @@
       100% { transform: rotate(360deg); }
     }
 
+    /* Notification “toast” */
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      padding: 12px 18px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1rem;
+      z-index: 9999;
+      opacity: 0;
+      transform: translateY(-20px);
+      animation: slideIn 0.4s forwards;
+    }
+    .notification.success {
+      background: rgba(76, 175, 80, 0.85);
+    }
+    .notification.error {
+      background: rgba(244, 67, 54, 0.85);
+    }
+    @keyframes slideIn {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    @keyframes slideOut {
+      to {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+    }
+
     /* FOOTER */
     footer {
       background: linear-gradient(to right, var(--sbh-gradient-start), var(--sbh-gradient-end));
@@ -785,7 +822,7 @@
     </div>
   </header>
 
-  <!-- Section solde -->
+  <!-- Section solde global affiché -->
   <div class="balance-section" data-aos="fade-up">
     <span id="balance">Solde : 0 XAF</span>
     <button id="quickDeposit">➕ Déposer</button>
@@ -941,70 +978,68 @@
   
   <script>
     document.addEventListener("DOMContentLoaded", function () {
-      AOS.init({ duration: 800, once: true, offset: 100 });
-
-      // Animation des nuages
-      const backgroundAnimation = document.querySelector(".background-animation");
-      const numberOfClouds = 20;
-
-      for (let i = 0; i < numberOfClouds; i++) {
-        const cloud = document.createElement("div");
-        cloud.classList.add("cloud");
-
-        const size = Math.random() * (250 - 150) + 150;
-        cloud.style.width = `${size}px`;
-        cloud.style.height = `${size * 0.6}px`;
-        cloud.style.borderRadius = `${size / 2}px / ${size * 0.3}px`;
-
-        cloud.style.left = `${Math.random() * 100 + 100}vw`;
-        cloud.style.top = `${Math.random() * 85}vh`;
-
-        const animationDuration = Math.random() * (60 - 30) + 30;
-        cloud.style.animationDuration = `${animationDuration}s`;
-
-        cloud.style.animationDelay = `${Math.random() * -animationDuration}s`;
-
-        cloud.style.setProperty("--width", `${size}px`);
-        const scale = Math.random() * (1.1 - 0.9) + 0.9;
-        cloud.style.setProperty("--scale", scale);
-
-        backgroundAnimation.appendChild(cloud);
+      // 1. Initialisation AOS (animations au scroll)
+      if (typeof AOS !== 'undefined') {
+        AOS.init({ duration: 800, once: true, offset: 100 });
       }
 
-      // Gestion du menu hamburger
-      const header = document.querySelector("header");
-      const hamburger = document.querySelector(".icon-hamburger");
-      hamburger.addEventListener("click", () => {
-        header.classList.toggle("open");
-      });
-      
-      // Fermer le menu quand on clique en dehors
-      document.addEventListener("click", (e) => {
-        if (!header.contains(e.target) && header.classList.contains("open")) {
-          header.classList.remove("open");
+      // 2. Animation des nuages (identique aux autres pages)
+      (function initCloudsAnimation() {
+        const backgroundAnimation = document.querySelector(".background-animation");
+        if (!backgroundAnimation) return;
+        const numberOfClouds = 20;
+        for (let i = 0; i < numberOfClouds; i++) {
+          const cloud = document.createElement("div");
+          cloud.classList.add("cloud");
+          const size = Math.random() * (250 - 150) + 150;
+          cloud.style.width = `${size}px`;
+          cloud.style.height = `${size * 0.6}px`;
+          cloud.style.borderRadius = `${size/2}px / ${size*0.3}px`;
+          cloud.style.left = `${Math.random() * 100 + 100}vw`;
+          cloud.style.top = `${Math.random() * 85}vh`;
+          const animationDuration = Math.random() * (60 - 30) + 30;
+          cloud.style.animationDuration = `${animationDuration}s`;
+          cloud.style.animationDelay = `${Math.random() * -animationDuration}s`;
+          cloud.style.setProperty("--width", `${size}px`);
+          const scale = Math.random() * (1.1 - 0.9) + 0.9;
+          cloud.style.setProperty("--scale", scale);
+          backgroundAnimation.appendChild(cloud);
         }
-      });
-      
-      // Gestion de la newsletter
-      const newsletterForm = document.getElementById("newsletterForm");
-      const newsletterMessage = document.getElementById("newsletterMessage");
-      
-      newsletterForm.addEventListener("submit", function(e) {
-        e.preventDefault();
-        const emailInput = this.querySelector('input[type="email"]');
-        
-        // Simulation d'envoi
-        newsletterMessage.textContent = "Merci pour votre inscription! Vous recevrez bientôt nos actualités.";
-        newsletterMessage.style.display = "block";
-        emailInput.value = "";
-        
-        // Cacher le message après 5 secondes
-        setTimeout(() => {
-          newsletterMessage.style.display = "none";
-        }, 5000);
-      });
+      })();
 
-      // Configuration Firebase
+      // 3. Gestion du menu hamburger
+      (function initHamburgerMenu() {
+        const header = document.querySelector("header");
+        const hamburger = document.querySelector(".icon-hamburger");
+        if (!header || !hamburger) return;
+        hamburger.addEventListener("click", () => {
+          header.classList.toggle("open");
+        });
+        document.addEventListener("click", (e) => {
+          if (!header.contains(e.target) && header.classList.contains("open")) {
+            header.classList.remove("open");
+          }
+        });
+      })();
+
+      // 4. Gestion de la newsletter
+      (function initNewsletter() {
+        const newsletterForm = document.getElementById("newsletterForm");
+        const newsletterMessage = document.getElementById("newsletterMessage");
+        if (!newsletterForm || !newsletterMessage) return;
+        newsletterForm.addEventListener("submit", function(e) {
+          e.preventDefault();
+          const emailInput = this.querySelector('input[type="email"]');
+          newsletterMessage.textContent = "Merci pour votre inscription! Vous recevrez bientôt nos actualités.";
+          newsletterMessage.style.display = "block";
+          if (emailInput) emailInput.value = "";
+          setTimeout(() => {
+            newsletterMessage.style.display = "none";
+          }, 5000);
+        });
+      })();
+
+      // 5. Configuration et initialisation Firebase v8
       const firebaseConfig = {
         apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
         authDomain: "social-boost-horizon.firebaseapp.com",
@@ -1013,79 +1048,85 @@
         messagingSenderId: "43658165639",
         appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
       };
-      
-      // Initialisation de Firebase
+      if (typeof firebase === 'undefined') {
+        console.error("Firebase SDK non chargé. Vérifiez les imports.");
+        return;
+      }
       if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
       }
-      
       const auth = firebase.auth();
       const db = firebase.firestore();
+
+      // Références DOM
       const logoutBtn = document.getElementById('logoutBtn');
       const quickDeposit = document.getElementById('quickDeposit');
       const addFundsBtn = document.getElementById('addFunds');
       const transferBtn = document.getElementById('transferFunds');
-
-      // URL du backend
-      const BACKEND_BASE = "https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev";
-
-      // Éléments UI
-      const welcomeEl = document.getElementById('welcome');
       const balanceEl = document.getElementById('balance');
       const mainBalEl = document.getElementById('mainBalance');
       const referralBalEl = document.getElementById('referralBalance');
       const activityList = document.getElementById('activityList');
+      const headerWelcome = document.getElementById('welcome'); // optionnel si vous avez un élément pour message de bienvenue
 
-      let currentUid;
+      // Utilitaire : afficher notification “toast”
+      function showNotification(message, type = 'success') {
+        const notif = document.createElement('div');
+        notif.className = 'notification ' + (type === 'success' ? 'success' : 'error');
+        const emojiSpan = document.createElement('span');
+        emojiSpan.textContent = (type === 'success' ? '✅' : '❌');
+        const textSpan = document.createElement('span');
+        textSpan.textContent = message;
+        notif.appendChild(emojiSpan);
+        notif.appendChild(textSpan);
+        document.body.appendChild(notif);
+        // Après 2.5s, animation de sortie puis suppression
+        setTimeout(() => {
+          notif.style.animation = 'slideOut 0.4s forwards';
+          notif.addEventListener('animationend', () => {
+            notif.remove();
+          });
+        }, 2500);
+      }
+
+      let currentUid = null;
 
       auth.onAuthStateChanged(user => {
-        if (!user) return window.location.href = 'login.html';
+        if (!user) {
+          window.location.href = 'login.html';
+          return;
+        }
         currentUid = user.uid;
-        
-        // Récupérer le nom d'utilisateur
-        db.collection('users').doc(user.uid).get().then(doc => {
-          if (doc.exists) {
-            const userData = doc.data();
-            welcomeEl.textContent = `Bienvenue ${userData.username || ''} sur votre portefeuille`;
-          }
+
+        // Optionnel : message de bienvenue si vous avez un container
+        // db.collection('users').doc(currentUid).get().then(doc => {
+        //   if (doc.exists) {
+        //     const u = doc.data();
+        //     if (headerWelcome) {
+        //       headerWelcome.textContent = `Bienvenue ${u.username || ''} sur votre portefeuille`;
+        //     }
+        //   }
+        // });
+
+        // 1) Écoute du document utilisateur pour soldes
+        const userDocRef = db.collection('users').doc(currentUid);
+        userDocRef.onSnapshot(docSnap => {
+          const d = docSnap.data() || {};
+          const bal = d.balance || 0;
+          const refBal = d.referralBalance || 0;
+          balanceEl.textContent = `Solde : ${bal} XAF`;
+          mainBalEl.textContent = `${bal} XAF`;
+          referralBalEl.textContent = `${refBal} XAF`;
         });
-        
-        // 1) Soldes
-        const uref = db.collection('users').doc(currentUid);
-        uref.onSnapshot(doc => {
-          const d = doc.data() || {};
-          balanceEl.textContent = `Solde : ${d.balance || 0} XAF`;
-          mainBalEl.textContent = `${d.balance || 0} XAF`;
-          referralBalEl.textContent = `${d.referralBalance || 0} XAF`;
-        });
-        
-        // 2) Activités récentes
+
+        // 2) Charger activités récentes
         loadActivities();
       });
 
-      // Transférer le solde d'affiliation
-      transferBtn.addEventListener('click', async () => {
-        if (!currentUid) return;
-        transferBtn.disabled = true;
-        try {
-          const res = await fetch(`${BACKEND_BASE}/users/${encodeURIComponent(currentUid)}/transfer-referral`, {
-            method: 'POST'
-          });
-          const j = await res.json();
-          if (!j.success) throw new Error(j.error);
-          alert(`Transféré ${j.transferred} XAF vers le solde principal.`);
-          // Recharger les données
-          loadActivities();
-        } catch (err) {
-          alert('Erreur : ' + err.message);
-        } finally {
-          transferBtn.disabled = false;
-        }
-      });
-
-      // Charger les activités
+      // Fonction : charger les activités depuis Firestore
       async function loadActivities() {
         if (!currentUid) return;
+        // Afficher état chargement
         activityList.innerHTML = `
           <tr>
             <td colspan="3" class="loading">
@@ -1094,14 +1135,16 @@
             </td>
           </tr>
         `;
-        
         try {
-          const res = await fetch(`${BACKEND_BASE}/users/${encodeURIComponent(currentUid)}/activities`);
-          const j = await res.json();
-          if (!j.success) throw new Error(j.error);
-          
-          const items = j.activities;
-          if (!items || items.length === 0) {
+          // Nom de la collection de transactions : adaptez selon votre base.
+          // Exemple ici : 'fabchip_transaction'
+          const collName = 'fabchip_transaction'; 
+          const querySnapshot = await db.collection(collName)
+            .where('userId', '==', currentUid)
+            .orderBy('date', 'desc')
+            .limit(20)
+            .get();
+          if (querySnapshot.empty) {
             activityList.innerHTML = `
               <tr>
                 <td colspan="3" style="text-align: center; padding: 30px;">
@@ -1112,19 +1155,34 @@
             `;
             return;
           }
-          
           let html = '';
-          items.forEach(a => {
+          querySnapshot.forEach(docSnap => {
+            const a = docSnap.data();
+            // On suppose qu’il y a au moins : date (timestamp ou ISO), label ou description, amount numérique (positif ou négatif)
+            let dateObj;
+            if (a.date && typeof a.date.toDate === 'function') {
+              dateObj = a.date.toDate();
+            } else if (a.date) {
+              dateObj = new Date(a.date);
+            } else {
+              dateObj = new Date();
+            }
+            const dateStr = dateObj.toLocaleString('fr-FR');
+            const label = a.label || a.description || '—';
+            const amount = a.amount != null ? a.amount : 0;
+            // On peut afficher + ou - selon signe
+            const amountStr = (amount >= 0 ? '+' : '') + amount + ' XAF';
             html += `
               <tr>
-                <td class="activity-date">${new Date(a.date).toLocaleString('fr-FR')}</td>
-                <td class="activity-label">${a.label}</td>
-                <td class="activity-amount">+${a.amount} XAF</td>
+                <td class="activity-date">${dateStr}</td>
+                <td class="activity-label" title="${label}">${label}</td>
+                <td class="activity-amount">${amountStr}</td>
               </tr>
             `;
           });
           activityList.innerHTML = html;
-        } catch(err) {
+        } catch (err) {
+          console.error("Erreur chargement activités :", err);
           activityList.innerHTML = `
             <tr>
               <td colspan="3" style="text-align: center; padding: 30px; color: var(--sbh-accent);">
@@ -1136,26 +1194,77 @@
         }
       }
 
-      // Redirection pour les dépôts
+      // Transfert du solde d’affiliation vers le solde principal
+      transferBtn.addEventListener('click', async () => {
+        if (!currentUid) return;
+        // Désactiver bouton et montrer spinner
+        transferBtn.disabled = true;
+        const prevHTML = transferBtn.innerHTML;
+        transferBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Transfert...';
+
+        const userDocRef = db.collection('users').doc(currentUid);
+        try {
+          await db.runTransaction(async (tx) => {
+            const docSnap = await tx.get(userDocRef);
+            if (!docSnap.exists) {
+              throw new Error("Document utilisateur introuvable.");
+            }
+            const data = docSnap.data();
+            const bal = data.balance || 0;
+            const refBal = data.referralBalance || 0;
+            if (refBal <= 0) {
+              throw new Error("Aucun solde d’affiliation disponible à transférer.");
+            }
+            const newMain = bal + refBal;
+            const newRef = 0;
+            // Mettre à jour solde principal et remettre referral à 0
+            tx.update(userDocRef, {
+              balance: newMain,
+              referralBalance: newRef
+            });
+            // Enregistrer une entrée dans la collection de transactions
+            const collName = 'fabchip_transaction'; // adaptez si nécessaire
+            const transRef = db.collection(collName).doc();
+            tx.set(transRef, {
+              userId: currentUid,
+              date: firebase.firestore.FieldValue.serverTimestamp(),
+              label: 'Transfert solde affiliation vers principal',
+              amount: refBal,
+              type: 'transferReferral'
+            });
+          });
+          showNotification("Transfert effectué avec succès !", 'success');
+          // Recharger activités
+          loadActivities();
+        } catch (err) {
+          console.error("Erreur transfert :", err);
+          showNotification("Erreur lors du transfert : " + err.message, 'error');
+        } finally {
+          transferBtn.disabled = false;
+          transferBtn.innerHTML = prevHTML;
+        }
+      });
+
+      // Redirection pour dépôt rapide ou ajout de fonds
       quickDeposit.addEventListener('click', () => {
         window.location.href = 'fonds.html';
       });
-      
       addFundsBtn.addEventListener('click', () => {
         window.location.href = 'fonds.html';
       });
 
-      // Gère la déconnexion
+      // Déconnexion
       logoutBtn.addEventListener('click', () => {
         if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
           auth.signOut().then(() => {
             window.location.href = 'login.html';
           }).catch(error => {
             console.error("Erreur de déconnexion :", error);
-            alert("Une erreur est survenue lors de la déconnexion.");
+            showNotification("Erreur lors de la déconnexion.", 'error');
           });
         }
       });
+
     });
   </script>
 </body>
