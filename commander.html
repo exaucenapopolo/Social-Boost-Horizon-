@@ -1329,154 +1329,111 @@
     }
 
     async function onSubmit(e) {
-  e.preventDefault();
-  // Cacher d'anciennes erreurs
-  orderErrorBox.style.display = 'none';
-  orderErrorBox.textContent = '';
-  quantityError.style.display = 'none';
+      e.preventDefault();
+      orderErrorBox.style.display = 'none';
+      orderErrorBox.textContent = '';
+      quantityError.style.display = 'none';
 
-  // Récupérer les choix
-  const selectedServiceKey = serviceSelect.value;
-  if (!selectedServiceKey) {
-    orderErrorBox.textContent = 'Veuillez sélectionner un service.';
-    orderErrorBox.style.display = 'block';
-    return;
-  }
-  const selectedQuality = qualitySelect.value;
-  if (!selectedQuality) {
-    orderErrorBox.textContent = 'Veuillez sélectionner une qualité.';
-    orderErrorBox.style.display = 'block';
-    return;
-  }
-
-  // Vérifier quantité ou commentaires
-  const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
-  let minQuantity = 1;
-  const remarkMatch = serviceDef.remark && serviceDef.remark.match(/\(min:\s*(\d+)\)/);
-  if (remarkMatch && remarkMatch[1]) {
-    minQuantity = parseInt(remarkMatch[1], 10);
-  }
-  const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
-  let quantityForValidation = 0;
-  let commentsArray = [];
-  if (isCommentService) {
-    commentsArray = quantityInput.value.split('\n').map(l => l.trim()).filter(l => l);
-    quantityForValidation = commentsArray.length;
-    if (quantityForValidation < minQuantity) {
-      quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`;
-      quantityError.style.display = 'block';
-      return;
-    }
-  } else {
-    if (!quantityInput.disabled) {
-      quantityForValidation = parseInt(quantityInput.value, 10) || 0;
-      if (quantityForValidation < minQuantity) {
-        quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
-        quantityError.style.display = 'block';
+      const selectedServiceKey = serviceSelect.value;
+      if (!selectedServiceKey) {
+        orderErrorBox.textContent = 'Veuillez sélectionner un service.';
+        orderErrorBox.style.display = 'block';
         return;
       }
-    }
-  }
+      const selectedQuality = qualitySelect.value;
+      if (!selectedQuality) {
+        orderErrorBox.textContent = 'Veuillez sélectionner une qualité.';
+        orderErrorBox.style.display = 'block';
+        return;
+      }
 
-  // Récupérer userId et contact
-  const userIdVal = document.getElementById('userId').value.trim();
-  let contactVal = '';
-  if (contactType.value === 'whatsapp') {
-    contactVal = contactInput.value.trim();
-  } else if (contactType.value === 'email') {
-    contactVal = emailInput.value.trim();
-  }
-  // Vérifier userId
-  if (!userIdVal) {
-    showNotification('❌', "❌ Erreur d'authentification. Veuillez vous reconnecter.", 'error');
-    return;
-  }
-  // Vérifier mode contact
-  if (!contactType.value) {
-    showNotification('❌', "❌ Veuillez choisir un mode de contact.", 'error');
-    return;
-  }
-  if (contactType.value === 'whatsapp' && !contactVal) {
-    showNotification('❌', "❌ Veuillez saisir votre numéro WhatsApp.", 'error');
-    return;
-  }
-  if (contactType.value === 'email' && !contactVal) {
-    showNotification('❌', "❌ Veuillez saisir votre adresse Email.", 'error');
-    return;
-  }
+      const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
+      let minQuantity = 1;
 
-  // Construire le payload
-  const payload = {
-    secretToken: 'Xy12AbCdE3FgHiJkL4MnOpQrStUvWxYz', // Ton token ; assure-toi qu'il correspond à context.SECRET_TOKEN
-    userId:      userIdVal,
-    platform:    selectedPlatform,
-    service:     selectedServiceKey,
-    quality:     selectedQuality,
-    link:        linkInput.value.trim(),
-    contactType: contactType.value,
-    contact:     contactVal
-  };
-  // subOption si applicable
-  if (subOptionSection.style.display === 'block' && subOptionSelect.value) {
-    payload.subOption = subOptionSelect.value;
-  }
-  // quantity ou comments
-  if (isCommentService) {
-    // envoyer la chaîne brute avec retours à la ligne, la Function se chargera de split
-    payload.comments = quantityInput.value;
-  } else {
-    payload.quantity = Number(quantityInput.value);
-  }
+      const remarkMatch = serviceDef.remark && serviceDef.remark.match(/\(min:\s*(\d+)\)/);
+      if (remarkMatch && remarkMatch[1]) {
+        minQuantity = parseInt(remarkMatch[1], 10);
+      }
 
-  // Appel à la Function Twilio
-  const functionUrl = 'https://ordernotifierservice-1758.twil.io/sendOrderWithFirestore';
-  const submitBtn = orderForm.querySelector('button[type="submit"]');
-  try {
-    // Désactiver bouton
-    if (submitBtn) {
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Envoi en cours...';
-    }
-    const response = await fetch(functionUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-    let data;
-    try {
-      data = await response.json();
-    } catch (_) {
-      data = null;
-    }
-    if (!response.ok) {
-      const msg = data && data.error ? data.error : `Erreur réseau (${response.status})`;
-      showNotification('❌', `❌ ${msg}`, 'error');
-    } else {
-      if (data && data.success) {
+      const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
+      let quantityForValidation = 0;
+      let commentsArray = [];
+
+      if (isCommentService) {
+        commentsArray = quantityInput.value.split('\n').filter(l => l.trim());
+        quantityForValidation = commentsArray.length;
+        if (quantityForValidation < minQuantity) {
+          quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`;
+          quantityError.style.display = 'block';
+          return;
+        }
+      } else {
+        if (!quantityInput.disabled) {
+          quantityForValidation = parseInt(quantityInput.value) || 0;
+          if (quantityForValidation < minQuantity) {
+            quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
+            quantityError.style.display = 'block';
+          }
+        }
+      }
+
+      const payload = {
+        userId:      document.getElementById('userId').value,
+        platform:    selectedPlatform,
+        service:     selectedServiceKey,
+        quality:     qualitySelect.value,
+        subOption:   subOptionSection.style.display === 'block' ? subOptionSelect.value : undefined,
+        link:        linkInput.value,
+        quantity:    isCommentService || quantityInput.disabled ? undefined : Number(quantityInput.value),
+        comments:    isCommentService ? commentsArray : undefined,
+        contactType: contactType.value,
+        contact:     contactType.value === 'whatsapp' ? contactInput.value : emailInput.value
+      };
+
+      if (!payload.userId) {
+        showNotification('❌', "❌ Erreur d'authentification. Veuillez vous reconnecter.", 'error');
+        return;
+      }
+
+      if (payload.subOption === "" && subOptionSection.style.display !== 'none') {
+        showNotification('❌', "❌ Veuillez choisir une option de service.", 'error');
+        return;
+      }
+
+      if (!payload.contactType) {
+        showNotification('❌', "❌ Veuillez choisir un mode de contact.", 'error');
+        return;
+      }
+      if (payload.contactType === 'whatsapp' && !payload.contact) {
+        showNotification('❌', "❌ Veuillez saisir votre numéro WhatsApp.", 'error');
+        return;
+      }
+      if (payload.contactType === 'email' && !payload.contact) {
+        showNotification('❌', "❌ Veuillez saisir votre adresse Email.", 'error');
+        return;
+      }
+
+      try {
+        // Simulation d'envoi de commande (remplacer par votre vrai endpoint)
+        const res = await fetch('https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev/order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Erreur inattendue. Veuillez réessayer.');
+        }
+        
         showNotification('✅', '✅ Commande envoyée avec succès !', 'success');
         orderForm.reset();
         resetUI();
         icons.forEach(i => i.classList.remove('active'));
-      } else {
-        const msg = data && data.error ? data.error : 'Erreur inconnue côté serveur';
-        showNotification('❌', `❌ ${msg}`, 'error');
+      } catch (err) {
+        showNotification('❌', `❌ ${err.message}`, 'error');
       }
     }
-  } catch (err) {
-    console.error('Fetch erreur:', err);
-    showNotification('❌', '❌ Impossible de contacter le serveur. Vérifiez ta connexion.', 'error');
-  } finally {
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Commander Maintenant';
-    }
-  }
-}
-
-// Assure-toi que cet écouteur est bien placé, généralement en bas de ton script :
-orderForm.addEventListener('submit', onSubmit);
   </script>
 </body>
 </html>
