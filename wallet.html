@@ -413,7 +413,11 @@
       box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3);
       cursor: pointer;
     }
-    .balance-btn:hover {
+    .balance-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .balance-btn:hover:not(:disabled) {
       transform: translateY(-3px);
       box-shadow: 0 7px 20px rgba(30, 144, 255, 0.4);
       background: linear-gradient(45deg, var(--sbh-gradient-start), #2a7fff);
@@ -532,7 +536,6 @@
     .wallet-notification.show {
       opacity: 1;
     }
-    /* Vous pouvez ajuster la couleur selon succès ou erreur */
     .wallet-notification.success {
       border-left: 4px solid var(--sbh-text-green);
     }
@@ -852,7 +855,7 @@
         </div>
         <div class="balance-amount" id="referralBalance">0 XAF</div>
         <div class="balance-actions">
-          <button id="transferFunds" class="balance-btn">
+          <button id="transferFunds" class="balance-btn" disabled>
             <i class="fas fa-exchange-alt"></i> Transférer
           </button>
         </div>
@@ -1089,8 +1092,7 @@
         }
         currentUid = user.uid;
 
-        // Afficher éventuellement nom utilisateur dans un élément (si vous en avez)
-        // Par exemple s’il y a un <div id="welcome"></div>, sinon ignore.
+        // (Optionnel) Afficher nom d’utilisateur si un élément #welcome existe
         const welcomeEl = document.getElementById('welcome');
         if (welcomeEl) {
           db.collection('users').doc(user.uid).get().then(doc => {
@@ -1111,6 +1113,15 @@
           balanceEl.textContent = `Solde : ${bal} XAF`;
           mainBalEl.textContent = `${bal} XAF`;
           referralBalEl.textContent = `${refBal} XAF`;
+
+          // Désactiver ou activer le bouton Transférer selon refBal
+          if (transferBtn) {
+            if (refBal > 0) {
+              transferBtn.disabled = false;
+            } else {
+              transferBtn.disabled = true;
+            }
+          }
         }, err => {
           console.error("Erreur snapshot user:", err);
         });
@@ -1124,6 +1135,7 @@
         transferBtn.addEventListener('click', async () => {
           if (!currentUid) return;
           transferBtn.disabled = true;
+          // Afficher spinner dans le bouton
           transferBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Transfert...`;
           try {
             const userDocRef = db.collection('users').doc(currentUid);
@@ -1158,7 +1170,14 @@
             loadActivities();
           } catch (err) {
             console.error("Erreur transfert:", err);
-            showWalletNotification("Erreur lors du transfert : " + err.message, 'error');
+            // Si l’erreur contient "requires an index", on invite à créer l’index
+            if (err.message && err.message.includes('requires an index')) {
+              showWalletNotification("Erreur Firestore : un index est requis pour charger les activités. Veuillez créer l’index dans la console Firestore.", 'error');
+              console.warn("Vous devez créer l’index composite userId + date(desc) sur fapshiTransactions.");
+              // Vous pouvez extraire l’URL depuis l’erreur si vous le souhaitez pour guider l’utilisateur.
+            } else {
+              showWalletNotification("Erreur lors du transfert : " + err.message, 'error');
+            }
           } finally {
             transferBtn.disabled = false;
             transferBtn.innerHTML = `<i class="fas fa-exchange-alt"></i> Transférer`;
@@ -1204,14 +1223,9 @@
             if (a.date && a.date.toDate) {
               dateStr = a.date.toDate().toLocaleString('fr-FR');
             } else if (a.date) {
-              // cas improbable si pas Timestamp
-              try { dateStr = new Date(a.date).toLocaleString('fr-FR'); }
-              catch { dateStr = ''; }
+              try { dateStr = new Date(a.date).toLocaleString('fr-FR'); } catch {}
             }
-            // Montant avec signe selon type ?
-            // Ici on affiche montant positif pour dépôt ou pour transfert reçu
             const amount = a.amount != null ? a.amount : 0;
-            // Label
             const label = a.label || '';
             html += `
               <tr>
@@ -1224,14 +1238,27 @@
           activityList.innerHTML = html;
         } catch(err) {
           console.error("Erreur chargement activités:", err);
-          activityList.innerHTML = `
-            <tr>
-              <td colspan="3" style="text-align: center; padding: 30px; color: var(--sbh-accent);">
-                <i class="fas fa-exclamation-triangle"></i>
-                <p>Erreur de chargement : ${err.message}</p>
-              </td>
-            </tr>
-          `;
+          // Si erreur d'index, on l'indique
+          if (err.message && err.message.includes('requires an index')) {
+            activityList.innerHTML = `
+              <tr>
+                <td colspan="3" style="text-align: center; padding: 30px; color: var(--sbh-accent);">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  <p>Erreur Firestore : un index composite est requis pour charger les activités. Veuillez créer l’index userId + date(desc) dans la console Firestore.</p>
+                </td>
+              </tr>
+            `;
+            console.warn("Vous devez créer l’index composite userId + date(desc) sur fapshiTransactions.");
+          } else {
+            activityList.innerHTML = `
+              <tr>
+                <td colspan="3" style="text-align: center; padding: 30px; color: var(--sbh-accent);">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  <p>Erreur de chargement : ${err.message}</p>
+                </td>
+              </tr>
+            `;
+          }
         }
       }
 
