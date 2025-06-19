@@ -269,7 +269,7 @@
       width: 100%;
     }
 
-    /* Section commandes -->
+    /* Section commandes */
     .orders-container {
       background: rgba(20, 35, 60, 0.6);
       border: 1px solid rgba(255, 255, 255, 0.15);
@@ -930,293 +930,519 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      AOS.init({ duration: 800, once: true, offset: 100 });
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  // 1. Initialisation AOS (animations au scroll)
+  if (typeof AOS !== 'undefined') {
+    AOS.init({ duration: 800, once: true, offset: 100 });
+  }
 
-      // Animation des nuages
-      const backgroundAnimation = document.querySelector(".background-animation");
-      const numberOfClouds = 20;
+  // 2. Animation des nuages
+  (function initCloudsAnimation() {
+    const backgroundAnimation = document.querySelector(".background-animation");
+    if (!backgroundAnimation) return;
+    const numberOfClouds = 20;
+    for (let i = 0; i < numberOfClouds; i++) {
+      const cloud = document.createElement("div");
+      cloud.classList.add("cloud");
+      const size = Math.random() * (250 - 150) + 150;
+      cloud.style.width = `${size}px`;
+      cloud.style.height = `${size * 0.6}px`;
+      cloud.style.borderRadius = `${size / 2}px / ${size * 0.3}px`;
+      cloud.style.left = `${Math.random() * 100 + 100}vw`;
+      cloud.style.top = `${Math.random() * 85}vh`;
+      const animationDuration = Math.random() * (60 - 30) + 30;
+      cloud.style.animationDuration = `${animationDuration}s`;
+      cloud.style.animationDelay = `${Math.random() * -animationDuration}s`;
+      cloud.style.setProperty("--width", `${size}px`);
+      const scale = Math.random() * (1.1 - 0.9) + 0.9;
+      cloud.style.setProperty("--scale", scale);
+      backgroundAnimation.appendChild(cloud);
+    }
+  })();
 
-      for (let i = 0; i < numberOfClouds; i++) {
-        const cloud = document.createElement("div");
-        cloud.classList.add("cloud");
-
-        const size = Math.random() * (250 - 150) + 150;
-        cloud.style.width = `${size}px`;
-        cloud.style.height = `${size * 0.6}px`;
-        cloud.style.borderRadius = `${size / 2}px / ${size * 0.3}px`;
-
-        cloud.style.left = `${Math.random() * 100 + 100}vw`;
-        cloud.style.top = `${Math.random() * 85}vh`;
-
-        const animationDuration = Math.random() * (60 - 30) + 30;
-        cloud.style.animationDuration = `${animationDuration}s`;
-
-        cloud.style.animationDelay = `${Math.random() * -animationDuration}s`;
-
-        cloud.style.setProperty("--width", `${size}px`);
-        const scale = Math.random() * (1.1 - 0.9) + 0.9;
-        cloud.style.setProperty("--scale", scale);
-
-        backgroundAnimation.appendChild(cloud);
+  // 3. Gestion du menu hamburger
+  (function initHamburgerMenu() {
+    const header = document.querySelector("header");
+    const hamburger = document.querySelector(".icon-hamburger");
+    if (!header || !hamburger) return;
+    hamburger.addEventListener("click", () => {
+      header.classList.toggle("open");
+    });
+    document.addEventListener("click", (e) => {
+      if (!header.contains(e.target) && header.classList.contains("open")) {
+        header.classList.remove("open");
       }
+    });
+  })();
 
-      // Gestion du menu hamburger
-      const header = document.querySelector("header");
-      const hamburger = document.querySelector(".icon-hamburger");
-      hamburger.addEventListener("click", () => {
-        header.classList.toggle("open");
-      });
-      
-      // Fermer le menu quand on clique en dehors
-      document.addEventListener("click", (e) => {
-        if (!header.contains(e.target) && header.classList.contains("open")) {
-          header.classList.remove("open");
-        }
-      });
-      
-      // Gestion de la newsletter
-      const newsletterForm = document.getElementById("newsletterForm");
-      const newsletterMessage = document.getElementById("newsletterMessage");
-      
-      newsletterForm.addEventListener("submit", function(e) {
-        e.preventDefault();
-        const emailInput = this.querySelector('input[type="email"]');
-        
-        // Simulation d'envoi
-        newsletterMessage.textContent = "Merci pour votre inscription! Vous recevrez bientôt nos actualités.";
-        newsletterMessage.style.display = "block";
-        emailInput.value = "";
-        
-        // Cacher le message après 5 secondes
-        setTimeout(() => {
-          newsletterMessage.style.display = "none";
-        }, 5000);
-      });
+  // 4. Gestion de la newsletter
+  (function initNewsletter() {
+    const newsletterForm = document.getElementById("newsletterForm");
+    const newsletterMessage = document.getElementById("newsletterMessage");
+    if (!newsletterForm || !newsletterMessage) return;
+    newsletterForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      const emailInput = this.querySelector('input[type="email"]');
+      newsletterMessage.textContent = "Merci pour votre inscription! Vous recevrez bientôt nos actualités.";
+      newsletterMessage.style.display = "block";
+      if (emailInput) emailInput.value = "";
+      setTimeout(() => {
+        newsletterMessage.style.display = "none";
+      }, 5000);
+    });
+  })();
 
-      // Configuration Firebase
-      const firebaseConfig = {
-        apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-        authDomain: "social-boost-horizon.firebaseapp.com",
-        projectId: "social-boost-horizon",
-        storageBucket: "social-boost-horizon.appspot.com",
-        messagingSenderId: "43658165639",
-        appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
-      };
-      
-      // Initialisation de Firebase
-      if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-      }
-      
-      const auth = firebase.auth();
-      const db = firebase.firestore();
-      const logoutBtn = document.getElementById('logoutBtn');
-      const refreshBtn = document.getElementById('refreshBtn');
-      const ordersTableBody = document.getElementById('ordersTableBody');
+  // 5. Configuration et initialisation Firebase v8
+  const firebaseConfig = {
+    apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+    authDomain: "social-boost-horizon.firebaseapp.com",
+    projectId: "social-boost-horizon",
+    storageBucket: "social-boost-horizon.appspot.com",
+    messagingSenderId: "43658165639",
+    appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+  };
+  if (typeof firebase === 'undefined') {
+    console.error("Firebase SDK non chargé. Vérifiez les imports.");
+    return;
+  }
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  const auth = firebase.auth();
+  const db = firebase.firestore();
 
-      // URL du backend
-      const BACKEND_BASE = "https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev";
+  // 6. Références DOM pour commandes et logout
+  const logoutBtn = document.getElementById('logoutBtn');
+  const refreshBtn = document.getElementById('refreshBtn');
+  const ordersTableBody = document.getElementById('ordersTableBody');
 
-      let currentUid;
+  let currentUid = null;
+  let unsubscribeOrdersListener = null;
 
-      auth.onAuthStateChanged(user => {
-        if (!user) return window.location.href = 'login.html';
-        currentUid = user.uid;
-        fetchOrders();
-      });
+  // 7. Écoute de l'état d'authentification
+  auth.onAuthStateChanged(user => {
+    if (!user) {
+      // Non connecté → redirection vers login
+      window.location.href = 'login.html';
+    } else {
+      currentUid = user.uid;
+      // Charger les commandes une fois
+      fetchOrders();
+      // Si souhaité : écoute en temps réel, décommenter la ligne suivante :
+      // listenOrdersRealtime();
+    }
+  });
 
-      // Fonction pour récupérer les commandes
-      async function fetchOrders() {
-        if (!currentUid) return;
-        
+  /**
+   * 8. Fonction pour récupérer les commandes une fois (get).
+   *    Affiche loader, puis remplace par résultats ou message "aucune commande" ou erreur.
+   */
+  async function fetchOrders() {
+    if (!currentUid) return;
+    if (!ordersTableBody) return;
+
+    // Affichage du loader
+    ordersTableBody.innerHTML = `
+      <tr>
+        <td colspan="9" class="loading">
+          <i class="fas fa-spinner"></i>
+          <p>Chargement de vos commandes...</p>
+        </td>
+      </tr>
+    `;
+    try {
+      // Requête Firestore : collection "commandes" filtrée par userId
+      let queryRef = db.collection("commandes")
+                       .where("userId", "==", currentUid)
+                       .orderBy("createdAt", "desc");
+      const querySnapshot = await queryRef.get();
+
+      if (querySnapshot.empty) {
+        // Aucune commande pour cet utilisateur
         ordersTableBody.innerHTML = `
           <tr>
-            <td colspan="9" class="loading">
-              <i class="fas fa-spinner"></i>
-              <p>Chargement de vos commandes...</p>
+            <td colspan="9" class="no-orders">
+              <i class="fas fa-box-open"></i>
+              <h3>Aucune commande pour le moment</h3>
+              <p>Vous n'avez pas encore passé de commande. Parcourez nos services pour booster vos réseaux sociaux.</p>
+              <button class="no-orders-btn" onclick="window.location.href='services.html'">
+                <i class="fas fa-rocket"></i> Voir nos services
+              </button>
             </td>
           </tr>
         `;
-        
-        try {
-          // encodeURIComponent pour éviter tout caractère illégal dans l’URL
-          const res = await fetch(
-            `${BACKEND_BASE}/users/${encodeURIComponent(currentUid)}/orders`
-          );
-          
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const json = await res.json();
-          if (!json.success) throw new Error(json.error || 'Erreur inconnue');
-
-          const orders = json.orders;
-          
-          if (!orders || orders.length === 0) {
-            ordersTableBody.innerHTML = `
-              <tr>
-                <td colspan="9" class="no-orders">
-                  <i class="fas fa-box-open"></i>
-                  <h3>Aucune commande pour le moment</h3>
-                  <p>Vous n'avez pas encore passé de commande. Parcourez nos services pour booster vos réseaux sociaux.</p>
-                  <button class="no-orders-btn" onclick="window.location.href='services.html'">
-                    <i class="fas fa-rocket"></i> Voir nos services
-                  </button>
-                </td>
-              </tr>
-            `;
-            return;
-          }
-
-          let html = '';
-          orders.forEach(order => {
-            // Déterminer la classe de statut en fonction du texte
-            let statusClass = "status-processing";
-            if (order.status.toLowerCase().includes("complété")) statusClass = "status-completed";
-            if (order.status.toLowerCase().includes("en cours")) statusClass = "status-processing";
-            if (order.status.toLowerCase().includes("en attente")) statusClass = "status-pending";
-            if (order.status.toLowerCase().includes("annulé")) statusClass = "status-cancelled";
-            
-            // Déterminer l'icône de plateforme
-            let platformIcon = "fas fa-globe";
-            if (order.platform.toLowerCase().includes("instagram")) platformIcon = "fab fa-instagram";
-            if (order.platform.toLowerCase().includes("facebook")) platformIcon = "fab fa-facebook";
-            if (order.platform.toLowerCase().includes("tiktok")) platformIcon = "fab fa-tiktok";
-            if (order.platform.toLowerCase().includes("youtube")) platformIcon = "fab fa-youtube";
-            if (order.platform.toLowerCase().includes("twitter")) platformIcon = "fab fa-twitter";
-            
-            html += `
-              <tr class="order-row">
-                <td class="order-id">${order.orderId || 'N/A'}</td>
-                <td class="order-date">${new Date(order.createdAt).toLocaleString('fr-FR')}</td>
-                <td>
-                  <div class="order-platform">
-                    <div class="platform-icon">
-                      <i class="${platformIcon}"></i>
-                    </div>
-                    <span>${order.platform}</span>
-                  </div>
-                </td>
-                <td class="order-service">${order.service}</td>
-                <td class="order-quality">${order.quality}</td>
-                <td class="order-quantity">${order.quantity}</td>
-                <td class="order-amount">${order.totalCost || '0'} XAF</td>
-                <td>
-                  <span class="order-status ${statusClass}">${order.status}</span>
-                </td>
-                <td>
-                  <button class="toggle-details">
-                    <i class="fas fa-chevron-down"></i>
-                  </button>
-                </td>
-              </tr>
-              <tr class="order-details-row">
-                <td colspan="9" class="order-details-cell">
-                  <div class="order-details-grid">
-                    <div class="order-detail-item">
-                      <div class="detail-label">ID de commande</div>
-                      <div class="detail-value">${order.orderId || 'N/A'}</div>
-                    </div>
-                    <div class="order-detail-item">
-                      <div class="detail-label">Date</div>
-                      <div class="detail-value">${new Date(order.createdAt).toLocaleString('fr-FR')}</div>
-                    </div>
-                    <div class="order-detail-item">
-                      <div class="detail-label">Plateforme</div>
-                      <div class="detail-value">${order.platform}</div>
-                    </div>
-                    <div class="order-detail-item">
-                      <div class="detail-label">Service</div>
-                      <div class="detail-value">${order.service}</div>
-                    </div>
-                    <div class="order-detail-item">
-                      <div class="detail-label">Qualité</div>
-                      <div class="detail-value">${order.quality}</div>
-                    </div>
-                    <div class="order-detail-item">
-                      <div class="detail-label">Quantité</div>
-                      <div class="detail-value">${order.quantity}</div>
-                    </div>
-                    <div class="order-detail-item">
-                      <div class="detail-label">Montant</div>
-                      <div class="detail-value">${order.totalCost || '0'} XAF</div>
-                    </div>
-                    <div class="order-detail-item">
-                      <div class="detail-label">Lien</div>
-                      <div class="detail-value">
-                        <a href="${order.link}" target="_blank" class="detail-link">
-                          ${order.link ? 'Voir publication' : 'Non spécifié'}
-                        </a>
-                      </div>
-                    </div>
-                    <div class="order-detail-item">
-                      <div class="detail-label">Statut</div>
-                      <div class="detail-value">${order.status}</div>
-                    </div>
-                    <div class="order-detail-item">
-                      <div class="detail-label">Contact</div>
-                      <div class="detail-contact">
-                        <i class="fas ${order.contactType === 'whatsapp' ? 'fa-whatsapp' : 'fa-envelope'}"></i>
-                        <span class="detail-value">${order.contact || 'Non spécifié'}</span>
-                      </div>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            `;
-          });
-          
-          ordersTableBody.innerHTML = html;
-          
-          // Ajouter les gestionnaires d'événements pour les boutons de détails
-          document.querySelectorAll('.toggle-details').forEach(button => {
-            button.addEventListener('click', function() {
-              const row = this.closest('.order-row');
-              const detailsRow = row.nextElementSibling;
-              const icon = this.querySelector('i');
-              
-              if (detailsRow.style.display === 'table-row') {
-                detailsRow.style.display = 'none';
-                icon.className = 'fas fa-chevron-down';
-              } else {
-                detailsRow.style.display = 'table-row';
-                icon.className = 'fas fa-chevron-up';
-              }
-            });
-          });
-          
-        } catch (err) {
-          console.error('Erreur fetchOrders():', err);
-          ordersTableBody.innerHTML = `
-            <tr>
-              <td colspan="9" style="text-align: center; padding: 40px; color: var(--sbh-accent);">
-                <i class="fas fa-exclamation-triangle"></i>
-                <h3>Erreur lors du chargement</h3>
-                <p>${err.message}</p>
-                <button class="no-orders-btn" onclick="fetchOrders()">
-                  <i class="fas fa-redo"></i> Réessayer
-                </button>
-              </td>
-            </tr>
-          `;
-        }
+        return;
       }
 
-      // Rafraîchir les commandes
-      refreshBtn.addEventListener('click', fetchOrders);
+      // Construire le HTML des lignes de commandes
+      let html = '';
+      querySnapshot.forEach(docSnap => {
+        const order = docSnap.data();
 
-      // Gère la déconnexion
-      logoutBtn.addEventListener('click', () => {
-        if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
-          auth.signOut().then(() => {
-            window.location.href = 'login.html';
-          }).catch(error => {
-            console.error("Erreur de déconnexion :", error);
-            alert("Une erreur est survenue lors de la déconnexion.");
-          });
+        // Gestion de la date createdAt (Timestamp ou string)
+        let createdAtDate;
+        if (order.createdAt && typeof order.createdAt.toDate === 'function') {
+          createdAtDate = order.createdAt.toDate();
+        } else if (order.createdAt) {
+          createdAtDate = new Date(order.createdAt);
+        } else {
+          createdAtDate = new Date();
         }
+        const createdAtStr = createdAtDate.toLocaleString('fr-FR');
+
+        // Statut → classe CSS
+        let statusClass = "status-processing";
+        if (order.status) {
+          const stLower = order.status.toLowerCase();
+          if (stLower.includes("complété") || stLower.includes("complété".normalize('NFD'))) {
+            statusClass = "status-completed";
+          } else if (stLower.includes("en attente")) {
+            statusClass = "status-pending";
+          } else if (stLower.includes("en cours")) {
+            statusClass = "status-processing";
+          } else if (stLower.includes("annulé")) {
+            statusClass = "status-cancelled";
+          }
+        }
+
+        // Icône plateforme
+        let platformIcon = "fas fa-globe";
+        let platform = order.platform || '';
+        if (platform) {
+          const pf = platform.toLowerCase();
+          if (pf.includes("instagram")) platformIcon = "fab fa-instagram";
+          else if (pf.includes("facebook")) platformIcon = "fab fa-facebook";
+          else if (pf.includes("tiktok")) platformIcon = "fab fa-tiktok";
+          else if (pf.includes("youtube")) platformIcon = "fab fa-youtube";
+          else if (pf.includes("twitter")) platformIcon = "fab fa-twitter";
+        }
+
+        // Récupération des autres champs avec valeurs par défaut si manquants
+        const orderId    = order.orderId || docSnap.id || 'N/A';
+        const service    = order.service || 'N/A';
+        const quality    = order.quality || 'N/A';
+        const quantity   = order.quantity != null ? order.quantity : 'N/A';
+        const totalCost  = order.totalCost != null ? order.totalCost : '0';
+        const link       = order.link || '';
+        const statusText = order.status || 'N/A';
+        const contactType= order.contactType || '';
+        const contact    = order.contact || '';
+
+        // Construction de la ligne principale et de la ligne de détails
+        html += `
+          <tr class="order-row">
+            <td class="order-id">${orderId}</td>
+            <td class="order-date">${createdAtStr}</td>
+            <td>
+              <div class="order-platform">
+                <div class="platform-icon">
+                  <i class="${platformIcon}"></i>
+                </div>
+                <span>${platform || 'N/A'}</span>
+              </div>
+            </td>
+            <td class="order-service">${service}</td>
+            <td class="order-quality">${quality}</td>
+            <td class="order-quantity">${quantity}</td>
+            <td class="order-amount">${totalCost} XAF</td>
+            <td>
+              <span class="order-status ${statusClass}">${statusText}</span>
+            </td>
+            <td>
+              <button class="toggle-details">
+                <i class="fas fa-chevron-down"></i>
+              </button>
+            </td>
+          </tr>
+          <tr class="order-details-row">
+            <td colspan="9" class="order-details-cell">
+              <div class="order-details-grid">
+                <div class="order-detail-item">
+                  <div class="detail-label">ID de commande</div>
+                  <div class="detail-value">${orderId}</div>
+                </div>
+                <div class="order-detail-item">
+                  <div class="detail-label">Date</div>
+                  <div class="detail-value">${createdAtStr}</div>
+                </div>
+                <div class="order-detail-item">
+                  <div class="detail-label">Plateforme</div>
+                  <div class="detail-value">${platform || 'N/A'}</div>
+                </div>
+                <div class="order-detail-item">
+                  <div class="detail-label">Service</div>
+                  <div class="detail-value">${service}</div>
+                </div>
+                <div class="order-detail-item">
+                  <div class="detail-label">Qualité</div>
+                  <div class="detail-value">${quality}</div>
+                </div>
+                <div class="order-detail-item">
+                  <div class="detail-label">Quantité</div>
+                  <div class="detail-value">${quantity}</div>
+                </div>
+                <div class="order-detail-item">
+                  <div class="detail-label">Montant</div>
+                  <div class="detail-value">${totalCost} XAF</div>
+                </div>
+                <div class="order-detail-item">
+                  <div class="detail-label">Lien</div>
+                  <div class="detail-value">
+                    <a href="${link}" target="_blank" class="detail-link">
+                      ${link ? 'Voir publication' : 'Non spécifié'}
+                    </a>
+                  </div>
+                </div>
+                <div class="order-detail-item">
+                  <div class="detail-label">Statut</div>
+                  <div class="detail-value">${statusText}</div>
+                </div>
+                <div class="order-detail-item">
+                  <div class="detail-label">Contact</div>
+                  <div class="detail-contact">
+                    <i class="fas ${contactType === 'whatsapp' ? 'fa-whatsapp' : 'fa-envelope'}"></i>
+                    <span class="detail-value">${contact || 'Non spécifié'}</span>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+        `;
       });
+
+      // Injecte le HTML construit
+      ordersTableBody.innerHTML = html;
+
+      // Ajouter les gestionnaires pour toggle détails
+      document.querySelectorAll('.toggle-details').forEach(button => {
+        button.addEventListener('click', function() {
+          const row = this.closest('.order-row');
+          const detailsRow = row.nextElementSibling;
+          const icon = this.querySelector('i');
+          if (detailsRow.style.display === 'table-row') {
+            detailsRow.style.display = 'none';
+            icon.className = 'fas fa-chevron-down';
+          } else {
+            detailsRow.style.display = 'table-row';
+            icon.className = 'fas fa-chevron-up';
+          }
+        });
+      });
+
+    } catch (err) {
+      console.error('Erreur fetchOrders():', err);
+      ordersTableBody.innerHTML = `
+        <tr>
+          <td colspan="9" style="text-align: center; padding: 40px; color: var(--sbh-accent);">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h3>Erreur lors du chargement</h3>
+            <p>${err.message}</p>
+            <button class="no-orders-btn" id="retryFetch">
+              <i class="fas fa-redo"></i> Réessayer
+            </button>
+          </td>
+        </tr>
+      `;
+      const retryBtn = document.getElementById('retryFetch');
+      if (retryBtn) {
+        retryBtn.addEventListener('click', fetchOrders);
+      }
+    }
+  }
+
+  // 9. Bouton Rafraîchir déclenche fetchOrders
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', fetchOrders);
+  }
+
+  /**
+   * 10. Fonction d'écoute en temps réel (optionnelle).
+   *     Si vous voulez recevoir les mises à jour automatiques (change de statut, etc.), 
+   *     décommentez l’appel dans onAuthStateChanged.
+   */
+  function listenOrdersRealtime() {
+    if (!currentUid || !ordersTableBody) return;
+    // Si déjà en écoute, on détache d'abord
+    if (unsubscribeOrdersListener) {
+      unsubscribeOrdersListener();
+    }
+    const queryRef = db.collection("commandes")
+                      .where("userId", "==", currentUid)
+                      .orderBy("createdAt", "desc");
+    unsubscribeOrdersListener = queryRef.onSnapshot(snapshot => {
+      if (snapshot.empty) {
+        ordersTableBody.innerHTML = `
+          <tr>
+            <td colspan="9" class="no-orders">
+              <i class="fas fa-box-open"></i>
+              <h3>Aucune commande pour le moment</h3>
+              <p>Vous n'avez pas encore passé de commande. Parcourez nos services pour booster vos réseaux sociaux.</p>
+              <button class="no-orders-btn" onclick="window.location.href='services.html'">
+                <i class="fas fa-rocket"></i> Voir nos services
+              </button>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+      // Reconstruire le tableau à chaque changement (même logique que fetchOrders)
+      let html = '';
+      snapshot.forEach(docSnap => {
+        const order = docSnap.data();
+        // Même code de transformation que dans fetchOrders :
+        let createdAtDate;
+        if (order.createdAt && typeof order.createdAt.toDate === 'function') {
+          createdAtDate = order.createdAt.toDate();
+        } else if (order.createdAt) {
+          createdAtDate = new Date(order.createdAt);
+        } else {
+          createdAtDate = new Date();
+        }
+        const createdAtStr = createdAtDate.toLocaleString('fr-FR');
+
+        let statusClass = "status-processing";
+        if (order.status) {
+          const stLower = order.status.toLowerCase();
+          if (stLower.includes("complété")) statusClass = "status-completed";
+          else if (stLower.includes("en attente")) statusClass = "status-pending";
+          else if (stLower.includes("en cours")) statusClass = "status-processing";
+          else if (stLower.includes("annulé")) statusClass = "status-cancelled";
+        }
+        let platformIcon = "fas fa-globe";
+        let platform = order.platform || '';
+        if (platform) {
+          const pf = platform.toLowerCase();
+          if (pf.includes("instagram")) platformIcon = "fab fa-instagram";
+          else if (pf.includes("facebook")) platformIcon = "fab fa-facebook";
+          else if (pf.includes("tiktok")) platformIcon = "fab fa-tiktok";
+          else if (pf.includes("youtube")) platformIcon = "fab fa-youtube";
+          else if (pf.includes("twitter")) platformIcon = "fab fa-twitter";
+        }
+        const orderId    = order.orderId || docSnap.id || 'N/A';
+        const service    = order.service || 'N/A';
+        const quality    = order.quality || 'N/A';
+        const quantity   = order.quantity != null ? order.quantity : 'N/A';
+        const totalCost  = order.totalCost != null ? order.totalCost : '0';
+        const link       = order.link || '';
+        const statusText = order.status || 'N/A';
+        const contactType= order.contactType || '';
+        const contact    = order.contact || '';
+
+        html += `
+          <tr class="order-row">
+            <td class="order-id">${orderId}</td>
+            <td class="order-date">${createdAtStr}</td>
+            <td>
+              <div class="order-platform">
+                <div class="platform-icon">
+                  <i class="${platformIcon}"></i>
+                </div>
+                <span>${platform || 'N/A'}</span>
+              </div>
+            </td>
+            <td class="order-service">${service}</td>
+            <td class="order-quality">${quality}</td>
+            <td class="order-quantity">${quantity}</td>
+            <td class="order-amount">${totalCost} XAF</td>
+            <td>
+              <span class="order-status ${statusClass}">${statusText}</span>
+            </td>
+            <td>
+              <button class="toggle-details">
+                <i class="fas fa-chevron-down"></i>
+              </button>
+            </td>
+          </tr>
+          <tr class="order-details-row">
+            <td colspan="9" class="order-details-cell">
+              <div class="order-details-grid">
+                <div class="order-detail-item">
+                  <div class="detail-label">ID de commande</div>
+                  <div class="detail-value">${orderId}</div>
+                </div>
+                <div class="order-detail-item">
+                  <div class="detail-label">Date</div>
+                  <div class="detail-value">${createdAtStr}</div>
+                </div>
+                <div class="order-detail-item">
+                  <div class="detail-label">Plateforme</div>
+                  <div class="detail-value">${platform || 'N/A'}</div>
+                </div>
+                <div class="order-detail-item">
+                  <div class="detail-label">Service</div>
+                  <div class="detail-value">${service}</div>
+                </div>
+                <div class="order-detail-item">
+                  <div class="detail-label">Qualité</div>
+                  <div class="detail-value">${quality}</div>
+                </div>
+                <div class="order-detail-item">
+                  <div class="detail-label">Quantité</div>
+                  <div class="detail-value">${quantity}</div>
+                </div>
+                <div class="order-detail-item">
+                  <div class="detail-label">Montant</div>
+                  <div class="detail-value">${totalCost} XAF</div>
+                </div>
+                <div class="order-detail-item">
+                  <div class="detail-label">Lien</div>
+                  <div class="detail-value">
+                    <a href="${link}" target="_blank" class="detail-link">
+                      ${link ? 'Voir publication' : 'Non spécifié'}
+                    </a>
+                  </div>
+                </div>
+                <div class="order-detail-item">
+                  <div class="detail-label">Statut</div>
+                  <div class="detail-value">${statusText}</div>
+                </div>
+                <div class="order-detail-item">
+                  <div class="detail-label">Contact</div>
+                  <div class="detail-contact">
+                    <i class="fas ${contactType === 'whatsapp' ? 'fa-whatsapp' : 'fa-envelope'}"></i>
+                    <span class="detail-value">${contact || 'Non spécifié'}</span>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+      ordersTableBody.innerHTML = html;
+      document.querySelectorAll('.toggle-details').forEach(button => {
+        button.addEventListener('click', function() {
+          const row = this.closest('.order-row');
+          const detailsRow = row.nextElementSibling;
+          const icon = this.querySelector('i');
+          if (detailsRow.style.display === 'table-row') {
+            detailsRow.style.display = 'none';
+            icon.className = 'fas fa-chevron-down';
+          } else {
+            detailsRow.style.display = 'table-row';
+            icon.className = 'fas fa-chevron-up';
+          }
+        });
+      });
+    }, err => {
+      console.error('Erreur écoute realtime orders:', err);
     });
+  }
+
+  // 11. Déconnexion
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+        auth.signOut().then(() => {
+          window.location.href = 'login.html';
+        }).catch(error => {
+          console.error("Erreur de déconnexion :", error);
+          alert("Une erreur est survenue lors de la déconnexion.");
+        });
+      }
+    });
+  }
+});
   </script>
 </body>
 </html>
