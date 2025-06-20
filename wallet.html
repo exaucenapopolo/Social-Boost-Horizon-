@@ -5,15 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Mon portefeuille - Social Boost Horizon</title>
   
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@600;700;800&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
 
-  <!-- AOS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
 
-  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
   <style>
@@ -798,13 +795,10 @@
   </style>
 </head>
 <body>
-  <!-- Fond animé (étoiles + nuages) -->
   <div class="background-animation"></div>
 
-  <!-- Notification area -->
   <div id="walletNotification" class="wallet-notification"></div>
 
-  <!-- Header avec logo et menu hamburger -->
   <header data-aos="fade-down">
     <a href="dashboard.html" class="logo-text">
       <span class="text-social">SOCIAL</span>
@@ -828,16 +822,13 @@
     </div>
   </header>
 
-  <!-- Section solde -->
   <div class="balance-section" data-aos="fade-up">
     <span id="balance">Solde : 0 XAF</span>
     <button id="quickDeposit">➕ Déposer</button>
   </div>
 
   <main>
-    <!-- Grille des soldes -->
     <div class="wallet-grid">
-      <!-- Solde principal -->
       <div class="balance-card main-balance" data-aos="fade-up">
         <div class="balance-header">
           <div class="balance-icon">
@@ -853,7 +844,6 @@
         </div>
       </div>
       
-      <!-- Solde d'affiliation -->
       <div class="balance-card affiliate-balance" data-aos="fade-up" data-aos-delay="100">
         <div class="balance-header">
           <div class="balance-icon">
@@ -870,7 +860,6 @@
       </div>
     </div>
 
-    <!-- Activités récentes -->
     <div class="activities-container" data-aos="fade-up">
       <div class="activities-header">
         <h2>Activités récentes</h2>
@@ -897,7 +886,6 @@
     </div>
   </main>
 
-  <!-- Footer -->
   <footer id="contact">
     <div class="container">
       <div class="footer-content">
@@ -975,10 +963,8 @@
     </div>
   </footer>
 
-  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   
-  <!-- Firebase SDK v8 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -1165,26 +1151,29 @@
                 referralBalance: newRefBal
               });
               // Création de la transaction dans fapshiTransactions
-              const txColRef = db.collection('fapshiTransactions').doc();
+              // Note: Le transfert d'affiliation est enregistré dans fapshiTransactions pour la démonstration
+              // Si vous avez une collection spécifique pour les transferts internes, utilisez-la.
+              const txColRef = db.collection('fapshiTransactions').doc(); // Ou 'internalTransactions'
               tx.set(txColRef, {
                 userId: currentUid,
                 date: firebase.firestore.FieldValue.serverTimestamp(),
                 label: "Transfert solde d'affiliation",
                 amount: oldRef,
-                status: "SUCCESS"  // Toujours succès ici par défaut
+                status: "SUCCESS",
+                type: "Transfert" // Ajoutez un type pour distinguer
               });
             });
-            showWalletNotification("Transfert effectué avec succès !", 'success');
+            showWalletNotification("Transfert effectué avec succès !", 'success');
             // Recharger activités
             loadActivities();
           } catch (err) {
             console.error("Erreur transfert:", err);
             // Si l’erreur contient "requires an index", on invite à créer l’index
             if (err.message && err.message.includes('requires an index')) {
-              showWalletNotification("Erreur Firestore : un index est requis pour charger les activités. Veuillez créer l’index dans la console Firestore.", 'error');
+              showWalletNotification("Erreur Firestore : un index est requis pour charger les activités. Veuillez créer l’index dans la console Firestore.", 'error');
               console.warn("Vous devez créer l’index composite userId + date(desc) sur fapshiTransactions.");
             } else {
-              showWalletNotification("Erreur lors du transfert : " + err.message, 'error');
+              showWalletNotification("Erreur lors du transfert : " + err.message, 'error');
             }
           } finally {
             transferBtn.disabled = false;
@@ -1193,7 +1182,7 @@
         });
       }
 
-      // 8. Charger les activités depuis Firestore
+      // 8. Charger les activités depuis Firestore (MODIFIÉ POUR INCLURE PLUSIEURS COLLECTIONS)
       async function loadActivities() {
         if (!currentUid) return;
         // Afficher loader
@@ -1206,13 +1195,63 @@
           </tr>
         `;
         try {
-          // Requête Firestore : collection fapshiTransactions, where userId == currentUid, orderBy date desc
-          const q = db.collection('fapshiTransactions')
-                      .where('userId', '==', currentUid)
-                      .orderBy('date', 'desc')
-                      .limit(50);
-          const snapshot = await q.get();
-          if (snapshot.empty) {
+          const allTransactions = [];
+          const queryLimit = 50; // Nombre maximum d'activités à afficher
+
+          // --- Récupération des transactions Fapshi (déjà présentes) ---
+          const fapshiQuery = db.collection('fapshiTransactions')
+                                .where('userId', '==', currentUid)
+                                .orderBy('date', 'desc')
+                                .limit(queryLimit);
+          const fapshiSnapshot = await fapshiQuery.get();
+          fapshiSnapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            // Ajoutez une propriété 'source' pour identifier l'origine de la transaction
+            allTransactions.push({ ...data, source: 'Fapshi' });
+          });
+
+          // --- AJOUT : Récupération des transactions depuis une autre collection (Ex: 'depositsTransactions') ---
+          // REMPLACER 'depositsTransactions' par le nom réel de votre autre collection de dépôts
+          // Assurez-vous que cette collection a aussi un 'userId', 'date', 'amount', 'label', 'status'
+          const otherDepositsQuery = db.collection('depositsTransactions') // Remplacez par le nom de votre collection
+                                    .where('userId', '==', currentUid)
+                                    .orderBy('date', 'desc')
+                                    .limit(queryLimit); // Limite pour chaque requête
+          const otherDepositsSnapshot = await otherDepositsQuery.get();
+          otherDepositsSnapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            allTransactions.push({ ...data, source: 'Autre dépôt' }); // Indiquez la source
+          });
+
+          // --- AJOUT : Récupération des transactions depuis une troisième collection si nécessaire (Ex: 'withdrawalTransactions') ---
+          // Si vous avez des retraits ou d'autres types de transactions à afficher, ajoutez une requête ici.
+          // Exemple :
+          /*
+          const withdrawalQuery = db.collection('withdrawalTransactions') // Remplacez par le nom de votre collection
+                                  .where('userId', '==', currentUid)
+                                  .orderBy('date', 'desc')
+                                  .limit(queryLimit);
+          const withdrawalSnapshot = await withdrawalQuery.get();
+          withdrawalSnapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            allTransactions.push({ ...data, source: 'Retrait' });
+          });
+          */
+          // -----------------------------------------------------------------------------------------------------
+
+          // Trier toutes les transactions combinées par date la plus récente
+          // Il est important que le champ 'date' soit un timestamp Firebase ou un objet Date valide
+          allTransactions.sort((a, b) => {
+            const dateA = a.date && a.date.toDate ? a.date.toDate().getTime() : 0;
+            const dateB = b.date && b.date.toDate ? b.date.toDate().getTime() : 0;
+            return dateB - dateA; // Tri décroissant (plus récent en premier)
+          });
+
+          // Limiter le nombre total de transactions affichées après le tri
+          const recentActivities = allTransactions.slice(0, queryLimit);
+
+
+          if (recentActivities.length === 0) {
             activityList.innerHTML = `
               <tr>
                 <td colspan="4" style="text-align: center; padding: 30px;">
@@ -1223,24 +1262,35 @@
             `;
             return;
           }
+
           let html = '';
-          snapshot.forEach(docSnap => {
-            const a = docSnap.data();
+          recentActivities.forEach(activity => {
             // Format de la date
             let dateStr = '';
-            if (a.date && a.date.toDate) {
-              dateStr = a.date.toDate().toLocaleString('fr-FR');
-            } else if (a.date) {
-              try { dateStr = new Date(a.date).toLocaleString('fr-FR'); } catch {}
+            if (activity.date && activity.date.toDate) {
+              dateStr = activity.date.toDate().toLocaleString('fr-FR');
+            } else if (activity.date) {
+              // Tentative de conversion si ce n'est pas un Timestamp Firebase
+              try { dateStr = new Date(activity.date).toLocaleString('fr-FR'); } catch (e) { /* Fallback */ }
             }
-            const amount = a.amount != null ? a.amount : 0;
-            const label = a.label || '';
-            const status = a.status || '';
+            const amount = activity.amount != null ? activity.amount : 0;
+            // Utiliser la 'label' ou créer une description basée sur la 'source' et 'type'
+            const label = activity.label || `Transaction ${activity.source || 'inconnue'}` + (activity.type ? ` (${activity.type})` : '');
+            const status = activity.status || 'N/A'; // N/A si le statut est absent
+
+            // Ajouter une classe pour la couleur de montant (vert pour dépôt/transfert, rouge pour retrait)
+            let amountClass = '';
+            if (activity.type === 'Retrait' || (activity.source === 'Autre' && amount < 0)) { // Exemple de condition pour les retraits
+              amountClass = 'color: var(--sbh-accent);'; // Rouge
+            } else {
+              amountClass = 'color: var(--sbh-text-green);'; // Vert
+            }
+
             html += `
               <tr>
                 <td class="activity-date">${dateStr}</td>
                 <td class="activity-label">${label}</td>
-                <td class="activity-amount">${amount >= 0 ? '+'+amount : amount} XAF</td>
+                <td class="activity-amount" style="${amountClass}">${amount >= 0 ? '+' : ''}${amount} XAF</td>
                 <td class="activity-status">${status}</td>
               </tr>
             `;
@@ -1254,17 +1304,17 @@
               <tr>
                 <td colspan="4" style="text-align: center; padding: 30px; color: var(--sbh-accent);">
                   <i class="fas fa-exclamation-triangle"></i>
-                  <p>Erreur Firestore : un index composite est requis pour charger les activités. Veuillez créer l’index userId + date(desc) dans la console Firestore.</p>
+                  <p>Erreur Firestore : un index composite est requis pour charger les activités de plusieurs collections. Veuillez créer les index nécessaires dans la console Firestore pour chaque requête (userId + date(desc)).</p>
                 </td>
               </tr>
             `;
-            console.warn("Vous devez créer l’index composite userId + date(desc) sur fapshiTransactions.");
+            console.warn("Vous devez créer les index composites nécessaires (userId + date(desc)) pour toutes les collections interrogées dans la fonction loadActivities.");
           } else {
             activityList.innerHTML = `
               <tr>
                 <td colspan="4" style="text-align: center; padding: 30px; color: var(--sbh-accent);">
                   <i class="fas fa-exclamation-triangle"></i>
-                  <p>Erreur de chargement : ${err.message}</p>
+                  <p>Erreur de chargement : ${err.message}</p>
                 </td>
               </tr>
             `;
@@ -1287,7 +1337,7 @@
       // 10. Déconnexion
       if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
-          if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+          if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
             auth.signOut().then(() => {
               window.location.href = 'login.html';
             }).catch(error => {
