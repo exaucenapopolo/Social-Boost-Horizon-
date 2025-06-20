@@ -223,7 +223,7 @@
       position: absolute;
       top: 68px;
       right: 2rem;
-      background: rgba(10, 22, 43, 0.95);
+      background: rgba(10, 22px, 43px, 0.95);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 10px;
       padding: 1.5rem;
@@ -413,11 +413,7 @@
       box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3);
       cursor: pointer;
     }
-    .balance-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-    .balance-btn:hover:not(:disabled) {
+    .balance-btn:hover {
       transform: translateY(-3px);
       box-shadow: 0 7px 20px rgba(30, 144, 255, 0.4);
       background: linear-gradient(45deg, var(--sbh-gradient-start), #2a7fff);
@@ -474,6 +470,7 @@
     .activities-table td {
       padding: 12px 15px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      vertical-align: middle;
     }
     .activities-table tr:last-child td {
       border-bottom: none;
@@ -499,6 +496,14 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+    .activity-status {
+      font-size: 0.9rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      /* Vous pouvez styliser selon le statut : 
+         Par exemple, .status-SUCCESS { color: var(--sbh-text-green); } 
+         Ou background léger, etc. */
+    }
     
     .loading {
       text-align: center;
@@ -513,34 +518,6 @@
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
-    }
-
-    /* Notification (transfert succès/erreur) */
-    .wallet-notification {
-      position: fixed;
-      top: 80px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.8);
-      color: #fff;
-      padding: 12px 20px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 1rem;
-      z-index: 200;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    }
-    .wallet-notification.show {
-      opacity: 1;
-    }
-    .wallet-notification.success {
-      border-left: 4px solid var(--sbh-text-green);
-    }
-    .wallet-notification.error {
-      border-left: 4px solid var(--sbh-accent);
     }
 
     /* FOOTER */
@@ -793,9 +770,6 @@
   <!-- Fond animé (étoiles + nuages) -->
   <div class="background-animation"></div>
 
-  <!-- Notification area -->
-  <div id="walletNotification" class="wallet-notification"></div>
-
   <!-- Header avec logo et menu hamburger -->
   <header data-aos="fade-down">
     <a href="dashboard.html" class="logo-text">
@@ -855,7 +829,7 @@
         </div>
         <div class="balance-amount" id="referralBalance">0 XAF</div>
         <div class="balance-actions">
-          <button id="transferFunds" class="balance-btn" disabled>
+          <button id="transferFunds" class="balance-btn">
             <i class="fas fa-exchange-alt"></i> Transférer
           </button>
         </div>
@@ -874,11 +848,12 @@
             <th>Date</th>
             <th>Description</th>
             <th>Montant</th>
+            <th>Statut</th>
           </tr>
         </thead>
         <tbody id="activityList">
           <tr>
-            <td colspan="3" class="loading">
+            <td colspan="4" class="loading">
               <i class="fas fa-spinner"></i>
               <p>Chargement des activités...</p>
             </td>
@@ -969,19 +944,19 @@
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   
-  <!-- Firebase SDK v8 -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   
   <script>
     document.addEventListener("DOMContentLoaded", function () {
-      // 1. Initialisation AOS (animations au scroll)
+      // Initialisation AOS (animations au scroll)
       if (typeof AOS !== 'undefined') {
         AOS.init({ duration: 800, once: true, offset: 100 });
       }
 
-      // 2. Animation des nuages
+      // Animation des nuages
       (function initCloudsAnimation() {
         const backgroundAnimation = document.querySelector(".background-animation");
         if (!backgroundAnimation) return;
@@ -1005,7 +980,7 @@
         }
       })();
 
-      // 3. Gestion du menu hamburger
+      // Gestion du menu hamburger
       (function initHamburgerMenu() {
         const header = document.querySelector("header");
         const hamburger = document.querySelector(".icon-hamburger");
@@ -1020,7 +995,7 @@
         });
       })();
 
-      // 4. Gestion de la newsletter
+      // Gestion de la newsletter
       (function initNewsletter() {
         const newsletterForm = document.getElementById("newsletterForm");
         const newsletterMessage = document.getElementById("newsletterMessage");
@@ -1037,7 +1012,7 @@
         });
       })();
 
-      // 5. Configuration et initialisation Firebase v8
+      // Configuration et initialisation Firebase v8
       const firebaseConfig = {
         apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
         authDomain: "social-boost-horizon.firebaseapp.com",
@@ -1056,7 +1031,7 @@
       const auth = firebase.auth();
       const db = firebase.firestore();
 
-      // Références UI
+      // Éléments UI
       const logoutBtn = document.getElementById('logoutBtn');
       const quickDeposit = document.getElementById('quickDeposit');
       const addFundsBtn = document.getElementById('addFunds');
@@ -1065,149 +1040,102 @@
       const mainBalEl = document.getElementById('mainBalance');
       const referralBalEl = document.getElementById('referralBalance');
       const activityList = document.getElementById('activityList');
-      const walletNotification = document.getElementById('walletNotification');
 
       let currentUid = null;
 
-      // Fonction d’affichage de notification temporaire
-      function showWalletNotification(message, type = 'success') {
-        // type: 'success' ou 'error'
-        if (!walletNotification) return;
-        walletNotification.textContent = ''; // vider
-        // Emoji selon type
-        const emoji = type === 'success' ? '✅' : '❌';
-        walletNotification.textContent = emoji + ' ' + message;
-        walletNotification.className = 'wallet-notification show ' + (type === 'success' ? 'success' : 'error');
-        // Masquer après 4s
-        setTimeout(() => {
-          walletNotification.classList.remove('show');
-        }, 4000);
+      // Fonctions de notification (alert + emoji). Vous pouvez remplacer par votre UI toast/snackbar.
+      function showNotificationSuccess(msg) {
+        alert("✅ " + msg);
+      }
+      function showNotificationError(msg) {
+        alert("❌ " + msg);
       }
 
-      // 6. Auth state
+      // Vérifier authentification et initialiser
       auth.onAuthStateChanged(user => {
         if (!user) {
+          // Non connecté → redirection vers login
           window.location.href = 'login.html';
           return;
         }
         currentUid = user.uid;
 
-        // (Optionnel) Afficher nom d’utilisateur si un élément #welcome existe
-        const welcomeEl = document.getElementById('welcome');
-        if (welcomeEl) {
-          db.collection('users').doc(user.uid).get().then(doc => {
-            if (doc.exists) {
-              const userData = doc.data();
-              welcomeEl.textContent = `Bienvenue ${userData.username || ''} sur votre portefeuille`;
-            }
-          }).catch(err => console.warn("Erreur lecture user pour welcome:", err));
-        }
-
-        // 6.1. Écoute du document user pour soldes
-        const userDocRef = db.collection('users').doc(currentUid);
-        userDocRef.onSnapshot(docSnap => {
-          if (!docSnap.exists) return;
-          const data = docSnap.data() || {};
-          const bal = data.balance || 0;
-          const refBal = data.referralBalance || 0;
-          balanceEl.textContent = `Solde : ${bal} XAF`;
-          mainBalEl.textContent = `${bal} XAF`;
-          referralBalEl.textContent = `${refBal} XAF`;
-
-          // Désactiver ou activer le bouton Transférer selon refBal
-          if (transferBtn) {
-            if (refBal > 0) {
-              transferBtn.disabled = false;
-            } else {
-              transferBtn.disabled = true;
-            }
-          }
-        }, err => {
-          console.error("Erreur snapshot user:", err);
+        // Écoute en temps réel des soldes dans users/{uid}
+        db.collection('users').doc(currentUid).onSnapshot(docSnap => {
+          const d = docSnap.data() || {};
+          balanceEl.textContent = `Solde : ${d.balance || 0} XAF`;
+          mainBalEl.textContent = `${d.balance || 0} XAF`;
+          referralBalEl.textContent = `${d.referralBalance || 0} XAF`;
         });
 
-        // 6.2. Charger activités récentes
+        // Charger les activités existantes
         loadActivities();
       });
 
-      // 7. Transfert de solde d'affiliation vers solde principal via runTransaction
+      // Handler transfert affiliation vers principal
       if (transferBtn) {
         transferBtn.addEventListener('click', async () => {
           if (!currentUid) return;
           transferBtn.disabled = true;
-          // Afficher spinner dans le bouton
-          transferBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Transfert...`;
           try {
-            const userDocRef = db.collection('users').doc(currentUid);
-            await db.runTransaction(async (tx) => {
-              const docSnap = await tx.get(userDocRef);
-              if (!docSnap.exists) throw new Error("Document utilisateur introuvable.");
-              const data = docSnap.data();
-              const oldBal = data.balance || 0;
-              const oldRef = data.referralBalance || 0;
-              if (oldRef <= 0) {
-                throw new Error("Aucun solde d'affiliation à transférer.");
-              }
-              const newBal = oldBal + oldRef;
-              const newRefBal = 0;
-              // Mise à jour user
-              tx.update(userDocRef, {
-                balance: newBal,
-                referralBalance: newRefBal
+            // Transaction Firestore pour débiter referralBalance et créditer balance
+            const amountTransferred = await db.runTransaction(async tx => {
+              const userRef = db.collection('users').doc(currentUid);
+              const docSnap = await tx.get(userRef);
+              const data = docSnap.data() || {};
+              const refBal = data.referralBalance || 0;
+              if (refBal <= 0) throw new Error("Pas de solde d'affiliation à transférer.");
+              const toTransfer = refBal;
+              tx.update(userRef, {
+                referralBalance: 0,
+                balance: (data.balance || 0) + toTransfer
               });
-              // Création de la transaction dans fapshiTransactions
-              const txColRef = db.collection('fapshiTransactions').doc();
-              tx.set(txColRef, {
-                userId: currentUid,
-                date: firebase.firestore.FieldValue.serverTimestamp(),
-                label: 'Transfert solde d\'affiliation',
-                amount: oldRef,
-                type: 'transferReferral'
-              });
+              return toTransfer;
             });
-            showWalletNotification("Transfert effectué avec succès !", 'success');
-            // Recharger activités
-            loadActivities();
+            // Après succès de la transaction, écrire dans fapshiTransactions
+            await db.collection('fapshiTransactions').add({
+              userId: currentUid,
+              amount: amountTransferred,
+              date: firebase.firestore.FieldValue.serverTimestamp(),
+              type: "TRANSFER", // ou votre valeur exacte
+              status: "SUCCESS",
+              description: "Transfert solde d'affiliation vers solde principal"
+            });
+            showNotificationSuccess(`Transfert de ${amountTransferred} XAF effectué.`);
           } catch (err) {
-            console.error("Erreur transfert:", err);
-            // Si l’erreur contient "requires an index", on invite à créer l’index
-            if (err.message && err.message.includes('requires an index')) {
-              showWalletNotification("Erreur Firestore : un index est requis pour charger les activités. Veuillez créer l’index dans la console Firestore.", 'error');
-              console.warn("Vous devez créer l’index composite userId + date(desc) sur fapshiTransactions.");
-              // Vous pouvez extraire l’URL depuis l’erreur si vous le souhaitez pour guider l’utilisateur.
-            } else {
-              showWalletNotification("Erreur lors du transfert : " + err.message, 'error');
-            }
+            console.error("Erreur transfert :", err);
+            // Optionnel : enregistrer un document d’échec si pertinent
+            // showNotificationError
+            showNotificationError("Erreur lors du transfert : " + err.message);
           } finally {
             transferBtn.disabled = false;
-            transferBtn.innerHTML = `<i class="fas fa-exchange-alt"></i> Transférer`;
+            // Recharger les activités pour afficher la nouvelle transaction
+            loadActivities();
           }
         });
       }
 
-      // 8. Charger les activités depuis Firestore
+      // Fonction pour charger les activités depuis fapshiTransactions
       async function loadActivities() {
-        if (!currentUid) return;
-        // Afficher loader
+        if (!currentUid || !activityList) return;
+        // Affichage du loader
         activityList.innerHTML = `
           <tr>
-            <td colspan="3" class="loading">
+            <td colspan="4" class="loading">
               <i class="fas fa-spinner"></i>
               <p>Chargement des activités...</p>
             </td>
           </tr>
         `;
         try {
-          // Requête Firestore : collection fapshiTransactions, where userId == currentUid, orderBy date desc
-          const q = db.collection('fapshiTransactions')
-                      .where('userId', '==', currentUid)
-                      .orderBy('date', 'desc')
-                      .limit(20);
-          const snapshot = await q.get();
-          if (snapshot.empty) {
+          const snap = await db.collection('fapshiTransactions')
+            .where('userId','==', currentUid)
+            .orderBy('date','desc')
+            .get();
+          if (snap.empty) {
             activityList.innerHTML = `
               <tr>
-                <td colspan="3" style="text-align: center; padding: 30px;">
+                <td colspan="4" style="text-align: center; padding: 30px;">
                   <i class="fas fa-info-circle"></i>
                   <p>Aucune activité récente</p>
                 </td>
@@ -1216,53 +1144,87 @@
             return;
           }
           let html = '';
-          snapshot.forEach(docSnap => {
-            const a = docSnap.data();
-            // Format de la date
+          snap.forEach(doc => {
+            const d = doc.data();
+            // Date : gérer Timestamp ou éventuel champ dateInitiated
             let dateStr = '';
-            if (a.date && a.date.toDate) {
-              dateStr = a.date.toDate().toLocaleString('fr-FR');
-            } else if (a.date) {
-              try { dateStr = new Date(a.date).toLocaleString('fr-FR'); } catch {}
+            if (d.date && typeof d.date.toDate === 'function') {
+              dateStr = d.date.toDate().toLocaleString('fr-FR');
+            } else if (d.date) {
+              // Peut-être un Date ou string
+              if (d.date instanceof Date) {
+                dateStr = d.date.toLocaleString('fr-FR');
+              } else if (typeof d.date === 'string') {
+                // Au moins afficher la chaîne brute
+                dateStr = d.date;
+              } else {
+                // autre type inattendu
+                dateStr = JSON.stringify(d.date);
+              }
+            } else if (d.dateInitiated) {
+              // Si vos docs Fabshi stockent dateInitiated au lieu de date
+              if (typeof d.dateInitiated.toDate === 'function') {
+                dateStr = d.dateInitiated.toDate().toLocaleString('fr-FR');
+              } else if (d.dateInitiated instanceof Date) {
+                dateStr = d.dateInitiated.toLocaleString('fr-FR');
+              } else if (typeof d.dateInitiated === 'string') {
+                dateStr = d.dateInitiated;
+              } else {
+                dateStr = JSON.stringify(d.dateInitiated);
+              }
+            } else {
+              dateStr = '';
             }
-            const amount = a.amount != null ? a.amount : 0;
-            const label = a.label || '';
+            // Description selon type ou champ description
+            let desc = '';
+            if (d.type === "DEPOSIT" || d.type === "DÉPÔT") {
+              desc = "Dépôt";
+            } else if (d.type === "TRANSFER") {
+              desc = "Transfert affiliation";
+            } else if (d.description) {
+              desc = d.description;
+            } else if (d.type) {
+              desc = d.type;
+            } else {
+              desc = '';
+            }
+            // Montant : afficher avec + si nombre
+            let amountStr = '';
+            if (typeof d.amount === 'number') {
+              amountStr = `+${d.amount} XAF`;
+            } else {
+              amountStr = `${d.amount || ''} XAF`;
+            }
+            // Statut
+            const statusStr = d.status || '';
             html += `
               <tr>
                 <td class="activity-date">${dateStr}</td>
-                <td class="activity-label">${label}</td>
-                <td class="activity-amount">${amount >= 0 ? '+'+amount : amount} XAF</td>
+                <td class="activity-label">${desc}</td>
+                <td class="activity-amount">${amountStr}</td>
+                <td class="activity-status">${statusStr}</td>
               </tr>
             `;
           });
           activityList.innerHTML = html;
-        } catch(err) {
-          console.error("Erreur chargement activités:", err);
-          // Si erreur d'index, on l'indique
+        } catch (err) {
+          console.error("Erreur Firestore activités:", err);
+          let message = err.message || 'Erreur inconnue';
           if (err.message && err.message.includes('requires an index')) {
-            activityList.innerHTML = `
-              <tr>
-                <td colspan="3" style="text-align: center; padding: 30px; color: var(--sbh-accent);">
-                  <i class="fas fa-exclamation-triangle"></i>
-                  <p>Erreur Firestore : un index composite est requis pour charger les activités. Veuillez créer l’index userId + date(desc) dans la console Firestore.</p>
-                </td>
-              </tr>
-            `;
-            console.warn("Vous devez créer l’index composite userId + date(desc) sur fapshiTransactions.");
-          } else {
-            activityList.innerHTML = `
-              <tr>
-                <td colspan="3" style="text-align: center; padding: 30px; color: var(--sbh-accent);">
-                  <i class="fas fa-exclamation-triangle"></i>
-                  <p>Erreur de chargement : ${err.message}</p>
-                </td>
-              </tr>
-            `;
+            message = 'Requête Firestore nécessite un index composite sur userId + date (voir console Firebase)';
           }
+          activityList.innerHTML = `
+            <tr>
+              <td colspan="4" style="text-align: center; padding: 30px; color: var(--sbh-accent);">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Erreur Firestore : ${message}</p>
+              </td>
+            </tr>
+          `;
         }
       }
 
-      // 9. Redirection pour les dépôts
+      // Redirection pour les dépôts existants
       if (quickDeposit) {
         quickDeposit.addEventListener('click', () => {
           window.location.href = 'fonds.html';
@@ -1274,15 +1236,15 @@
         });
       }
 
-      // 10. Déconnexion
+      // Déconnexion
       if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
-          if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+          if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
             auth.signOut().then(() => {
               window.location.href = 'login.html';
             }).catch(error => {
-              console.error("Erreur déconnexion :", error);
-              showWalletNotification("Erreur lors de la déconnexion.", 'error');
+              console.error("Erreur de déconnexion :", error);
+              showNotificationError("Erreur lors de la déconnexion.");
             });
           }
         });
