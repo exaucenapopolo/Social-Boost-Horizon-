@@ -950,7 +950,7 @@
         AOS.init({ duration: 800, once: true, offset: 100 });
       }
 
-      // 2. Animation nuages (identique)
+      // 2. Animation nuages
       (function initCloudsAnimation() {
         const backgroundAnimation = document.querySelector(".background-animation");
         if (!backgroundAnimation) return;
@@ -989,7 +989,7 @@
         });
       })();
 
-      // 4. Newsletter gestion
+      // 4. Newsletter
       (function initNewsletter() {
         const newsletterForm = document.getElementById("newsletterForm");
         const newsletterMessage = document.getElementById("newsletterMessage");
@@ -1057,7 +1057,7 @@
         }
         currentUid = user.uid;
 
-        // Afficher nom si élément #welcome
+        // Afficher nom si #welcome
         const welcomeEl = document.getElementById('welcome');
         if (welcomeEl) {
           db.collection('users').doc(user.uid).get().then(doc => {
@@ -1085,7 +1085,7 @@
           console.error("Erreur snapshot user:", err);
         });
 
-        // Charger activités (transferts + recharges) avec tri local
+        // Charger activités
         loadActivities();
       });
 
@@ -1116,14 +1116,12 @@
               tx.set(txColRef, {
                 userId: currentUid,
                 date: firebase.firestore.FieldValue.serverTimestamp(),
-                label: "Transfert solde d'affiliation",
-                amount: oldRef,
-                status: "SUCCESS",
+                // Pas de statut dans Firestore pour transfert, on gère l'affichage côté front
+                // Mais on peut laisser status undefined ici
                 type: "Transfert"
               });
             });
             showWalletNotification("Transfert effectué avec succès !", 'success');
-            // Recharger activités après transfert
             loadActivities();
           } catch (err) {
             console.error("Erreur transfert:", err);
@@ -1173,13 +1171,12 @@
             else if (data.date && typeof data.date.toDate === 'function') {
               timestamp = data.date.toDate().getTime();
             }
-            // Sinon, si dateConfirmed est string, on tente de parser (peut échouer selon format)
+            // Sinon, si dateConfirmed est string, on tente de parser
             else if (data.dateConfirmed && typeof data.dateConfirmed === 'string') {
               const parsed = Date.parse(data.dateConfirmed);
               if (!isNaN(parsed)) {
                 timestamp = parsed;
               } else {
-                // impossible à parser, on laisse timestamp = 0 => apparaîtra en fin
                 timestamp = 0;
               }
             }
@@ -1203,7 +1200,7 @@
           }
           // Tri local descendant selon __ts
           allTransactions.sort((a, b) => b.__ts - a.__ts);
-          // On peut limiter à un nombre d'affichages, p.ex. 50
+          // On limite l'affichage à 50 éléments
           const toDisplay = allTransactions.slice(0, 50);
           // Génération du HTML
           let html = '';
@@ -1217,23 +1214,20 @@
             } else if (activity.dateConfirmed && typeof activity.dateConfirmed === 'string') {
               dateStr = activity.dateConfirmed;
             } else {
-              dateStr = ''; // ou placeholder
+              dateStr = '';
             }
             // Montant
             const rawAmount = activity.amount;
             const amount = Number(rawAmount) || 0;
-            // Description/label par défaut
+            // Description/label
             let label = '';
-            // Si un champ label existe (peu probable côté recharge actuel)
             if (activity.label) {
               label = activity.label;
             } else {
-              // Détecter si c'est un transfert ou recharge
               if (activity.type === 'Transfert') {
                 label = "Transfert solde d'affiliation";
               }
               else if (activity.dateConfirmed) {
-                // on suppose recharge
                 label = `Recharge ${amount} XAF`;
               } else {
                 label = "Transaction";
@@ -1242,12 +1236,19 @@
             // Icône selon type
             let iconHtml = '';
             if (activity.type === 'Transfert') {
-              iconHtml = '<i class="fas fa-exchange-alt" title="Transfert"></i> ';
+              iconHtml = '<i class="fas fa-handshake" title="Transfert"></i> ';
             } else if (activity.dateConfirmed) {
               iconHtml = '<i class="fas fa-arrow-down" title="Recharge"></i> ';
             }
-            // Statut
-            const statusRaw = activity.status || '';
+            // Statut : si présent dans Firestore, on utilise, sinon si transfert on met "Succès" par défaut
+            let statusText = '';
+            if (activity.status) {
+              statusText = activity.status;
+            } else if (activity.type === 'Transfert') {
+              statusText = "Succès";
+            } else {
+              statusText = ""; // ou autre valeur par défaut si souhaité
+            }
             // Couleur montant
             let amountClass = '';
             if (amount < 0 || activity.type === 'Retrait') {
@@ -1260,7 +1261,7 @@
                 <td class="activity-date">${dateStr}</td>
                 <td class="activity-label">${iconHtml}${label}</td>
                 <td class="activity-amount" style="${amountClass}">${amount >= 0 ? '+' : ''}${amount} XAF</td>
-                <td class="activity-status">${statusRaw}</td>
+                <td class="activity-status">${statusText}</td>
               </tr>
             `;
           });
