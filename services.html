@@ -66,6 +66,7 @@
       --sbh-text-light: rgba(255, 255, 255, 0.9);
       --sbh-accent: #FF6B6B;
       --sbh-light-blue: #4DA6FF;
+      --sbh-gold: #FFD700;
     }
 
     /* Body et fond animé (étoiles + nuages) */
@@ -81,6 +82,11 @@
       overflow-x: hidden;
       display: flex;
       flex-direction: column;
+      transition: filter 0.3s ease;
+    }
+    
+    body.menu-open {
+      filter: blur(3px);
     }
 
     /* Animation étoiles + nuages */
@@ -99,8 +105,8 @@
       content: "";
       position: absolute;
       border-radius: 50%;
-      background-color: rgba(255, 255, 255, 0.4);
-      animation: twinkle 5s infinite alternate;
+      background-color: rgba(255, 255, 255, 0.3);
+      animation: twinkle 7s infinite alternate;
     }
     .background-animation::before {
       width: 2px;
@@ -137,8 +143,8 @@
       position: absolute;
       background: white;
       border-radius: 50%;
-      opacity: 0.1;
-      filter: blur(20px);
+      opacity: 0.05;
+      filter: blur(25px);
       animation: moveClouds linear infinite;
     }
     @keyframes moveClouds {
@@ -328,7 +334,7 @@
       margin-right: 8px;
     }
 
-    /* RECHERCHE */
+    /* RECHERCHE AMÉLIORÉE */
     .search-section {
       margin: 30px auto 40px;
       max-width: 700px;
@@ -364,19 +370,21 @@
       transform: translateY(-50%);
       color: var(--sbh-light-blue);
       font-size: 1.2rem;
+      cursor: pointer;
     }
     .search-results {
       position: absolute;
       width: 100%;
-      max-height: 300px;
+      max-height: 400px;
       overflow-y: auto;
-      background: rgba(20, 35, 60, 0.95);
+      background: rgba(20, 35, 60, 0.98);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 15px;
       margin-top: 10px;
-      z-index: 100;
+      z-index: 1000; /* Augmenté pour être au-dessus des cartes */
       display: none;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(5px);
     }
     .search-results.show {
       display: block;
@@ -400,6 +408,30 @@
       color: var(--sbh-icon-color);
       width: 24px;
       text-align: center;
+    }
+    .results-counter {
+      position: absolute;
+      top: -30px;
+      right: 10px;
+      background: var(--sbh-btn-color);
+      color: white;
+      font-size: 0.9rem;
+      padding: 3px 10px;
+      border-radius: 15px;
+      display: none;
+    }
+    .clear-search {
+      position: absolute;
+      right: 50px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: none;
+    }
+    .clear-search:hover {
+      color: var(--sbh-light-blue);
     }
 
     /* SERVICES GRID */
@@ -502,6 +534,10 @@
       border-radius: 20px;
       font-size: 0.8rem;
       font-weight: 600;
+    }
+    .service-card .service-tag.gold {
+      background: var(--sbh-gold);
+      color: #333;
     }
 
     /* BOUTON RETOUR EN HAUT */
@@ -796,6 +832,7 @@
     <i class="fa-solid fa-bars icon-hamburger" id="hamburgerBtn"></i>
     <div class="mobile-menu">
       <a href="dashboard.html"><i class="fa-solid fa-house"></i> Accueil</a>
+      <a href="new.html"><i class="fa-solid fa-star"></i> Nouveautés</a>
       <a href="wallet.html"><i class="fa-solid fa-wallet"></i> Mon portefeuille</a>
       <a href="statistiques.html"><i class="fa-solid fa-chart-line"></i> Statistiques</a>
       <a href="commander.html"><i class="fa-solid fa-rocket"></i> Commander</a>
@@ -815,11 +852,13 @@
       </button>
     </section>
 
-    <!-- Section Recherche -->
+    <!-- Section Recherche améliorée -->
     <section class="search-section" data-aos="fade-up" data-aos-delay="200">
       <div class="search-container">
-        <input type="text" class="search-input" id="searchInput" placeholder="Rechercher un service...">
-        <div class="search-icon"><i class="fas fa-search"></i></div>
+        <input type="text" class="search-input" id="searchInput" placeholder="Rechercher un service (ex: TikTok, application, site...)">
+        <div class="search-icon" id="searchBtn"><i class="fas fa-search"></i></div>
+        <div class="clear-search" id="clearSearch"><i class="fas fa-times"></i></div>
+        <div class="results-counter" id="resultsCounter">0 résultats</div>
         <div class="search-results" id="searchResults"></div>
       </div>
     </section>
@@ -827,7 +866,7 @@
     <!-- Services Grid -->
     <section class="services-grid">
       <div class="service-card" data-aos="fade-up" data-aos-delay="0">
-        <div class="service-tag">Populaire</div>
+        <div class="service-tag gold">Top</div>
         <i class="fab fa-tiktok"></i>
         <h3>Création de comptes TikTok monétisables</h3>
         <p>Obtenez un compte prêt à générer des revenus immédiatement.</p>
@@ -970,6 +1009,7 @@
           <h3>Liens Rapides</h3>
           <ul>
             <li><a href="dashboard.html"><i class="fa-solid fa-chevron-right"></i> Accueil</a></li>
+            <li><a href="new.html"><i class="fa-solid fa-chevron-right"></i> Nouveautés</a></li>
             <li><a href="services.html"><i class="fa-solid fa-chevron-right"></i> Services</a></li>
             <li><a href="statistiques.html"><i class="fa-solid fa-chevron-right"></i> Statistiques</a></li>
             <li><a href="commandes.html"><i class="fa-solid fa-chevron-right"></i> Mes commandes</a></li>
@@ -1026,9 +1066,9 @@
     document.addEventListener("DOMContentLoaded", function () {
       AOS.init({ duration: 800, once: true, offset: 100 });
 
-      // Animation des nuages
+      // Animation des nuages (réduit pour la performance)
       const backgroundAnimation = document.querySelector(".background-animation");
-      const numberOfClouds = 20;
+      const numberOfClouds = 10; // Réduit pour la performance
 
       for (let i = 0; i < numberOfClouds; i++) {
         const cloud = document.createElement("div");
@@ -1057,18 +1097,23 @@
       const hamburger = document.querySelector(".icon-hamburger");
       hamburger.addEventListener("click", () => {
         header.classList.toggle("open");
+        document.body.classList.toggle("menu-open");
       });
       
       // Fermer le menu quand on clique en dehors
       document.addEventListener("click", (e) => {
         if (!header.contains(e.target) && header.classList.contains("open")) {
           header.classList.remove("open");
+          document.body.classList.remove("menu-open");
         }
       });
 
-      // Recherche dynamique
+      // Recherche dynamique améliorée
       const searchInput = document.getElementById('searchInput');
       const searchResults = document.getElementById('searchResults');
+      const resultsCounter = document.getElementById('resultsCounter');
+      const clearSearch = document.getElementById('clearSearch');
+      const searchBtn = document.getElementById('searchBtn');
       const serviceCards = document.querySelectorAll('.service-card');
       
       // Données des services pour la recherche
@@ -1090,15 +1135,21 @@
         { title: "Streaming & Divertissement", icon: "fas fa-film", link: "streaming-divertissement.html" }
       ];
       
-      // Fonction de recherche
-      searchInput.addEventListener('input', function() {
-        const searchTerm = this.value.toLowerCase();
+      // Fonction pour afficher les résultats de recherche
+      function displaySearchResults(searchTerm) {
         searchResults.innerHTML = '';
+        resultsCounter.style.display = 'none';
         
         if (searchTerm.length > 0) {
           const filteredServices = servicesData.filter(service => 
-            service.title.toLowerCase().includes(searchTerm)
+            searchTerm.toLowerCase().split(' ').some(word => 
+              service.title.toLowerCase().includes(word)
+            )
           );
+          
+          resultsCounter.textContent = `${filteredServices.length} résultat${filteredServices.length !== 1 ? 's' : ''}`;
+          resultsCounter.style.display = 'block';
+          clearSearch.style.display = 'block';
           
           if (filteredServices.length > 0) {
             filteredServices.forEach(service => {
@@ -1110,6 +1161,7 @@
               `;
               resultItem.addEventListener('click', function() {
                 window.location.href = service.link;
+                searchResults.classList.remove('show');
               });
               searchResults.appendChild(resultItem);
             });
@@ -1123,12 +1175,17 @@
           }
         } else {
           searchResults.classList.remove('show');
+          clearSearch.style.display = 'none';
+          resultsCounter.style.display = 'none';
         }
         
         // Mettre en évidence les résultats dans la grille
         serviceCards.forEach(card => {
           const title = card.querySelector('h3').textContent.toLowerCase();
-          if (title.includes(searchTerm) && searchTerm.length > 0) {
+          const searchWords = searchTerm.toLowerCase().split(' ');
+          const isMatch = searchWords.some(word => title.includes(word));
+          
+          if (isMatch && searchTerm.length > 0) {
             card.style.transform = 'scale(1.05)';
             card.style.zIndex = '10';
             card.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.4)';
@@ -1138,10 +1195,49 @@
             card.style.boxShadow = '';
           }
         });
+      }
+      
+      // Fonction debounce pour limiter les appels de recherche
+      function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+          const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+          };
+          clearTimeout(timeout);
+          timeout = setTimeout(later, wait);
+        };
+      }
+      
+      const debouncedSearch = debounce(function() {
+        displaySearchResults(searchInput.value);
+      }, 300);
+      
+      // Écouteurs d'événements pour la recherche
+      searchInput.addEventListener('input', debouncedSearch);
+      
+      searchBtn.addEventListener('click', function() {
+        displaySearchResults(searchInput.value);
+      });
+      
+      clearSearch.addEventListener('click', function() {
+        searchInput.value = '';
+        searchResults.classList.remove('show');
+        clearSearch.style.display = 'none';
+        resultsCounter.style.display = 'none';
+        
+        // Réinitialiser les cartes
+        serviceCards.forEach(card => {
+          card.style.transform = '';
+          card.style.zIndex = '';
+          card.style.boxShadow = '';
+        });
       });
       
       // Fermer les résultats quand on clique en dehors
       document.addEventListener('click', function(e) {
+        const searchContainer = document.querySelector('.search-container');
         if (!searchContainer.contains(e.target)) {
           searchResults.classList.remove('show');
         }
@@ -1172,7 +1268,9 @@
         });
         
         card.addEventListener('mouseleave', function() {
-          this.style.transform = '';
+          if (!this.style.zIndex) {
+            this.style.transform = '';
+          }
         });
         
         card.addEventListener('click', function() {
