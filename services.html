@@ -67,6 +67,9 @@
       --sbh-accent: #FF6B6B;
       --sbh-light-blue: #4DA6FF;
       --sbh-gold: #FFD700;
+      --sbh-purple: #8a2be2;
+      --sbh-orange: #ff7f50;
+      --sbh-pink: #ff6b8b;
     }
 
     /* Body et fond animé (étoiles + nuages) */
@@ -85,7 +88,7 @@
       transition: filter 0.3s ease;
     }
     
-    body.menu-open {
+    body.menu-open .content-blur {
       filter: blur(3px);
     }
 
@@ -196,7 +199,7 @@
       justify-content: space-between;
       align-items: center;
       padding: 1rem 2rem;
-      z-index: 100;
+      z-index: 1000; /* Augmenté pour être au-dessus des résultats */
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     }
     .logo-text {
@@ -241,15 +244,15 @@
     /* Menu mobile caché par défaut */
     .mobile-menu {
       display: none;
-      position: absolute;
+      position: fixed;
       top: 68px;
       right: 2rem;
-      background: rgba(10, 22, 43, 0.95);
+      background: rgba(10, 22, 43, 0.98);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 10px;
       padding: 1.5rem;
       flex-direction: column;
-      z-index: 200;
+      z-index: 2000; /* Augmenté pour être au-dessus de tout */
       min-width: 250px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     }
@@ -282,6 +285,9 @@
     }
 
     /* SECTION PRINCIPALE */
+    .content-blur {
+      transition: filter 0.3s ease;
+    }
     .main-container {
       max-width: 1200px;
       margin: 30px auto;
@@ -334,6 +340,48 @@
       margin-right: 8px;
     }
 
+    /* FILTRES */
+    .filters-section {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 20px 0 30px;
+    }
+    .filter-btn {
+      padding: 8px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(20, 35, 60, 0.6);
+      color: rgba(255, 255, 255, 0.8);
+      border-radius: 30px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+    }
+    .filter-btn:hover, .filter-btn.active {
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      color: white;
+      border-color: transparent;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(30, 144, 255, 0.3);
+    }
+    .reset-btn {
+      padding: 8px 16px;
+      background: rgba(255, 107, 107, 0.2);
+      color: var(--sbh-accent);
+      border: 1px solid var(--sbh-accent);
+      border-radius: 30px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+    }
+    .reset-btn:hover {
+      background: var(--sbh-accent);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(255, 107, 107, 0.3);
+    }
+
     /* RECHERCHE AMÉLIORÉE */
     .search-section {
       margin: 30px auto 40px;
@@ -373,15 +421,19 @@
       cursor: pointer;
     }
     .search-results {
-      position: absolute;
-      width: 100%;
+      position: fixed;
+      top: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 700px;
       max-height: 400px;
       overflow-y: auto;
       background: rgba(20, 35, 60, 0.98);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 15px;
       margin-top: 10px;
-      z-index: 1000; /* Augmenté pour être au-dessus des cartes */
+      z-index: 1500; /* Positionné sous le menu mais au-dessus du contenu */
       display: none;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
       backdrop-filter: blur(5px);
@@ -432,6 +484,13 @@
     }
     .clear-search:hover {
       color: var(--sbh-light-blue);
+    }
+    .search-status {
+      text-align: center;
+      margin-top: 10px;
+      color: var(--sbh-light-blue);
+      font-size: 0.9rem;
+      height: 20px;
     }
 
     /* SERVICES GRID */
@@ -538,6 +597,24 @@
     .service-card .service-tag.gold {
       background: var(--sbh-gold);
       color: #333;
+    }
+    .service-card .service-tag.purple {
+      background: var(--sbh-purple);
+      color: white;
+    }
+    .service-card .service-tag.orange {
+      background: var(--sbh-orange);
+      color: white;
+    }
+
+    /* MESSAGE AUCUN RESULTAT */
+    .no-results-message {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 40px;
+      color: var(--sbh-light-blue);
+      font-size: 1.2rem;
+      display: none;
     }
 
     /* BOUTON RETOUR EN HAUT */
@@ -775,6 +852,36 @@
       box-shadow: 0 7px 20px rgba(220, 53, 69, 0.4);
     }
 
+    /* ANIMATION CHARGEMENT */
+    .loader {
+      display: none;
+      text-align: center;
+      margin: 10px 0;
+    }
+    .loader-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--sbh-light-blue);
+      margin: 0 4px;
+      animation: loader 1.4s infinite;
+    }
+    .loader-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+    .loader-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+    @keyframes loader {
+      0%, 60%, 100% {
+        transform: translateY(0);
+      }
+      30% {
+        transform: translateY(-10px);
+      }
+    }
+
     /* Responsive */
     @media (max-width: 992px) {
       .services-grid {
@@ -787,6 +894,10 @@
       }
       .services-grid {
         grid-template-columns: 1fr;
+      }
+      .search-results {
+        width: 95%;
+        max-height: 300px;
       }
     }
     @media (max-width: 480px) {
@@ -842,222 +953,245 @@
     </div>
   </header>
 
-  <div class="main-container">
-    <!-- Section Recharge -->
-    <section class="recharge-section" data-aos="fade-up">
-      <h2>Boostez votre présence en ligne</h2>
-      <p>Découvrez nos services premium pour développer votre audience et augmenter votre engagement sur toutes les plateformes.</p>
-      <button class="recharge-btn" onclick="window.location.href='fonds.html'">
-        <i class="fas fa-wallet"></i> Recharger mon compte
-      </button>
-    </section>
+  <div class="content-blur">
+    <div class="main-container">
+      <!-- Section Recharge -->
+      <section class="recharge-section" data-aos="fade-up">
+        <h2>Boostez votre présence en ligne</h2>
+        <p>Découvrez nos services premium pour développer votre audience et augmenter votre engagement sur toutes les plateformes.</p>
+        <button class="recharge-btn" onclick="window.location.href='fonds.html'">
+          <i class="fas fa-wallet"></i> Recharger mon compte
+        </button>
+      </section>
 
-    <!-- Section Recherche améliorée -->
-    <section class="search-section" data-aos="fade-up" data-aos-delay="200">
-      <div class="search-container">
-        <input type="text" class="search-input" id="searchInput" placeholder="Rechercher un service (ex: TikTok, application, site...)">
-        <div class="search-icon" id="searchBtn"><i class="fas fa-search"></i></div>
-        <div class="clear-search" id="clearSearch"><i class="fas fa-times"></i></div>
-        <div class="results-counter" id="resultsCounter">0 résultats</div>
-        <div class="search-results" id="searchResults"></div>
-      </div>
-    </section>
+      <!-- Section Recherche améliorée -->
+      <section class="search-section" data-aos="fade-up" data-aos-delay="200">
+        <div class="search-container">
+          <input type="text" class="search-input" id="searchInput" placeholder="Rechercher un service (ex: TikTok, application, site...)">
+          <div class="search-icon" id="searchBtn"><i class="fas fa-search"></i></div>
+          <div class="clear-search" id="clearSearch"><i class="fas fa-times"></i></div>
+          <div class="results-counter" id="resultsCounter">0 résultats</div>
+          <div class="search-results" id="searchResults"></div>
+        </div>
+        <div class="search-status" id="searchStatus"></div>
+        <div class="loader" id="searchLoader">
+          <div class="loader-dot"></div>
+          <div class="loader-dot"></div>
+          <div class="loader-dot"></div>
+        </div>
+      </section>
 
-    <!-- Services Grid -->
-    <section class="services-grid">
-      <div class="service-card" data-aos="fade-up" data-aos-delay="0">
-        <div class="service-tag gold">Top</div>
-        <i class="fab fa-tiktok"></i>
-        <h3>Création de comptes TikTok monétisables</h3>
-        <p>Obtenez un compte prêt à générer des revenus immédiatement.</p>
-        <a href="tiktok.html" class="btn">Découvrir</a>
+      <!-- Filtres par catégorie -->
+      <div class="filters-section">
+        <button class="filter-btn active" data-filter="all">Tous</button>
+        <button class="filter-btn" data-filter="creation">Création</button>
+        <button class="filter-btn" data-filter="social">Réseaux sociaux</button>
+        <button class="filter-btn" data-filter="design">Design</button>
+        <button class="filter-btn" data-filter="premium">Services Premium</button>
+        <button class="reset-btn" id="resetFilters">Réinitialiser</button>
       </div>
-      
-      <div class="service-card" data-aos="fade-up" data-aos-delay="100">
-        <i class="fas fa-mobile-alt"></i>
-        <h3>Création d’applications mobiles</h3>
-        <p>Développez votre application iOS & Android sur mesure.</p>
-        <a href="creation-apps.html" class="btn">Découvrir</a>
+
+      <!-- Services Grid -->
+      <section class="services-grid">
+        <div class="no-results-message" id="noResultsMessage">
+          <i class="fas fa-search"></i>
+          <p>Aucun service ne correspond à votre recherche ou filtre</p>
+        </div>
+        
+        <div class="service-card" data-aos="fade-up" data-aos-delay="0" data-category="social">
+          <div class="service-tag gold">Top</div>
+          <i class="fab fa-tiktok"></i>
+          <h3>Création de comptes TikTok monétisables</h3>
+          <p>Obtenez un compte prêt à générer des revenus immédiatement.</p>
+          <a href="tiktok.html" class="btn">Découvrir</a>
+        </div>
+        
+        <div class="service-card" data-aos="fade-up" data-aos-delay="100" data-category="creation">
+          <i class="fas fa-mobile-alt"></i>
+          <h3>Création d’applications mobiles</h3>
+          <p>Développez votre application iOS & Android sur mesure.</p>
+          <a href="creation-apps.html" class="btn">Découvrir</a>
+        </div>
+        
+        <div class="service-card" data-aos="fade-up" data-aos-delay="200" data-category="creation">
+          <i class="fas fa-code"></i>
+          <h3>Sites web sur mesure</h3>
+          <p>Conception et développement de sites professionnels.</p>
+          <a href="sites-web.html" class="btn">Découvrir</a>
+        </div>
+        
+        <div class="service-card" data-aos="fade-up" data-aos-delay="300" data-category="creation">
+          <i class="fas fa-music"></i>
+          <h3>Chanson personnalisée</h3>
+          <p>Une composition unique pour vos projets, anniversaires, cadeaux…</p>
+          <a href="chanson-personnalisee.html" class="btn">Découvrir</a>
+        </div>
+        
+        <div class="service-card" data-aos="fade-up" data-aos-delay="400" data-category="social">
+          <i class="fas fa-bullhorn"></i>
+          <h3>Campagnes publicitaires ciblées</h3>
+          <p>Facebook & Instagram Ads pour toucher votre audience idéale.</p>
+          <a href="campagnes-publicitaires.html" class="btn">Découvrir</a>
+        </div>
+        
+        <div class="service-card" data-aos="fade-up" data-aos-delay="500" data-category="design">
+          <i class="fas fa-paint-brush"></i>
+          <h3>Design de logos & flyers</h3>
+          <p>Identité visuelle percutante pour votre marque.</p>
+          <a href="design-logos.html" class="btn">Découvrir</a>
+        </div>
+        
+        <div class="service-card" data-aos="fade-up" data-aos-delay="600" data-category="design">
+          <i class="fas fa-video"></i>
+          <h3>Dessins animés</h3>
+          <p>Vidéos animées pour captiver votre audience.</p>
+          <a href="dessins-animes.html" class="btn">Découvrir</a>
+        </div>
+        
+        <div class="service-card" data-aos="fade-up" data-aos-delay="700" data-category="social">
+          <div class="service-tag">Nouveau</div>
+          <i class="fab fa-whatsapp"></i>
+          <h3>Plus de vues en statut WhatsApp</h3>
+          <p>Augmentez la visibilité de vos statuts instantanément.</p>
+          <a href="vues-whatsapp.html" class="btn">Découvrir</a>
+        </div>
+        
+        <div class="service-card" data-aos="fade-up" data-aos-delay="800" data-category="social">
+          <i class="fas fa-video"></i>
+          <h3>Spectateurs en direct (Live)</h3>
+          <p>Live viewers sur YouTube, Facebook, TikTok, Instagram…</p>
+          <a href="spectateurs-live.html" class="btn">Découvrir</a>
+        </div>
+        
+        <div class="service-card" data-aos="fade-up" data-aos-delay="900" data-category="premium">
+          <i class="fab fa-linkedin"></i>
+          <h3>Pack LinkedIn Premium</h3>
+          <p>Formations et business plan pour booster votre profil pro.</p>
+          <a href="linkedin-premium.html" class="btn">Découvrir</a>
+        </div>
+        
+        <div class="service-card" data-aos="fade-up" data-aos-delay="1000" data-category="social">
+          <i class="fas fa-clock"></i>
+          <h3>Temps de visionnage</h3>
+          <p>Augmentez vos minutes de watch time sur YouTube, Facebook…</p>
+          <a href="temps-de-visionnage.html" class="btn">Découvrir</a>
+        </div>
+        
+        <div class="service-card" data-aos="fade-up" data-aos-delay="1100" data-category="social">
+          <i class="fas fa-users"></i>
+          <h3>Abonnés pays ciblé</h3>
+          <p>Ciblez vos abonnés par pays, langue ou mot-clé.</p>
+          <a href="abonnes-pays-cible.html" class="btn">Découvrir</a>
+        </div>
+        
+        <div class="service-card" data-aos="fade-up" data-aos-delay="1200" data-category="premium">
+          <div class="service-tag purple">Exclusif</div>
+          <i class="fas fa-shopping-bag"></i>
+          <h3>Comptes & Monétisation</h3>
+          <p>Achat/création de comptes PayPal, AdSense, TikTok monétisé…</p>
+          <a href="comptes-monetisation.html" class="btn">Découvrir</a>
+        </div>
+        
+        <div class="service-card" data-aos="fade-up" data-aos-delay="1300" data-category="premium">
+          <i class="fas fa-laptop"></i>
+          <h3>Logiciels & Abonnements Pro</h3>
+          <p>Grammarly, QuillBot, VPN, Microsoft 365, Canva Pro…</p>
+          <a href="logiciels-abonnements-pro.html" class="btn">Découvrir</a>
+        </div>
+        
+        <div class="service-card" data-aos="fade-up" data-aos-delay="1400" data-category="premium">
+          <i class="fas fa-film"></i>
+          <h3>Streaming & Divertissement</h3>
+          <p>Netflix, Prime, Disney+, DAZN, NBA League à vie…</p>
+          <a href="streaming-divertissement.html" class="btn">Découvrir</a>
+        </div>
+      </section>
+    </div>
+
+    <!-- Footer -->
+    <footer id="contact">
+      <div class="container">
+        <div class="footer-content">
+          <div class="footer-section">
+            <div class="footer-logo">
+              <span class="text-social">SOCIAL</span>
+              <div class="boost-line">
+                <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Rocket Icon">
+                <span class="text-boost">BOOST</span>
+              </div>
+              <span class="text-horizon">HORIZON</span>
+            </div>
+            <div class="footer-about">
+              <p>Social Boost Horizon est votre partenaire pour développer votre présence sur les réseaux sociaux. Nous offrons des solutions innovantes et fiables pour booster votre audience et votre engagement.</p>
+              <div class="social-icons">
+                <a href="https://www.facebook.com/share/1ACQ14Cg9h/?mibextid=wwXIfr" target="_blank" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+                <a href="https://www.instagram.com/social.boost.horizon?igsh=MXJvZ2h2azQ0NjhicA%3D%3D&utm_source=qr" target="_blank" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+                <a href="https://x.com/mcexau?s=21" target="_blank" aria-label="Twitter"><i class="fa-brands fa-twitter"></i></a>
+                <a href="https://www.tiktok.com/@social.boost.hori?_t=ZN-8x1AOi6jZP4&_r=1" target="_blank" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i></a>
+                <a href="http://www.youtube.com/@SocialBoostHorizon-d7t" target="_blank" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
+              </div>
+            </div>
+          </div>
+          
+          <div class="footer-section footer-links">
+            <h3>Liens Rapides</h3>
+            <ul>
+              <li><a href="dashboard.html"><i class="fa-solid fa-chevron-right"></i> Accueil</a></li>
+              <li><a href="new.html"><i class="fa-solid fa-chevron-right"></i> Nouveautés</a></li>
+              <li><a href="services.html"><i class="fa-solid fa-chevron-right"></i> Services</a></li>
+              <li><a href="statistiques.html"><i class="fa-solid fa-chevron-right"></i> Statistiques</a></li>
+              <li><a href="commandes.html"><i class="fa-solid fa-chevron-right"></i> Mes commandes</a></li>
+              <li><a href="profil.html"><i class="fa-solid fa-chevron-right"></i> Mon profil</a></li>
+              <li><a href="https://chat.whatsapp.com/HRgWJFxTgkiEkEC0Ou2028" target="_blank"><i class="fa-solid fa-chevron-right"></i> Rejoindre WhatsApp</a></li>
+            </ul>
+          </div>
+          
+          <div class="footer-section footer-contact">
+            <h3>Contactez-nous</h3>
+            <p><i class="fa-solid fa-envelope"></i> socialboosthorizon984@gmail.com</p>
+            <p><i class="fa-solid fa-phone"></i> +237 699 85 36 65</p>
+            <p><i class="fa-solid fa-location-dot"></i> Douala, Cameroun</p>
+            <p><i class="fa-solid fa-clock"></i> Support 24/7</p>
+            <a href="https://chat.whatsapp.com/HRgWJFxTgkiEkEC0Ou2028" target="_blank" class="btn btn-whatsapp" style="margin-top: 15px;">
+              <i class="fab fa-whatsapp"></i> Rejoindre notre groupe
+            </a>
+          </div>
+          
+          <div class="footer-section footer-newsletter">
+            <h3>Newsletter</h3>
+            <p>Inscrivez-vous pour recevoir nos dernières offres et astuces pour booster vos réseaux sociaux.</p>
+            <form class="newsletter-form" id="newsletterForm">
+              <input type="email" placeholder="Votre adresse email" required>
+              <button type="submit" class="btn">S'abonner</button>
+            </form>
+            <p id="newsletterMessage" style="display: none; text-align: center; margin-top: 10px; color: #4CAF50;"></p>
+          </div>
+        </div>
+        
+        <div class="footer-bottom">
+          <p>© 2025 Social Boost Horizon. Tous droits réservés.</p>
+          <div>
+            <a href="legal.html">Mentions légales</a>
+            <a href="terms.html">CGV</a>
+            <a href="privacy.html">Confidentialité</a>
+            <a href="cookies.html">Cookies</a>
+          </div>
+          <button id="logoutBtn">Déconnexion</button>
+          <div class="payment-methods">
+            <i class="fa-brands fa-cc-visa"></i>
+            <i class="fa-brands fa-cc-mastercard"></i>
+            <i class="fa-brands fa-cc-paypal"></i>
+            <i class="fa-solid fa-money-bill-wave"></i>
+          </div>
+        </div>
       </div>
-      
-      <div class="service-card" data-aos="fade-up" data-aos-delay="200">
-        <i class="fas fa-code"></i>
-        <h3>Sites web sur mesure</h3>
-        <p>Conception et développement de sites professionnels.</p>
-        <a href="sites-web.html" class="btn">Découvrir</a>
-      </div>
-      
-      <div class="service-card" data-aos="fade-up" data-aos-delay="300">
-        <i class="fas fa-music"></i>
-        <h3>Chanson personnalisée</h3>
-        <p>Une composition unique pour vos projets, anniversaires, cadeaux…</p>
-        <a href="chanson-personnalisee.html" class="btn">Découvrir</a>
-      </div>
-      
-      <div class="service-card" data-aos="fade-up" data-aos-delay="400">
-        <i class="fas fa-bullhorn"></i>
-        <h3>Campagnes publicitaires ciblées</h3>
-        <p>Facebook & Instagram Ads pour toucher votre audience idéale.</p>
-        <a href="campagnes-publicitaires.html" class="btn">Découvrir</a>
-      </div>
-      
-      <div class="service-card" data-aos="fade-up" data-aos-delay="500">
-        <i class="fas fa-paint-brush"></i>
-        <h3>Design de logos & flyers</h3>
-        <p>Identité visuelle percutante pour votre marque.</p>
-        <a href="design-logos.html" class="btn">Découvrir</a>
-      </div>
-      
-      <div class="service-card" data-aos="fade-up" data-aos-delay="600">
-        <i class="fas fa-video"></i>
-        <h3>Dessins animés</h3>
-        <p>Vidéos animées pour captiver votre audience.</p>
-        <a href="dessins-animes.html" class="btn">Découvrir</a>
-      </div>
-      
-      <div class="service-card" data-aos="fade-up" data-aos-delay="700">
-        <div class="service-tag">Nouveau</div>
-        <i class="fab fa-whatsapp"></i>
-        <h3>Plus de vues en statut WhatsApp</h3>
-        <p>Augmentez la visibilité de vos statuts instantanément.</p>
-        <a href="vues-whatsapp.html" class="btn">Découvrir</a>
-      </div>
-      
-      <div class="service-card" data-aos="fade-up" data-aos-delay="800">
-        <i class="fas fa-video"></i>
-        <h3>Spectateurs en direct (Live)</h3>
-        <p>Live viewers sur YouTube, Facebook, TikTok, Instagram…</p>
-        <a href="spectateurs-live.html" class="btn">Découvrir</a>
-      </div>
-      
-      <div class="service-card" data-aos="fade-up" data-aos-delay="900">
-        <i class="fab fa-linkedin"></i>
-        <h3>Pack LinkedIn Premium</h3>
-        <p>Formations et business plan pour booster votre profil pro.</p>
-        <a href="linkedin-premium.html" class="btn">Découvrir</a>
-      </div>
-      
-      <div class="service-card" data-aos="fade-up" data-aos-delay="1000">
-        <i class="fas fa-clock"></i>
-        <h3>Temps de visionnage</h3>
-        <p>Augmentez vos minutes de watch time sur YouTube, Facebook…</p>
-        <a href="temps-de-visionnage.html" class="btn">Découvrir</a>
-      </div>
-      
-      <div class="service-card" data-aos="fade-up" data-aos-delay="1100">
-        <i class="fas fa-users"></i>
-        <h3>Abonnés pays ciblé</h3>
-        <p>Ciblez vos abonnés par pays, langue ou mot-clé.</p>
-        <a href="abonnes-pays-cible.html" class="btn">Découvrir</a>
-      </div>
-      
-      <div class="service-card" data-aos="fade-up" data-aos-delay="1200">
-        <div class="service-tag">Exclusif</div>
-        <i class="fas fa-shopping-bag"></i>
-        <h3>Comptes & Monétisation</h3>
-        <p>Achat/création de comptes PayPal, AdSense, TikTok monétisé…</p>
-        <a href="comptes-monetisation.html" class="btn">Découvrir</a>
-      </div>
-      
-      <div class="service-card" data-aos="fade-up" data-aos-delay="1300">
-        <i class="fas fa-laptop"></i>
-        <h3>Logiciels & Abonnements Pro</h3>
-        <p>Grammarly, QuillBot, VPN, Microsoft 365, Canva Pro…</p>
-        <a href="logiciels-abonnements-pro.html" class="btn">Découvrir</a>
-      </div>
-      
-      <div class="service-card" data-aos="fade-up" data-aos-delay="1400">
-        <i class="fas fa-film"></i>
-        <h3>Streaming & Divertissement</h3>
-        <p>Netflix, Prime, Disney+, DAZN, NBA League à vie…</p>
-        <a href="streaming-divertissement.html" class="btn">Découvrir</a>
-      </div>
-    </section>
+    </footer>
   </div>
 
   <!-- Bouton retour en haut -->
   <div class="back-to-top" id="backToTop">
     <i class="fas fa-arrow-up"></i>
   </div>
-
-  <!-- Footer -->
-  <footer id="contact">
-    <div class="container">
-      <div class="footer-content">
-        <div class="footer-section">
-          <div class="footer-logo">
-            <span class="text-social">SOCIAL</span>
-            <div class="boost-line">
-              <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Rocket Icon">
-              <span class="text-boost">BOOST</span>
-            </div>
-            <span class="text-horizon">HORIZON</span>
-          </div>
-          <div class="footer-about">
-            <p>Social Boost Horizon est votre partenaire pour développer votre présence sur les réseaux sociaux. Nous offrons des solutions innovantes et fiables pour booster votre audience et votre engagement.</p>
-            <div class="social-icons">
-              <a href="https://www.facebook.com/share/1ACQ14Cg9h/?mibextid=wwXIfr" target="_blank" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
-              <a href="https://www.instagram.com/social.boost.horizon?igsh=MXJvZ2h2azQ0NjhicA%3D%3D&utm_source=qr" target="_blank" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
-              <a href="https://x.com/mcexau?s=21" target="_blank" aria-label="Twitter"><i class="fa-brands fa-twitter"></i></a>
-              <a href="https://www.tiktok.com/@social.boost.hori?_t=ZN-8x1AOi6jZP4&_r=1" target="_blank" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i></a>
-              <a href="http://www.youtube.com/@SocialBoostHorizon-d7t" target="_blank" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
-            </div>
-          </div>
-        </div>
-        
-        <div class="footer-section footer-links">
-          <h3>Liens Rapides</h3>
-          <ul>
-            <li><a href="dashboard.html"><i class="fa-solid fa-chevron-right"></i> Accueil</a></li>
-            <li><a href="new.html"><i class="fa-solid fa-chevron-right"></i> Nouveautés</a></li>
-            <li><a href="services.html"><i class="fa-solid fa-chevron-right"></i> Services</a></li>
-            <li><a href="statistiques.html"><i class="fa-solid fa-chevron-right"></i> Statistiques</a></li>
-            <li><a href="commandes.html"><i class="fa-solid fa-chevron-right"></i> Mes commandes</a></li>
-            <li><a href="profil.html"><i class="fa-solid fa-chevron-right"></i> Mon profil</a></li>
-            <li><a href="https://chat.whatsapp.com/HRgWJFxTgkiEkEC0Ou2028" target="_blank"><i class="fa-solid fa-chevron-right"></i> Rejoindre WhatsApp</a></li>
-          </ul>
-        </div>
-        
-        <div class="footer-section footer-contact">
-          <h3>Contactez-nous</h3>
-          <p><i class="fa-solid fa-envelope"></i> socialboosthorizon984@gmail.com</p>
-          <p><i class="fa-solid fa-phone"></i> +237 699 85 36 65</p>
-          <p><i class="fa-solid fa-location-dot"></i> Douala, Cameroun</p>
-          <p><i class="fa-solid fa-clock"></i> Support 24/7</p>
-          <a href="https://chat.whatsapp.com/HRgWJFxTgkiEkEC0Ou2028" target="_blank" class="btn btn-whatsapp" style="margin-top: 15px;">
-            <i class="fab fa-whatsapp"></i> Rejoindre notre groupe
-          </a>
-        </div>
-        
-        <div class="footer-section footer-newsletter">
-          <h3>Newsletter</h3>
-          <p>Inscrivez-vous pour recevoir nos dernières offres et astuces pour booster vos réseaux sociaux.</p>
-          <form class="newsletter-form" id="newsletterForm">
-            <input type="email" placeholder="Votre adresse email" required>
-            <button type="submit" class="btn">S'abonner</button>
-          </form>
-          <p id="newsletterMessage" style="display: none; text-align: center; margin-top: 10px; color: #4CAF50;"></p>
-        </div>
-      </div>
-      
-      <div class="footer-bottom">
-        <p>© 2025 Social Boost Horizon. Tous droits réservés.</p>
-        <div>
-          <a href="legal.html">Mentions légales</a>
-          <a href="terms.html">CGV</a>
-          <a href="privacy.html">Confidentialité</a>
-          <a href="cookies.html">Cookies</a>
-        </div>
-        <button id="logoutBtn">Déconnexion</button>
-        <div class="payment-methods">
-          <i class="fa-brands fa-cc-visa"></i>
-          <i class="fa-brands fa-cc-mastercard"></i>
-          <i class="fa-brands fa-cc-paypal"></i>
-          <i class="fa-solid fa-money-bill-wave"></i>
-        </div>
-      </div>
-    </div>
-  </footer>
 
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
@@ -1115,86 +1249,105 @@
       const clearSearch = document.getElementById('clearSearch');
       const searchBtn = document.getElementById('searchBtn');
       const serviceCards = document.querySelectorAll('.service-card');
+      const noResultsMessage = document.getElementById('noResultsMessage');
+      const searchStatus = document.getElementById('searchStatus');
+      const searchLoader = document.getElementById('searchLoader');
       
       // Données des services pour la recherche
       const servicesData = [
-        { title: "Création de comptes TikTok monétisables", icon: "fab fa-tiktok", link: "tiktok.html" },
-        { title: "Création d’applications mobiles", icon: "fas fa-mobile-alt", link: "creation-apps.html" },
-        { title: "Sites web sur mesure", icon: "fas fa-code", link: "sites-web.html" },
-        { title: "Chanson personnalisée", icon: "fas fa-music", link: "chanson-personnalisee.html" },
-        { title: "Campagnes publicitaires ciblées", icon: "fas fa-bullhorn", link: "campagnes-publicitaires.html" },
-        { title: "Design de logos & flyers", icon: "fas fa-paint-brush", link: "design-logos.html" },
-        { title: "Dessins animés", icon: "fas fa-video", link: "dessins-animes.html" },
-        { title: "Plus de vues en statut WhatsApp", icon: "fab fa-whatsapp", link: "vues-whatsapp.html" },
-        { title: "Spectateurs en direct (Live)", icon: "fas fa-video", link: "spectateurs-live.html" },
-        { title: "Pack LinkedIn Premium", icon: "fab fa-linkedin", link: "linkedin-premium.html" },
-        { title: "Temps de visionnage", icon: "fas fa-clock", link: "temps-de-visionnage.html" },
-        { title: "Abonnés pays ciblé", icon: "fas fa-users", link: "abonnes-pays-cible.html" },
-        { title: "Comptes & Monétisation", icon: "fas fa-shopping-bag", link: "comptes-monetisation.html" },
-        { title: "Logiciels & Abonnements Pro", icon: "fas fa-laptop", link: "logiciels-abonnements-pro.html" },
-        { title: "Streaming & Divertissement", icon: "fas fa-film", link: "streaming-divertissement.html" }
+        { title: "Création de comptes TikTok monétisables", icon: "fab fa-tiktok", link: "tiktok.html", category: "social" },
+        { title: "Création d’applications mobiles", icon: "fas fa-mobile-alt", link: "creation-apps.html", category: "creation" },
+        { title: "Sites web sur mesure", icon: "fas fa-code", link: "sites-web.html", category: "creation" },
+        { title: "Chanson personnalisée", icon: "fas fa-music", link: "chanson-personnalisee.html", category: "creation" },
+        { title: "Campagnes publicitaires ciblées", icon: "fas fa-bullhorn", link: "campagnes-publicitaires.html", category: "social" },
+        { title: "Design de logos & flyers", icon: "fas fa-paint-brush", link: "design-logos.html", category: "design" },
+        { title: "Dessins animés", icon: "fas fa-video", link: "dessins-animes.html", category: "design" },
+        { title: "Plus de vues en statut WhatsApp", icon: "fab fa-whatsapp", link: "vues-whatsapp.html", category: "social" },
+        { title: "Spectateurs en direct (Live)", icon: "fas fa-video", link: "spectateurs-live.html", category: "social" },
+        { title: "Pack LinkedIn Premium", icon: "fab fa-linkedin", link: "linkedin-premium.html", category: "premium" },
+        { title: "Temps de visionnage", icon: "fas fa-clock", link: "temps-de-visionnage.html", category: "social" },
+        { title: "Abonnés pays ciblé", icon: "fas fa-users", link: "abonnes-pays-cible.html", category: "social" },
+        { title: "Comptes & Monétisation", icon: "fas fa-shopping-bag", link: "comptes-monetisation.html", category: "premium" },
+        { title: "Logiciels & Abonnements Pro", icon: "fas fa-laptop", link: "logiciels-abonnements-pro.html", category: "premium" },
+        { title: "Streaming & Divertissement", icon: "fas fa-film", link: "streaming-divertissement.html", category: "premium" }
       ];
       
       // Fonction pour afficher les résultats de recherche
       function displaySearchResults(searchTerm) {
         searchResults.innerHTML = '';
         resultsCounter.style.display = 'none';
+        searchLoader.style.display = 'block';
+        searchStatus.textContent = '';
         
-        if (searchTerm.length > 0) {
-          const filteredServices = servicesData.filter(service => 
-            searchTerm.toLowerCase().split(' ').some(word => 
-              service.title.toLowerCase().includes(word)
-            )
-          );
-          
-          resultsCounter.textContent = `${filteredServices.length} résultat${filteredServices.length !== 1 ? 's' : ''}`;
-          resultsCounter.style.display = 'block';
-          clearSearch.style.display = 'block';
-          
-          if (filteredServices.length > 0) {
-            filteredServices.forEach(service => {
-              const resultItem = document.createElement('div');
-              resultItem.className = 'search-result-item';
-              resultItem.innerHTML = `
-                <i class="${service.icon}"></i>
-                <span>${service.title}</span>
-              `;
-              resultItem.addEventListener('click', function() {
-                window.location.href = service.link;
-                searchResults.classList.remove('show');
+        // Simuler un délai de chargement
+        setTimeout(() => {
+          if (searchTerm.length > 0) {
+            const filteredServices = servicesData.filter(service => 
+              searchTerm.toLowerCase().split(' ').some(word => 
+                service.title.toLowerCase().includes(word)
+              )
+            );
+            
+            resultsCounter.textContent = `${filteredServices.length} résultat${filteredServices.length !== 1 ? 's' : ''}`;
+            resultsCounter.style.display = 'block';
+            clearSearch.style.display = 'block';
+            
+            if (filteredServices.length > 0) {
+              filteredServices.forEach(service => {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'search-result-item';
+                resultItem.innerHTML = `
+                  <i class="${service.icon}"></i>
+                  <span>${service.title}</span>
+                `;
+                resultItem.addEventListener('click', function() {
+                  window.location.href = service.link;
+                  searchResults.classList.remove('show');
+                });
+                searchResults.appendChild(resultItem);
               });
-              searchResults.appendChild(resultItem);
-            });
-            searchResults.classList.add('show');
+              searchResults.classList.add('show');
+              searchStatus.textContent = `Trouvé ${filteredServices.length} service${filteredServices.length !== 1 ? 's' : ''}`;
+            } else {
+              const noResults = document.createElement('div');
+              noResults.className = 'search-result-item';
+              noResults.textContent = 'Aucun service trouvé';
+              searchResults.appendChild(noResults);
+              searchResults.classList.add('show');
+              searchStatus.textContent = 'Aucun résultat trouvé';
+            }
           } else {
-            const noResults = document.createElement('div');
-            noResults.className = 'search-result-item';
-            noResults.textContent = 'Aucun service trouvé';
-            searchResults.appendChild(noResults);
-            searchResults.classList.add('show');
+            searchResults.classList.remove('show');
+            clearSearch.style.display = 'none';
+            resultsCounter.style.display = 'none';
+            searchStatus.textContent = '';
           }
-        } else {
-          searchResults.classList.remove('show');
-          clearSearch.style.display = 'none';
-          resultsCounter.style.display = 'none';
-        }
-        
-        // Mettre en évidence les résultats dans la grille
-        serviceCards.forEach(card => {
-          const title = card.querySelector('h3').textContent.toLowerCase();
-          const searchWords = searchTerm.toLowerCase().split(' ');
-          const isMatch = searchWords.some(word => title.includes(word));
           
-          if (isMatch && searchTerm.length > 0) {
-            card.style.transform = 'scale(1.05)';
-            card.style.zIndex = '10';
-            card.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.4)';
+          searchLoader.style.display = 'none';
+        }, 500);
+      }
+      
+      // Fonction pour filtrer les services par catégorie
+      function filterServicesByCategory(category) {
+        serviceCards.forEach(card => {
+          const cardCategory = card.getAttribute('data-category');
+          if (category === 'all' || cardCategory === category) {
+            card.style.display = 'flex';
           } else {
-            card.style.transform = '';
-            card.style.zIndex = '';
-            card.style.boxShadow = '';
+            card.style.display = 'none';
           }
         });
+        
+        // Afficher le message si aucun résultat
+        const visibleCards = document.querySelectorAll('.service-card[style*="display: flex"]');
+        if (visibleCards.length === 0) {
+          noResultsMessage.style.display = 'block';
+        } else {
+          noResultsMessage.style.display = 'none';
+        }
+        
+        // Mettre à jour le statut
+        searchStatus.textContent = category === 'all' ? '' : `Filtre : ${category}`;
       }
       
       // Fonction debounce pour limiter les appels de recherche
@@ -1226,19 +1379,23 @@
         searchResults.classList.remove('show');
         clearSearch.style.display = 'none';
         resultsCounter.style.display = 'none';
+        searchStatus.textContent = '';
         
         // Réinitialiser les cartes
         serviceCards.forEach(card => {
+          card.style.display = 'flex';
           card.style.transform = '';
           card.style.zIndex = '';
           card.style.boxShadow = '';
         });
+        
+        noResultsMessage.style.display = 'none';
       });
       
       // Fermer les résultats quand on clique en dehors
       document.addEventListener('click', function(e) {
         const searchContainer = document.querySelector('.search-container');
-        if (!searchContainer.contains(e.target)) {
+        if (!searchContainer.contains(e.target) {
           searchResults.classList.remove('show');
         }
       });
@@ -1299,6 +1456,43 @@
           newsletterMessage.style.display = "none";
         }, 5000);
       });
+      
+      // Filtres par catégorie
+      const filterButtons = document.querySelectorAll('.filter-btn');
+      const resetFiltersBtn = document.getElementById('resetFilters');
+      
+      filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          // Enlever la classe active de tous les boutons
+          filterButtons.forEach(btn => btn.classList.remove('active'));
+          
+          // Ajouter la classe active au bouton cliqué
+          this.classList.add('active');
+          
+          // Filtrer les services
+          const category = this.getAttribute('data-filter');
+          filterServicesByCategory(category);
+        });
+      });
+      
+      // Réinitialisation des filtres
+      resetFiltersBtn.addEventListener('click', function() {
+        // Réinitialiser tous les filtres
+        filterButtons.forEach(btn => {
+          if (btn.getAttribute('data-filter') === 'all') {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        });
+        
+        // Afficher toutes les cartes
+        filterServicesByCategory('all');
+        searchStatus.textContent = '';
+      });
+      
+      // Initialiser les filtres
+      filterServicesByCategory('all');
     });
   </script>
 </body>
