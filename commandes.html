@@ -35,6 +35,7 @@
       --sbh-accent: #FF6B6B;
       --sbh-light-blue: #4DA6FF;
       --sbh-details-bg: rgba(30, 60, 114, 0.3);
+      --sbh-comments-bg: rgba(76, 175, 80, 0.1);
     }
 
     /* Body et fond animé (étoiles + nuages) */
@@ -530,6 +531,35 @@
     .toggle-details:hover {
       color: var(--sbh-btn-color);
     }
+    
+    /* Nouveau style pour les commentaires */
+    .order-comments {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .comments-icon {
+      color: var(--sbh-icon-color);
+      font-size: 1rem;
+      min-width: 24px;
+      margin-top: 3px;
+    }
+    .comments-text {
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.85);
+      font-style: italic;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 200px;
+      white-space: nowrap;
+    }
+    .comments-detail {
+      background: var(--sbh-comments-bg);
+      border-left: 3px solid var(--sbh-icon-color);
+      padding: 10px 12px;
+      border-radius: 0 6px 6px 0;
+      margin-top: 10px;
+    }
 
     /* FOOTER */
     footer {
@@ -763,6 +793,9 @@
       .order-details-grid {
         grid-template-columns: 1fr;
       }
+      .comments-text {
+        max-width: 150px;
+      }
     }
     @media (max-width: 480px) {
       h1 {
@@ -777,6 +810,9 @@
       }
       .logo-text .boost-line img {
         height: 1.5rem;
+      }
+      .comments-text {
+        max-width: 100px;
       }
     }
   </style>
@@ -804,7 +840,7 @@
       <a href="payment.html"><i class="fa-solid fa-money-bill"></i> Autre paiement</a>
       <a href="parrainage.html"><i class="fa-solid fa-handshake"></i> Parrainage</a>
       <a href="privacy.html"><i class="fa-solid fa-shield"></i> Confidentialité</a>
-      <a href="commander.html"><i class="fa-solid fa-list"></i> commander</a>
+      <a href="commandes.html" class="active"><i class="fa-solid fa-list"></i> Mes commandes</a>
       <a href="https://chat.whatsapp.com/HRgWJFxTgkiEkEC0Ou2028" target="_blank"><i class="fab fa-whatsapp"></i> Rejoindre WhatsApp</a>
     </div>
   </header>
@@ -829,12 +865,13 @@
             <th>Quantité</th>
             <th>Montant</th>
             <th>Statut</th>
+            <th>Commentaires</th>
             <th></th>
           </tr>
         </thead>
         <tbody id="ordersTableBody">
           <tr>
-            <td colspan="9" class="loading">
+            <td colspan="10" class="loading">
               <i class="fas fa-spinner"></i>
               <p>Chargement de vos commandes...</p>
             </td>
@@ -1045,7 +1082,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Affichage du loader
     ordersTableBody.innerHTML = `
       <tr>
-        <td colspan="9" class="loading">
+        <td colspan="10" class="loading">
           <i class="fas fa-spinner"></i>
           <p>Chargement de vos commandes...</p>
         </td>
@@ -1062,7 +1099,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // Aucune commande pour cet utilisateur
         ordersTableBody.innerHTML = `
           <tr>
-            <td colspan="9" class="no-orders">
+            <td colspan="10" class="no-orders">
               <i class="fas fa-box-open"></i>
               <h3>Aucune commande pour le moment</h3>
               <p>Vous n'avez pas encore passé de commande. Parcourez nos services pour booster vos réseaux sociaux.</p>
@@ -1128,6 +1165,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const statusText = order.status || 'N/A';
         const contactType= order.contactType || '';
         const contact    = order.contact || '';
+        
+        // Récupération des commentaires personnalisés
+        const customComments = order.customComments || '';
 
         // Construction de la ligne principale et de la ligne de détails
         html += `
@@ -1150,13 +1190,21 @@ document.addEventListener("DOMContentLoaded", function () {
               <span class="order-status ${statusClass}">${statusText}</span>
             </td>
             <td>
+              ${customComments ? `
+                <div class="order-comments">
+                  <i class="fas fa-comment-alt comments-icon"></i>
+                  <div class="comments-text">${customComments}</div>
+                </div>
+              ` : '<span>-</span>'}
+            </td>
+            <td>
               <button class="toggle-details">
                 <i class="fas fa-chevron-down"></i>
               </button>
             </td>
           </tr>
           <tr class="order-details-row">
-            <td colspan="9" class="order-details-cell">
+            <td colspan="10" class="order-details-cell">
               <div class="order-details-grid">
                 <div class="order-detail-item">
                   <div class="detail-label">ID de commande</div>
@@ -1205,6 +1253,14 @@ document.addEventListener("DOMContentLoaded", function () {
                     <span class="detail-value">${contact || 'Non spécifié'}</span>
                   </div>
                 </div>
+                ${customComments ? `
+                  <div class="order-detail-item">
+                    <div class="detail-label">Commentaires personnalisés</div>
+                    <div class="comments-detail">
+                      <div class="detail-value">${customComments}</div>
+                    </div>
+                  </div>
+                ` : ''}
               </div>
             </td>
           </tr>
@@ -1234,7 +1290,7 @@ document.addEventListener("DOMContentLoaded", function () {
       console.error('Erreur fetchOrders():', err);
       ordersTableBody.innerHTML = `
         <tr>
-          <td colspan="9" style="text-align: center; padding: 40px; color: var(--sbh-accent);">
+          <td colspan="10" style="text-align: center; padding: 40px; color: var(--sbh-accent);">
             <i class="fas fa-exclamation-triangle"></i>
             <h3>Erreur lors du chargement</h3>
             <p>${err.message}</p>
@@ -1274,7 +1330,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (snapshot.empty) {
         ordersTableBody.innerHTML = `
           <tr>
-            <td colspan="9" class="no-orders">
+            <td colspan="10" class="no-orders">
               <i class="fas fa-box-open"></i>
               <h3>Aucune commande pour le moment</h3>
               <p>Vous n'avez pas encore passé de commande. Parcourez nos services pour booster vos réseaux sociaux.</p>
@@ -1328,6 +1384,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const statusText = order.status || 'N/A';
         const contactType= order.contactType || '';
         const contact    = order.contact || '';
+        const customComments = order.customComments || '';
 
         html += `
           <tr class="order-row">
@@ -1349,13 +1406,21 @@ document.addEventListener("DOMContentLoaded", function () {
               <span class="order-status ${statusClass}">${statusText}</span>
             </td>
             <td>
+              ${customComments ? `
+                <div class="order-comments">
+                  <i class="fas fa-comment-alt comments-icon"></i>
+                  <div class="comments-text">${customComments}</div>
+                </div>
+              ` : '<span>-</span>'}
+            </td>
+            <td>
               <button class="toggle-details">
                 <i class="fas fa-chevron-down"></i>
               </button>
             </td>
           </tr>
           <tr class="order-details-row">
-            <td colspan="9" class="order-details-cell">
+            <td colspan="10" class="order-details-cell">
               <div class="order-details-grid">
                 <div class="order-detail-item">
                   <div class="detail-label">ID de commande</div>
@@ -1404,6 +1469,14 @@ document.addEventListener("DOMContentLoaded", function () {
                     <span class="detail-value">${contact || 'Non spécifié'}</span>
                   </div>
                 </div>
+                ${customComments ? `
+                  <div class="order-detail-item">
+                    <div class="detail-label">Commentaires personnalisés</div>
+                    <div class="comments-detail">
+                      <div class="detail-value">${customComments}</div>
+                    </div>
+                  </div>
+                ` : ''}
               </div>
             </td>
           </tr>
@@ -1443,6 +1516,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 });
-  </script>
+</script>
 </body>
 </html>
