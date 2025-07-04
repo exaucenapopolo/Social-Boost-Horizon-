@@ -815,7 +815,7 @@
 
   <!-- Section solde -->
   <div class="balance-section">
-    <span id="balance">Solde : 0 XAF</span>
+    <span id="balance">Solde : Chargement...</span>
     <button id="quickDeposit">➕ Déposer</button>
   </div>
 
@@ -848,7 +848,7 @@
         <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px; justify-content: center;">
           <div style="text-align: center;">
             <i class="fas fa-exchange-alt" style="font-size: 2rem; color: var(--sbh-yellow);"></i>
-            <p>TransferGo</p>
+            <p>TransferGratis</p>
           </div>
           <div style="text-align: center;">
             <i class="fas fa-globe-americas" style="font-size: 2rem; color: var(--sbh-yellow);"></i>
@@ -881,7 +881,7 @@
       <div class="flag">🇨🇬</div>
       <h3>Congo-Brazzaville</h3>
       <ol class="steps">
-        <li>Ouvrez l'application MTN Mobile Money sur votre téléphone</li>
+        <li>Ouvrez l'application MTN Mobile Money, airtel money ou taper le code USSD corespondant</li>
         <li>Sélectionnez l'option "Envoyer de l'argent"</li>
         <li>Entrez le numéro : <strong>+237 652 20 57 68</strong></li>
         <li>Indiquez le montant que vous souhaitez déposer</li>
@@ -897,7 +897,7 @@
       <div class="flag">🇨🇩</div>
       <h3>République Démocratique du Congo (RDC)</h3>
       <ol class="steps">
-        <li>Ouvrez l'application MTN Mobile Money</li>
+        <li>Ouvrez l'application airtel money ou taper *501#</li>
         <li>Accédez à la section "Transfert international"</li>
         <li>Sélectionnez le Cameroun comme pays de destination</li>
         <li>Entrez le numéro : <strong>+237 652 20 57 68</strong></li>
@@ -961,7 +961,7 @@
       <div class="flag">🇨🇮</div>
       <h3>Côte d'Ivoire</h3>
       <ol class="steps">
-        <li>Ouvrez l'application MTN Mobile Money</li>
+        <li>Ouvrez l'application MTN Mobile Money ou autre</li>
         <li>Accédez aux "Transferts internationaux"</li>
         <li>Sélectionnez le Cameroun comme pays cible</li>
         <li>Entrez le numéro : <strong>+237 652 20 57 68</strong></li>
@@ -1065,6 +1065,11 @@
     </div>
   </footer>
 
+  <!-- Scripts Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  
   <!-- Script pour l'assistance virtuelle Tawk.to -->
   <script type="text/javascript">
     var Tawk_API = Tawk_API || {}, Tawk_LoadStart = new Date();
@@ -1081,6 +1086,68 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", function () {
+      // Configuration Firebase
+      const firebaseConfig = {
+        apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+        authDomain: "social-boost-horizon.firebaseapp.com",
+        projectId: "social-boost-horizon",
+        storageBucket: "social-boost-horizon.appspot.com",
+        messagingSenderId: "43658165639",
+        appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+      };
+      
+      // Initialisation de Firebase
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+      
+      const auth = firebase.auth();
+      const db = firebase.firestore();
+
+      // Éléments DOM
+      const balanceEl = document.getElementById('balance');
+      const quickDeposit = document.getElementById('quickDeposit');
+      const logoutBtn = document.getElementById('logoutBtn');
+
+      // Écoute les changements d'état d'authentification
+      auth.onAuthStateChanged(user => {
+        if (!user) {
+          // L'utilisateur n'est pas connecté, redirige vers la page de connexion
+          return window.location.href = 'login.html';
+        }
+
+        // L'utilisateur est connecté
+        const userRef = db.collection('users').doc(user.uid);
+        
+        // Écoute les mises à jour en temps réel du solde
+        userRef.onSnapshot(doc => {
+          if (doc.exists) {
+            const userData = doc.data();
+            // Affiche le solde, ou 0 par défaut si non défini
+            balanceEl.textContent = `Solde : ${userData.balance || 0} XAF`;
+          }
+        }, error => {
+          console.error("Erreur d'écoute en temps réel du document utilisateur :", error);
+        });
+      });
+
+      // Bouton dépôt rapide
+      quickDeposit.addEventListener('click', () => {
+        window.location.href = 'fonds.html';
+      });
+
+      // Gère la déconnexion
+      logoutBtn.addEventListener('click', () => {
+        if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+          auth.signOut().then(() => {
+            window.location.href = 'login.html';
+          }).catch(error => {
+            console.error("Erreur de déconnexion :", error);
+            alert("Une erreur est survenue lors de la déconnexion.");
+          });
+        }
+      });
+
       // Animation des nuages
       const backgroundAnimation = document.querySelector(".background-animation");
       const numberOfClouds = 20;
@@ -1111,7 +1178,7 @@
 
       // Gestion du menu hamburger
       const header = document.querySelector("header");
-      const hamburger = document.querySelector(".icon-hamburger");
+      const hamburger = document.getElementById('hamburgerBtn');
       hamburger.addEventListener("click", () => {
         header.classList.toggle("open");
       });
@@ -1140,23 +1207,6 @@
         setTimeout(() => {
           newsletterMessage.style.display = "none";
         }, 5000);
-      });
-
-      // Bouton dépôt rapide
-      const quickDeposit = document.getElementById('quickDeposit");
-      quickDeposit.addEventListener('click", () => {
-        // Redirection vers la page de dépôt
-        window.location.href = 'fonds.html";
-      });
-
-      // Gère la déconnexion
-      const logoutBtn = document.getElementById('logoutBtn");
-      logoutBtn.addEventListener('click", () => {
-        if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
-          // Simulation de déconnexion
-          alert("Vous avez été déconnecté avec succès.");
-          window.location.href = 'login.html";
-        }
       });
     });
   </script>
