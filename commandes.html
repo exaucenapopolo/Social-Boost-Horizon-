@@ -532,33 +532,36 @@
       color: var(--sbh-btn-color);
     }
     
-    /* Nouveau style pour les commentaires */
-    .order-comments {
+    /* Nouveau style pour les commentaires dans les détails */
+    .comments-section {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px dashed rgba(255, 255, 255, 0.1);
+    }
+    .comments-title {
       display: flex;
-      align-items: flex-start;
-      gap: 8px;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      color: var(--sbh-text-green);
+      font-weight: 600;
     }
-    .comments-icon {
-      color: var(--sbh-icon-color);
-      font-size: 1rem;
-      min-width: 24px;
-      margin-top: 3px;
+    .comments-title i {
+      font-size: 1.2rem;
     }
-    .comments-text {
-      font-size: 0.9rem;
-      color: rgba(255, 255, 255, 0.85);
-      font-style: italic;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 200px;
-      white-space: nowrap;
-    }
-    .comments-detail {
+    .comments-content {
       background: var(--sbh-comments-bg);
-      border-left: 3px solid var(--sbh-icon-color);
-      padding: 10px 12px;
-      border-radius: 0 6px 6px 0;
-      margin-top: 10px;
+      padding: 15px;
+      border-radius: 8px;
+      border-left: 3px solid var(--sbh-text-green);
+      font-style: italic;
+      line-height: 1.5;
+    }
+    .no-comments {
+      color: rgba(255, 255, 255, 0.7);
+      font-style: italic;
+      padding: 10px;
+      text-align: center;
     }
 
     /* FOOTER */
@@ -793,9 +796,6 @@
       .order-details-grid {
         grid-template-columns: 1fr;
       }
-      .comments-text {
-        max-width: 150px;
-      }
     }
     @media (max-width: 480px) {
       h1 {
@@ -810,9 +810,6 @@
       }
       .logo-text .boost-line img {
         height: 1.5rem;
-      }
-      .comments-text {
-        max-width: 100px;
       }
     }
   </style>
@@ -865,13 +862,12 @@
             <th>Quantité</th>
             <th>Montant</th>
             <th>Statut</th>
-            <th>Commentaires</th>
             <th></th>
           </tr>
         </thead>
         <tbody id="ordersTableBody">
           <tr>
-            <td colspan="10" class="loading">
+            <td colspan="9" class="loading">
               <i class="fas fa-spinner"></i>
               <p>Chargement de vos commandes...</p>
             </td>
@@ -1066,8 +1062,6 @@ document.addEventListener("DOMContentLoaded", function () {
       currentUid = user.uid;
       // Charger les commandes une fois
       fetchOrders();
-      // Si souhaité : écoute en temps réel, décommenter la ligne suivante :
-      // listenOrdersRealtime();
     }
   });
 
@@ -1082,7 +1076,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Affichage du loader
     ordersTableBody.innerHTML = `
       <tr>
-        <td colspan="10" class="loading">
+        <td colspan="9" class="loading">
           <i class="fas fa-spinner"></i>
           <p>Chargement de vos commandes...</p>
         </td>
@@ -1099,7 +1093,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // Aucune commande pour cet utilisateur
         ordersTableBody.innerHTML = `
           <tr>
-            <td colspan="10" class="no-orders">
+            <td colspan="9" class="no-orders">
               <i class="fas fa-box-open"></i>
               <h3>Aucune commande pour le moment</h3>
               <p>Vous n'avez pas encore passé de commande. Parcourez nos services pour booster vos réseaux sociaux.</p>
@@ -1190,21 +1184,13 @@ document.addEventListener("DOMContentLoaded", function () {
               <span class="order-status ${statusClass}">${statusText}</span>
             </td>
             <td>
-              ${customComments ? `
-                <div class="order-comments">
-                  <i class="fas fa-comment-alt comments-icon"></i>
-                  <div class="comments-text">${customComments}</div>
-                </div>
-              ` : '<span>-</span>'}
-            </td>
-            <td>
               <button class="toggle-details">
                 <i class="fas fa-chevron-down"></i>
               </button>
             </td>
           </tr>
           <tr class="order-details-row">
-            <td colspan="10" class="order-details-cell">
+            <td colspan="9" class="order-details-cell">
               <div class="order-details-grid">
                 <div class="order-detail-item">
                   <div class="detail-label">ID de commande</div>
@@ -1253,14 +1239,23 @@ document.addEventListener("DOMContentLoaded", function () {
                     <span class="detail-value">${contact || 'Non spécifié'}</span>
                   </div>
                 </div>
-                ${customComments ? `
-                  <div class="order-detail-item">
-                    <div class="detail-label">Commentaires personnalisés</div>
-                    <div class="comments-detail">
-                      <div class="detail-value">${customComments}</div>
-                    </div>
+                
+                <!-- Section commentaires personnalisés -->
+                <div class="comments-section">
+                  <div class="comments-title">
+                    <i class="fas fa-comments"></i>
+                    <span>Commentaires personnalisés</span>
                   </div>
-                ` : ''}
+                  ${customComments ? `
+                    <div class="comments-content">
+                      ${customComments}
+                    </div>
+                  ` : `
+                    <div class="no-comments">
+                      Aucun commentaire personnalisé pour cette commande
+                    </div>
+                  `}
+                </div>
               </div>
             </td>
           </tr>
@@ -1290,7 +1285,7 @@ document.addEventListener("DOMContentLoaded", function () {
       console.error('Erreur fetchOrders():', err);
       ordersTableBody.innerHTML = `
         <tr>
-          <td colspan="10" style="text-align: center; padding: 40px; color: var(--sbh-accent);">
+          <td colspan="9" style="text-align: center; padding: 40px; color: var(--sbh-accent);">
             <i class="fas fa-exclamation-triangle"></i>
             <h3>Erreur lors du chargement</h3>
             <p>${err.message}</p>
@@ -1312,197 +1307,7 @@ document.addEventListener("DOMContentLoaded", function () {
     refreshBtn.addEventListener('click', fetchOrders);
   }
 
-  /**
-   * 10. Fonction d'écoute en temps réel (optionnelle).
-   *     Si vous voulez recevoir les mises à jour automatiques (change de statut, etc.), 
-   *     décommentez l’appel dans onAuthStateChanged.
-   */
-  function listenOrdersRealtime() {
-    if (!currentUid || !ordersTableBody) return;
-    // Si déjà en écoute, on détache d'abord
-    if (unsubscribeOrdersListener) {
-      unsubscribeOrdersListener();
-    }
-    const queryRef = db.collection("commandes")
-                      .where("userId", "==", currentUid)
-                      .orderBy("createdAt", "desc");
-    unsubscribeOrdersListener = queryRef.onSnapshot(snapshot => {
-      if (snapshot.empty) {
-        ordersTableBody.innerHTML = `
-          <tr>
-            <td colspan="10" class="no-orders">
-              <i class="fas fa-box-open"></i>
-              <h3>Aucune commande pour le moment</h3>
-              <p>Vous n'avez pas encore passé de commande. Parcourez nos services pour booster vos réseaux sociaux.</p>
-              <button class="no-orders-btn" onclick="window.location.href='services.html'">
-                <i class="fas fa-rocket"></i> Voir nos services
-              </button>
-            </td>
-          </tr>
-        `;
-        return;
-      }
-      // Reconstruire le tableau à chaque changement (même logique que fetchOrders)
-      let html = '';
-      snapshot.forEach(docSnap => {
-        const order = docSnap.data();
-        // Même code de transformation que dans fetchOrders :
-        let createdAtDate;
-        if (order.createdAt && typeof order.createdAt.toDate === 'function') {
-          createdAtDate = order.createdAt.toDate();
-        } else if (order.createdAt) {
-          createdAtDate = new Date(order.createdAt);
-        } else {
-          createdAtDate = new Date();
-        }
-        const createdAtStr = createdAtDate.toLocaleString('fr-FR');
-
-        let statusClass = "status-processing";
-        if (order.status) {
-          const stLower = order.status.toLowerCase();
-          if (stLower.includes("complété")) statusClass = "status-completed";
-          else if (stLower.includes("en attente")) statusClass = "status-pending";
-          else if (stLower.includes("en cours")) statusClass = "status-processing";
-          else if (stLower.includes("annulé")) statusClass = "status-cancelled";
-        }
-        let platformIcon = "fas fa-globe";
-        let platform = order.platform || '';
-        if (platform) {
-          const pf = platform.toLowerCase();
-          if (pf.includes("instagram")) platformIcon = "fab fa-instagram";
-          else if (pf.includes("facebook")) platformIcon = "fab fa-facebook";
-          else if (pf.includes("tiktok")) platformIcon = "fab fa-tiktok";
-          else if (pf.includes("youtube")) platformIcon = "fab fa-youtube";
-          else if (pf.includes("twitter")) platformIcon = "fab fa-twitter";
-        }
-        const orderId    = order.orderId || docSnap.id || 'N/A';
-        const service    = order.service || 'N/A';
-        const quality    = order.quality || 'N/A';
-        const quantity   = order.quantity != null ? order.quantity : 'N/A';
-        const totalCost  = order.totalCost != null ? order.totalCost : '0';
-        const link       = order.link || '';
-        const statusText = order.status || 'N/A';
-        const contactType= order.contactType || '';
-        const contact    = order.contact || '';
-        const customComments = order.customComments || '';
-
-        html += `
-          <tr class="order-row">
-            <td class="order-id">${orderId}</td>
-            <td class="order-date">${createdAtStr}</td>
-            <td>
-              <div class="order-platform">
-                <div class="platform-icon">
-                  <i class="${platformIcon}"></i>
-                </div>
-                <span>${platform || 'N/A'}</span>
-              </div>
-            </td>
-            <td class="order-service">${service}</td>
-            <td class="order-quality">${quality}</td>
-            <td class="order-quantity">${quantity}</td>
-            <td class="order-amount">${totalCost} XAF</td>
-            <td>
-              <span class="order-status ${statusClass}">${statusText}</span>
-            </td>
-            <td>
-              ${customComments ? `
-                <div class="order-comments">
-                  <i class="fas fa-comment-alt comments-icon"></i>
-                  <div class="comments-text">${customComments}</div>
-                </div>
-              ` : '<span>-</span>'}
-            </td>
-            <td>
-              <button class="toggle-details">
-                <i class="fas fa-chevron-down"></i>
-              </button>
-            </td>
-          </tr>
-          <tr class="order-details-row">
-            <td colspan="10" class="order-details-cell">
-              <div class="order-details-grid">
-                <div class="order-detail-item">
-                  <div class="detail-label">ID de commande</div>
-                  <div class="detail-value">${orderId}</div>
-                </div>
-                <div class="order-detail-item">
-                  <div class="detail-label">Date</div>
-                  <div class="detail-value">${createdAtStr}</div>
-                </div>
-                <div class="order-detail-item">
-                  <div class="detail-label">Plateforme</div>
-                  <div class="detail-value">${platform || 'N/A'}</div>
-                </div>
-                <div class="order-detail-item">
-                  <div class="detail-label">Service</div>
-                  <div class="detail-value">${service}</div>
-                </div>
-                <div class="order-detail-item">
-                  <div class="detail-label">Qualité</div>
-                  <div class="detail-value">${quality}</div>
-                </div>
-                <div class="order-detail-item">
-                  <div class="detail-label">Quantité</div>
-                  <div class="detail-value">${quantity}</div>
-                </div>
-                <div class="order-detail-item">
-                  <div class="detail-label">Montant</div>
-                  <div class="detail-value">${totalCost} XAF</div>
-                </div>
-                <div class="order-detail-item">
-                  <div class="detail-label">Lien</div>
-                  <div class="detail-value">
-                    <a href="${link}" target="_blank" class="detail-link">
-                      ${link ? 'Voir publication' : 'Non spécifié'}
-                    </a>
-                  </div>
-                </div>
-                <div class="order-detail-item">
-                  <div class="detail-label">Statut</div>
-                  <div class="detail-value">${statusText}</div>
-                </div>
-                <div class="order-detail-item">
-                  <div class="detail-label">Contact</div>
-                  <div class="detail-contact">
-                    <i class="fas ${contactType === 'whatsapp' ? 'fa-whatsapp' : 'fa-envelope'}"></i>
-                    <span class="detail-value">${contact || 'Non spécifié'}</span>
-                  </div>
-                </div>
-                ${customComments ? `
-                  <div class="order-detail-item">
-                    <div class="detail-label">Commentaires personnalisés</div>
-                    <div class="comments-detail">
-                      <div class="detail-value">${customComments}</div>
-                    </div>
-                  </div>
-                ` : ''}
-              </div>
-            </td>
-          </tr>
-        `;
-      });
-      ordersTableBody.innerHTML = html;
-      document.querySelectorAll('.toggle-details').forEach(button => {
-        button.addEventListener('click', function() {
-          const row = this.closest('.order-row');
-          const detailsRow = row.nextElementSibling;
-          const icon = this.querySelector('i');
-          if (detailsRow.style.display === 'table-row') {
-            detailsRow.style.display = 'none';
-            icon.className = 'fas fa-chevron-down';
-          } else {
-            detailsRow.style.display = 'table-row';
-            icon.className = 'fas fa-chevron-up';
-          }
-        });
-      });
-    }, err => {
-      console.error('Erreur écoute realtime orders:', err);
-    });
-  }
-
-  // 11. Déconnexion
+  // 10. Déconnexion
   if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
       if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
