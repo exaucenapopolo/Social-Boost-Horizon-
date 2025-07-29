@@ -751,6 +751,86 @@
       box-shadow: 0 7px 20px rgba(220, 53, 69, 0.4);
     }
 
+    /* Styles pour la modale de bienvenue */
+    .welcome-modal {
+      display: none;
+      position: fixed;
+      z-index: 10000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.9);
+      overflow: auto;
+    }
+    
+    .modal-content {
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+      margin: 10% auto;
+      padding: 30px;
+      border-radius: 15px;
+      width: 90%;
+      max-width: 500px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .chests-container {
+      display: flex;
+      justify-content: space-around;
+      margin: 40px 0;
+    }
+    
+    .chest {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(45deg, #d4af37, #f9d423);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      font-size: 2rem;
+    }
+    
+    .chest:hover {
+      transform: translateY(-10px) scale(1.1);
+      box-shadow: 0 8px 25px rgba(212, 175, 55, 0.6);
+    }
+    
+    #giftResult {
+      min-height: 100px;
+      padding: 20px;
+      font-size: 1.1rem;
+    }
+    
+    .gift-message {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 15px;
+      border-radius: 10px;
+      margin: 15px 0;
+    }
+    
+    .whatsapp-btn {
+      display: inline-block;
+      background: #25D366;
+      color: white;
+      padding: 12px 25px;
+      border-radius: 50px;
+      text-decoration: none;
+      font-weight: 600;
+      margin-top: 15px;
+      transition: all 0.3s ease;
+    }
+    
+    .whatsapp-btn:hover {
+      background: #128C7E;
+      transform: translateY(-3px);
+    }
+
     /* Responsive */
     @media (min-width: 768px) {
       .dashboard-container {
@@ -783,12 +863,31 @@
       .newsletter-iframe-container {
         max-width: 100%;
       }
+      .chests-container {
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+      }
     }
   </style>
 </head>
 <body>
   <!-- Fond animé (étoiles + nuages) -->
   <div class="background-animation"></div>
+
+  <!-- Modal de bienvenue -->
+  <div id="welcomeModal" class="welcome-modal">
+    <div class="modal-content">
+      <h2>🎁 Bienvenue sur Social Boost Horizon !</h2>
+      <p>Choisissez un coffre pour recevoir votre cadeau de bienvenue</p>
+      <div class="chests-container">
+        <div class="chest" data-gift="money"><i class="fas fa-coins"></i></div>
+        <div class="chest" data-gift="canva"><i class="fas fa-palette"></i></div>
+        <div class="chest" data-gift="tiktok"><i class="fab fa-tiktok"></i></div>
+      </div>
+      <div id="giftResult"></div>
+    </div>
+  </div>
 
   <!-- Header avec logo, icône profil et menu hamburger -->
   <header data-aos="fade-down">
@@ -964,20 +1063,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   
-  <!-- Assistant virtuel Tawk.to -->
-  <script type="text/javascript">
-    var Tawk_API = Tawk_API || {}, Tawk_LoadStart = new Date();
-    (function(){
-      var s1 = document.createElement("script"),
-          s0 = document.getElementsByTagName("script")[0];
-      s1.async = true;
-      s1.src = 'https://embed.tawk.to/6820b4dbbca8a11909dc7b3e/default';
-      s1.charset = 'UTF-8';
-      s1.setAttribute('crossorigin','*');
-      s0.parentNode.insertBefore(s1, s0);
-    })();
-  </script>
-  
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       AOS.init({ duration: 800, once: true, offset: 100 });
@@ -1052,6 +1137,86 @@
       const balanceEl = document.getElementById('balance');
       const quickDeposit = document.getElementById('quickDeposit');
       const logoutBtn = document.getElementById('logoutBtn');
+      const welcomeModal = document.getElementById('welcomeModal');
+      const giftResult = document.getElementById('giftResult');
+      const chests = document.querySelectorAll('.chest');
+
+      // Fonction pour afficher le modal de bienvenue
+      function showWelcomeModal() {
+        welcomeModal.style.display = "block";
+      }
+
+      // Fonction pour gérer le premier accès
+      async function handleFirstAccess(user) {
+        const userRef = db.collection('users').doc(user.uid);
+        const doc = await userRef.get();
+        
+        if (doc.exists && doc.data().isFirstAccess) {
+          showWelcomeModal();
+          
+          // Gestion des clics sur les coffres
+          chests.forEach(chest => {
+            chest.addEventListener('click', async function() {
+              const giftType = this.getAttribute('data-gift');
+              
+              // Désactiver les coffres après clic
+              chests.forEach(c => c.style.pointerEvents = 'none');
+              
+              // Traiter le cadeau
+              switch(giftType) {
+                case 'money':
+                  // Créditer 100 FCFA
+                  await userRef.update({
+                    balance: firebase.firestore.FieldValue.increment(100),
+                    isFirstAccess: false
+                  });
+                  giftResult.innerHTML = `
+                    <div class="gift-message">
+                      <p>🎉 Félicitations !</p>
+                      <p>Vous avez gagné <strong>100 FCFA</strong> crédités sur votre solde.</p>
+                    </div>
+                  `;
+                  break;
+                  
+                case 'canva':
+                  // Offrir Canva Pro
+                  await userRef.update({ isFirstAccess: false });
+                  giftResult.innerHTML = `
+                    <div class="gift-message">
+                      <p>🎨 Abonnement Canva Pro à vie !</p>
+                      <p>Cliquez ci-dessous pour activer votre compte :</p>
+                      <a href="https://www.canva.com/brand/join?token=YA0kZ3j5eRuROd0r6cileQ&referrer=team-invite" 
+                         target="_blank" 
+                         class="btn">
+                        Activer Canva Pro
+                      </a>
+                    </div>
+                  `;
+                  break;
+                  
+                case 'tiktok':
+                  // Offrir vues TikTok
+                  await userRef.update({ isFirstAccess: false });
+                  const message = encodeURIComponent(
+                    "Bonjour, je viens de gagner 10 000 vues TikTok dans le cadre de mon inscription sur Social Boost Horizon. Voici le lien de ma vidéo : [INSÉREZ VOTRE LIEN ICI]"
+                  );
+                  giftResult.innerHTML = `
+                    <div class="gift-message">
+                      <p>📱 10 000 vues TikTok !</p>
+                      <p>Cliquez ci-dessous pour nous envoyer le lien de votre vidéo via WhatsApp :</p>
+                      <a href="https://api.whatsapp.com/send?phone=+237699853665&text=${message}" 
+                         target="_blank" 
+                         class="whatsapp-btn">
+                        <i class="fab fa-whatsapp"></i> Envoyer sur WhatsApp
+                      </a>
+                    </div>
+                  `;
+                  break;
+              }
+            });
+          });
+        }
+      }
 
       // Écoute les changements d'état d'authentification
       auth.onAuthStateChanged(user => {
@@ -1087,6 +1252,9 @@
         }, error => {
           console.error("Erreur d'écoute en temps réel du document utilisateur :", error);
         });
+
+        // Vérifier le premier accès
+        handleFirstAccess(user);
       });
 
       // Bouton dépôt rapide
