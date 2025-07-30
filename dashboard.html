@@ -852,8 +852,9 @@
       justify-content: center;
     }
     
+    /* MODIFICATION: Utilisation de la même image pour tous les coffres */
     .chest-front {
-      background: url('https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/main/assets/chest-closed.png') center/contain no-repeat;
+      background: url('https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/IMG_6326.jpeg') center/contain no-repeat;
     }
     
     .chest-back {
@@ -993,6 +994,42 @@
       background: rgba(255, 255, 255, 0.2);
     }
 
+    /* Champ pour le lien TikTok */
+    .tiktok-link-input {
+      width: 100%;
+      padding: 12px 15px;
+      margin: 15px 0;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(0, 0, 0, 0.2);
+      color: white;
+      font-size: 1rem;
+    }
+    
+    .tiktok-link-input::placeholder {
+      color: rgba(255, 255, 255, 0.6);
+    }
+    
+    .tiktok-submit-btn {
+      background: linear-gradient(45deg, #69C9D0, #00f2ea);
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 50px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 1rem;
+      display: block;
+      margin: 15px auto;
+      width: fit-content;
+    }
+    
+    .tiktok-submit-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 5px 15px rgba(105, 201, 208, 0.4);
+    }
+
     /* Animations */
     @keyframes pulse-gold {
       0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4); }
@@ -1091,39 +1128,34 @@
       </div>
       
       <div class="chests-container">
-        <!-- Coffre 1 -->
-        <div class="chest" data-gift="money">
+        <!-- Coffres avec la même image -->
+        <div class="chest" data-gift="">
           <div class="chest-inner">
             <div class="chest-front pulse"></div>
             <div class="chest-back"></div>
           </div>
-          <div class="gift-content gift-money">
-            <i class="fas fa-coins"></i>
-            <p>100 FCFA</p>
+          <div class="gift-content">
+            <!-- Le contenu sera rempli dynamiquement -->
           </div>
         </div>
         
-        <!-- Coffre 2 -->
-        <div class="chest" data-gift="canva">
+        <div class="chest" data-gift="">
           <div class="chest-inner">
             <div class="chest-front pulse"></div>
             <div class="chest-back"></div>
           </div>
-          <div class="gift-content gift-canva">
-            <i class="fas fa-palette"></i>
-            <p>Canva Pro</p>
+          <div class="gift-content">
+            <!-- Le contenu sera rempli dynamiquement -->
           </div>
         </div>
         
-        <!-- Coffre 3 -->
-        <div class="chest" data-gift="tiktok">
+        <div class="chest" data-gift="">
           <div class="chest-inner">
             <div class="chest-front pulse"></div>
             <div class="chest-back"></div>
           </div>
-          <div class="gift-content gift-tiktok">
-            <i class="fab fa-tiktok"></i>
-            <p>10 000 vues</p>
+          <div class="gift-content">
+            <!-- Le contenu sera rempli dynamiquement -->
           </div>
         </div>
       </div>
@@ -1417,12 +1449,48 @@
         welcomeModal.style.display = "block";
       }
 
+      // Fonction pour distribuer aléatoirement les cadeaux
+      function distributeGifts() {
+        const gifts = ['money', 'canva', 'tiktok'];
+        
+        // Mélanger aléatoirement les cadeaux
+        for (let i = gifts.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [gifts[i], gifts[j]] = [gifts[j], gifts[i]];
+        }
+        
+        // Attribuer les cadeaux aux coffres
+        chests.forEach((chest, index) => {
+          chest.setAttribute('data-gift', gifts[index]);
+          
+          // Mettre à jour le contenu visuel du cadeau
+          const giftContent = chest.querySelector('.gift-content');
+          switch(gifts[index]) {
+            case 'money':
+              giftContent.innerHTML = '<i class="fas fa-coins"></i><p>100 FCFA</p>';
+              giftContent.classList.add('gift-money');
+              break;
+            case 'canva':
+              giftContent.innerHTML = '<i class="fas fa-palette"></i><p>Canva Pro</p>';
+              giftContent.classList.add('gift-canva');
+              break;
+            case 'tiktok':
+              giftContent.innerHTML = '<i class="fab fa-tiktok"></i><p>10 000 vues</p>';
+              giftContent.classList.add('gift-tiktok');
+              break;
+          }
+        });
+      }
+
       // Fonction pour gérer le premier accès
       async function handleFirstAccess(user) {
         const userRef = db.collection('users').doc(user.uid);
         const doc = await userRef.get();
         
         if (doc.exists && doc.data().isFirstAccess) {
+          // Distribuer les cadeaux aléatoirement
+          distributeGifts();
+          
           // Montrer la modal après un court délai
           setTimeout(showWelcomeModal, 1000);
           
@@ -1488,19 +1556,13 @@
                   case 'tiktok':
                     // Offrir vues TikTok
                     await userRef.update({ isFirstAccess: false });
-                    const message = encodeURIComponent(
-                      "Bonjour, je viens de gagner 10 000 vues TikTok dans le cadre de mon inscription sur Social Boost Horizon. Voici le lien de ma vidéo : [INSÉREZ VOTRE LIEN ICI]"
-                    );
                     giftMessage = `
                       <div class="gift-message">
                         <h3>📱 10 000 vues TikTok !</h3>
                         <p>Boostez votre vidéo TikTok avec 10 000 vues réelles et engageantes !</p>
-                        <p>Cliquez ci-dessous pour nous envoyer le lien de votre vidéo via WhatsApp :</p>
-                        <a href="https://api.whatsapp.com/send?phone=+237699853665&text=${message}" 
-                           target="_blank" 
-                           class="whatsapp-btn">
-                          <i class="fab fa-whatsapp"></i> Envoyer sur WhatsApp
-                        </a>
+                        <p>Collez le lien de votre vidéo TikTok ci-dessous :</p>
+                        <input type="url" class="tiktok-link-input" placeholder="https://www.tiktok.com/..." required>
+                        <button class="tiktok-submit-btn">Envoyer la demande</button>
                       </div>
                     `;
                     break;
@@ -1508,6 +1570,22 @@
                 
                 // Afficher le résultat du cadeau
                 giftResult.innerHTML = giftMessage;
+                
+                // Ajouter gestionnaire d'événement pour le bouton TikTok
+                if (giftType === 'tiktok') {
+                  document.querySelector('.tiktok-submit-btn').addEventListener('click', function() {
+                    const tiktokLink = document.querySelector('.tiktok-link-input').value;
+                    if (!tiktokLink) {
+                      alert('Veuillez coller un lien TikTok valide.');
+                      return;
+                    }
+                    
+                    const message = encodeURIComponent(
+                      `Bonjour, je viens de gagner 10 000 vues TikTok dans le cadre de mon inscription sur Social Boost Horizon. Voici le lien de ma vidéo : ${tiktokLink}`
+                    );
+                    window.open(`https://api.whatsapp.com/send?phone=+237699853665&text=${message}`, '_blank');
+                  });
+                }
                 
                 // Lancer l'animation de confettis
                 createConfetti();
