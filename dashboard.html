@@ -1531,7 +1531,9 @@
                         <h3>🎉 Félicitations !</h3>
                         <p>Vous avez gagné <strong>100 FCFA</strong> crédités sur votre solde.</p>
                         <p>Votre nouveau solde est maintenant disponible dans votre portefeuille.</p>
-                        <button class="modal-btn btn-primary" onclick="window.location.href='wallet.html'">Voir mon portefeuille</button>
+                        <div class="modal-actions">
+                          <button class="modal-btn btn-primary" id="closeAfterMoney">Fermer et continuer</button>
+                        </div>
                       </div>
                     `;
                     break;
@@ -1544,11 +1546,14 @@
                         <h3>🎨 Abonnement Canva Pro à vie !</h3>
                         <p>Profitez d'un accès à vie à Canva Pro, l'outil de création graphique premium.</p>
                         <p>Cliquez ci-dessous pour activer votre compte :</p>
-                        <a href="https://www.canva.com/brand/join?token=YA0kZ3j5eRuROd0r6cileQ&referrer=team-invite" 
-                           target="_blank" 
-                           class="modal-btn btn-primary">
-                          Activer Canva Pro
-                        </a>
+                        <div class="modal-actions">
+                          <a href="https://www.canva.com/brand/join?token=YA0kZ3j5eRuROd0r6cileQ&referrer=team-invite" 
+                             target="_blank" 
+                             class="modal-btn btn-primary">
+                            Activer Canva Pro
+                          </a>
+                          <button class="modal-btn btn-secondary" id="closeAfterCanva">Fermer</button>
+                        </div>
                       </div>
                     `;
                     break;
@@ -1561,8 +1566,14 @@
                         <h3>📱 10 000 vues TikTok !</h3>
                         <p>Boostez votre vidéo TikTok avec 10 000 vues réelles et engageantes !</p>
                         <p>Collez le lien de votre vidéo TikTok ci-dessous :</p>
-                        <input type="url" class="tiktok-link-input" placeholder="https://www.tiktok.com/..." required>
-                        <button class="tiktok-submit-btn">Envoyer la demande</button>
+                        <input type="url" 
+                               class="tiktok-link-input" 
+                               placeholder="https://www.tiktok.com/..." 
+                               id="tiktokLinkInput"
+                               required>
+                        <div class="modal-actions">
+                          <button class="tiktok-submit-btn" id="submitTikTok">Demander mes vues</button>
+                        </div>
                       </div>
                     `;
                     break;
@@ -1571,24 +1582,56 @@
                 // Afficher le résultat du cadeau
                 giftResult.innerHTML = giftMessage;
                 
-                // Ajouter gestionnaire d'événement pour le bouton TikTok
-                if (giftType === 'tiktok') {
-                  document.querySelector('.tiktok-submit-btn').addEventListener('click', function() {
-                    const tiktokLink = document.querySelector('.tiktok-link-input').value;
-                    if (!tiktokLink) {
-                      alert('Veuillez coller un lien TikTok valide.');
-                      return;
-                    }
-                    
-                    const message = encodeURIComponent(
-                      `Bonjour, je viens de gagner 10 000 vues TikTok dans le cadre de mon inscription sur Social Boost Horizon. Voici le lien de ma vidéo : ${tiktokLink}`
-                    );
-                    window.open(`https://api.whatsapp.com/send?phone=+237699853665&text=${message}`, '_blank');
-                  });
-                }
-                
                 // Lancer l'animation de confettis
                 createConfetti();
+                
+                // GESTIONNAIRES D'ÉVÉNEMENTS SUPPLEMENTAIRES
+                switch(giftType) {
+                  case 'money':
+                    document.getElementById('closeAfterMoney').addEventListener('click', () => {
+                      welcomeModal.style.display = 'none';
+                      // Mise à jour immédiate de l'affichage du solde
+                      balanceEl.textContent = `Solde : ${(doc.data().balance || 0) + 100} XAF`;
+                    });
+                    break;
+                    
+                  case 'canva':
+                    document.getElementById('closeAfterCanva').addEventListener('click', () => {
+                      welcomeModal.style.display = 'none';
+                    });
+                    break;
+                    
+                  case 'tiktok':
+                    document.getElementById('submitTikTok').addEventListener('click', function() {
+                      const tiktokLink = document.getElementById('tiktokLinkInput').value;
+                      if (!tiktokLink) {
+                        alert('Veuillez coller un lien TikTok valide.');
+                        return;
+                      }
+                      
+                      const message = encodeURIComponent(
+                                        `Bonjour, je viens de gagner 10 000 vues TikTok sur Social Boost Horizon. Voici le lien de ma vidéo : ${tiktokLink}`
+                                      );
+                      window.open(`https://api.whatsapp.com/send?phone=+237699853665&text=${message}`, '_blank');
+                      
+                      // Message de confirmation
+                      giftResult.innerHTML = `
+                        <div class="gift-message">
+                          <h3>✅ Demande envoyée !</h3>
+                          <p>Votre demande de 10 000 vues a été transmise à notre équipe.</p>
+                          <p>Nous traiterons votre demande dans les plus brefs délais.</p>
+                          <div class="modal-actions">
+                            <button class="modal-btn btn-primary" id="closeAfterTikTok">Fermer</button>
+                          </div>
+                        </div>
+                      `;
+                      
+                      document.getElementById('closeAfterTikTok').addEventListener('click', () => {
+                        welcomeModal.style.display = 'none';
+                      });
+                    });
+                    break;
+                }
                 
               }, 800); // Délai correspondant à la durée de l'animation
             });
