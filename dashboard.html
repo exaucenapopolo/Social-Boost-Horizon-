@@ -1488,38 +1488,11 @@
         const doc = await userRef.get();
         
         if (doc.exists) {
-          let userData = doc.data();
+          const userData = doc.data();
           
-          // Vérifier et initialiser les champs si nécessaire (rétrocompatibilité)
-          let needsUpdate = false;
-          const updateData = {};
-          
-          if (!userData.hasOwnProperty('openedChests')) {
-            updateData.openedChests = [];
-            needsUpdate = true;
-          }
-          
-          if (!userData.hasOwnProperty('balance')) {
-            updateData.balance = 0;
-            needsUpdate = true;
-          }
-          
-          if (!userData.hasOwnProperty('welcomeModalShown')) {
-            updateData.welcomeModalShown = false;
-            needsUpdate = true;
-          }
-          
-          if (needsUpdate) {
-            await userRef.update(updateData);
-            // Recharger les données après mise à jour
-            const updatedDoc = await userRef.get();
-            userData = updatedDoc.data();
-          }
-          
-          // Vérifier si l'utilisateur a déjà ouvert un coffre ou vu la modale
-          if ((userData.openedChests && userData.openedChests.length > 0) || 
-              userData.welcomeModalShown) {
-            // L'utilisateur a déjà ouvert un coffre ou vu la modale
+          // Vérifier si l'utilisateur a déjà ouvert un coffre
+          if (userData.hasOwnProperty('openedChests') && userData.openedChests.length > 0) {
+            // L'utilisateur a déjà ouvert un coffre, ne pas afficher la modale
             return;
           }
           
@@ -1561,29 +1534,17 @@
                   
                   const userRef = db.collection('users').doc(user.uid);
                   
-                  // Utiliser une transaction pour mettre à jour Firestore
-                  await db.runTransaction(async (transaction) => {
-                    const userDoc = await transaction.get(userRef);
-                    const userData = userDoc.data();
-                    
-                    // Préparer les données de mise à jour
-                    const updateData = {
-                      openedChests: firebase.firestore.FieldValue.arrayUnion(giftType),
-                      welcomeModalShown: true
-                    };
-                    
-                    // Ajouter le crédit si c'est le cadeau d'argent
-                    if (giftType === 'money') {
-                      const currentBalance = userData.balance || 0;
-                      updateData.balance = currentBalance + 100;
-                    }
-                    
-                    // Mise à jour en une seule opération
-                    transaction.update(userRef, updateData);
+                  // Mettre à jour Firestore avec le coffre ouvert
+                  await userRef.update({
+                    openedChests: firebase.firestore.FieldValue.arrayUnion(giftType)
                   });
                   
                   switch(giftType) {
                     case 'money':
+                      // Créditer 100 FCFA
+                      await userRef.update({
+                        balance: firebase.firestore.FieldValue.increment(100)
+                      });
                       giftMessage = `
                         <div class="gift-message">
                           <h3>🎉 Félicitations !</h3>
