@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tableau de bord – Social Boost Horizon</title>
 
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1200,7 +1205,7 @@
 
   <!-- Section solde -->
   <div class="balance-section" data-aos="fade-up">
-    <span id="balance"><i class="fas fa-coins"></i> Solde : 0 XAF</span>
+    <span id="balance"><i class="fas fa-coins"></i> Solde : Chargement...</span>
     <button id="quickDeposit">➕ Déposer</button>
   </div>
 
@@ -1338,6 +1343,21 @@
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   
   <script>
+    // Configuration Firebase (remplacer par vos propres informations)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDxX5F7LdJgNqyH6Q6X7fZ8bHjKlMn0XwQ",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.appspot.com",
+      messagingSenderId: "1234567890",
+      appId: "1:1234567890:web:abcdef1234567890"
+    };
+
+    // Initialiser Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
     document.addEventListener("DOMContentLoaded", function () {
       AOS.init({ duration: 800, once: true, offset: 100 });
 
@@ -1482,17 +1502,28 @@
         balanceEl.textContent = `Solde : ${newBalance} XAF`;
       }
 
-      // Obtenir le solde actuel
-      function getCurrentBalance() {
-        const balance = parseInt(localStorage.getItem('userBalance') || '0');
-        balanceEl.textContent = `Solde : ${balance} XAF`;
-        return balance;
-      }
-
-      // Obtenir le nom de l'utilisateur
-      function getUserName() {
-        // Dans une application réelle, cela viendrait du backend
-        return localStorage.getItem('userName') || 'MC Exo';
+      // Obtenir les données utilisateur depuis Firestore
+      function fetchUserData() {
+        // Simuler un utilisateur connecté (dans une application réelle, on utiliserait firebase.auth().currentUser)
+        const userId = "user123"; // À remplacer par l'ID réel de l'utilisateur
+        
+        db.collection("users").doc(userId).get().then((doc) => {
+          if (doc.exists) {
+            const userData = doc.data();
+            
+            // Afficher le nom de l'utilisateur
+            const userName = userData.name || "Utilisateur";
+            welcomeEl.textContent = `Bienvenue ${userName} sur votre tableau de bord`;
+            
+            // Afficher le solde
+            const userBalance = userData.balance || 0;
+            balanceEl.textContent = `Solde : ${userBalance} XAF`;
+          } else {
+            console.log("Aucun document utilisateur trouvé!");
+          }
+        }).catch((error) => {
+          console.log("Erreur lors de la récupération des données utilisateur:", error);
+        });
       }
 
       // Déconnexion
@@ -1651,30 +1682,16 @@
 
       // Initialisation
       function initializePage() {
-        // Afficher le nom de l'utilisateur
-        const userName = getUserName();
-        welcomeEl.textContent = `Bienvenue ${userName} sur votre tableau de bord`;
-        
-        // Mettre à jour le solde
-        getCurrentBalance();
+        // Récupérer les données utilisateur depuis Firestore
+        fetchUserData();
         
         // Afficher la modal si l'utilisateur est nouveau
         showWelcomeModal();
       }
 
-      // Bouton dépôt rapide
+      // Bouton dépôt rapide - redirection vers fonds.html
       quickDeposit.addEventListener('click', () => {
-        // Formulaire de dépôt simple
-        const amount = prompt("Veuillez entrer le montant à déposer (en XAF):");
-        if (amount !== null && amount !== "") {
-          const parsedAmount = parseInt(amount);
-          if (!isNaN(parsedAmount)) {
-            updateBalance(parsedAmount);
-            alert(`Dépôt de ${parsedAmount} XAF effectué avec succès !`);
-          } else {
-            alert("Veuillez entrer un montant valide.");
-          }
-        }
+        window.location.href = "fonds.html";
       });
 
       // Gère la déconnexion
