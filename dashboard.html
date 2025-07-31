@@ -1206,7 +1206,7 @@
 
   <!-- Section bienvenue -->
   <div class="welcome-container" data-aos="fade-up">
-    <h1 id="welcome">Bienvenue sur ton tableau de bord</h1>
+    <h1 id="welcome">Bienvenue sur votre tableau de bord</h1>
     <p>Gérez vos services, commandes et boostez votre présence sur les réseaux sociaux en toute simplicité.</p>
   </div>
 
@@ -1421,11 +1421,24 @@
         }
       }
 
+      // Vérifier si l'utilisateur est nouveau
+      function isNewUser() {
+        const welcomeShown = localStorage.getItem('welcomeModalShown');
+        return welcomeShown === null;
+      }
+
+      // Marquer l'utilisateur comme "non-nouveau"
+      function markAsReturningUser() {
+        localStorage.setItem('welcomeModalShown', 'true');
+      }
+
       // Fonction pour afficher le modal de bienvenue
       function showWelcomeModal() {
-        welcomeModal.style.display = "block";
-        // Distribuer les cadeaux aléatoirement
-        distributeGifts();
+        if (isNewUser()) {
+          welcomeModal.style.display = "block";
+          // Distribuer les cadeaux aléatoirement
+          distributeGifts();
+        }
       }
 
       // Fonction pour distribuer aléatoirement les cadeaux
@@ -1461,10 +1474,32 @@
         });
       }
 
-      // Fonction pour gérer le premier accès
-      function handleFirstAccess() {
-        // Pour cette démo, on simule le premier accès
-        setTimeout(showWelcomeModal, 1000);
+      // Mettre à jour le solde
+      function updateBalance(amount) {
+        const currentBalance = parseInt(localStorage.getItem('userBalance') || '0');
+        const newBalance = currentBalance + amount;
+        localStorage.setItem('userBalance', newBalance.toString());
+        balanceEl.textContent = `Solde : ${newBalance} XAF`;
+      }
+
+      // Obtenir le solde actuel
+      function getCurrentBalance() {
+        const balance = parseInt(localStorage.getItem('userBalance') || '0');
+        balanceEl.textContent = `Solde : ${balance} XAF`;
+        return balance;
+      }
+
+      // Obtenir le nom de l'utilisateur
+      function getUserName() {
+        // Dans une application réelle, cela viendrait du backend
+        return localStorage.getItem('userName') || 'MC Exo';
+      }
+
+      // Déconnexion
+      function logout() {
+        localStorage.removeItem('userToken');
+        // Redirection vers la page de connexion
+        window.location.href = 'login.html';
       }
 
       // Gestion des clics sur les coffres
@@ -1487,6 +1522,9 @@
           // Marquer ce coffre comme ouvert
           this.classList.add('opened');
           
+          // Marquer l'utilisateur comme non-nouveau
+          markAsReturningUser();
+          
           // Attendre que l'animation se termine
           setTimeout(async () => {
             // Traiter le cadeau
@@ -1497,6 +1535,7 @@
               case 'money':
                 // Créditer 100 FCFA
                 giftValue = '100 FCFA';
+                updateBalance(100);
                 giftMessage = `
                   <div class="gift-message">
                     <h3>🎉 Félicitations !</h3>
@@ -1559,26 +1598,12 @@
               case 'money':
                 document.getElementById('closeAfterMoney').addEventListener('click', () => {
                   welcomeModal.style.display = 'none';
-                  // Mise à jour du solde (simulation)
-                  balanceEl.textContent = `Solde : 100 XAF`;
-                  // Réactiver les coffres pour de futurs accès
-                  chests.forEach(c => {
-                    c.style.pointerEvents = 'auto';
-                    c.classList.remove('opened');
-                    c.querySelector('.chest-inner').style.transform = 'rotateY(0deg)';
-                  });
                 });
                 break;
                 
               case 'canva':
                 document.getElementById('closeAfterCanva').addEventListener('click', () => {
                   welcomeModal.style.display = 'none';
-                  // Réactiver les coffres pour de futurs accès
-                  chests.forEach(c => {
-                    c.style.pointerEvents = 'auto';
-                    c.classList.remove('opened');
-                    c.querySelector('.chest-inner').style.transform = 'rotateY(0deg)';
-                  });
                 });
                 break;
                 
@@ -1609,12 +1634,6 @@
                   
                   document.getElementById('closeAfterTikTok').addEventListener('click', () => {
                     welcomeModal.style.display = 'none';
-                    // Réactiver les coffres pour de futurs accès
-                    chests.forEach(c => {
-                      c.style.pointerEvents = 'auto';
-                      c.classList.remove('opened');
-                      c.querySelector('.chest-inner').style.transform = 'rotateY(0deg)';
-                    });
                   });
                 });
                 break;
@@ -1627,32 +1646,46 @@
       // Bouton de fermeture de la modale
       closeModalBtn.addEventListener('click', () => {
         welcomeModal.style.display = 'none';
-        // Réactiver les coffres pour de futurs accès
-        chests.forEach(c => {
-          c.style.pointerEvents = 'auto';
-          c.classList.remove('opened');
-          c.querySelector('.chest-inner').style.transform = 'rotateY(0deg)';
-        });
+        markAsReturningUser();
       });
 
-      // Pour cette démo, on simule l'état d'un utilisateur connecté
-      welcomeEl.textContent = `Bienvenue John sur votre tableau de bord`;
-      
+      // Initialisation
+      function initializePage() {
+        // Afficher le nom de l'utilisateur
+        const userName = getUserName();
+        welcomeEl.textContent = `Bienvenue ${userName} sur votre tableau de bord`;
+        
+        // Mettre à jour le solde
+        getCurrentBalance();
+        
+        // Afficher la modal si l'utilisateur est nouveau
+        showWelcomeModal();
+      }
+
       // Bouton dépôt rapide
       quickDeposit.addEventListener('click', () => {
-        alert('Fonction de dépôt rapide activée !');
+        // Formulaire de dépôt simple
+        const amount = prompt("Veuillez entrer le montant à déposer (en XAF):");
+        if (amount !== null && amount !== "") {
+          const parsedAmount = parseInt(amount);
+          if (!isNaN(parsedAmount) {
+            updateBalance(parsedAmount);
+            alert(`Dépôt de ${parsedAmount} XAF effectué avec succès !`);
+          } else {
+            alert("Veuillez entrer un montant valide.");
+          }
+        }
       });
 
       // Gère la déconnexion
       logoutBtn.addEventListener('click', () => {
         if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
-          alert('Déconnexion réussie ! Redirection vers la page de connexion...');
-          // Dans une application réelle : window.location.href = 'login.html';
+          logout();
         }
       });
 
       // Initialisation
-      handleFirstAccess();
+      initializePage();
     });
   </script>
 </body>
