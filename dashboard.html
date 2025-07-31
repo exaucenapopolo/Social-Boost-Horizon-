@@ -1337,11 +1337,6 @@
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-  
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       AOS.init({ duration: 800, once: true, offset: 100 });
@@ -1393,24 +1388,6 @@
         }
       });
 
-      // Configuration Firebase
-      const firebaseConfig = {
-        apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-        authDomain: "social-boost-horizon.firebaseapp.com",
-        projectId: "social-boost-horizon",
-        storageBucket: "social-boost-horizon.appspot.com",
-        messagingSenderId: "43658165639",
-        appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
-      };
-      
-      // Initialisation de Firebase
-      if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-      }
-      
-      const auth = firebase.auth();
-      const db = firebase.firestore();
-
       // Éléments DOM
       const welcomeEl = document.getElementById('welcome');
       const balanceEl = document.getElementById('balance');
@@ -1447,6 +1424,8 @@
       // Fonction pour afficher le modal de bienvenue
       function showWelcomeModal() {
         welcomeModal.style.display = "block";
+        // Distribuer les cadeaux aléatoirement
+        distributeGifts();
       }
 
       // Fonction pour distribuer aléatoirement les cadeaux
@@ -1483,222 +1462,197 @@
       }
 
       // Fonction pour gérer le premier accès
-      async function handleFirstAccess(user) {
-        const userRef = db.collection('users').doc(user.uid);
-        const doc = await userRef.get();
-        
-        if (doc.exists && doc.data().isFirstAccess) {
-          // Distribuer les cadeaux aléatoirement
-          distributeGifts();
-          
-          // Montrer la modal après un court délai
-          setTimeout(showWelcomeModal, 1000);
-          
-          // Gestion des clics sur les coffres
-          chests.forEach(chest => {
-            chest.addEventListener('click', async function() {
-              // Si ce coffre a déjà été cliqué, on ne fait rien
-              if (this.classList.contains('opened')) return;
-              
-              const giftType = this.getAttribute('data-gift');
-              const chestInner = this.querySelector('.chest-inner');
-              
-              // Désactiver tous les coffres
-              chests.forEach(c => {
-                c.style.pointerEvents = 'none';
-              });
-              
-              // Animation: rotation du coffre
-              chestInner.style.transform = 'rotateY(180deg)';
-              
-              // Marquer ce coffre comme ouvert
-              this.classList.add('opened');
-              
-              // Attendre que l'animation se termine
-              setTimeout(async () => {
-                // Traiter le cadeau
-                let giftMessage = '';
-                
-                switch(giftType) {
-                  case 'money':
-                    // Créditer 100 FCFA
-                    await userRef.update({
-                      balance: firebase.firestore.FieldValue.increment(100),
-                      isFirstAccess: false
-                    });
-                    giftMessage = `
-                      <div class="gift-message">
-                        <h3>🎉 Félicitations !</h3>
-                        <p>Vous avez gagné <strong>100 FCFA</strong> crédités sur votre solde.</p>
-                        <p>Votre nouveau solde est maintenant disponible dans votre portefeuille.</p>
-                        <div class="modal-actions">
-                          <button class="modal-btn btn-primary" id="closeAfterMoney">Fermer et continuer</button>
-                        </div>
-                      </div>
-                    `;
-                    break;
-                    
-                  case 'canva':
-                    // Offrir Canva Pro
-                    await userRef.update({ isFirstAccess: false });
-                    giftMessage = `
-                      <div class="gift-message">
-                        <h3>🎨 Abonnement Canva Pro à vie !</h3>
-                        <p>Profitez d'un accès à vie à Canva Pro, l'outil de création graphique premium.</p>
-                        <p>Cliquez ci-dessous pour activer votre compte :</p>
-                        <div class="modal-actions">
-                          <a href="https://www.canva.com/brand/join?token=YA0kZ3j5eRuROd0r6cileQ&referrer=team-invite" 
-                             target="_blank" 
-                             class="modal-btn btn-primary">
-                            Activer Canva Pro
-                          </a>
-                          <button class="modal-btn btn-secondary" id="closeAfterCanva">Fermer</button>
-                        </div>
-                      </div>
-                    `;
-                    break;
-                    
-                  case 'tiktok':
-                    // Offrir vues TikTok
-                    await userRef.update({ isFirstAccess: false });
-                    giftMessage = `
-                      <div class="gift-message">
-                        <h3>📱 10 000 vues TikTok !</h3>
-                        <p>Boostez votre vidéo TikTok avec 10 000 vues réelles et engageantes !</p>
-                        <p>Collez le lien de votre vidéo TikTok ci-dessous :</p>
-                        <input type="url" 
-                               class="tiktok-link-input" 
-                               placeholder="https://www.tiktok.com/..." 
-                               id="tiktokLinkInput"
-                               required>
-                        <div class="modal-actions">
-                          <button class="tiktok-submit-btn" id="submitTikTok">Demander mes vues</button>
-                        </div>
-                      </div>
-                    `;
-                    break;
-                }
-                
-                // Afficher le résultat du cadeau
-                giftResult.innerHTML = giftMessage;
-                
-                // Lancer l'animation de confettis
-                createConfetti();
-                
-                // GESTIONNAIRES D'ÉVÉNEMENTS SUPPLEMENTAIRES
-                switch(giftType) {
-                  case 'money':
-                    document.getElementById('closeAfterMoney').addEventListener('click', () => {
-                      welcomeModal.style.display = 'none';
-                      // Mise à jour immédiate de l'affichage du solde
-                      balanceEl.textContent = `Solde : ${(doc.data().balance || 0) + 100} XAF`;
-                    });
-                    break;
-                    
-                  case 'canva':
-                    document.getElementById('closeAfterCanva').addEventListener('click', () => {
-                      welcomeModal.style.display = 'none';
-                    });
-                    break;
-                    
-                  case 'tiktok':
-                    document.getElementById('submitTikTok').addEventListener('click', function() {
-                      const tiktokLink = document.getElementById('tiktokLinkInput').value;
-                      if (!tiktokLink) {
-                        alert('Veuillez coller un lien TikTok valide.');
-                        return;
-                      }
-                      
-                      const message = encodeURIComponent(
-                                        `Bonjour, je viens de gagner 10 000 vues TikTok sur Social Boost Horizon. Voici le lien de ma vidéo : ${tiktokLink}`
-                                      );
-                      window.open(`https://api.whatsapp.com/send?phone=+237699853665&text=${message}`, '_blank');
-                      
-                      // Message de confirmation
-                      giftResult.innerHTML = `
-                        <div class="gift-message">
-                          <h3>✅ Demande envoyée !</h3>
-                          <p>Votre demande de 10 000 vues a été transmise à notre équipe.</p>
-                          <p>Nous traiterons votre demande dans les plus brefs délais.</p>
-                          <div class="modal-actions">
-                            <button class="modal-btn btn-primary" id="closeAfterTikTok">Fermer</button>
-                          </div>
-                        </div>
-                      `;
-                      
-                      document.getElementById('closeAfterTikTok').addEventListener('click', () => {
-                        welcomeModal.style.display = 'none';
-                      });
-                    });
-                    break;
-                }
-                
-              }, 800); // Délai correspondant à la durée de l'animation
-            });
-          });
-          
-          // Bouton de fermeture de la modale
-          closeModalBtn.addEventListener('click', () => {
-            welcomeModal.style.display = 'none';
-          });
-        }
+      function handleFirstAccess() {
+        // Pour cette démo, on simule le premier accès
+        setTimeout(showWelcomeModal, 1000);
       }
 
-      // Écoute les changements d'état d'authentification
-      auth.onAuthStateChanged(user => {
-        if (!user) {
-          // L'utilisateur n'est pas connecté, redirige vers la page de connexion
-          return window.location.href = 'login.html';
-        }
-
-        // L'utilisateur est connecté
-        const userRef = db.collection('users').doc(user.uid);
-        
-        // Récupère le nom d'utilisateur
-        userRef.get().then(doc => {
-          if (doc.exists) {
-            const userData = doc.data();
-            // Affiche le nom de l'utilisateur
-            welcomeEl.textContent = `Bienvenue ${userData.username || ''} sur votre tableau de bord`;
-          } else {
-            welcomeEl.textContent = `Bienvenue sur votre tableau de bord`;
-          }
-        }).catch(error => {
-          console.error("Erreur lors de la récupération du nom d'utilisateur :", error);
-          welcomeEl.textContent = `Bienvenue sur votre tableau de bord`;
+      // Gestion des clics sur les coffres
+      chests.forEach(chest => {
+        chest.addEventListener('click', function() {
+          // Si ce coffre a déjà été cliqué, on ne fait rien
+          if (this.classList.contains('opened')) return;
+          
+          const giftType = this.getAttribute('data-gift');
+          const chestInner = this.querySelector('.chest-inner');
+          
+          // Désactiver tous les coffres
+          chests.forEach(c => {
+            c.style.pointerEvents = 'none';
+          });
+          
+          // Animation: rotation du coffre
+          chestInner.style.transform = 'rotateY(180deg)';
+          
+          // Marquer ce coffre comme ouvert
+          this.classList.add('opened');
+          
+          // Attendre que l'animation se termine
+          setTimeout(async () => {
+            // Traiter le cadeau
+            let giftMessage = '';
+            let giftValue = '';
+            
+            switch(giftType) {
+              case 'money':
+                // Créditer 100 FCFA
+                giftValue = '100 FCFA';
+                giftMessage = `
+                  <div class="gift-message">
+                    <h3>🎉 Félicitations !</h3>
+                    <p>Vous avez gagné <strong>${giftValue}</strong> crédités sur votre solde.</p>
+                    <p>Votre nouveau solde est maintenant disponible dans votre portefeuille.</p>
+                    <div class="modal-actions">
+                      <button class="modal-btn btn-primary" id="closeAfterMoney">Fermer et continuer</button>
+                    </div>
+                  </div>
+                `;
+                break;
+                
+              case 'canva':
+                giftValue = 'Abonnement Canva Pro à vie';
+                giftMessage = `
+                  <div class="gift-message">
+                    <h3>🎨 ${giftValue} !</h3>
+                    <p>Profitez d'un accès à vie à Canva Pro, l'outil de création graphique premium.</p>
+                    <p>Cliquez ci-dessous pour activer votre compte :</p>
+                    <div class="modal-actions">
+                      <a href="https://www.canva.com/brand/join?token=YA0kZ3j5eRuROd0r6cileQ&referrer=team-invite" 
+                         target="_blank" 
+                         class="modal-btn btn-primary">
+                        Activer Canva Pro
+                      </a>
+                      <button class="modal-btn btn-secondary" id="closeAfterCanva">Fermer</button>
+                    </div>
+                  </div>
+                `;
+                break;
+                
+              case 'tiktok':
+                giftValue = '10 000 vues TikTok';
+                giftMessage = `
+                  <div class="gift-message">
+                    <h3>📱 ${giftValue} !</h3>
+                    <p>Boostez votre vidéo TikTok avec 10 000 vues réelles et engageantes !</p>
+                    <p>Collez le lien de votre vidéo TikTok ci-dessous :</p>
+                    <input type="url" 
+                           class="tiktok-link-input" 
+                           placeholder="https://www.tiktok.com/..." 
+                           id="tiktokLinkInput"
+                           required>
+                    <div class="modal-actions">
+                      <button class="tiktok-submit-btn" id="submitTikTok">Demander mes vues</button>
+                    </div>
+                  </div>
+                `;
+                break;
+            }
+            
+            // Afficher le résultat du cadeau
+            giftResult.innerHTML = giftMessage;
+            
+            // Lancer l'animation de confettis
+            createConfetti();
+            
+            // GESTIONNAIRES D'ÉVÉNEMENTS SUPPLEMENTAIRES
+            switch(giftType) {
+              case 'money':
+                document.getElementById('closeAfterMoney').addEventListener('click', () => {
+                  welcomeModal.style.display = 'none';
+                  // Mise à jour du solde (simulation)
+                  balanceEl.textContent = `Solde : 100 XAF`;
+                  // Réactiver les coffres pour de futurs accès
+                  chests.forEach(c => {
+                    c.style.pointerEvents = 'auto';
+                    c.classList.remove('opened');
+                    c.querySelector('.chest-inner').style.transform = 'rotateY(0deg)';
+                  });
+                });
+                break;
+                
+              case 'canva':
+                document.getElementById('closeAfterCanva').addEventListener('click', () => {
+                  welcomeModal.style.display = 'none';
+                  // Réactiver les coffres pour de futurs accès
+                  chests.forEach(c => {
+                    c.style.pointerEvents = 'auto';
+                    c.classList.remove('opened');
+                    c.querySelector('.chest-inner').style.transform = 'rotateY(0deg)';
+                  });
+                });
+                break;
+                
+              case 'tiktok':
+                document.getElementById('submitTikTok').addEventListener('click', function() {
+                  const tiktokLink = document.getElementById('tiktokLinkInput').value;
+                  if (!tiktokLink) {
+                    alert('Veuillez coller un lien TikTok valide.');
+                    return;
+                  }
+                  
+                  const message = encodeURIComponent(
+                                    `Bonjour, je viens de gagner 10 000 vues TikTok sur Social Boost Horizon. Voici le lien de ma vidéo : ${tiktokLink}`
+                                  );
+                  window.open(`https://api.whatsapp.com/send?phone=+237699853665&text=${message}`, '_blank');
+                  
+                  // Message de confirmation
+                  giftResult.innerHTML = `
+                    <div class="gift-message">
+                      <h3>✅ Demande envoyée !</h3>
+                      <p>Votre demande de 10 000 vues a été transmise à notre équipe.</p>
+                      <p>Nous traiterons votre demande dans les plus brefs délais.</p>
+                      <div class="modal-actions">
+                        <button class="modal-btn btn-primary" id="closeAfterTikTok">Fermer</button>
+                      </div>
+                    </div>
+                  `;
+                  
+                  document.getElementById('closeAfterTikTok').addEventListener('click', () => {
+                    welcomeModal.style.display = 'none';
+                    // Réactiver les coffres pour de futurs accès
+                    chests.forEach(c => {
+                      c.style.pointerEvents = 'auto';
+                      c.classList.remove('opened');
+                      c.querySelector('.chest-inner').style.transform = 'rotateY(0deg)';
+                    });
+                  });
+                });
+                break;
+            }
+            
+          }, 800); // Délai correspondant à la durée de l'animation
         });
-
-        // Écoute les mises à jour en temps réel du solde
-        userRef.onSnapshot(doc => {
-          if (doc.exists) {
-            const userData = doc.data();
-            // Affiche le solde, ou 0 par défaut si non défini
-            balanceEl.textContent = `Solde : ${userData.balance || 0} XAF`;
-          }
-        }, error => {
-          console.error("Erreur d'écoute en temps réel du document utilisateur :", error);
-        });
-
-        // Vérifier le premier accès
-        handleFirstAccess(user);
       });
 
+      // Bouton de fermeture de la modale
+      closeModalBtn.addEventListener('click', () => {
+        welcomeModal.style.display = 'none';
+        // Réactiver les coffres pour de futurs accès
+        chests.forEach(c => {
+          c.style.pointerEvents = 'auto';
+          c.classList.remove('opened');
+          c.querySelector('.chest-inner').style.transform = 'rotateY(0deg)';
+        });
+      });
+
+      // Pour cette démo, on simule l'état d'un utilisateur connecté
+      welcomeEl.textContent = `Bienvenue John sur votre tableau de bord`;
+      
       // Bouton dépôt rapide
       quickDeposit.addEventListener('click', () => {
-        window.location.href = 'fonds.html';
+        alert('Fonction de dépôt rapide activée !');
       });
 
       // Gère la déconnexion
       logoutBtn.addEventListener('click', () => {
         if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
-          auth.signOut().then(() => {
-            window.location.href = 'login.html';
-          }).catch(error => {
-            console.error("Erreur de déconnexion :", error);
-            alert("Une erreur est survenue lors de la déconnexion.");
-          });
+          alert('Déconnexion réussie ! Redirection vers la page de connexion...');
+          // Dans une application réelle : window.location.href = 'login.html';
         }
       });
+
+      // Initialisation
+      handleFirstAccess();
     });
   </script>
 </body>
