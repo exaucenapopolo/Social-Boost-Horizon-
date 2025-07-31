@@ -787,6 +787,7 @@
             const referralCode = Math.random().toString(36).substring(2,10).toUpperCase();
             const urlParams = new URLSearchParams(window.location.search);
             const referralCodeUsed = urlParams.get('ref') || null;
+            // Créer le document avec les champs nécessaires pour la modale de bienvenue
             await firebase.firestore().collection('users').doc(userId).set({
               userId,
               username,
@@ -795,13 +796,14 @@
               country: '',
               referralCode: referralCode,
               referredBy: referralCodeUsed,
-              balance: 0,
+              balance: 0,          // Initialisation du solde
               referralBalance: 0,
               discountUsesLeft: 10,
               referralsCount: 0,
               createdAt: firebase.firestore.FieldValue.serverTimestamp(),
               provider: 'google',
-              isFirstAccess: true // AJOUT: Marquer premier accès
+              isFirstAccess: true, // Marquer premier accès
+              openedChests: []     // Initialiser les coffres ouverts (tableau vide)
             });
             console.log("onAuthStateChanged : document créé.");
           } else {
@@ -1058,7 +1060,9 @@
               country: pays,
               referralCode: generatedCode,
               referralCodeUsed,
-              isFirstAccess: true // AJOUT: Marquer premier accès
+              isFirstAccess: true, // Marquer premier accès
+              openedChests: [],    // Initialiser les coffres ouverts (tableau vide)
+              balance: 0           // Initialisation du solde
             })
           });
           
@@ -1080,7 +1084,9 @@
             referralCodeUsed,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             provider: 'email',
-            isFirstAccess: true // AJOUT: Marquer premier accès
+            isFirstAccess: true, // Marquer premier accès
+            openedChests: [],    // Initialiser les coffres ouverts (tableau vide)
+            balance: 0           // Initialisation du solde
           });
           
           showNotification('✅ Inscription réussie ! Redirection...', 'success');
