@@ -1343,7 +1343,7 @@
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   
   <script>
-// Configuration Firebase
+    // Configuration Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -1504,33 +1504,46 @@
 
       // Obtenir les données utilisateur depuis Firestore
       function fetchUserData() {
-        // Simuler un utilisateur connecté (dans une application réelle, on utiliserait firebase.auth().currentUser)
-        const userId = "user123"; // À remplacer par l'ID réel de l'utilisateur
-        
-        db.collection("users").doc(userId).get().then((doc) => {
-          if (doc.exists) {
-            const userData = doc.data();
+        // Vérifier l'état d'authentification
+        auth.onAuthStateChanged((user) => {
+          if (user) {
+            // Utilisateur connecté, récupérer ses données
+            const userId = user.uid;
             
-            // Afficher le nom de l'utilisateur
-            const userName = userData.name || "Utilisateur";
-            welcomeEl.textContent = `Bienvenue ${userName} sur votre tableau de bord`;
-            
-            // Afficher le solde
-            const userBalance = userData.balance || 0;
-            balanceEl.textContent = `Solde : ${userBalance} XAF`;
+            db.collection("users").doc(userId).get().then((doc) => {
+              if (doc.exists) {
+                const userData = doc.data();
+                
+                // Afficher le nom de l'utilisateur
+                const userName = userData.name || "Utilisateur";
+                welcomeEl.textContent = `Bienvenue ${userName} sur votre tableau de bord`;
+                
+                // Afficher le solde
+                const userBalance = userData.balance || 0;
+                balanceEl.textContent = `Solde : ${userBalance} XAF`;
+              } else {
+                console.log("Aucun document utilisateur trouvé!");
+                balanceEl.textContent = `Solde : 0 XAF`;
+              }
+            }).catch((error) => {
+              console.log("Erreur lors de la récupération des données utilisateur:", error);
+              balanceEl.textContent = `Erreur de chargement`;
+            });
           } else {
-            console.log("Aucun document utilisateur trouvé!");
+            // Aucun utilisateur connecté, rediriger vers la page de connexion
+            window.location.href = "login.html";
           }
-        }).catch((error) => {
-          console.log("Erreur lors de la récupération des données utilisateur:", error);
         });
       }
 
       // Déconnexion
       function logout() {
-        localStorage.removeItem('userToken');
-        // Redirection vers la page de connexion
-        window.location.href = 'login.html';
+        auth.signOut().then(() => {
+          // Déconnexion réussie, redirection
+          window.location.href = 'login.html';
+        }).catch((error) => {
+          console.error("Erreur de déconnexion", error);
+        });
       }
 
       // Gestion des clics sur les coffres
@@ -1700,17 +1713,18 @@
           logout();
         }
       });
+
       // Initialiser Tawk.to après le chargement de la page
-    window.addEventListener('load', () => {
-      // Tawk.to Script
-      var Tawk_API=Tawk_API||{},Tawk_LoadStart=new Date();
-      (function(){
-        var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
-        s1.async=true; s1.src='https://embed.tawk.to/6820b4dbbca8a11909dc7b3e/default';
-        s1.charset='UTF-8'; s1.setAttribute('crossorigin','*');
-        s0.parentNode.insertBefore(s1,s0);
-      })();
-    });
+      window.addEventListener('load', () => {
+        // Tawk.to Script
+        var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+        (function(){
+          var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+          s1.async=true; s1.src='https://embed.tawk.to/6820b4dbbca8a11909dc7b3e/default';
+          s1.charset='UTF-8'; s1.setAttribute('crossorigin','*');
+          s0.parentNode.insertBefore(s1,s0);
+        })();
+      });
 
       // Initialisation
       initializePage();
