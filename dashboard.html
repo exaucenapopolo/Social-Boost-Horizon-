@@ -821,6 +821,13 @@
       flex-wrap: wrap;
     }
     
+    .chest-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    
     .chest {
       width: 180px;
       height: 180px;
@@ -832,6 +839,16 @@
     
     .chest:hover {
       transform: translateY(-10px);
+    }
+    
+    .chest.disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    
+    .chest.disabled .chest-front {
+      animation: none;
     }
     
     .chest-inner {
@@ -852,7 +869,6 @@
       justify-content: center;
     }
     
-    /* MODIFICATION: Utilisation de la même image pour tous les coffres */
     .chest-front {
       background: url('https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/IMG_6326.jpeg') center/contain no-repeat;
     }
@@ -1030,6 +1046,57 @@
       box-shadow: 0 5px 15px rgba(105, 201, 208, 0.4);
     }
 
+    /* Nouveaux styles pour la gestion des coffres */
+    .chest-label {
+      margin-top: 10px;
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--gold-primary);
+      text-align: center;
+      opacity: 0.8;
+    }
+    
+    .gift-process-message {
+      margin-top: 20px;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      border-left: 4px solid var(--sbh-light-blue);
+      font-size: 0.95rem;
+      display: none;
+    }
+    
+    /* Animation pour montrer que le traitement est en cours */
+    @keyframes processing {
+      0% { opacity: 0.5; }
+      50% { opacity: 1; }
+      100% { opacity: 0.5; }
+    }
+    
+    .processing {
+      animation: processing 1.5s infinite;
+    }
+    
+    /* Indicateur visuel pour les coffres déjà ouverts */
+    .chest.opened::after {
+      content: "✓";
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      width: 30px;
+      height: 30px;
+      background: var(--gold-primary);
+      color: #000;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.2rem;
+      z-index: 10;
+      box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+    }
+
     /* Animations */
     @keyframes pulse-gold {
       0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4); }
@@ -1129,35 +1196,49 @@
       
       <div class="chests-container">
         <!-- Coffres avec la même image -->
-        <div class="chest" data-gift="">
-          <div class="chest-inner">
-            <div class="chest-front pulse"></div>
-            <div class="chest-back"></div>
+        <div class="chest-container">
+          <div class="chest" data-chest-id="chest1" data-gift="">
+            <div class="chest-inner">
+              <div class="chest-front pulse"></div>
+              <div class="chest-back"></div>
+            </div>
+            <div class="gift-content">
+              <!-- Le contenu sera rempli dynamiquement -->
+            </div>
           </div>
-          <div class="gift-content">
-            <!-- Le contenu sera rempli dynamiquement -->
-          </div>
+          <div class="chest-label">Coffre Or</div>
         </div>
         
-        <div class="chest" data-gift="">
-          <div class="chest-inner">
-            <div class="chest-front pulse"></div>
-            <div class="chest-back"></div>
+        <div class="chest-container">
+          <div class="chest" data-chest-id="chest2" data-gift="">
+            <div class="chest-inner">
+              <div class="chest-front pulse"></div>
+              <div class="chest-back"></div>
+            </div>
+            <div class="gift-content">
+              <!-- Le contenu sera rempli dynamiquement -->
+            </div>
           </div>
-          <div class="gift-content">
-            <!-- Le contenu sera rempli dynamiquement -->
-          </div>
+          <div class="chest-label">Coffre Argent</div>
         </div>
         
-        <div class="chest" data-gift="">
-          <div class="chest-inner">
-            <div class="chest-front pulse"></div>
-            <div class="chest-back"></div>
+        <div class="chest-container">
+          <div class="chest" data-chest-id="chest3" data-gift="">
+            <div class="chest-inner">
+              <div class="chest-front pulse"></div>
+              <div class="chest-back"></div>
+            </div>
+            <div class="gift-content">
+              <!-- Le contenu sera rempli dynamiquement -->
+            </div>
           </div>
-          <div class="gift-content">
-            <!-- Le contenu sera rempli dynamiquement -->
-          </div>
+          <div class="chest-label">Coffre Bronze</div>
         </div>
+      </div>
+      
+      <!-- Section pour afficher les messages de traitement -->
+      <div id="processMessage" class="gift-process-message">
+        <i class="fas fa-sync-alt processing"></i> Traitement en cours, veuillez patienter...
       </div>
       
       <div id="giftResult"></div>
@@ -1420,6 +1501,7 @@
       const giftResult = document.getElementById('giftResult');
       const closeModalBtn = document.getElementById('closeModal');
       const chests = document.querySelectorAll('.chest');
+      const processMessage = document.getElementById('processMessage');
 
       // Fonction pour créer des confettis
       function createConfetti() {
@@ -1482,22 +1564,62 @@
         });
       }
 
+      // Fonction pour sauvegarder l'état du coffre dans Firebase
+      async function saveChestState(userId, chestId, giftType) {
+        try {
+          const userRef = db.collection('users').doc(userId);
+          const chestsRef = userRef.collection('openedChests').doc(chestId);
+          
+          await chestsRef.set({
+            opened: true,
+            giftType: giftType,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          
+          return true;
+        } catch (error) {
+          console.error("Erreur lors de la sauvegarde du coffre:", error);
+          return false;
+        }
+      }
+
+      // Fonction pour vérifier si un coffre a déjà été ouvert
+      async function isChestOpened(userId, chestId) {
+        try {
+          const userRef = db.collection('users').doc(userId);
+          const chestDoc = await userRef.collection('openedChests').doc(chestId).get();
+          
+          return chestDoc.exists;
+        } catch (error) {
+          console.error("Erreur lors de la vérification du coffre:", error);
+          return false;
+        }
+      }
+
+      // Fonction pour désactiver les coffres déjà ouverts
+      async function disableOpenedChests(userId) {
+        chests.forEach(async (chest) => {
+          const chestId = chest.getAttribute('data-chest-id');
+          const isOpened = await isChestOpened(userId, chestId);
+          
+          if (isOpened) {
+            chest.classList.add('opened', 'disabled');
+            chest.querySelector('.chest-front').classList.remove('pulse');
+          }
+        });
+      }
+
       // Fonction pour gérer le premier accès
       async function handleFirstAccess(user) {
         const userRef = db.collection('users').doc(user.uid);
         const doc = await userRef.get();
         
-        if (doc.exists) {
-          const userData = doc.data();
-          
-          // Vérifier si l'utilisateur a déjà ouvert un coffre
-          if (userData.hasOwnProperty('openedChests') && userData.openedChests.length > 0) {
-            // L'utilisateur a déjà ouvert un coffre, ne pas afficher la modale
-            return;
-          }
-          
+        if (doc.exists && doc.data().isFirstAccess) {
           // Distribuer les cadeaux aléatoirement
           distributeGifts();
+          
+          // Désactiver les coffres déjà ouverts
+          await disableOpenedChests(user.uid);
           
           // Montrer la modal après un court délai
           setTimeout(showWelcomeModal, 1000);
@@ -1505,45 +1627,49 @@
           // Gestion des clics sur les coffres
           chests.forEach(chest => {
             chest.addEventListener('click', async function() {
-              // Si ce coffre a déjà été cliqué, on ne fait rien
-              if (this.classList.contains('opened')) return;
+              // Vérifier si le coffre est déjà ouvert ou désactivé
+              if (this.classList.contains('opened') || this.classList.contains('disabled')) {
+                return;
+              }
               
               const giftType = this.getAttribute('data-gift');
+              const chestId = this.getAttribute('data-chest-id');
               const chestInner = this.querySelector('.chest-inner');
               
-              // Désactiver tous les coffres
+              // Désactiver tous les coffres pendant le traitement
               chests.forEach(c => {
                 c.style.pointerEvents = 'none';
               });
               
+              // Afficher le message de traitement
+              processMessage.style.display = 'block';
+              giftResult.innerHTML = '';
+              
               // Animation: rotation du coffre
               chestInner.style.transform = 'rotateY(180deg)';
               
-              // Marquer ce coffre comme ouvert
+              // Marquer ce coffre comme ouvert visuellement
               this.classList.add('opened');
               
-              // Attendre que l'animation se termine
-              setTimeout(async () => {
-                // Traiter le cadeau
-                let giftMessage = '';
+              try {
+                // Sauvegarder l'état du coffre dans Firebase
+                const saveSuccess = await saveChestState(user.uid, chestId, giftType);
                 
-                try {
-                  // Récupérer l'utilisateur actuel
-                  const user = auth.currentUser;
-                  if (!user) throw new Error("Utilisateur non connecté");
-                  
-                  const userRef = db.collection('users').doc(user.uid);
-                  
-                  // Mettre à jour Firestore avec le coffre ouvert
-                  await userRef.update({
-                    openedChests: firebase.firestore.FieldValue.arrayUnion(giftType)
-                  });
+                if (!saveSuccess) {
+                  throw new Error("Échec de la sauvegarde du coffre");
+                }
+                
+                // Attendre que l'animation se termine
+                setTimeout(async () => {
+                  // Traiter le cadeau
+                  let giftMessage = '';
                   
                   switch(giftType) {
                     case 'money':
                       // Créditer 100 FCFA
                       await userRef.update({
-                        balance: firebase.firestore.FieldValue.increment(100)
+                        balance: firebase.firestore.FieldValue.increment(100),
+                        isFirstAccess: false
                       });
                       giftMessage = `
                         <div class="gift-message">
@@ -1558,6 +1684,8 @@
                       break;
                       
                     case 'canva':
+                      // Offrir Canva Pro
+                      await userRef.update({ isFirstAccess: false });
                       giftMessage = `
                         <div class="gift-message">
                           <h3>🎨 Abonnement Canva Pro à vie !</h3>
@@ -1576,6 +1704,8 @@
                       break;
                       
                     case 'tiktok':
+                      // Offrir vues TikTok
+                      await userRef.update({ isFirstAccess: false });
                       giftMessage = `
                         <div class="gift-message">
                           <h3>📱 10 000 vues TikTok !</h3>
@@ -1594,6 +1724,9 @@
                       break;
                   }
                   
+                  // Cacher le message de traitement
+                  processMessage.style.display = 'none';
+                  
                   // Afficher le résultat du cadeau
                   giftResult.innerHTML = giftMessage;
                   
@@ -1605,6 +1738,8 @@
                     case 'money':
                       document.getElementById('closeAfterMoney').addEventListener('click', () => {
                         welcomeModal.style.display = 'none';
+                        // Recharger la page pour mettre à jour le solde
+                        location.reload();
                       });
                       break;
                       
@@ -1645,19 +1780,38 @@
                       });
                       break;
                   }
-                } catch (error) {
-                  console.error("Erreur lors de la mise à jour de Firestore :", error);
-                  giftResult.innerHTML = `
-                    <div class="gift-message" style="color: var(--sbh-accent);">
-                      <h3>Erreur</h3>
-                      <p>Une erreur est survenue lors du traitement de votre cadeau.</p>
-                      <p>Veuillez réessayer ou contacter le support.</p>
+                  
+                }, 800); // Délai correspondant à la durée de l'animation
+              } catch (error) {
+                console.error("Erreur lors du traitement du cadeau:", error);
+                processMessage.style.display = 'none';
+                giftResult.innerHTML = `
+                  <div class="gift-message">
+                    <h3>❌ Erreur de traitement</h3>
+                    <p>Une erreur est survenue lors du traitement de votre cadeau.</p>
+                    <p>Veuillez réessayer ou contacter le support.</p>
+                    <div class="modal-actions">
+                      <button class="modal-btn btn-primary" id="retryChest">Réessayer</button>
                     </div>
-                  `;
-                }
+                  </div>
+                `;
                 
-              }, 800); // Délai correspondant à la durée de l'animation
+                // Réactiver le coffre pour permettre une nouvelle tentative
+                this.classList.remove('opened');
+                chests.forEach(c => {
+                  c.style.pointerEvents = 'auto';
+                });
+                
+                document.getElementById('retryChest').addEventListener('click', () => {
+                  giftResult.innerHTML = '';
+                });
+              }
             });
+          });
+          
+          // Bouton de fermeture de la modale
+          closeModalBtn.addEventListener('click', () => {
+            welcomeModal.style.display = 'none';
           });
         }
       }
@@ -1678,6 +1832,9 @@
             const userData = doc.data();
             // Affiche le nom de l'utilisateur
             welcomeEl.textContent = `Bienvenue ${userData.username || ''} sur votre tableau de bord`;
+            
+            // Vérifier le premier accès
+            handleFirstAccess(user);
           } else {
             welcomeEl.textContent = `Bienvenue sur votre tableau de bord`;
           }
@@ -1692,9 +1849,6 @@
             const userData = doc.data();
             // Affiche le solde, ou 0 par défaut si non défini
             balanceEl.textContent = `Solde : ${userData.balance || 0} XAF`;
-            
-            // Vérifier le premier accès
-            handleFirstAccess(user);
           }
         }, error => {
           console.error("Erreur d'écoute en temps réel du document utilisateur :", error);
@@ -1716,11 +1870,6 @@
             alert("Une erreur est survenue lors de la déconnexion.");
           });
         }
-      });
-      
-      // Bouton de fermeture de la modale
-      closeModalBtn.addEventListener('click', () => {
-        welcomeModal.style.display = 'none';
       });
     });
   </script>
