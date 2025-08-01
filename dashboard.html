@@ -1514,20 +1514,29 @@
               if (doc.exists) {
                 const userData = doc.data();
                 
-                // Afficher le nom de l'utilisateur
-                const userName = userData.name || "Utilisateur";
+                // CORRECTION: Récupérer le nom d'utilisateur correctement
+                const userName = userData.username || userData.displayName || userData.name || "Utilisateur";
                 welcomeEl.textContent = `Bienvenue ${userName} sur votre tableau de bord`;
                 
                 // Afficher le solde
                 const userBalance = userData.balance || 0;
                 balanceEl.textContent = `Solde : ${userBalance} XAF`;
+                
+                // Afficher la modale pour les nouveaux utilisateurs
+                showWelcomeModal();
               } else {
                 console.log("Aucun document utilisateur trouvé!");
                 balanceEl.textContent = `Solde : 0 XAF`;
+                
+                // Afficher la modale même si les données ne sont pas complètes
+                showWelcomeModal();
               }
             }).catch((error) => {
               console.log("Erreur lors de la récupération des données utilisateur:", error);
               balanceEl.textContent = `Erreur de chargement`;
+              
+              // Afficher la modale en cas d'erreur
+              showWelcomeModal();
             });
           } else {
             // Aucun utilisateur connecté, rediriger vers la page de connexion
@@ -1697,9 +1706,6 @@
       function initializePage() {
         // Récupérer les données utilisateur depuis Firestore
         fetchUserData();
-        
-        // Afficher la modal si l'utilisateur est nouveau
-        showWelcomeModal();
       }
 
       // Bouton dépôt rapide - redirection vers fonds.html
