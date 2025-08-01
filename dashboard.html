@@ -1495,53 +1495,57 @@
         });
       }
 
-      // Mettre à jour le solde dans localStorage et UI
-      function updateBalance(amount) {
-        const currentBalance = parseInt(localStorage.getItem('userBalance') || '0');
-        const newBalance = currentBalance + amount;
-        localStorage.setItem('userBalance', newBalance.toString());
-        balanceEl.textContent = `Solde : ${newBalance} XAF`;
-      }
-
       // Mettre à jour le solde dans Firestore
-      function updateFirestoreBalance(amount) {
+      async function updateFirestoreBalance(amount) {
         if (!currentUserId) return;
         
-        // Récupérer le solde actuel de Firestore
-        db.collection("users").doc(currentUserId).get()
-          .then(doc => {
-            if (doc.exists) {
-              const currentFirestoreBalance = doc.data().balance || 0;
-              const newFirestoreBalance = currentFirestoreBalance + amount;
-              
-              // Mettre à jour le solde dans Firestore
-              db.collection("users").doc(currentUserId).update({
-                balance: newFirestoreBalance
-              })
-              .then(() => {
-                console.log("Solde mis à jour dans Firestore");
-                // Mettre à jour le localStorage avec la nouvelle valeur
-                localStorage.setItem('userBalance', newFirestoreBalance.toString());
-                balanceEl.textContent = `Solde : ${newFirestoreBalance} XAF`;
-              })
-              .catch(error => {
-                console.error("Erreur lors de la mise à jour du solde Firestore:", error);
-              });
-            }
-          })
-          .catch(error => {
-            console.error("Erreur lors de la récupération du solde Firestore:", error);
-          });
+        try {
+          const userRef = db.collection("users").doc(currentUserId);
+          const doc = await userRef.get();
+          
+          if (doc.exists) {
+            // Le document existe, mettre à jour le solde
+            const currentBalance = doc.data().balance || 0;
+            const newBalance = currentBalance + amount;
+            
+            await userRef.update({
+              balance: newBalance
+            });
+            
+            console.log("Solde mis à jour dans Firestore");
+            return newBalance;
+          } else {
+            // Le document n'existe pas, le créer avec le champ Balance
+            await userRef.set({
+              balance: amount
+            });
+            
+            console.log("Document utilisateur créé avec solde initial");
+            return amount;
+          }
+        } catch (error) {
+          console.error("Erreur lors de la mise à jour du solde Firestore:", error);
+          throw error;
+        }
+      }
+
+      // Mettre à jour l'affichage du solde
+      function updateBalanceDisplay(balance) {
+        balanceEl.textContent = `Solde : ${balance} XAF`;
+        localStorage.setItem('userBalance', balance.toString());
       }
 
       // Obtenir les données utilisateur depuis Firestore
-      function fetchUserData() {
+      async function fetchUserData() {
         // Vérifier l'état d'authentification
-        auth.onAuthStateChanged((user) => {
+        auth.onAuthStateChanged(async (user) => {
           if (user) {
             currentUserId = user.uid;
             
-            db.collection("users").doc(currentUserId).get().then((doc) => {
+            try {
+              const doc = await db.collection("users").doc(currentUserId).get();
+              let userBalance = 0;
+              
               if (doc.exists) {
                 const userData = doc.data();
                 
@@ -1550,26 +1554,22 @@
                 welcomeEl.textContent = `Bienvenue ${userName} sur votre tableau de bord`;
                 
                 // Afficher le solde
-                const userBalance = userData.balance || 0;
-                balanceEl.textContent = `Solde : ${userBalance} XAF`;
-                
-                // Mettre à jour localStorage avec le solde Firestore
-                localStorage.setItem('userBalance', userBalance.toString());
-                
-                // Vérifier si l'utilisateur est nouveau
-                if (isNewUser(currentUserId)) {
-                  showWelcomeModal();
-                }
+                userBalance = userData.balance || 0;
               } else {
-                console.log("Aucun document utilisateur trouvé!");
-                balanceEl.textContent = `Solde : 0 XAF`;
-                
-                // Vérifier si l'utilisateur est nouveau
-                if (isNewUser(currentUserId)) {
-                  showWelcomeModal();
-                }
+                console.log("Aucun document utilisateur trouvé! Création...");
+                // Créer le document utilisateur avec le champ Balance
+                await db.collection("users").doc(currentUserId).set({
+                  balance: 0
+                });
               }
-            }).catch((error) => {
+              
+              updateBalanceDisplay(userBalance);
+              
+              // Vérifier si l'utilisateur est nouveau
+              if (isNewUser(currentUserId)) {
+                showWelcomeModal();
+              }
+            } catch (error) {
               console.log("Erreur lors de la récupération des données utilisateur:", error);
               balanceEl.textContent = `Erreur de chargement`;
               
@@ -1577,7 +1577,7 @@
               if (isNewUser(currentUserId)) {
                 showWelcomeModal();
               }
-            });
+            }
           } else {
             // Aucun utilisateur connecté, rediriger vers la page de connexion
             window.location.href = "login.html";
@@ -1597,7 +1597,7 @@
 
       // Gestion des clics sur les coffres
       chests.forEach(chest => {
-        chest.addEventListener('click', function() {
+        chest.addEventListener('click', async function() {
           // Si ce coffre a déjà été cliqué, on ne fait rien
           if (this.classList.contains('opened')) return;
           
@@ -1624,31 +1624,44 @@
           setTimeout(async () => {
             // Traiter le cadeau
             let giftMessage = '';
-            let giftValue = '';
             
             switch(giftType) {
               case 'money':
-                // Créditer 100 FCFA
-                giftValue = '100 FCFA';
-                updateBalance(100); // Mise à jour UI immédiate
-                updateFirestoreBalance(100); // Mise à jour Firestore
-                giftMessage = `
-                  <div class="gift-message">
-                    <h3>🎉 Félicitations !</h3>
-                    <p>Vous avez gagné <strong>${giftValue}</strong> crédités sur votre solde.</p>
-                    <p>Votre nouveau solde est maintenant disponible dans votre portefeuille.</p>
-                    <div class="modal-actions">
-                      <button class="modal-btn btn-primary" id="closeAfterMoney">Fermer et continuer</button>
+                try {
+                  // Créditer 100 FCFA dans Firestore
+                  const newBalance = await updateFirestoreBalance(100);
+                  
+                  // Mettre à jour l'affichage du solde
+                  updateBalanceDisplay(newBalance);
+                  
+                  giftMessage = `
+                    <div class="gift-message">
+                      <h3>🎉 Félicitations !</h3>
+                      <p>Vous avez gagné <strong>100 FCFA</strong> crédités sur votre solde.</p>
+                      <p>Votre nouveau solde est <strong>${newBalance} XAF</strong>.</p>
+                      <div class="modal-actions">
+                        <button class="modal-btn btn-primary" id="closeAfterMoney">Fermer et continuer</button>
+                      </div>
                     </div>
-                  </div>
-                `;
+                  `;
+                } catch (error) {
+                  giftMessage = `
+                    <div class="gift-message">
+                      <h3>❌ Erreur</h3>
+                      <p>Une erreur est survenue lors du crédit de votre solde.</p>
+                      <p>Veuillez réessayer plus tard ou contacter le support.</p>
+                      <div class="modal-actions">
+                        <button class="modal-btn btn-primary" id="closeAfterError">Fermer</button>
+                      </div>
+                    </div>
+                  `;
+                }
                 break;
                 
               case 'canva':
-                giftValue = 'Abonnement Canva Pro à vie';
                 giftMessage = `
                   <div class="gift-message">
-                    <h3>🎨 ${giftValue} !</h3>
+                    <h3>🎨 Abonnement Canva Pro à vie !</h3>
                     <p>Profitez d'un accès à vie à Canva Pro, l'outil de création graphique premium.</p>
                     <p>Cliquez ci-dessous pour activer votre compte :</p>
                     <div class="modal-actions">
@@ -1664,10 +1677,9 @@
                 break;
                 
               case 'tiktok':
-                giftValue = '10 000 vues TikTok';
                 giftMessage = `
                   <div class="gift-message">
-                    <h3>📱 ${giftValue} !</h3>
+                    <h3>📱 10 000 vues TikTok !</h3>
                     <p>Boostez votre vidéo TikTok avec 10 000 vues réelles et engageantes !</p>
                     <p>Collez le lien de votre vidéo TikTok ci-dessous :</p>
                     <input type="url" 
@@ -1692,7 +1704,10 @@
             // GESTIONNAIRES D'ÉVÉNEMENTS SUPPLEMENTAIRES
             switch(giftType) {
               case 'money':
-                document.getElementById('closeAfterMoney').addEventListener('click', () => {
+                document.getElementById('closeAfterMoney')?.addEventListener('click', () => {
+                  welcomeModal.style.display = 'none';
+                });
+                document.getElementById('closeAfterError')?.addEventListener('click', () => {
                   welcomeModal.style.display = 'none';
                 });
                 break;
