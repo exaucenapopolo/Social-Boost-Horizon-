@@ -1441,15 +1441,18 @@
         }
       }
 
+      // Stocker l'ID utilisateur courant
+      let currentUserId = null;
+
       // Vérifier si l'utilisateur est nouveau
-      function isNewUser() {
-        const welcomeShown = localStorage.getItem('welcomeModalShown');
+      function isNewUser(userId) {
+        const welcomeShown = localStorage.getItem(`welcomeModalShown_${userId}`);
         return welcomeShown === null;
       }
 
       // Marquer l'utilisateur comme "non-nouveau"
-      function markAsReturningUser() {
-        localStorage.setItem('welcomeModalShown', 'true');
+      function markAsReturningUser(userId) {
+        localStorage.setItem(`welcomeModalShown_${userId}`, 'true');
       }
 
       // Fonction pour afficher le modal de bienvenue
@@ -1505,10 +1508,9 @@
         // Vérifier l'état d'authentification
         auth.onAuthStateChanged((user) => {
           if (user) {
-            // Utilisateur connecté, récupérer ses données
-            const userId = user.uid;
+            currentUserId = user.uid;
             
-            db.collection("users").doc(userId).get().then((doc) => {
+            db.collection("users").doc(currentUserId).get().then((doc) => {
               if (doc.exists) {
                 const userData = doc.data();
                 
@@ -1519,21 +1521,26 @@
                 // Afficher le solde
                 const userBalance = userData.balance || 0;
                 balanceEl.textContent = `Solde : ${userBalance} XAF`;
+                
+                // Vérifier si l'utilisateur est nouveau
+                if (isNewUser(currentUserId)) {
+                  showWelcomeModal();
+                }
               } else {
                 console.log("Aucun document utilisateur trouvé!");
                 balanceEl.textContent = `Solde : 0 XAF`;
-              }
-              
-              // CORRECTION: Afficher la modale APRÈS avoir vérifié l'authentification et les données
-              if (isNewUser()) {
-                showWelcomeModal();
+                
+                // Vérifier si l'utilisateur est nouveau
+                if (isNewUser(currentUserId)) {
+                  showWelcomeModal();
+                }
               }
             }).catch((error) => {
               console.log("Erreur lors de la récupération des données utilisateur:", error);
               balanceEl.textContent = `Erreur de chargement`;
               
-              // Afficher la modale même en cas d'erreur si l'utilisateur est nouveau
-              if (isNewUser()) {
+              // Vérifier si l'utilisateur est nouveau
+              if (isNewUser(currentUserId)) {
                 showWelcomeModal();
               }
             });
@@ -1575,7 +1582,9 @@
           this.classList.add('opened');
           
           // Marquer l'utilisateur comme non-nouveau
-          markAsReturningUser();
+          if (currentUserId) {
+            markAsReturningUser(currentUserId);
+          }
           
           // Attendre que l'animation se termine
           setTimeout(async () => {
@@ -1698,7 +1707,9 @@
       // Bouton de fermeture de la modale
       closeModalBtn.addEventListener('click', () => {
         welcomeModal.style.display = 'none';
-        markAsReturningUser();
+        if (currentUserId) {
+          markAsReturningUser(currentUserId);
+        }
       });
 
       // Initialisation
