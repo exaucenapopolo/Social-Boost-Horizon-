@@ -1000,7 +1000,8 @@
     }
 
     /* Champ pour le lien TikTok */
-    .tiktok-link-input {
+    .tiktok-link-input,
+    .email-input {
       width: 100%;
       padding: 12px 15px;
       margin: 15px 0;
@@ -1011,11 +1012,13 @@
       font-size: 1rem;
     }
     
-    .tiktok-link-input::placeholder {
+    .tiktok-link-input::placeholder,
+    .email-input::placeholder {
       color: rgba(255, 255, 255, 0.6);
     }
     
-    .tiktok-submit-btn {
+    .tiktok-submit-btn,
+    .email-submit-btn {
       background: linear-gradient(45deg, #69C9D0, #00f2ea);
       color: white;
       border: none;
@@ -1030,7 +1033,8 @@
       width: fit-content;
     }
     
-    .tiktok-submit-btn:hover {
+    .tiktok-submit-btn:hover,
+    .email-submit-btn:hover {
       transform: translateY(-3px);
       box-shadow: 0 5px 15px rgba(105, 201, 208, 0.4);
     }
@@ -1627,35 +1631,22 @@
             
             switch(giftType) {
               case 'money':
-                try {
-                  // Créditer 100 FCFA dans Firestore
-                  const newBalance = await updateFirestoreBalance(100);
-                  
-                  // Mettre à jour l'affichage du solde
-                  updateBalanceDisplay(newBalance);
-                  
-                  giftMessage = `
-                    <div class="gift-message">
-                      <h3>🎉 Félicitations !</h3>
-                      <p>Vous avez gagné <strong>100 FCFA</strong> crédités sur votre solde.</p>
-                      <p>Votre nouveau solde est <strong>${newBalance} XAF</strong>.</p>
-                      <div class="modal-actions">
-                        <button class="modal-btn btn-primary" id="closeAfterMoney">Fermer et continuer</button>
-                      </div>
+                // Formulaire pour récupérer l'email
+                giftMessage = `
+                  <div class="gift-message">
+                    <h3>🎉 Félicitations !</h3>
+                    <p>Vous avez gagné <strong>100 FCFA</strong> à créditer sur votre solde.</p>
+                    <p>Veuillez entrer l'adresse e-mail associée à votre compte Social Boost Horizon :</p>
+                    <input type="email" 
+                           class="email-input" 
+                           placeholder="Votre adresse e-mail" 
+                           id="userEmailInput"
+                           required>
+                    <div class="modal-actions">
+                      <button class="email-submit-btn" id="submitEmail">Envoyer</button>
                     </div>
-                  `;
-                } catch (error) {
-                  giftMessage = `
-                    <div class="gift-message">
-                      <h3>❌ Erreur</h3>
-                      <p>Une erreur est survenue lors du crédit de votre solde.</p>
-                      <p>Veuillez réessayer plus tard ou contacter le support.</p>
-                      <div class="modal-actions">
-                        <button class="modal-btn btn-primary" id="closeAfterError">Fermer</button>
-                      </div>
-                    </div>
-                  `;
-                }
+                  </div>
+                `;
                 break;
                 
               case 'canva':
@@ -1704,11 +1695,33 @@
             // GESTIONNAIRES D'ÉVÉNEMENTS SUPPLEMENTAIRES
             switch(giftType) {
               case 'money':
-                document.getElementById('closeAfterMoney')?.addEventListener('click', () => {
-                  welcomeModal.style.display = 'none';
-                });
-                document.getElementById('closeAfterError')?.addEventListener('click', () => {
-                  welcomeModal.style.display = 'none';
+                document.getElementById('submitEmail').addEventListener('click', function() {
+                  const userEmail = document.getElementById('userEmailInput').value;
+                  if (!userEmail) {
+                    alert('Veuillez entrer votre adresse e-mail.');
+                    return;
+                  }
+
+                  const message = encodeURIComponent(
+                    `Bonjour, je viens de gagner 100 FCFA sur Social Boost Horizon. Mon adresse e-mail est : ${userEmail}`
+                  );
+                  window.open(`https://api.whatsapp.com/send?phone=+237699853665&text=${message}`, '_blank');
+
+                  // Message de confirmation
+                  giftResult.innerHTML = `
+                    <div class="gift-message">
+                      <h3>✅ Demande envoyée !</h3>
+                      <p>Votre demande de crédit de 100 FCFA a été transmise à notre équipe.</p>
+                      <p>Nous créditerons votre solde dans les plus brefs délais.</p>
+                      <div class="modal-actions">
+                        <button class="modal-btn btn-primary" id="closeAfterEmail">Fermer</button>
+                      </div>
+                    </div>
+                  `;
+
+                  document.getElementById('closeAfterEmail').addEventListener('click', () => {
+                    welcomeModal.style.display = 'none';
+                  });
                 });
                 break;
                 
