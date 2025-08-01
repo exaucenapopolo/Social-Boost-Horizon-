@@ -1443,7 +1443,6 @@
 
       // Stocker l'ID utilisateur courant
       let currentUserId = null;
-      let currentUserBalance = 0;
 
       // Vérifier si l'utilisateur est nouveau
       function isNewUser(userId) {
@@ -1496,47 +1495,53 @@
         });
       }
 
-      // Mettre à jour le solde dans l'UI
-      function updateBalanceUI(newBalance) {
-        balanceEl.textContent = `Solde : ${newBalance} XAF`;
+      // Mettre à jour le solde dans localStorage et UI
+      function updateBalance(amount) {
+        const currentBalance = parseInt(localStorage.getItem('userBalance') || '0');
+        const newBalance = currentBalance + amount;
         localStorage.setItem('userBalance', newBalance.toString());
+        balanceEl.textContent = `Solde : ${newBalance} XAF`;
       }
 
-      // CORRECTION: Mettre à jour le solde dans Firestore (version fonctionnelle)
-      async function updateFirestoreBalance(amount) {
+      // Mettre à jour le solde dans Firestore
+      function updateFirestoreBalance(amount) {
         if (!currentUserId) return;
         
-        try {
-          // Calculer le nouveau solde
-          const newBalance = currentUserBalance + amount;
-          
-          // Mettre à jour Firestore
-          await db.collection("users").doc(currentUserId).update({
-            balance: newBalance
+        // Récupérer le solde actuel de Firestore
+        db.collection("users").doc(currentUserId).get()
+          .then(doc => {
+            if (doc.exists) {
+              const currentFirestoreBalance = doc.data().balance || 0;
+              const newFirestoreBalance = currentFirestoreBalance + amount;
+              
+              // Mettre à jour le solde dans Firestore
+              db.collection("users").doc(currentUserId).update({
+                balance: newFirestoreBalance
+              })
+              .then(() => {
+                console.log("Solde mis à jour dans Firestore");
+                // Mettre à jour le localStorage avec la nouvelle valeur
+                localStorage.setItem('userBalance', newFirestoreBalance.toString());
+                balanceEl.textContent = `Solde : ${newFirestoreBalance} XAF`;
+              })
+              .catch(error => {
+                console.error("Erreur lors de la mise à jour du solde Firestore:", error);
+              });
+            }
+          })
+          .catch(error => {
+            console.error("Erreur lors de la récupération du solde Firestore:", error);
           });
-          
-          console.log("Solde mis à jour dans Firestore:", newBalance);
-          
-          // Mettre à jour les valeurs locales
-          currentUserBalance = newBalance;
-          updateBalanceUI(newBalance);
-          
-          return true;
-        } catch (error) {
-          console.error("ERREUR lors de la mise à jour du solde Firestore:", error);
-          return false;
-        }
       }
 
       // Obtenir les données utilisateur depuis Firestore
       function fetchUserData() {
-        auth.onAuthStateChanged(async (user) => {
+        // Vérifier l'état d'authentification
+        auth.onAuthStateChanged((user) => {
           if (user) {
             currentUserId = user.uid;
             
-            try {
-              const doc = await db.collection("users").doc(currentUserId).get();
-              
+            db.collection("users").doc(currentUserId).get().then((doc) => {
               if (doc.exists) {
                 const userData = doc.data();
                 
@@ -1544,9 +1549,12 @@
                 const userName = userData.username || userData.displayName || userData.name || "Utilisateur";
                 welcomeEl.textContent = `Bienvenue ${userName} sur votre tableau de bord`;
                 
-                // Mettre à jour le solde
-                currentUserBalance = userData.balance || 0;
-                updateBalanceUI(currentUserBalance);
+                // Afficher le solde
+                const userBalance = userData.balance || 0;
+                balanceEl.textContent = `Solde : ${userBalance} XAF`;
+                
+                // Mettre à jour localStorage avec le solde Firestore
+                localStorage.setItem('userBalance', userBalance.toString());
                 
                 // Vérifier si l'utilisateur est nouveau
                 if (isNewUser(currentUserId)) {
@@ -1554,22 +1562,22 @@
                 }
               } else {
                 console.log("Aucun document utilisateur trouvé!");
-                updateBalanceUI(0);
+                balanceEl.textContent = `Solde : 0 XAF`;
                 
                 // Vérifier si l'utilisateur est nouveau
                 if (isNewUser(currentUserId)) {
                   showWelcomeModal();
                 }
               }
-            } catch (error) {
+            }).catch((error) => {
               console.log("Erreur lors de la récupération des données utilisateur:", error);
-              updateBalanceUI(0);
+              balanceEl.textContent = `Erreur de chargement`;
               
               // Vérifier si l'utilisateur est nouveau
               if (isNewUser(currentUserId)) {
                 showWelcomeModal();
               }
-            }
+            });
           } else {
             // Aucun utilisateur connecté, rediriger vers la page de connexion
             window.location.href = "login.html";
@@ -1580,6 +1588,7 @@
       // Déconnexion
       function logout() {
         auth.signOut().then(() => {
+          // Déconnexion réussie, redirection
           window.location.href = 'login.html';
         }).catch((error) => {
           console.error("Erreur de déconnexion", error);
@@ -1588,14 +1597,17 @@
 
       // Gestion des clics sur les coffres
       chests.forEach(chest => {
-        chest.addEventListener('click', async function() {
+        chest.addEventListener('click', function() {
+          // Si ce coffre a déjà été cliqué, on ne fait rien
           if (this.classList.contains('opened')) return;
           
           const giftType = this.getAttribute('data-gift');
           const chestInner = this.querySelector('.chest-inner');
           
           // Désactiver tous les coffres
-          chests.forEach(c => c.style.pointerEvents = 'none');
+          chests.forEach(c => {
+            c.style.pointerEvents = 'none';
+          });
           
           // Animation: rotation du coffre
           chestInner.style.transform = 'rotateY(180deg)';
@@ -1604,46 +1616,39 @@
           this.classList.add('opened');
           
           // Marquer l'utilisateur comme non-nouveau
-          if (currentUserId) markAsReturningUser(currentUserId);
+          if (currentUserId) {
+            markAsReturningUser(currentUserId);
+          }
           
           // Attendre que l'animation se termine
           setTimeout(async () => {
+            // Traiter le cadeau
             let giftMessage = '';
+            let giftValue = '';
             
             switch(giftType) {
               case 'money':
-                // CORRECTION: Mise à jour directe du solde
-                const success = await updateFirestoreBalance(100);
-                
-                if (success) {
-                  giftMessage = `
-                    <div class="gift-message">
-                      <h3>🎉 Félicitations !</h3>
-                      <p>100 FCFA ont été crédités sur votre solde avec succès.</p>
-                      <p>Votre nouveau solde: ${currentUserBalance} XAF</p>
-                      <div class="modal-actions">
-                        <button class="modal-btn btn-primary" id="closeAfterMoney">Fermer</button>
-                      </div>
+                // Créditer 100 FCFA
+                giftValue = '100 FCFA';
+                updateBalance(100); // Mise à jour UI immédiate
+                updateFirestoreBalance(100); // Mise à jour Firestore
+                giftMessage = `
+                  <div class="gift-message">
+                    <h3>🎉 Félicitations !</h3>
+                    <p>Vous avez gagné <strong>${giftValue}</strong> crédités sur votre solde.</p>
+                    <p>Votre nouveau solde est maintenant disponible dans votre portefeuille.</p>
+                    <div class="modal-actions">
+                      <button class="modal-btn btn-primary" id="closeAfterMoney">Fermer et continuer</button>
                     </div>
-                  `;
-                } else {
-                  giftMessage = `
-                    <div class="gift-message">
-                      <h3>⚠️ Erreur</h3>
-                      <p>Une erreur s'est produite lors du crédit des 100 FCFA.</p>
-                      <p>Veuillez contacter le support.</p>
-                      <div class="modal-actions">
-                        <button class="modal-btn btn-primary" id="closeAfterMoney">Fermer</button>
-                      </div>
-                    </div>
-                  `;
-                }
+                  </div>
+                `;
                 break;
                 
               case 'canva':
+                giftValue = 'Abonnement Canva Pro à vie';
                 giftMessage = `
                   <div class="gift-message">
-                    <h3>🎨 Abonnement Canva Pro à vie !</h3>
+                    <h3>🎨 ${giftValue} !</h3>
                     <p>Profitez d'un accès à vie à Canva Pro, l'outil de création graphique premium.</p>
                     <p>Cliquez ci-dessous pour activer votre compte :</p>
                     <div class="modal-actions">
@@ -1659,9 +1664,10 @@
                 break;
                 
               case 'tiktok':
+                giftValue = '10 000 vues TikTok';
                 giftMessage = `
                   <div class="gift-message">
-                    <h3>📱 10 000 vues TikTok !</h3>
+                    <h3>📱 ${giftValue} !</h3>
                     <p>Boostez votre vidéo TikTok avec 10 000 vues réelles et engageantes !</p>
                     <p>Collez le lien de votre vidéo TikTok ci-dessous :</p>
                     <input type="url" 
@@ -1679,74 +1685,89 @@
             
             // Afficher le résultat du cadeau
             giftResult.innerHTML = giftMessage;
+            
+            // Lancer l'animation de confettis
             createConfetti();
             
-            // Gestionnaires d'événements supplémentaires
-            if (giftType === 'money') {
-              document.getElementById('closeAfterMoney').addEventListener('click', () => {
-                welcomeModal.style.display = 'none';
-              });
-            } 
-            else if (giftType === 'canva') {
-              document.getElementById('closeAfterCanva').addEventListener('click', () => {
-                welcomeModal.style.display = 'none';
-              });
-            }
-            else if (giftType === 'tiktok') {
-              document.getElementById('submitTikTok').addEventListener('click', function() {
-                const tiktokLink = document.getElementById('tiktokLinkInput').value;
-                if (!tiktokLink) {
-                  alert('Veuillez coller un lien TikTok valide.');
-                  return;
-                }
-                
-                const message = encodeURIComponent(
-                  `Bonjour, je viens de gagner 10 000 vues TikTok sur Social Boost Horizon. Voici le lien de ma vidéo : ${tiktokLink}`
-                );
-                window.open(`https://api.whatsapp.com/send?phone=+237699853665&text=${message}`, '_blank');
-                
-                // Message de confirmation
-                giftResult.innerHTML = `
-                  <div class="gift-message">
-                    <h3>✅ Demande envoyée !</h3>
-                    <p>Votre demande de 10 000 vues a été transmise à notre équipe.</p>
-                    <p>Nous traiterons votre demande dans les plus brefs délais.</p>
-                    <div class="modal-actions">
-                      <button class="modal-btn btn-primary" id="closeAfterTikTok">Fermer</button>
-                    </div>
-                  </div>
-                `;
-                
-                document.getElementById('closeAfterTikTok').addEventListener('click', () => {
+            // GESTIONNAIRES D'ÉVÉNEMENTS SUPPLEMENTAIRES
+            switch(giftType) {
+              case 'money':
+                document.getElementById('closeAfterMoney').addEventListener('click', () => {
                   welcomeModal.style.display = 'none';
                 });
-              });
+                break;
+                
+              case 'canva':
+                document.getElementById('closeAfterCanva').addEventListener('click', () => {
+                  welcomeModal.style.display = 'none';
+                });
+                break;
+                
+              case 'tiktok':
+                document.getElementById('submitTikTok').addEventListener('click', function() {
+                  const tiktokLink = document.getElementById('tiktokLinkInput').value;
+                  if (!tiktokLink) {
+                    alert('Veuillez coller un lien TikTok valide.');
+                    return;
+                  }
+                  
+                  const message = encodeURIComponent(
+                                    `Bonjour, je viens de gagner 10 000 vues TikTok sur Social Boost Horizon. Voici le lien de ma vidéo : ${tiktokLink}`
+                                  );
+                  window.open(`https://api.whatsapp.com/send?phone=+237699853665&text=${message}`, '_blank');
+                  
+                  // Message de confirmation
+                  giftResult.innerHTML = `
+                    <div class="gift-message">
+                      <h3>✅ Demande envoyée !</h3>
+                      <p>Votre demande de 10 000 vues a été transmise à notre équipe.</p>
+                      <p>Nous traiterons votre demande dans les plus brefs délais.</p>
+                      <div class="modal-actions">
+                        <button class="modal-btn btn-primary" id="closeAfterTikTok">Fermer</button>
+                      </div>
+                    </div>
+                  `;
+                  
+                  document.getElementById('closeAfterTikTok').addEventListener('click', () => {
+                    welcomeModal.style.display = 'none';
+                  });
+                });
+                break;
             }
-          }, 800);
+            
+          }, 800); // Délai correspondant à la durée de l'animation
         });
       });
 
       // Bouton de fermeture de la modale
       closeModalBtn.addEventListener('click', () => {
         welcomeModal.style.display = 'none';
-        if (currentUserId) markAsReturningUser(currentUserId);
+        if (currentUserId) {
+          markAsReturningUser(currentUserId);
+        }
       });
 
       // Initialisation
-      fetchUserData();
+      function initializePage() {
+        // Récupérer les données utilisateur depuis Firestore
+        fetchUserData();
+      }
 
-      // Bouton dépôt rapide
+      // Bouton dépôt rapide - redirection vers fonds.html
       quickDeposit.addEventListener('click', () => {
         window.location.href = "fonds.html";
       });
 
       // Gère la déconnexion
       logoutBtn.addEventListener('click', () => {
-        if (confirm("Voulez-vous vraiment vous déconnecter ?")) logout();
+        if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+          logout();
+        }
       });
 
-      // Initialiser Tawk.to
+      // Initialiser Tawk.to après le chargement de la page
       window.addEventListener('load', () => {
+        // Tawk.to Script
         var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
         (function(){
           var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
@@ -1755,6 +1776,9 @@
           s0.parentNode.insertBefore(s1,s0);
         })();
       });
+
+      // Initialisation
+      initializePage();
     });
   </script>
 </body>
