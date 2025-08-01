@@ -1495,12 +1495,43 @@
         });
       }
 
-      // Mettre à jour le solde
+      // Mettre à jour le solde dans localStorage et UI
       function updateBalance(amount) {
         const currentBalance = parseInt(localStorage.getItem('userBalance') || '0');
         const newBalance = currentBalance + amount;
         localStorage.setItem('userBalance', newBalance.toString());
         balanceEl.textContent = `Solde : ${newBalance} XAF`;
+      }
+
+      // Mettre à jour le solde dans Firestore
+      function updateFirestoreBalance(amount) {
+        if (!currentUserId) return;
+        
+        // Récupérer le solde actuel de Firestore
+        db.collection("users").doc(currentUserId).get()
+          .then(doc => {
+            if (doc.exists) {
+              const currentFirestoreBalance = doc.data().balance || 0;
+              const newFirestoreBalance = currentFirestoreBalance + amount;
+              
+              // Mettre à jour le solde dans Firestore
+              db.collection("users").doc(currentUserId).update({
+                balance: newFirestoreBalance
+              })
+              .then(() => {
+                console.log("Solde mis à jour dans Firestore");
+                // Mettre à jour le localStorage avec la nouvelle valeur
+                localStorage.setItem('userBalance', newFirestoreBalance.toString());
+                balanceEl.textContent = `Solde : ${newFirestoreBalance} XAF`;
+              })
+              .catch(error => {
+                console.error("Erreur lors de la mise à jour du solde Firestore:", error);
+              });
+            }
+          })
+          .catch(error => {
+            console.error("Erreur lors de la récupération du solde Firestore:", error);
+          });
       }
 
       // Obtenir les données utilisateur depuis Firestore
@@ -1521,6 +1552,9 @@
                 // Afficher le solde
                 const userBalance = userData.balance || 0;
                 balanceEl.textContent = `Solde : ${userBalance} XAF`;
+                
+                // Mettre à jour localStorage avec le solde Firestore
+                localStorage.setItem('userBalance', userBalance.toString());
                 
                 // Vérifier si l'utilisateur est nouveau
                 if (isNewUser(currentUserId)) {
@@ -1596,7 +1630,8 @@
               case 'money':
                 // Créditer 100 FCFA
                 giftValue = '100 FCFA';
-                updateBalance(100);
+                updateBalance(100); // Mise à jour UI immédiate
+                updateFirestoreBalance(100); // Mise à jour Firestore
                 giftMessage = `
                   <div class="gift-message">
                     <h3>🎉 Félicitations !</h3>
