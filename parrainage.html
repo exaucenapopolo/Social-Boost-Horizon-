@@ -541,9 +541,26 @@
     .filleuls-container:hover::before {
       transform: translateY(0);
     }
-    .filleuls-container h2 {
-      text-align: center;
-      margin-bottom: 25px;
+    .filleuls-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+    .filleuls-header h2 {
+      margin-bottom: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .filleuls-header h2 i {
+      color: var(--sbh-icon-color);
+    }
+    .filleuls-actions {
+      display: flex;
+      gap: 10px;
     }
     .filleuls-list {
       list-style: none;
@@ -579,6 +596,26 @@
       padding: 20px;
       color: rgba(255, 255, 255, 0.7);
       font-style: italic;
+    }
+    .filleuls-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .filleuls-counter {
+      font-weight: 500;
+      color: var(--sbh-light-blue);
+    }
+    #loadMoreBtn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    #loadMoreBtn:disabled:hover {
+      transform: none;
+      box-shadow: none;
     }
 
     /* Bouton de retour */
@@ -844,6 +881,18 @@
       .filleul-date {
         text-align: left;
       }
+      .filleuls-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .filleuls-actions {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .filleuls-footer {
+        flex-direction: column;
+        gap: 15px;
+      }
     }
     @media (max-width: 480px) {
       h1 {
@@ -935,10 +984,30 @@
 
     <!-- Liste des filleuls -->
     <div class="filleuls-container" data-aos="fade-up">
-      <h2>Vos filleuls</h2>
+      <div class="filleuls-header">
+        <h2><i class="fas fa-users"></i> Vos filleuls</h2>
+        <div class="filleuls-actions">
+          <button id="refreshFilleulsBtn" class="btn">
+            <i class="fas fa-sync"></i> Rafraîchir
+          </button>
+          <button id="loadMoreBtn" class="btn">
+            <i class="fas fa-plus"></i> Voir plus
+          </button>
+        </div>
+      </div>
+      
       <ul id="filleulsList" class="filleuls-list">
         <li class="no-filleuls">Chargement de vos filleuls...</li>
       </ul>
+      
+      <div class="filleuls-footer">
+        <div class="filleuls-counter">
+          Total : <span id="totalFilleuls">0</span> filleul(s)
+        </div>
+        <div id="paginationInfo" class="filleuls-counter">
+          Affichés : <span id="displayedCount">0</span> sur <span id="totalCount">0</span>
+        </div>
+      </div>
     </div>
 
     <!-- Étapes du parrainage -->
@@ -1172,6 +1241,11 @@
       const db = firebase.firestore();
       const logoutBtn = document.getElementById('logoutBtn');
 
+      // Variables pour la pagination des filleuls
+      let allFilleuls = [];
+      let displayedFilleuls = 5; // Nombre de filleuls affichés par défaut
+      const filleulsPerPage = 5; // Nombre de filleuls supplémentaires à afficher
+
       // Affichage du code ET du lien de parrainage
       auth.onAuthStateChanged(async user => {
         if (!user) return window.location.href = 'login.html';
@@ -1221,34 +1295,96 @@
           });
           
           // Conversion en tableau et tri par date
-          const allFilleuls = Array.from(filleulsMap.values());
+          allFilleuls = Array.from(filleulsMap.values());
           allFilleuls.sort((a, b) => b.createdAt.toDate() - a.createdAt.toDate());
           
+          // Réinitialiser l'affichage
+          displayedFilleuls = Math.min(filleulsPerPage, allFilleuls.length);
+          
+          // Mettre à jour les compteurs
+          updateFilleulsCounters();
+          
           // Affichage des résultats
-          if (allFilleuls.length === 0) {
-            filleulsList.innerHTML = '<li class="no-filleuls">Vous n\'avez pas encore de filleuls.</li>';
-          } else {
-            filleulsList.innerHTML = '';
-            
-            allFilleuls.forEach(filleul => {
-              const date = filleul.createdAt.toDate();
-              const formattedDate = `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
-              
-              const li = document.createElement('li');
-              li.className = 'filleul-item';
-              li.innerHTML = `
-                <span class="filleul-username">${filleul.username || 'Utilisateur sans nom'}</span>
-                <span class="filleul-date">Inscrit le ${formattedDate}</span>
-              `;
-              filleulsList.appendChild(li);
-            });
-          }
+          displayFilleuls();
           
         } catch (error) {
           console.error("Erreur lors de la récupération des filleuls: ", error);
           filleulsList.innerHTML = '<li class="no-filleuls">Erreur lors du chargement des filleuls. Veuillez réessayer plus tard.</li>';
+          updateFilleulsCounters();
         }
       }
+      
+      // Fonction pour afficher les filleuls
+      function displayFilleuls() {
+        const filleulsList = document.getElementById('filleulsList');
+        
+        if (allFilleuls.length === 0) {
+          filleulsList.innerHTML = '<li class="no-filleuls">Vous n\'avez pas encore de filleuls.</li>';
+          return;
+        }
+        
+        filleulsList.innerHTML = '';
+        
+        // Afficher uniquement le nombre de filleuls spécifié
+        const filleulsToShow = allFilleuls.slice(0, displayedFilleuls);
+        
+        filleulsToShow.forEach(filleul => {
+          const date = filleul.createdAt.toDate();
+          const formattedDate = `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+          
+          const li = document.createElement('li');
+          li.className = 'filleul-item';
+          li.innerHTML = `
+            <span class="filleul-username">${filleul.username || 'Utilisateur sans nom'}</span>
+            <span class="filleul-date">Inscrit le ${formattedDate}</span>
+          `;
+          filleulsList.appendChild(li);
+        });
+        
+        // Mettre à jour le bouton "Voir plus"
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        if (displayedFilleuls >= allFilleuls.length) {
+          loadMoreBtn.disabled = true;
+          loadMoreBtn.innerHTML = '<i class="fas fa-ban"></i> Fin de la liste';
+        } else {
+          loadMoreBtn.disabled = false;
+          loadMoreBtn.innerHTML = '<i class="fas fa-plus"></i> Voir plus';
+        }
+      }
+      
+      // Fonction pour mettre à jour les compteurs
+      function updateFilleulsCounters() {
+        document.getElementById('totalFilleuls').textContent = allFilleuls.length;
+        document.getElementById('displayedCount').textContent = Math.min(displayedFilleuls, allFilleuls.length);
+        document.getElementById('totalCount').textContent = allFilleuls.length;
+      }
+      
+      // Bouton "Voir plus"
+      document.getElementById('loadMoreBtn').addEventListener('click', () => {
+        displayedFilleuls = Math.min(displayedFilleuls + filleulsPerPage, allFilleuls.length);
+        displayFilleuls();
+        updateFilleulsCounters();
+      });
+      
+      // Bouton "Rafraîchir"
+      document.getElementById('refreshFilleulsBtn').addEventListener('click', () => {
+        auth.onAuthStateChanged(async user => {
+          if (!user) return;
+          const snap = await db.collection('users').doc(user.uid).get();
+          const code = snap.data().referralCode || 'N/A';
+          loadFilleuls(user.uid, code);
+          
+          // Animation de rafraîchissement
+          const refreshBtn = document.getElementById('refreshFilleulsBtn');
+          refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Chargement...';
+          refreshBtn.disabled = true;
+          
+          setTimeout(() => {
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = '<i class="fas fa-sync"></i> Rafraîchir';
+          }, 2000);
+        });
+      });
 
       // Copier le code
       document.getElementById('copyCodeBtn').addEventListener('click', () => {
