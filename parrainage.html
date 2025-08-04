@@ -543,6 +543,72 @@
       margin-right: 10px;
     }
 
+    /* Section filleuls */
+    .filleuls-container {
+      background: rgba(20, 35, 60, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 15px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      padding: 25px;
+      margin-bottom: 40px;
+      backdrop-filter: blur(5px);
+      position: relative;
+      overflow: hidden;
+    }
+    .filleuls-container::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      transform: translateY(-100%);
+      transition: transform 0.4s ease;
+    }
+    .filleuls-container:hover::before {
+      transform: translateY(0);
+    }
+    .filleuls-container h2 {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+    .filleuls-list {
+      list-style: none;
+      padding: 0;
+    }
+    .filleul-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 15px;
+      background: rgba(17, 32, 58, 0.8);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+    }
+    .filleul-item:hover {
+      transform: translateX(5px);
+      border-color: var(--sbh-light-blue);
+      background: rgba(30, 60, 114, 0.5);
+    }
+    .filleul-username {
+      font-weight: 500;
+      color: var(--sbh-text-white);
+      flex: 1;
+    }
+    .filleul-date {
+      color: rgba(255, 255, 255, 0.8);
+      min-width: 100px;
+      text-align: right;
+    }
+    .no-filleuls {
+      text-align: center;
+      padding: 20px;
+      color: rgba(255, 255, 255, 0.7);
+      font-style: italic;
+    }
+
     /* FOOTER */
     footer {
       background: linear-gradient(to right, var(--sbh-gradient-start), var(--sbh-gradient-end));
@@ -771,6 +837,13 @@
         height: 30px;
         left: 15px;
       }
+      .filleul-item {
+        flex-direction: column;
+        gap: 8px;
+      }
+      .filleul-date {
+        text-align: left;
+      }
     }
     @media (max-width: 480px) {
       h1 {
@@ -852,12 +925,20 @@
         <p>Votre lien personnel pour inviter de nouveaux membres</p>
         
         <div class="code-box">
-          <span id="referralLink">https://votresite.com/registre.html?ref=—</span>
+          <span id="referralLink">https://socialboosthorizon.com/register.html?ref=—</span>
           <button id="copyLinkBtn" class="btn">
             <i class="fas fa-link"></i> Copier
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- Liste des filleuls -->
+    <div class="filleuls-container" data-aos="fade-up">
+      <h2>Vos filleuls</h2>
+      <ul id="filleulsList" class="filleuls-list">
+        <li class="no-filleuls">Chargement de la liste des filleuls...</li>
+      </ul>
     </div>
 
     <!-- Étapes du parrainage -->
@@ -1098,8 +1179,48 @@
         const code = snap.data().referralCode || 'N/A';
         document.getElementById('referralCode').textContent = code;
         document.getElementById('referralLink').textContent =
-          `${window.location.origin}/registre.html?ref=${code}`;
+          `${window.location.origin}/register.html?ref=${code}`;
+          
+        // Récupération des filleuls
+        loadFilleuls(user.uid);
       });
+
+      // Fonction pour charger et afficher les filleuls
+      async function loadFilleuls(userId) {
+        const filleulsList = document.getElementById('filleulsList');
+        filleulsList.innerHTML = '<li class="no-filleuls">Chargement de la liste des filleuls...</li>';
+        
+        try {
+          const querySnapshot = await db.collection('users')
+            .where('referredBy', '==', userId)
+            .orderBy('createdAt', 'desc')
+            .get();
+          
+          if (querySnapshot.empty) {
+            filleulsList.innerHTML = '<li class="no-filleuls">Vous n\'avez pas encore de filleuls.</li>';
+            return;
+          }
+          
+          filleulsList.innerHTML = '';
+          
+          querySnapshot.forEach(doc => {
+            const filleul = doc.data();
+            const date = filleul.createdAt.toDate(); // Convertir le timestamp en date
+            const formattedDate = `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+            
+            const li = document.createElement('li');
+            li.className = 'filleul-item';
+            li.innerHTML = `
+              <span class="filleul-username">${filleul.username || 'Utilisateur sans nom'}</span>
+              <span class="filleul-date">Inscrit le ${formattedDate}</span>
+            `;
+            filleulsList.appendChild(li);
+          });
+        } catch (error) {
+          console.error("Erreur lors de la récupération des filleuls: ", error);
+          filleulsList.innerHTML = '<li class="no-filleuls">Erreur lors du chargement des filleuls. Veuillez réessayer plus tard.</li>';
+        }
+      }
 
       // Copier le code
       document.getElementById('copyCodeBtn').addEventListener('click', () => {
