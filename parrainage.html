@@ -17,7 +17,9 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
   <style>
-    /* Variables & fond global */
+    /* =======================================================
+       Variables & fond global bleu sombre
+       ======================================================= */
     :root {
       --sbh-dark-blue: #0A162B;
       --sbh-gradient-start: #1e3c72;
@@ -35,6 +37,7 @@
       --sbh-parrainage-gradient: linear-gradient(135deg, #6a0dad, #1e3c72, #0A162B);
     }
 
+    /* Body et fond animé (étoiles + nuages) */
     body {
       margin: 0;
       padding: 0;
@@ -49,7 +52,7 @@
       flex-direction: column;
     }
 
-    /* Animation étoiles */
+    /* Animation étoiles + nuages */
     .background-animation {
       position: fixed;
       top: 0;
@@ -99,8 +102,72 @@
       50%  { opacity: 0.7; transform: scale(1.1); }
       100% { opacity: 0.3; transform: scale(1); }
     }
+    .background-animation .cloud {
+      position: absolute;
+      background: white;
+      border-radius: 50%;
+      opacity: 0.1;
+      filter: blur(20px);
+      animation: moveClouds linear infinite;
+    }
+    @keyframes moveClouds {
+      0%   { transform: translateX(0) scale(var(--scale, 1)); }
+      100% { transform: translateX(calc(100vw + var(--width, 200px))) scale(var(--scale, 1)); }
+    }
 
-    /* Header */
+    /* Reset global & typographie */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    h1, h2, h3 {
+      font-family: 'Montserrat', sans-serif;
+      color: var(--sbh-text-white);
+    }
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      position: relative;
+      display: inline-block;
+      width: 100%;
+    }
+    h1::after {
+      content: "";
+      position: absolute;
+      bottom: -15px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 5px;
+      background: linear-gradient(90deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      border-radius: 3px;
+    }
+    h2 {
+      font-size: 2rem;
+      margin-bottom: 1.5rem;
+      position: relative;
+      display: inline-block;
+    }
+    h2::after {
+      content: "";
+      position: absolute;
+      bottom: -10px;
+      left: 0;
+      width: 60px;
+      height: 4px;
+      background: linear-gradient(90deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      border-radius: 2px;
+    }
+    p {
+      font-size: 1rem;
+      color: var(--sbh-text-light);
+      margin-bottom: 1rem;
+      line-height: 1.6;
+    }
+
+    /* HEADER */
     header {
       position: sticky;
       top: 0;
@@ -151,6 +218,7 @@
     .icon-hamburger:hover {
       transform: scale(1.1);
     }
+    /* Menu mobile caché par défaut */
     .mobile-menu {
       display: none;
       position: absolute;
@@ -477,30 +545,9 @@
       text-align: center;
       margin-bottom: 25px;
     }
-    .filleuls-header {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 15px;
-      padding: 0 10px;
-      font-weight: bold;
-      color: var(--sbh-light-blue);
-    }
     .filleuls-list {
       list-style: none;
       padding: 0;
-      max-height: 400px;
-      overflow-y: auto;
-    }
-    .filleuls-list::-webkit-scrollbar {
-      width: 8px;
-    }
-    .filleuls-list::-webkit-scrollbar-track {
-      background: rgba(255,255,255,0.1);
-      border-radius: 10px;
-    }
-    .filleuls-list::-webkit-scrollbar-thumb {
-      background: var(--sbh-light-blue);
-      border-radius: 10px;
     }
     .filleul-item {
       display: flex;
@@ -511,11 +558,6 @@
       margin-bottom: 10px;
       border: 1px solid rgba(255, 255, 255, 0.1);
       transition: all 0.3s ease;
-      animation: fadeIn 0.5s ease-out;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
     }
     .filleul-item:hover {
       transform: translateX(5px);
@@ -537,12 +579,6 @@
       padding: 20px;
       color: rgba(255, 255, 255, 0.7);
       font-style: italic;
-    }
-    .filleuls-info {
-      text-align: center;
-      margin-top: 15px;
-      font-size: 0.9rem;
-      color: var(--sbh-light-blue);
     }
 
     /* Bouton de retour */
@@ -834,7 +870,7 @@
   </style>
 </head>
 <body>
-  <!-- Fond animé (étoiles) -->
+  <!-- Fond animé (étoiles + nuages) -->
   <div class="background-animation"></div>
 
   <!-- Header avec logo et menu hamburger -->
@@ -900,14 +936,9 @@
     <!-- Liste des filleuls -->
     <div class="filleuls-container" data-aos="fade-up">
       <h2>Vos filleuls</h2>
-      <div class="filleuls-header">
-        <span>Nom d'utilisateur</span>
-        <span>Date d'inscription</span>
-      </div>
       <ul id="filleulsList" class="filleuls-list">
         <li class="no-filleuls">Chargement de vos filleuls...</li>
       </ul>
-      <div class="filleuls-info" id="filleulsCount">0 filleuls au total</div>
     </div>
 
     <!-- Étapes du parrainage -->
@@ -1061,6 +1092,34 @@
     document.addEventListener("DOMContentLoaded", function () {
       AOS.init({ duration: 800, once: true, offset: 100 });
 
+      // Animation des nuages
+      const backgroundAnimation = document.querySelector(".background-animation");
+      const numberOfClouds = 20;
+
+      for (let i = 0; i < numberOfClouds; i++) {
+        const cloud = document.createElement("div");
+        cloud.classList.add("cloud");
+
+        const size = Math.random() * (250 - 150) + 150;
+        cloud.style.width = `${size}px`;
+        cloud.style.height = `${size * 0.6}px`;
+        cloud.style.borderRadius = `${size / 2}px / ${size * 0.3}px`;
+
+        cloud.style.left = `${Math.random() * 100 + 100}vw`;
+        cloud.style.top = `${Math.random() * 85}vh`;
+
+        const animationDuration = Math.random() * (60 - 30) + 30;
+        cloud.style.animationDuration = `${animationDuration}s`;
+
+        cloud.style.animationDelay = `${Math.random() * -animationDuration}s`;
+
+        cloud.style.setProperty("--width", `${size}px`);
+        const scale = Math.random() * (1.1 - 0.9) + 0.9;
+        cloud.style.setProperty("--scale", scale);
+
+        backgroundAnimation.appendChild(cloud);
+      }
+
       // Gestion du menu hamburger
       const header = document.querySelector("header");
       const hamburger = document.querySelector(".icon-hamburger");
@@ -1075,6 +1134,25 @@
         }
       });
       
+      // Gestion de la newsletter
+      const newsletterForm = document.getElementById("newsletterForm");
+      const newsletterMessage = document.getElementById("newsletterMessage");
+      
+      newsletterForm.addEventListener("submit", function(e) {
+        e.preventDefault();
+        const emailInput = this.querySelector('input[type="email"]');
+        
+        // Simulation d'envoi
+        newsletterMessage.textContent = "Merci pour votre inscription! Vous recevrez bientôt nos actualités.";
+        newsletterMessage.style.display = "block";
+        emailInput.value = "";
+        
+        // Cacher le message après 5 secondes
+        setTimeout(() => {
+          newsletterMessage.style.display = "none";
+        }, 5000);
+      });
+
       // Configuration Firebase
       const firebaseConfig = {
         apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
@@ -1166,14 +1244,9 @@
             });
           }
           
-          // Mise à jour du compteur
-          document.getElementById('filleulsCount').textContent = 
-            `${allFilleuls.length} filleul${allFilleuls.length > 1 ? 's' : ''} au total`;
-          
         } catch (error) {
           console.error("Erreur lors de la récupération des filleuls: ", error);
           filleulsList.innerHTML = '<li class="no-filleuls">Erreur lors du chargement des filleuls. Veuillez réessayer plus tard.</li>';
-          document.getElementById('filleulsCount').textContent = '';
         }
       }
 
@@ -1224,6 +1297,20 @@
         }
       });
     });
+  </script>
+
+  <!-- Assistant virtuel Tawk.to -->
+  <script type="text/javascript">
+    var Tawk_API = Tawk_API || {}, Tawk_LoadStart = new Date();
+    (function(){
+      var s1 = document.createElement("script"),
+          s0 = document.getElementsByTagName("script")[0];
+      s1.async = true;
+      s1.src = 'https://embed.tawk.to/6820b4dbbca8a11909dc7b3e/default';
+      s1.charset = 'UTF-8';
+      s1.setAttribute('crossorigin','*');
+      s0.parentNode.insertBefore(s1, s0);
+    })();
   </script>
 </body>
 </html>
