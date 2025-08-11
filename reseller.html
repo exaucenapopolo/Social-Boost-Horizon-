@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Espace Revendeur - Social Boost Horizon</title>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@600;700;800&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <!-- AOS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+  <style>
+    /* Variables & fond global bleu sombre */
+    :root {
+      --sbh-dark-blue: #0A162B;
+      --sbh-gradient-start: #1e3c72;
+      --sbh-gradient-end: #6a0dad;
+      --sbh-btn-color: #1E90FF;
+      --sbh-btn-hover: #187bcd;
+      --sbh-icon-color: #4CAF50;
+      --sbh-text-white: #FFFFFF;
+      --sbh-text-green: #4CAF50;
+      --sbh-card-bg: rgba(17, 32, 58, 0.6);
+      --sbh-card-border: rgba(255, 255, 255, 0.1);
+      --sbh-text-light: rgba(255, 255, 255, 0.9);
+      --sbh-accent: #FF6B6B;
+      --sbh-light-blue: #4DA6FF;
+      --sbh-card-radius: 12px;
+      --gold-primary: #FFD700;
+      --gold-secondary: #D4AF37;
+      --gold-tertiary: #FFC107;
+      --reseller-amateur: #4CAF50; /* Vert */
+      --reseller-intermediate: #FFC107; /* Jaune */
+      --reseller-professional: #FF5722; /* Orange */
+    }
+
+    /* Body et fond animé (étoiles + nuages) */
+    body {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Roboto', sans-serif;
+      color: var(--sbh-text-white);
+      background: var(--sbh-dark-blue);
+      position: relative;
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Animation étoiles + nuages */
+    .background-animation {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      background-color: var(--sbh-dark-blue);
+      overflow: hidden;
+    }
+    .background-animation::before,
+    .background-animation::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.4);
+      animation: twinkle 5s infinite alternate;
+    }
+    .background-animation::before {
+      width: 2px;
+      height: 2px;
+      box-shadow:
+        100px  50px  0 0 white, 200px 150px  0 0 white, 300px 250px  0 0 white,
+        400px  70px  0 0 white,  50px 300px  0 0 white, 350px 100px  0 0 white,
+        500px 400px  0 0 white, 600px 120px  0 0 white, 700px 350px  0 0 white,
+        80px  10px  0 0 white, 420px 220px 0 0 white, 680px 50px 0 0 white,
+        150px 450px 0 0 white, 550px 320px 0 0 white, 220px 180px 0 0 white,
+        780px 280px 0 0 white, 120px 70px 0 0 white, 480px 380px 0 0 white,
+        850px 150px 0 0 white, 90px 390px 0 0 white;
+      animation-delay: 0s;
+    }
+    .background-animation::after {
+      width: 3px;
+      height: 3px;
+      box-shadow:
+        150px 200px  0 0 white, 250px 300px  0 0 white,  50px 100px  0 0 white,
+        300px  10px  0 0 white, 450px 200px  0 0 white,  10px 250px  0 0 white,
+        550px  50px  0 0 white, 650px 280px  0 0 white, 750px  150px  0 0 white,
+        20px  400px 0 0 white, 380px 180px 0 0 white, 620px 430px 0 0 white,
+        250px 20px 0 0 white, 700px 480px 0 0 white, 330px 50px 0 0 white,
+        800px 300px 0 0 white, 50px 500px 0 0 white, 900px 200px 0 0 white,
+        180px 420px 0 0 white, 720px 100px 0 0 white;
+      animation-delay: 2s;
+    }
+    @keyframes twinkle {
+      0%   { opacity: 0.3; transform: scale(1); }
+      50%  { opacity: 0.7; transform: scale(1.1); }
+      100% { opacity: 0.3; transform: scale(1); }
+    }
+    .background-animation .cloud {
+      position: absolute;
+      background: white;
+      border-radius: 50%;
+      opacity: 0.1;
+      filter: blur(20px);
+      animation: moveClouds linear infinite;
+    }
+    @keyframes moveClouds {
+      0%   { transform: translateX(0) scale(var(--scale, 1)); }
+      100% { transform: translateX(calc(100vw + var(--width, 200px))) scale(var(--scale, 1)); }
+    }
+
+    /* Reset global & typographie */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    h1, h2, h3 {
+      font-family: 'Montserrat', sans-serif;
+      color: var(--sbh-text-white);
+      text-align: center;
+    }
+    h2 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      position: relative;
+      display: inline-block;
+    }
+    h2::after {
+      content: "";
+      position: absolute;
+      bottom: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 4px;
+      background: linear-gradient(90deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      border-radius: 2px;
+    }
+    p {
+      font-size: 1rem;
+      color: var(--sbh-text-light);
+      margin-bottom: 1rem;
+      line-height: 1.6;
+    }
+
+    /* HEADER - Nouveau design */
+    header {
+      position: sticky;
+      top: 0;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    .header-icons {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .logo-text {
+      display: flex;
+      flex-direction: column;
+      font-family: 'Poppins', sans-serif;
+      text-decoration: none;
+      line-height: 1.2;
+    }
+    .logo-text .text-social,
+    .logo-text .text-horizon {
+      color: var(--sbh-text-white);
+      font-size: 1.3rem;
+      font-weight: 600;
+    }
+    .logo-text .boost-line {
+      display: flex;
+      align-items: center;
+      color: var(--sbh-text-green);
+      font-size: 1.8rem;
+      font-weight: 800;
+    }
+    .logo-text .boost-line img {
+      height: 1.8rem;
+      margin-right: 0.4rem;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    .icon-hamburger {
+      font-size: 1.8rem;
+      color: var(--sbh-text-white);
+      cursor: pointer;
+      transition: transform 0.3s;
+    }
+    .icon-hamburger:hover {
+      transform: scale(1.1);
+    }
+    /* Icône profil Snapchat */
+    .snap-avatar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #fffc00, #ffdc00 50%, #ffbc00);
+      color: white;
+      font-size: 1.4rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      border: 2px solid white;
+    }
+    .snap-avatar::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+    }
+    .snap-avatar:hover {
+      transform: translateY(-2px) rotate(5deg);
+      box-shadow: 0 5px 15px rgba(255, 220, 0, 0.4);
+    }
+    .snap-avatar:hover::after {
+      transform: translateX(100%);
+    }
+    /* Menu mobile caché par défaut */
+    .mobile-menu {
+      display: none;
+      position: absolute;
+      top: 68px;
+      right: 2rem;
+      background: rgba(10, 22, 43, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      padding: 1.5rem;
+      flex-direction: column;
+      z-index: 200;
+      min-width: 250px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+    header.open .mobile-menu {
+      display: flex;
+    }
+    .mobile-menu a {
+      color: var(--sbh-text-white);
+      text-decoration: none;
+      padding: 0.8rem 1rem;
+      font-weight: 500;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .mobile-menu a:last-child {
+      border-bottom: none;
+    }
+    .mobile-menu a i {
+      margin-right: 10px;
+      color: var(--sbh-light-blue);
+      width: 24px;
+      text-align: center;
+      transition: transform 0.3s;
+    }
+    .mobile-menu a:hover {
+      background: rgba(30, 60, 114, 0.3);
+      border-radius: 6px;
+      transform: translateX(5px);
+    }
+    .mobile-menu a:hover i {
+      transform: translateX(5px);
+    }
+    .mobile-menu a::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+    }
+    .mobile-menu a:hover::after {
+      transform: translateX(0);
+    }
+
+    /* SOLDE & DÉPÔT - Animations améliorées */
+    .balance-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 25px;
+      margin: 20px;
+      background: rgba(20, 35, 60, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 15px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .balance-section::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+      transform: translateX(-100%);
+      transition: transform 0.5s ease;
+      z-index: -1;
+    }
+    .balance-section:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 30px rgba(30, 144, 255, 0.3);
+    }
+    .balance-section:hover::before {
+      transform: translateX(100%);
+    }
+    .balance-section span {
+      font-family: 'Montserrat', sans-serif;
+      color: var(--sbh-text-white);
+      font-size: 1.2rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .balance-section span i {
+      color: var(--sbh-icon-color);
+    }
+    .balance-section button {
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      border: none;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 50px;
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 600;
+      font-size: 1rem;
+      box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .balance-section button::after {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: rgba(255, 255, 255, 0.1);
+      transform: rotate(30deg) translateX(-150%);
+      transition: transform 0.5s ease;
+    }
+    .balance-section button:hover {
+      background: linear-gradient(45deg, var(--sbh-gradient-start), #2a7fff);
+      transform: translateY(-3px);
+      box-shadow: 0 7px 20px rgba(30, 144, 255, 0.4);
+    }
+    .balance-section button:hover::after {
+      transform: rotate(30deg) translateX(150%);
+    }
+
+    /* CONTENEUR BIENVENUE */
+    .welcome-container {
+      margin: 0 20px 30px;
+      text-align: center;
+      padding: 0 15px;
+    }
+    .welcome-container h1 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 2.2rem;
+      color: var(--sbh-text-white);
+      margin-bottom: 10px;
+      background: linear-gradient(45deg, var(--sbh-text-white), var(--sbh-light-blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .welcome-container p {
+      font-size: 1.1rem;
+      max-width: 700px;
+      margin: 0 auto;
+      color: rgba(255, 255, 255, 0.85);
+      padding: 0 10px;
+    }
+
+    /* Style pour le nom d'utilisateur */
+    .username {
+      color: #FFFC00; /* Jaune Snapchat */
+      font-family: 'Dancing Script', cursive; /* Police manuscrite */
+      font-weight: 700;
+      font-size: 1.2em;
+      text-shadow: 0 0 5px rgba(255, 252, 0, 0.5);
+    }
+
+    /* CARTES - Nouveau design */
+    .dashboard-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 25px;
+      padding: 0 20px;
+      max-width: 1200px;
+      margin: 0 auto 50px;
+      width: 100%;
+    }
+    .dashboard-card {
+      background: rgba(20, 35, 60, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: var(--sbh-card-radius);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      padding: 30px 25px;
+      text-align: center;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(5px);
+      min-height: 320px;
+      cursor: pointer;
+      transform-style: preserve-3d;
+    }
+    .dashboard-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      transform: translateY(-100%);
+      transition: transform 0.4s ease;
+    }
+    .dashboard-card:hover {
+      transform: translateY(-10px) scale(1.02);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+      border-color: rgba(77, 166, 255, 0.4);
+      background: rgba(20, 35, 60, 0.8);
+    }
+    .dashboard-card:hover::before {
+      transform: translateY(0);
+    }
+    .dashboard-card i {
+      font-size: 2.8rem;
+      color: var(--sbh-icon-color);
+      margin-bottom: 25px;
+      background: rgba(76, 175, 80, 0.1);
+      width: 80px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+      position: relative;
+      z-index: 2;
+    }
+    .dashboard-card:hover i {
+      transform: scale(1.15) rotate(5deg);
+      background: rgba(76, 175, 80, 0.2);
+      box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+    }
+    .dashboard-card h2 {
+      font-size: 1.5rem;
+      color: var(--sbh-light-blue);
+      margin-bottom: 15px;
+      position: relative;
+      z-index: 2;
+    }
+    .dashboard-card p {
+      font-size: 1rem;
+      margin-bottom: 25px;
+      color: rgba(255, 255, 255, 0.85);
+      flex-grow: 1;
+      position: relative;
+      z-index: 2;
+    }
+    .dashboard-card .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      color: #fff;
+      padding: 12px 28px;
+      border: none;
+      border-radius: 50px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1rem;
+      box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3);
+      position: relative;
+      overflow: hidden;
+      z-index: 2;
+    }
+    .dashboard-card .btn::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transform: translateX(-100%);
+      transition: transform 0.5s ease;
+    }
+    .dashboard-card .btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 7px 20px rgba(30, 144, 255, 0.4);
+      background: linear-gradient(45deg, var(--sbh-gradient-start), #2a7fff);
+    }
+    .dashboard-card .btn:hover::after {
+      transform: translateX(100%);
+    }
+
+    /* Espace Revendeur - Styles spécifiques */
+    .reseller-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+    }
+    
+    .reseller-header {
+      text-align: center;
+      padding: 20px;
+      background: linear-gradient(135deg, #1e3c72, #6a0dad);
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
+      border-left: 5px solid var(--gold-primary);
+    }
+    
+    .reseller-header::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, rgba(255, 215, 0, 0.1), transparent 70%);
+      pointer-events: none;
+    }
+    
+    .reseller-status {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .status-card {
+      background: rgba(30, 45, 70, 0.8);
+      border-radius: 12px;
+      padding: 20px;
+      min-width: 200px;
+      text-align: center;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+      border: 2px solid;
+      transition: all 0.3s ease;
+    }
+    
+    .status-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+    
+    .status-card.amateur {
+      border-color: var(--reseller-amateur);
+    }
+    
+    .status-card.intermediate {
+      border-color: var(--reseller-intermediate);
+    }
+    
+    .status-card.professional {
+      border-color: var(--reseller-professional);
+    }
+    
+    .status-card h3 {
+      font-size: 1.3rem;
+      margin-bottom: 10px;
+      color: var(--sbh-text-white);
+    }
+    
+    .status-card .level {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    
+    .status-card.amateur .level {
+      color: var(--reseller-amateur);
+    }
+    
+    .status-card.intermediate .level {
+      color: var(--reseller-intermediate);
+    }
+    
+    .status-card.professional .level {
+      color: var(--reseller-professional);
+    }
+    
+    .status-card .discount {
+      font-size: 1.2rem;
+      background: rgba(255,255,255,0.1);
+      padding: 8px;
+      border-radius: 8px;
+      display: inline-block;
+    }
+    
+    .status-card .requirements {
+      font-size: 0.9rem;
+      color: var(--sbh-text-light);
+      margin-top: 10px;
+    }
+    
+    .reseller-stats {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin-top: 15px;
+      flex-wrap: wrap;
+    }
+    
+    .stat-box {
+      background: rgba(30, 45, 70, 0.8);
+      border-radius: 12px;
+      padding: 15px 25px;
+      min-width: 180px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .stat-box .value {
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin: 10px 0;
+      color: var(--gold-primary);
+    }
+    
+    .stat-box .label {
+      font-size: 0.9rem;
+      color: var(--sbh-text-light);
+    }
+    
+    .reseller-section {
+      background: rgba(20, 35, 60, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 15px;
+      padding: 30px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(5px);
+    }
+    
+    .reseller-section h2 {
+      margin-bottom: 25px;
+      text-align: center;
+    }
+    
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+    
+    .service-card {
+      background: rgba(25, 40, 65, 0.7);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: all 0.3s ease;
+    }
+    
+    .service-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+      border-color: var(--sbh-light-blue);
+    }
+    
+    .service-card h3 {
+      font-size: 1.2rem;
+      margin-bottom: 15px;
+      color: var(--sbh-light-blue);
+      text-align: center;
+    }
+    
+    .price-comparison {
+      display: flex;
+      justify-content: space-between;
+      margin: 15px 0;
+      padding: 12px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+    }
+    
+    .price-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    .price-label {
+      font-size: 0.85rem;
+      color: var(--sbh-text-light);
+      margin-bottom: 5px;
+    }
+    
+    .price-value {
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    
+    .normal-price {
+      text-decoration: line-through;
+      color: var(--sbh-accent);
+    }
+    
+    .reseller-price {
+      color: var(--sbh-text-green);
+    }
+    
+    .savings {
+      background: rgba(76, 175, 80, 0.2);
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      margin-top: 5px;
+    }
+    
+    .reseller-actions {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-top: 30px;
+    }
+    
+    .reseller-btn {
+      padding: 12px 25px;
+      border-radius: 50px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 1rem;
+      border: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .btn-become-reseller {
+      background: linear-gradient(45deg, var(--reseller-amateur), var(--reseller-intermediate));
+      color: white;
+    }
+    
+    .btn-orders {
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      color: white;
+    }
+    
+    .btn-dashboard {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .reseller-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+    
+    .reseller-info {
+      background: rgba(30, 45, 70, 0.8);
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 20px;
+      border-left: 4px solid var(--gold-primary);
+    }
+    
+    .reseller-info h3 {
+      font-size: 1.3rem;
+      margin-bottom: 15px;
+      color: var(--gold-primary);
+    }
+    
+    .reseller-info ul {
+      padding-left: 20px;
+    }
+    
+    .reseller-info li {
+      margin-bottom: 10px;
+      line-height: 1.5;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .reseller-status, .reseller-stats {
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .status-card, .stat-box {
+        width: 100%;
+        max-width: 350px;
+      }
+      
+      .reseller-actions {
+        flex-direction: column;
+      }
+      
+      .reseller-section {
+        padding: 20px 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Fond animé (étoiles + nuages) -->
+  <div class="background-animation"></div>
+
+  <!-- Header avec logo, icône profil et menu hamburger -->
+  <header data-aos="fade-down">
+    <a href="dashboard.html" class="logo-text">
+      <span class="text-social">SOCIAL</span>
+      <div class="boost-line">
+        <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Rocket Icon">
+        <span class="text-boost">BOOST</span>
+      </div>
+      <span class="text-horizon">HORIZON</span>
+    </a>
+    <div class="header-icons">
+      <a href="profil.html" class="snap-avatar">
+        👤
+      </a>
+      <i class="fa-solid fa-bars icon-hamburger" id="hamburgerBtn"></i>
+    </div>
+    <div class="mobile-menu">
+      <a href="dashboard.html"><i class="fa-solid fa-house"></i> Accueil</a>
+      <a href="wallet.html"><i class="fa-solid fa-wallet"></i> Mon portefeuille</a>
+      <a href="resources.html"><i class="fa-solid fa-book"></i> Ressources & aide</a>
+      <a href="community.html"><i class="fa-solid fa-users"></i> Communauté</a>
+      <a href="nouveautes.html"><i class="fa-solid fa-bullhorn"></i> Nouveautés et Annonces</a>
+      <a href="payment.html"><i class="fa-solid fa-money-bill"></i> Autre paiement</a>
+      <a href="parrainage.html"><i class="fa-solid fa-handshake"></i> Parrainage</a>
+      <a href="privacy.html"><i class="fa-solid fa-shield"></i> Confidentialité</a>
+      <a href="assistant.html"><i class="fa-solid fa-headset"></i> Assistance</a>
+      <a href="https://chat.whatsapp.com/HRgWJFxTgkiEkEC0Ou2028" target="_blank"><i class="fab fa-whatsapp"></i> Rejoindre WhatsApp</a>
+    </div>
+  </header>
+
+  <!-- Section solde -->
+  <div class="balance-section" data-aos="fade-up">
+    <span id="balance"><i class="fas fa-coins"></i> Solde : Chargement...</span>
+    <button id="quickDeposit">➕ Déposer</button>
+  </div>
+
+  <!-- Espace Revendeur -->
+  <div class="reseller-container">
+    <!-- En-tête de l'espace revendeur -->
+    <div class="reseller-header" data-aos="fade-up">
+      <h1>Espace Revendeur <i class="fas fa-crown"></i></h1>
+      <p>Profitez d'avantages exclusifs et de remises importantes en fonction de votre niveau d'activité</p>
+      
+      <div class="reseller-status">
+        <div class="status-card amateur">
+          <h3>Amateur</h3>
+          <div class="level">10%</div>
+          <div class="discount">Remise</div>
+          <div class="requirements">7-9 commandes/semaine</div>
+        </div>
+        
+        <div class="status-card intermediate">
+          <h3>Intermédiaire</h3>
+          <div class="level">15%</div>
+          <div class="discount">Remise</div>
+          <div class="requirements">10-19 commandes/semaine</div>
+        </div>
+        
+        <div class="status-card professional">
+          <h3>Professionnel</h3>
+          <div class="level">20%</div>
+          <div class="discount">Remise</div>
+          <div class="requirements">20+ commandes/semaine</div>
+        </div>
+      </div>
+      
+      <div class="reseller-stats">
+        <div class="stat-box">
+          <div class="value" id="currentLevel">Amateur</div>
+          <div class="label">Niveau actuel</div>
+        </div>
+        
+        <div class="stat-box">
+          <div class="value" id="weeklyOrders">5</div>
+          <div class="label">Commandes cette semaine</div>
+        </div>
+        
+        <div class="stat-box">
+          <div class="value" id="discountRate">10%</div>
+          <div class="label">Remise actuelle</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Section des services avec remise -->
+    <div class="reseller-section" data-aos="fade-up">
+      <h2><i class="fas fa-tags"></i> Nos Services avec Remise</h2>
+      <p>Les prix barrés sont les prix normaux. Les prix remisés sont calculés en fonction de votre niveau de revendeur.</p>
+      
+      <div class="services-grid">
+        <!-- Service 1 -->
+        <div class="service-card">
+          <h3>Followers Instagram</h3>
+          <div class="price-comparison">
+            <div class="price-item">
+              <span class="price-label">Normal</span>
+              <span class="price-value normal-price">2,500 FCFA</span>
+            </div>
+            <div class="price-item">
+              <span class="price-label">Revendeur</span>
+              <span class="price-value reseller-price">2,250 FCFA</span>
+              <span class="savings">Économisez 10%</span>
+            </div>
+          </div>
+          <p>Abonnés de haute qualité avec garantie de rétention</p>
+        </div>
+        
+        <!-- Service 2 -->
+        <div class="service-card">
+          <h3>Likes TikTok</h3>
+          <div class="price-comparison">
+            <div class="price-item">
+              <span class="price-label">Normal</span>
+              <span class="price-value normal-price">500 FCFA</span>
+            </div>
+            <div class="price-item">
+              <span class="price-label">Revendeur</span>
+              <span class="price-value reseller-price">425 FCFA</span>
+              <span class="savings">Économisez 15%</span>
+            </div>
+          </div>
+          <p>J'aime de comptes réels pour booster votre visibilité</p>
+        </div>
+        
+        <!-- Service 3 -->
+        <div class="service-card">
+          <h3>Vues YouTube</h3>
+          <div class="price-comparison">
+            <div class="price-item">
+              <span class="price-label">Normal</span>
+              <span class="price-value normal-price">1,550 FCFA</span>
+            </div>
+            <div class="price-item">
+              <span class="price-label">Revendeur</span>
+              <span class="price-value reseller-price">1,240 FCFA</span>
+              <span class="savings">Économisez 20%</span>
+            </div>
+          </div>
+          <p>Vues de haute qualité avec bon taux de rétention</p>
+        </div>
+        
+        <!-- Service 4 -->
+        <div class="service-card">
+          <h3>Abonnés Facebook</h3>
+          <div class="price-comparison">
+            <div class="price-item">
+              <span class="price-label">Normal</span>
+              <span class="price-value normal-price">2,000 FCFA</span>
+            </div>
+            <div class="price-item">
+              <span class="price-label">Revendeur</span>
+              <span class="price-value reseller-price">1,800 FCFA</span>
+              <span class="savings">Économisez 10%</span>
+            </div>
+          </div>
+          <p>Followers pour votre page Facebook professionnelle</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Actions et informations -->
+    <div class="reseller-section" data-aos="fade-up">
+      <h2><i class="fas fa-cog"></i> Gérer votre Statut Revendeur</h2>
+      
+      <div class="reseller-actions" id="resellerActions">
+        <!-- Bouton pour devenir revendeur (affiché si non revendeur) -->
+        <button class="reseller-btn btn-become-reseller" id="becomeResellerBtn">
+          <i class="fas fa-user-plus"></i> Devenir Revendeur
+        </button>
+        
+        <!-- Boutons pour revendeurs (affichés si déjà revendeur) -->
+        <a href="commandes.html" class="reseller-btn btn-orders">
+          <i class="fas fa-shopping-cart"></i> Mes Commandes
+        </a>
+        
+        <a href="dashboard.html" class="reseller-btn btn-dashboard">
+          <i class="fas fa-home"></i> Retour au Dashboard
+        </a>
+      </div>
+      
+      <div class="reseller-info">
+        <h3><i class="fas fa-info-circle"></i> Comment fonctionne le programme revendeur ?</h3>
+        <ul>
+          <li><strong>Vérification hebdomadaire</strong> : Chaque nuit, nous comptabilisons vos commandes des 7 derniers jours</li>
+          <li><strong>Mise à jour automatique</strong> : Votre niveau de revendeur est mis à jour chaque semaine</li>
+          <li><strong>Avantages</strong> : Profitez de remises plus importantes à mesure que votre activité augmente</li>
+          <li><strong>Révocation</strong> : Si votre nombre de commandes tombe sous le seuil minimal (7/semaine), votre statut sera révoqué</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  
+  <script>
+    // Configuration Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.appspot.com",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+    };
+
+    // Initialiser Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    document.addEventListener("DOMContentLoaded", function () {
+      AOS.init({ duration: 800, once: true, offset: 100 });
+
+      // Animation des nuages
+      const backgroundAnimation = document.querySelector(".background-animation");
+      const numberOfClouds = 20;
+
+      for (let i = 0; i < numberOfClouds; i++) {
+        const cloud = document.createElement("div");
+        cloud.classList.add("cloud");
+
+        const size = Math.random() * (250 - 150) + 150;
+        cloud.style.width = `${size}px`;
+        cloud.style.height = `${size * 0.6}px`;
+        cloud.style.borderRadius = `${size / 2}px / ${size * 0.3}px`;
+
+        cloud.style.left = `${Math.random() * 100 + 100}vw`;
+        cloud.style.top = `${Math.random() * 85}vh`;
+
+        const animationDuration = Math.random() * (60 - 30) + 30;
+        cloud.style.animationDuration = `${animationDuration}s`;
+
+        cloud.style.setProperty("--width", `${size}px`);
+        const scale = Math.random() * (1.1 - 0.9) + 0.9;
+        cloud.style.setProperty("--scale", scale);
+
+        backgroundAnimation.appendChild(cloud);
+      }
+
+      // Gestion du menu hamburger
+      const header = document.querySelector("header");
+      const hamburger = document.querySelector(".icon-hamburger");
+      hamburger.addEventListener("click", () => {
+        header.classList.toggle("open");
+      });
+      
+      // Fermer le menu quand on clique en dehors
+      document.addEventListener("click", (e) => {
+        const isMenuOpen = header.classList.contains("open");
+        const isClickInsideMenu = header.contains(e.target);
+        const isHamburgerButton = e.target.closest('#hamburgerBtn');
+        const isProfileIcon = e.target.closest('.snap-avatar');
+
+        if (isMenuOpen && !isClickInsideMenu && !isHamburgerButton && !isProfileIcon) {
+          header.classList.remove("open");
+        }
+      });
+
+      // Éléments DOM
+      const balanceEl = document.getElementById('balance');
+      const quickDeposit = document.getElementById('quickDeposit');
+      const becomeResellerBtn = document.getElementById('becomeResellerBtn');
+      const currentLevelEl = document.getElementById('currentLevel');
+      const weeklyOrdersEl = document.getElementById('weeklyOrders');
+      const discountRateEl = document.getElementById('discountRate');
+      const resellerActions = document.getElementById('resellerActions');
+
+      // Variables utilisateur
+      let currentUser = null;
+      let isReseller = false;
+      let resellerLevel = null;
+      let weeklyOrders = 5; // Exemple de données
+
+      // Simulation de données pour démonstration
+      function simulateResellerData() {
+        // Dans une application réelle, ces données viendraient de Firestore
+        isReseller = true;
+        resellerLevel = "amateur";
+        weeklyOrders = 5;
+        
+        updateResellerUI();
+      }
+
+      // Mettre à jour l'interface en fonction du statut revendeur
+      function updateResellerUI() {
+        if (isReseller) {
+          // Cacher le bouton "Devenir revendeur"
+          becomeResellerBtn.style.display = 'none';
+          
+          // Mettre à jour les statistiques
+          currentLevelEl.textContent = resellerLevel.charAt(0).toUpperCase() + resellerLevel.slice(1);
+          weeklyOrdersEl.textContent = weeklyOrders;
+          
+          // Définir le taux de remise en fonction du niveau
+          let discountRate = "0%";
+          if (resellerLevel === "amateur") discountRate = "10%";
+          else if (resellerLevel === "intermediate") discountRate = "15%";
+          else if (resellerLevel === "professional") discountRate = "20%";
+          
+          discountRateEl.textContent = discountRate;
+          
+          // Mettre à jour les prix affichés avec la remise
+          updatePricesWithDiscount(discountRate);
+        } else {
+          // Afficher uniquement le bouton "Devenir revendeur"
+          resellerActions.innerHTML = `
+            <button class="reseller-btn btn-become-reseller" id="becomeResellerBtn">
+              <i class="fas fa-user-plus"></i> Devenir Revendeur
+            </button>
+          `;
+          
+          // Réattacher l'événement au nouveau bouton
+          document.getElementById('becomeResellerBtn').addEventListener('click', becomeReseller);
+        }
+      }
+
+      // Mettre à jour les prix affichés avec la remise
+      function updatePricesWithDiscount(discountRate) {
+        const discountPercentage = parseInt(discountRate);
+        
+        // Sélectionner tous les éléments de prix
+        const normalPrices = document.querySelectorAll('.normal-price');
+        const resellerPrices = document.querySelectorAll('.reseller-price');
+        const savingsElements = document.querySelectorAll('.savings');
+        
+        // Mettre à jour chaque service
+        resellerPrices.forEach((element, index) => {
+          const normalPriceText = normalPrices[index].textContent;
+          const normalPriceValue = parseInt(normalPriceText.replace(/\D/g, ''));
+          
+          if (!isNaN(normalPriceValue)) {
+            const discountedPrice = Math.round(normalPriceValue * (1 - discountPercentage/100));
+            element.textContent = `${discountedPrice.toLocaleString('fr-FR')} FCFA`;
+            
+            // Mettre à jour les économies
+            const savings = normalPriceValue - discountedPrice;
+            savingsElements[index].textContent = `Économisez ${savings.toLocaleString('fr-FR')} FCFA`;
+          }
+        });
+      }
+
+      // Fonction pour devenir revendeur
+      function becomeReseller() {
+        // Dans une application réelle, on enregistrerait la demande dans Firestore
+        alert("Votre demande pour devenir revendeur a été envoyée ! Notre équipe va la traiter dans les plus brefs délais.");
+        
+        // Simulation : après acceptation
+        setTimeout(() => {
+          isReseller = true;
+          resellerLevel = "amateur";
+          weeklyOrders = 0;
+          updateResellerUI();
+        }, 2000);
+      }
+
+      // Initialisation
+      function initializePage() {
+        // Simuler des données de revendeur pour la démonstration
+        simulateResellerData();
+        
+        // Attacher l'événement au bouton
+        becomeResellerBtn.addEventListener('click', becomeReseller);
+      }
+
+      // Initialiser
+      initializePage();
+    });
+  </script>
+</body>
+</html>
