@@ -45,6 +45,8 @@
       --reseller-amateur: #4CAF50; /* Vert */
       --reseller-intermediate: #FFC107; /* Jaune */
       --reseller-professional: #FF5722; /* Orange */
+      --resign-btn: #e74c3c; /* Rouge pour le bouton de démission */
+      --resign-hover: #c0392b; /* Rouge plus foncé au survol */
     }
 
     /* Body et fond animé (étoiles + nuages) */
@@ -735,6 +737,19 @@
       border: 1px solid rgba(255, 255, 255, 0.3);
     }
     
+    /* Bouton de démission */
+    .btn-resign {
+      background: linear-gradient(45deg, var(--resign-btn), #d63031);
+      color: white;
+      box-shadow: 0 4px 10px rgba(231, 76, 60, 0.3);
+    }
+    
+    .btn-resign:hover {
+      background: linear-gradient(45deg, var(--resign-hover), #b71540);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 14px rgba(231, 76, 60, 0.4);
+    }
+    
     .reseller-btn:hover {
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
@@ -1161,13 +1176,18 @@
           <i class="fas fa-shopping-cart"></i> Mes Commandes
         </a>
         
-        <a href="command.html" class="reseller-btn btn-commander" id="commanderBtn" style="display: none;">
+        <a href="commander.html" class="reseller-btn btn-commander" id="commanderBtn" style="display: none;">
           <i class="fas fa-rocket"></i> Commander
         </a>
         
         <a href="dashboard.html" class="reseller-btn btn-dashboard" id="dashboardBtn" style="display: none;">
           <i class="fas fa-home"></i> Retour au Dashboard
         </a>
+        
+        <!-- Bouton de démission -->
+        <button class="reseller-btn btn-resign" id="resignBtn" style="display: none;">
+          <i class="fas fa-sign-out-alt"></i> Démissionner
+        </button>
       </div>
       
       <div class="reseller-info">
@@ -1177,6 +1197,7 @@
           <li><strong>Mise à jour automatique</strong> : Votre niveau de revendeur est mis à jour chaque semaine</li>
           <li><strong>Avantages</strong> : Profitez de remises plus importantes à mesure que votre activité augmente</li>
           <li><strong>Révocation</strong> : Si votre nombre de commandes tombe sous le seuil minimal (5/semaine), votre statut sera révoqué</li>
+          <li><strong>Démission</strong> : Vous pouvez quitter le programme revendeur à tout moment en cliquant sur "Démissionner"</li>
           <li><strong>Remises exclusives</strong> : Vos remises s'appliquent automatiquement sur toutes vos commandes</li>
           <li><strong>Suivi en temps réel</strong> : Consultez votre nombre de commandes et votre niveau dans votre espace revendeur</li>
         </ul>
@@ -1258,6 +1279,7 @@
       const ordersBtn = document.getElementById('ordersBtn');
       const commanderBtn = document.getElementById('commanderBtn');
       const dashboardBtn = document.getElementById('dashboardBtn');
+      const resignBtn = document.getElementById('resignBtn'); // Bouton de démission
       const currentLevelEl = document.getElementById('currentLevel');
       const weeklyOrdersEl = document.getElementById('weeklyOrders');
       const discountRateEl = document.getElementById('discountRate');
@@ -1338,6 +1360,7 @@
           ordersBtn.style.display = 'flex';
           commanderBtn.style.display = 'flex';
           dashboardBtn.style.display = 'flex';
+          resignBtn.style.display = 'flex'; // Afficher le bouton de démission
           
           // Mettre à jour les statistiques
           currentLevelEl.textContent = userData.resellerLevel ? 
@@ -1353,6 +1376,7 @@
           ordersBtn.style.display = 'none';
           commanderBtn.style.display = 'none';
           dashboardBtn.style.display = 'none';
+          resignBtn.style.display = 'none'; // Cacher le bouton de démission
           
           // Réinitialiser les statistiques
           currentLevelEl.textContent = "Non revendeur";
@@ -1429,9 +1453,43 @@
         }
       }
 
+      // Fonction pour démissionner du statut de revendeur
+      async function resignAsReseller() {
+        try {
+          if (!currentUser || !userData.isReseller) return;
+          
+          // Confirmation de l'utilisateur
+          const confirmResign = confirm("Êtes-vous sûr de vouloir démissionner de votre statut de revendeur ? Vous perdrez toutes vos remises et avantages.");
+          if (!confirmResign) return;
+          
+          // Afficher un indicateur de chargement
+          resignBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Démission...';
+          resignBtn.disabled = true;
+          
+          // Mettre à jour le statut dans Firestore
+          await db.collection("users").doc(currentUser.uid).set({
+            isReseller: false,
+            resellerLevel: null,
+            discountRate: "0%",
+            resellerEnded: new Date()
+          }, { merge: true });
+          
+          // Confirmation
+          alert("Vous avez démissionné avec succès de votre statut de revendeur. Vos remises ont été désactivées.");
+        } catch (error) {
+          console.error("Erreur lors de la démission:", error);
+          alert("Une erreur est survenue. Veuillez réessayer.");
+          
+          // Réinitialiser le bouton
+          resignBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Démissionner';
+          resignBtn.disabled = false;
+        }
+      }
+
       // Attacher les événements
       function attachEvents() {
         becomeResellerBtn.addEventListener('click', becomeReseller);
+        resignBtn.addEventListener('click', resignAsReseller);
         quickDeposit.addEventListener('click', () => {
           window.location.href = "fonds.html";
         });
