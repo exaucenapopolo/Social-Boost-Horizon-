@@ -1157,15 +1157,15 @@
         </button>
         
         <!-- Boutons pour revendeurs (affichés si déjà revendeur) -->
-        <a href="commandes.html" class="reseller-btn btn-orders">
+        <a href="commandes.html" class="reseller-btn btn-orders" id="ordersBtn" style="display: none;">
           <i class="fas fa-shopping-cart"></i> Mes Commandes
         </a>
         
-        <a href="commander.html" class="reseller-btn btn-commander">
+        <a href="commander.html" class="reseller-btn btn-commander" id="commanderBtn" style="display: none;">
           <i class="fas fa-rocket"></i> Commander
         </a>
         
-        <a href="dashboard.html" class="reseller-btn btn-dashboard">
+        <a href="dashboard.html" class="reseller-btn btn-dashboard" id="dashboardBtn" style="display: none;">
           <i class="fas fa-home"></i> Retour au Dashboard
         </a>
       </div>
@@ -1255,10 +1255,12 @@
       const balanceEl = document.getElementById('balance');
       const quickDeposit = document.getElementById('quickDeposit');
       const becomeResellerBtn = document.getElementById('becomeResellerBtn');
+      const ordersBtn = document.getElementById('ordersBtn');
+      const commanderBtn = document.getElementById('commanderBtn');
+      const dashboardBtn = document.getElementById('dashboardBtn');
       const currentLevelEl = document.getElementById('currentLevel');
       const weeklyOrdersEl = document.getElementById('weeklyOrders');
       const discountRateEl = document.getElementById('discountRate');
-      const resellerActions = document.getElementById('resellerActions');
 
       // Variables utilisateur
       let currentUser = null;
@@ -1269,6 +1271,9 @@
         discountRate: "0%",
         balance: 0
       };
+      
+      // Référence à l'écouteur Firestore
+      let userListener = null;
 
       // Initialisation
       function initializePage() {
@@ -1276,34 +1281,33 @@
         auth.onAuthStateChanged(async (user) => {
           if (user) {
             currentUser = user;
-            try {
-              // Récupérer les données utilisateur
-              const userDoc = await db.collection("users").doc(user.uid).get();
-              
-              if (userDoc.exists) {
-                userData = {
-                  ...userData,
-                  ...userDoc.data()
-                };
-                
-                // Mettre à jour le solde
-                updateBalanceDisplay();
-                
-                // Mettre à jour l'UI revendeur
-                updateResellerUI();
-                
-                // Si l'utilisateur est un nouveau revendeur, initialiser le niveau
-                if (userData.isReseller && userData.resellerLevel === null) {
-                  await updateResellerStatus("beginner");
-                }
-              }
-            } catch (error) {
-              console.error("Erreur de chargement des données:", error);
-            }
+            setupUserListener();
           } else {
             // Rediriger vers la page de connexion
             window.location.href = "login.html";
           }
+        });
+      }
+      
+      // Configurer l'écouteur Firestore en temps réel
+      function setupUserListener() {
+        if (!currentUser) return;
+        
+        const userRef = db.collection("users").doc(currentUser.uid);
+        
+        // Détacher tout écouteur précédent
+        if (userListener) {
+          userListener();
+        }
+        
+        // Configurer un nouvel écouteur en temps réel
+        userListener = userRef.onSnapshot((doc) => {
+          if (doc.exists) {
+            userData = doc.data();
+            updateUI();
+          }
+        }, (error) => {
+          console.error("Erreur de l'écouteur Firestore:", error);
         });
       }
 
@@ -1316,24 +1320,22 @@
         }
       }
 
+      // Mettre à jour toute l'interface
+      function updateUI() {
+        updateBalanceDisplay();
+        updateResellerUI();
+      }
+
       // Mettre à jour l'interface en fonction du statut revendeur
       function updateResellerUI() {
         if (userData.isReseller) {
           // Cacher le bouton "Devenir revendeur"
           becomeResellerBtn.style.display = 'none';
           
-          // Afficher les autres boutons
-          resellerActions.innerHTML = `
-            <a href="commandes.html" class="reseller-btn btn-orders">
-              <i class="fas fa-shopping-cart"></i> Mes Commandes
-            </a>
-            <a href="commander.html" class="reseller-btn btn-commander">
-              <i class="fas fa-rocket"></i> Commander
-            </a>
-            <a href="dashboard.html" class="reseller-btn btn-dashboard">
-              <i class="fas fa-home"></i> Retour au Dashboard
-            </a>
-          `;
+          // Afficher les boutons pour revendeurs
+          ordersBtn.style.display = 'flex';
+          commanderBtn.style.display = 'flex';
+          dashboardBtn.style.display = 'flex';
           
           // Mettre à jour les statistiques
           currentLevelEl.textContent = userData.resellerLevel ? 
@@ -1345,15 +1347,21 @@
           // Mettre à jour les prix affichés avec la remise
           updatePricesWithDiscount(userData.discountRate);
         } else {
-          // Afficher uniquement le bouton "Devenir revendeur"
-          resellerActions.innerHTML = `
-            <button class="reseller-btn btn-become-reseller" id="becomeResellerBtn">
-              <i class="fas fa-user-plus"></i> Devenir Revendeur
-            </button>
-          `;
+          // Afficher le bouton "Devenir revendeur"
+          becomeResellerBtn.style.display = 'flex';
           
-          // Réattacher l'événement au nouveau bouton
-          document.getElementById('becomeResellerBtn').addEventListener('click', becomeReseller);
+          // Cacher les boutons pour revendeurs
+          ordersBtn.style.display = 'none';
+          commanderBtn.style.display = 'none';
+          dashboardBtn.style.display = 'none';
+          
+          // Réinitialiser les statistiques
+          currentLevelEl.textContent = "Non revendeur";
+          weeklyOrdersEl.textContent = "0";
+          discountRateEl.textContent = "0%";
+          
+          // Réinitialiser les prix
+          updatePricesWithDiscount(0);
         }
       }
 
@@ -1403,16 +1411,7 @@
             resellerSince: new Date()
           });
           
-          // Mettre à jour l'interface
-          userData.isReseller = true;
-          userData.resellerLevel = "beginner";
-          userData.discountRate = "5%";
-          
-          // Rafraîchir l'affichage
-          updateResellerUI();
-          
-          // Confirmation
-          alert("Félicitations ! Vous êtes maintenant revendeur avec le niveau Débutant (5% de remise).");
+          // La mise à jour de l'UI sera gérée par l'écouteur Firestore
         } catch (error) {
           console.error("Erreur de mise à jour du statut:", error);
           alert("Une erreur est survenue. Veuillez réessayer.");
@@ -1423,42 +1422,9 @@
         }
       }
 
-      // Fonction pour mettre à jour le niveau du revendeur
-      async function updateResellerStatus(newLevel) {
-        try {
-          if (!currentUser) return;
-          
-          // Mettre à jour Firestore
-          await db.collection("users").doc(currentUser.uid).update({
-            resellerLevel: newLevel,
-            discountRate: getDiscountRate(newLevel)
-          });
-          
-          // Mettre à jour localement
-          userData.resellerLevel = newLevel;
-          userData.discountRate = getDiscountRate(newLevel);
-          
-          // Mettre à jour l'UI
-          updateResellerUI();
-        } catch (error) {
-          console.error("Erreur de mise à jour du niveau:", error);
-        }
-      }
-
-      // Obtenir le taux de remise selon le niveau
-      function getDiscountRate(level) {
-        switch(level) {
-          case "beginner": return "5%";
-          case "amateur": return "10%";
-          case "intermediate": return "15%";
-          case "professional": return "20%";
-          default: return "0%";
-        }
-      }
-
       // Attacher les événements
       function attachEvents() {
-        // Le bouton devenir revendeur est géré dynamiquement dans updateResellerUI
+        becomeResellerBtn.addEventListener('click', becomeReseller);
         quickDeposit.addEventListener('click', () => {
           window.location.href = "fonds.html";
         });
