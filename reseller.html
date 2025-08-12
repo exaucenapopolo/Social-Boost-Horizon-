@@ -1308,6 +1308,7 @@
           }
         }, (error) => {
           console.error("Erreur de l'écouteur Firestore:", error);
+          alert("Erreur de connexion à la base de données. Veuillez réessayer.");
         });
       }
 
@@ -1324,6 +1325,7 @@
       function updateUI() {
         updateBalanceDisplay();
         updateResellerUI();
+        updatePricesWithDiscount();
       }
 
       // Mettre à jour l'interface en fonction du statut revendeur
@@ -1343,9 +1345,6 @@
           
           weeklyOrdersEl.textContent = userData.weeklyOrders || 0;
           discountRateEl.textContent = userData.discountRate || "0%";
-          
-          // Mettre à jour les prix affichés avec la remise
-          updatePricesWithDiscount(userData.discountRate);
         } else {
           // Afficher le bouton "Devenir revendeur"
           becomeResellerBtn.style.display = 'flex';
@@ -1359,15 +1358,17 @@
           currentLevelEl.textContent = "Non revendeur";
           weeklyOrdersEl.textContent = "0";
           discountRateEl.textContent = "0%";
-          
-          // Réinitialiser les prix
-          updatePricesWithDiscount(0);
         }
       }
 
       // Mettre à jour les prix affichés avec la remise
-      function updatePricesWithDiscount(discountRate) {
-        const discountPercentage = discountRate ? parseInt(discountRate) : 0;
+      function updatePricesWithDiscount() {
+        // Récupérer le taux de remise actuel
+        let discountPercentage = 0;
+        
+        if (userData.isReseller && userData.discountRate) {
+          discountPercentage = parseInt(userData.discountRate);
+        }
         
         // Sélectionner tous les éléments de prix
         const normalPrices = document.querySelectorAll('.normal-price');
@@ -1380,12 +1381,17 @@
           const normalPriceValue = parseInt(normalPriceText.replace(/\D/g, ''));
           
           if (!isNaN(normalPriceValue)) {
+            // Calculer le prix remisé
             const discountedPrice = Math.round(normalPriceValue * (1 - discountPercentage/100));
             element.textContent = `${discountedPrice.toLocaleString('fr-FR')} FCFA`;
             
             // Mettre à jour les économies
             const savings = normalPriceValue - discountedPrice;
-            savingsElements[index].textContent = `Économisez ${savings.toLocaleString('fr-FR')} FCFA`;
+            if (savings > 0) {
+              savingsElements[index].textContent = `Économisez ${savings.toLocaleString('fr-FR')} FCFA`;
+            } else {
+              savingsElements[index].textContent = "Aucune économie";
+            }
           }
         });
       }
@@ -1403,22 +1409,23 @@
           becomeResellerBtn.disabled = true;
           
           // Mettre à jour le statut dans Firestore
-          await db.collection("users").doc(currentUser.uid).update({
+          await db.collection("users").doc(currentUser.uid).set({
             isReseller: true,
             resellerLevel: "beginner",
             discountRate: "5%",
             weeklyOrders: 0,
             resellerSince: new Date()
-          });
+          }, { merge: true });
           
-          // La mise à jour de l'UI sera gérée par l'écouteur Firestore
+          // Confirmation
+          alert("Félicitations ! Vous êtes maintenant revendeur avec le niveau Débutant (5% de remise).");
         } catch (error) {
           console.error("Erreur de mise à jour du statut:", error);
           alert("Une erreur est survenue. Veuillez réessayer.");
-          if (becomeResellerBtn) {
-            becomeResellerBtn.innerHTML = '<i class="fas fa-user-plus"></i> Devenir Revendeur';
-            becomeResellerBtn.disabled = false;
-          }
+          
+          // Réinitialiser le bouton
+          becomeResellerBtn.innerHTML = '<i class="fas fa-user-plus"></i> Devenir Revendeur';
+          becomeResellerBtn.disabled = false;
         }
       }
 
