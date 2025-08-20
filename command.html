@@ -760,6 +760,15 @@
       <input type="hidden" name="userId" id="userId">
       <input type="hidden" id="discountRate" value="0">
 
+      <!-- Afficher le niveau du revendeur -->
+      <div class="form-group" id="resellerLevelInfo" style="display: none;">
+        <div style="background: rgba(76, 175, 80, 0.2); padding: 10px; border-radius: 8px; text-align: center;">
+          <i class="fas fa-crown" style="margin-right: 5px;"></i>
+          <span id="resellerLevelText">Niveau de revendeur: </span>
+          <span id="discountRateText">Réduction: 0%</span>
+        </div>
+      </div>
+
       <div class="form-group">
         <label for="serviceSelect">Service</label>
         <select id="serviceSelect" name="service" required></select>
@@ -991,7 +1000,7 @@
         "Sauvegarde de vidéos": {
           medium: { price: 300, time: "20 min" },
           high:   { price: 500, time: "10 min" },
-          remark: "Vidéo publique requise.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ EST LE LIEN D'UNE VIDÉO DE VOTRE COMPTE TIKTOK, ET NON LE LIEN DE VOTRE COMPTE TIKTOK ! !!! (min: 100)"
+          remark: "Vidéo publique requise.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ EST LE LIEN D'UNE VIDÉO DE VOTRE COMPTE TIKTOK, AND NON LE LIEN DE VOTRE COMPTE TIKTOK ! !!! (min: 100)"
         },
         "Partages de vidéos": {
           medium: { price: 150, time: "30 min" },
@@ -1187,10 +1196,36 @@
 
       /* ---------- Variables utilisateur ---------- */
       let currentUser = null;
-      let userData = { isReseller: false, discountRate: 0, balance: 0 };
+      let userData = { isReseller: false, discountRate: 0, balance: 0, resellerLevel: '' };
+
+      // Fonction pour interroger FreeRestore et obtenir le niveau du revendeur
+      async function fetchResellerLevel(uid) {
+        try {
+          // Simulation d'un appel à l'API FreeRestore
+          // En production, remplacez cette URL par l'endpoint réel de FreeRestore
+          const response = await fetch('https://votre-api-freerestore.com/reseller-level', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId: uid })
+          });
+          
+          if (!response.ok) {
+            throw new Error('Erreur lors de la récupération du niveau revendeur');
+          }
+          
+          const data = await response.json();
+          return data;
+        } catch (error) {
+          console.error('Erreur fetchResellerLevel:', error);
+          // En cas d'erreur, on utilise des valeurs par défaut pour la démo
+          return { level: 'débutant', discountRate: 5 };
+        }
+      }
 
       // Auth check + chargement des données utilisateur
-      auth.onAuthStateChanged(user => {
+      auth.onAuthStateChanged(async user => {
         if (!user) {
           window.location.href = 'login.html';
           return;
@@ -1199,29 +1234,51 @@
         const userIdInput = document.getElementById('userId');
         if (userIdInput) userIdInput.value = user.uid;
 
-        db.collection("users").doc(user.uid).get()
-          .then(doc => {
-            if (doc.exists) {
-              const data = doc.data() || {};
-              userData = {
-                isReseller: !!data.isReseller,
-                discountRate: Number(data.discountRate || 0),
-                balance: Number(data.balance || 0)
-              };
+        try {
+          const doc = await db.collection("users").doc(user.uid).get();
+          if (doc.exists) {
+            const data = doc.data() || {};
+            userData = {
+              isReseller: !!data.isReseller,
+              discountRate: Number(data.discountRate || 0),
+              balance: Number(data.balance || 0),
+              resellerLevel: data.resellerLevel || ''
+            };
 
-              if (!userData.isReseller) {
-                alert("Cette page est réservée aux revendeurs. Vous allez être redirigé.");
-                window.location.href = "commande.html";
-                return;
-              }
-
-              const discountRateInput = document.getElementById('discountRate');
-              if (discountRateInput) discountRateInput.value = userData.discountRate || 0;
-            } else {
-              console.warn("Utilisateur introuvable en base.");
+            if (!userData.isReseller) {
+              alert("Cette page est réservée aux revendeurs. Vous allez être redirigé.");
+              window.location.href = "commande.html";
+              return;
             }
-          })
-          .catch(error => console.error("Erreur lors du chargement des données utilisateur:", error));
+
+            // Interroger FreeRestore pour obtenir le niveau actuel du revendeur
+            const resellerInfo = await fetchResellerLevel(user.uid);
+            userData.discountRate = resellerInfo.discountRate;
+            userData.resellerLevel = resellerInfo.level;
+
+            // Mettre à jour le champ caché et l'affichage
+            const discountRateInput = document.getElementById('discountRate');
+            if (discountRateInput) discountRateInput.value = userData.discountRate;
+
+            // Afficher le niveau du revendeur
+            const resellerLevelInfo = document.getElementById('resellerLevelInfo');
+            const resellerLevelText = document.getElementById('resellerLevelText');
+            const discountRateText = document.getElementById('discountRateText');
+            
+            if (resellerLevelInfo && resellerLevelText && discountRateText) {
+              resellerLevelInfo.style.display = 'block';
+              resellerLevelText.textContent = `Niveau de revendeur: ${userData.resellerLevel}`;
+              discountRateText.textContent = `Réduction: ${userData.discountRate}%`;
+            }
+
+            // Mettre à jour l'affichage des prix
+            updateDetails();
+          } else {
+            console.warn("Utilisateur introuvable en base.");
+          }
+        } catch (error) {
+          console.error("Erreur lors du chargement des données utilisateur:", error);
+        }
       });
 
       /* ---------- DOM refs ---------- */
@@ -1662,7 +1719,8 @@
           isResellerOrder: true,
           normalPrice: normalPrice,
           discountedPrice: discountedPrice,
-          discountRate: discountRate
+          discountRate: discountRate,
+          resellerLevel: userData.resellerLevel || ''
         };
 
         if (!serverPayload.userId) { showNotification('❌', "❌ Erreur d'authentification. Veuillez vous reconnecter.", 'error'); setLoadingState(false); return; }
