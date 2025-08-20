@@ -1168,20 +1168,13 @@
       }
     };
 
-    // === Script principal ===
+// ----------------- Script principal -----------------
     document.addEventListener("DOMContentLoaded", function () {
-      // AOS
-      if (typeof AOS !== 'undefined') {
-        AOS.init({ duration: 800, once: true, offset: 100 });
-      }
+      if (typeof AOS !== 'undefined') AOS.init({ duration: 800, once: true, offset: 100 });
 
-      // Menu hamburger
       const header = document.querySelector("header");
       const hamburger = document.querySelector(".icon-hamburger");
-      if (hamburger) {
-        hamburger.addEventListener("click", () => header.classList.toggle("open"));
-      }
-
+      if (hamburger) hamburger.addEventListener("click", () => header.classList.toggle("open"));
       document.addEventListener("click", (e) => {
         const isMenuOpen = header.classList.contains("open");
         const isClickInsideMenu = header.contains(e.target);
@@ -1189,99 +1182,32 @@
         if (isMenuOpen && !isClickInsideMenu && !isHamburgerButton) header.classList.remove("open");
       });
 
-      // Notification close
-      const notification = document.getElementById('orderNotification');
       const notificationClose = document.getElementById('notificationClose');
-      if (notificationClose) notificationClose.addEventListener('click', () => { notification.style.display = 'none'; });
+      if (notificationClose) notificationClose.addEventListener('click', () => { document.getElementById('orderNotification').style.display = 'none'; });
 
-      /* ---------- Variables utilisateur ---------- */
       let currentUser = null;
+      // userData: isReseller, discountRate (from FreeRestore or firestore), balance, resellerLevel
       let userData = { isReseller: false, discountRate: 0, balance: 0, resellerLevel: '' };
 
-      // Fonction pour interroger FreeRestore et obtenir le niveau du revendeur
+      // ---- Fonction qui interroge ton service FreeRestore (exemple) ----
       async function fetchResellerLevel(uid) {
         try {
-          // Simulation d'un appel à l'API FreeRestore
-          // En production, remplacez cette URL par l'endpoint réel de FreeRestore
+          // Si tu n'as pas un endpoint réel, cette fonction peut retourner par défaut.
+          // En prod, remplace l'URL et logique par ton endpoint réel.
           const response = await fetch('https://votre-api-freerestore.com/reseller-level', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: uid })
           });
-          
-          if (!response.ok) {
-            throw new Error('Erreur lors de la récupération du niveau revendeur');
-          }
-          
+          if (!response.ok) throw new Error('Erreur récupération niveau revendeur');
           const data = await response.json();
-          return data;
-        } catch (error) {
-          console.error('Erreur fetchResellerLevel:', error);
-          // En cas d'erreur, on utilise des valeurs par défaut pour la démo
+          return data; // { level: 'débutant', discountRate: 5 } attendu
+        } catch (err) {
+          console.warn('fetchResellerLevel failed, fallback to defaults:', err);
           return { level: 'débutant', discountRate: 5 };
         }
       }
 
-      // Auth check + chargement des données utilisateur
-      auth.onAuthStateChanged(async user => {
-        if (!user) {
-          window.location.href = 'login.html';
-          return;
-        }
-        currentUser = user;
-        const userIdInput = document.getElementById('userId');
-        if (userIdInput) userIdInput.value = user.uid;
-
-        try {
-          const doc = await db.collection("users").doc(user.uid).get();
-          if (doc.exists) {
-            const data = doc.data() || {};
-            userData = {
-              isReseller: !!data.isReseller,
-              discountRate: Number(data.discountRate || 0),
-              balance: Number(data.balance || 0),
-              resellerLevel: data.resellerLevel || ''
-            };
-
-            if (!userData.isReseller) {
-              alert("Cette page est réservée aux revendeurs. Vous allez être redirigé.");
-              window.location.href = "commande.html";
-              return;
-            }
-
-            // Interroger FreeRestore pour obtenir le niveau actuel du revendeur
-            const resellerInfo = await fetchResellerLevel(user.uid);
-            userData.discountRate = resellerInfo.discountRate;
-            userData.resellerLevel = resellerInfo.level;
-
-            // Mettre à jour le champ caché et l'affichage
-            const discountRateInput = document.getElementById('discountRate');
-            if (discountRateInput) discountRateInput.value = userData.discountRate;
-
-            // Afficher le niveau du revendeur
-            const resellerLevelInfo = document.getElementById('resellerLevelInfo');
-            const resellerLevelText = document.getElementById('resellerLevelText');
-            const discountRateText = document.getElementById('discountRateText');
-            
-            if (resellerLevelInfo && resellerLevelText && discountRateText) {
-              resellerLevelInfo.style.display = 'block';
-              resellerLevelText.textContent = `Niveau de revendeur: ${userData.resellerLevel}`;
-              discountRateText.textContent = `Réduction: ${userData.discountRate}%`;
-            }
-
-            // Mettre à jour l'affichage des prix
-            updateDetails();
-          } else {
-            console.warn("Utilisateur introuvable en base.");
-          }
-        } catch (error) {
-          console.error("Erreur lors du chargement des données utilisateur:", error);
-        }
-      });
-
-      /* ---------- DOM refs ---------- */
+      // --- DOM refs ---
       let selectedPlatform = null;
       const icons            = document.querySelectorAll('.platforms img');
       const orderForm        = document.getElementById('orderForm');
@@ -1309,7 +1235,7 @@
       const savingsAmount    = document.getElementById('savingsAmount');
       const submitButton     = document.querySelector('.btn');
 
-      /* ---------- Events binding ---------- */
+      // events
       icons.forEach(i => i.addEventListener('click', () => selectPlatform(i.dataset.platform)));
       if (serviceSelect) serviceSelect.addEventListener('change', onServiceChange);
       if (qualitySelect) qualitySelect.addEventListener('change', updateDetails);
@@ -1317,9 +1243,8 @@
       if (contactType) contactType.addEventListener('change', toggleContactField);
       if (orderForm) orderForm.addEventListener('submit', onSubmit);
 
-      selectPlatform('facebook'); // plateforme par défaut
+      selectPlatform('facebook');
 
-      /* ---------- helpers ---------- */
       function attachQuantityInputListener() {
         if (quantityInput) {
           quantityInput.removeEventListener('input', updateDetails);
@@ -1342,7 +1267,6 @@
           console.error("Aucun service trouvé pour la plateforme: ", selectedPlatform);
           return;
         }
-        
         serviceSelect.innerHTML = '<option value=""> Choisir un service </option>';
         Object.keys(servicesData[selectedPlatform]).forEach(s => {
           const o = document.createElement('option');
@@ -1390,7 +1314,6 @@
         if (orderErrorBox) orderErrorBox.style.display = 'none';
       }
 
-      /* ---------- service change ---------- */
       function onServiceChange() {
         resetUI();
         const selectedServiceKey = serviceSelect.value;
@@ -1464,13 +1387,9 @@
         updateDetails();
       }
 
-      /* ---------- update details ---------- */
       function updateDetails() {
         const selectedServiceKey = serviceSelect.value;
-        if (!selectedServiceKey) {
-          resetPriceDisplay();
-          return;
-        }
+        if (!selectedServiceKey) { resetPriceDisplay(); return; }
 
         const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
         let currentConfig = null;
@@ -1484,7 +1403,9 @@
         if (remarkMatch && remarkMatch[1]) minQuantity = parseInt(remarkMatch[1], 10);
 
         const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
-        const discountRate = parseInt(document.getElementById('discountRate').value) || 0;
+        // Récupérer discountRate depuis le champ caché et userData -> appliquer minimum 5% si revendeur
+        const discountRateRaw = parseInt(document.getElementById('discountRate').value) || 0;
+        const effectiveDiscountRate = userData.isReseller ? Math.max(discountRateRaw, 5) : 0;
 
         if (serviceDef.options) {
           const selectedSubOption = subOptionSelect.value;
@@ -1492,7 +1413,6 @@
             resetPriceDisplay(serviceDef.remark);
             return;
           }
-
           const optionData = serviceDef.options[selectedSubOption];
           currentConfig = optionData[qualitySelect.value] || optionData.medium;
 
@@ -1505,20 +1425,20 @@
             && selectedPlatform === 'telegram';
 
           if (isQuantityFixedByOption) {
-            normalPrice = currentConfig.price;
-            pricePerThousand = currentConfig.price;
+            normalPrice = Number(currentConfig.price) || 0;
+            pricePerThousand = normalPrice;
             estimatedTime = currentConfig.time;
-            discountedPrice = Math.round(normalPrice * (1 - discountRate/100));
+            discountedPrice = Math.round(normalPrice * (1 - effectiveDiscountRate/100));
           } else {
             const quantity = parseInt(quantityInput.value) || 0;
             if (isCommentService) {
-              pricePerThousand = currentConfig.price * 100;
-              normalPrice = (currentConfig.price / 10) * quantity;
+              pricePerThousand = Number(currentConfig.price) * 100;
+              normalPrice = (Number(currentConfig.price) / 10) * quantity;
             } else {
-              pricePerThousand = currentConfig.price;
-              normalPrice = (currentConfig.price / 1000) * quantity;
+              pricePerThousand = Number(currentConfig.price);
+              normalPrice = (Number(currentConfig.price) / 1000) * quantity;
             }
-            discountedPrice = Math.round(normalPrice * (1 - discountRate/100));
+            discountedPrice = Math.round(normalPrice * (1 - effectiveDiscountRate/100));
             estimatedTime = currentConfig.time;
 
             if (quantity > 0 && quantity < minQuantity) {
@@ -1529,11 +1449,11 @@
         } else {
           currentConfig = serviceDef[qualitySelect.value];
           if (isCommentService) {
-            pricePerThousand = currentConfig.price * 100;
-            const lines = quantityInput.value.split('\n').filter(l => l.trim());
+            pricePerThousand = Number(currentConfig.price) * 100;
+            const lines = (quantityInput.value || '').split('\n').filter(l => l.trim());
             const count = lines.length;
-            normalPrice = (currentConfig.price / 10) * count;
-            discountedPrice = Math.round(normalPrice * (1 - discountRate/100));
+            normalPrice = (Number(currentConfig.price) / 10) * count;
+            discountedPrice = Math.round(normalPrice * (1 - effectiveDiscountRate/100));
             estimatedTime = currentConfig.time;
 
             if (commentsCount) {
@@ -1545,10 +1465,10 @@
               quantityError.style.display = 'block';
             } else quantityError.style.display = 'none';
           } else {
-            pricePerThousand = currentConfig.price;
+            pricePerThousand = Number(currentConfig.price);
             const quantity = parseInt(quantityInput.value) || 0;
-            normalPrice = (currentConfig.price / 1000) * quantity;
-            discountedPrice = Math.round(normalPrice * (1 - discountRate/100));
+            normalPrice = (Number(currentConfig.price) / 1000) * quantity;
+            discountedPrice = Math.round(normalPrice * (1 - effectiveDiscountRate/100));
             estimatedTime = currentConfig.time;
 
             if (quantity > 0 && quantity < minQuantity) {
@@ -1589,7 +1509,6 @@
         if (remarkBox) remarkBox.textContent = remark || 'Sélectionnez un service pour voir la remarque.';
       }
 
-      /* ---------- toggle contact fields ---------- */
       function toggleContactField() {
         if (whatsappField) whatsappField.style.display = 'none';
         if (emailField) emailField.style.display    = 'none';
@@ -1609,7 +1528,6 @@
         }
       }
 
-      /* ---------- notifications & loading ---------- */
       function showNotification(icon, message, type) {
         const notificationIcon = document.getElementById('notificationIcon');
         const notificationMessage = document.getElementById('notificationMessage');
@@ -1633,12 +1551,68 @@
         }
       }
 
-      /* ---------- onSubmit (ENVOI AU SERVEUR) ---------- */
+      // ---- Auth et chargement user ----
+      auth.onAuthStateChanged(async user => {
+        if (!user) { window.location.href = 'login.html'; return; }
+        currentUser = user;
+        const userIdInput = document.getElementById('userId');
+        if (userIdInput) userIdInput.value = user.uid;
+
+        try {
+          const doc = await db.collection("users").doc(user.uid).get();
+          if (doc.exists) {
+            const data = doc.data() || {};
+            userData = {
+              isReseller: !!data.isReseller,
+              discountRate: Number(data.discountRate || 0),
+              balance: Number(data.balance || 0),
+              resellerLevel: data.resellerLevel || ''
+            };
+
+            if (!userData.isReseller) {
+              alert("Cette page est réservée aux revendeurs. Vous allez être redirigé.");
+              window.location.href = "commande.html";
+              return;
+            }
+
+            // Interroger FreeRestore pour le niveau actuel (fallback si erreur)
+            const resellerInfo = await fetchResellerLevel(user.uid);
+            // use returned value if ok, otherwise keep firestore value
+            userData.discountRate = (resellerInfo && typeof resellerInfo.discountRate === 'number') ? resellerInfo.discountRate : userData.discountRate;
+            userData.resellerLevel = resellerInfo && resellerInfo.level ? resellerInfo.level : userData.resellerLevel;
+
+            // Forcer un minimum de 5% pour les revendeurs
+            if (userData.isReseller) {
+              userData.discountRate = Math.max(Number(userData.discountRate || 0), 5);
+            }
+
+            // mettre à jour le champ caché et l'affichage
+            const discountRateInput = document.getElementById('discountRate');
+            if (discountRateInput) discountRateInput.value = userData.discountRate;
+
+            const resellerLevelInfo = document.getElementById('resellerLevelInfo');
+            const resellerLevelText = document.getElementById('resellerLevelText');
+            const discountRateText = document.getElementById('discountRateText');
+            if (resellerLevelInfo && resellerLevelText && discountRateText) {
+              resellerLevelInfo.style.display = 'block';
+              resellerLevelText.textContent = `Niveau de revendeur: ${userData.resellerLevel || 'N/A'}`;
+              discountRateText.textContent = `Réduction: ${userData.discountRate}% (min 5%)`;
+            }
+
+            updateDetails();
+          } else {
+            console.warn("Utilisateur introuvable en base.");
+          }
+        } catch (err) {
+          console.error("Erreur lors du chargement des données utilisateur:", err);
+        }
+      });
+
+      // ---- onSubmit: validation + envoi au serveur ----
       async function onSubmit(e) {
         e.preventDefault();
         setLoadingState(true);
-        if (orderErrorBox) orderErrorBox.style.display = 'none';
-        if (orderErrorBox) orderErrorBox.textContent = '';
+        if (orderErrorBox) { orderErrorBox.style.display = 'none'; orderErrorBox.textContent = ''; }
         if (quantityError) quantityError.style.display = 'none';
 
         const selectedServiceKey = serviceSelect.value;
@@ -1656,7 +1630,7 @@
         let commentsArray = [];
 
         if (isCommentService) {
-          commentsArray = quantityInput.value.split('\n').filter(l => l.trim());
+          commentsArray = (quantityInput.value || '').split('\n').filter(l => l.trim());
           quantityForValidation = commentsArray.length;
           if (quantityForValidation < minQuantity) { if (quantityError) { quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`; quantityError.style.display = 'block'; } setLoadingState(false); return; }
         } else {
@@ -1666,7 +1640,10 @@
           }
         }
 
-        const discountRate = parseInt(document.getElementById('discountRate').value) || 0;
+        // discountRate (appliquer minimum 5% pour revendeurs)
+        const discountRateRaw = parseInt(document.getElementById('discountRate').value) || 0;
+        const effectiveDiscountRate = userData.isReseller ? Math.max(discountRateRaw, 5) : 0;
+
         let normalPrice = 0;
         let discountedPrice = 0;
         let currentConfig = null;
@@ -1686,21 +1663,29 @@
             && selectedPlatform === 'telegram';
 
           if (isQuantityFixedByOption) {
-            normalPrice = currentConfig.price;
+            normalPrice = Number(currentConfig.price) || 0;
           } else {
-            if (isCommentService) normalPrice = (currentConfig.price / 10) * quantityForValidation;
-            else normalPrice = (currentConfig.price / 1000) * quantityForValidation;
+            if (isCommentService) normalPrice = (Number(currentConfig.price) / 10) * quantityForValidation;
+            else normalPrice = (Number(currentConfig.price) / 1000) * quantityForValidation;
           }
         } else {
           currentConfig = serviceDef[qualitySelect.value];
-          if (isCommentService) normalPrice = (currentConfig.price / 10) * quantityForValidation;
-          else normalPrice = (currentConfig.price / 1000) * quantityForValidation;
+          if (isCommentService) normalPrice = (Number(currentConfig.price) / 10) * quantityForValidation;
+          else normalPrice = (Number(currentConfig.price) / 1000) * quantityForValidation;
         }
 
-        discountedPrice = Math.round(normalPrice * (1 - discountRate/100));
+        discountedPrice = Math.round(normalPrice * (1 - effectiveDiscountRate/100));
+        const finalCharge = Math.round(discountedPrice); // integer FCFA
 
-        if (discountedPrice > (userData.balance || 0)) {
-          showNotification('❌', `❌ Solde insuffisant. Il vous manque ${(discountedPrice - (userData.balance || 0)).toLocaleString('fr-FR')} FCFA. Veuillez recharger votre compte.`, 'error');
+        // protection: finalCharge doit être un nombre finite
+        if (!Number.isFinite(finalCharge) || isNaN(finalCharge)) {
+          showNotification('❌', `❌ Erreur interne: montant invalide (${String(finalCharge)}). Contactez l'administrateur.`, 'error');
+          setLoadingState(false);
+          return;
+        }
+
+        if (finalCharge > (userData.balance || 0)) {
+          showNotification('❌', `❌ Solde insuffisant. Il vous manque ${(finalCharge - (userData.balance || 0)).toLocaleString('fr-FR')} FCFA. Veuillez recharger votre compte.`, 'error');
           setLoadingState(false);
           return;
         }
@@ -1717,9 +1702,10 @@
           contactType: contactType.value,
           contact: contactType.value === 'whatsapp' ? contactInput.value : emailInput.value,
           isResellerOrder: true,
-          normalPrice: normalPrice,
-          discountedPrice: discountedPrice,
-          discountRate: discountRate,
+          normalPrice: Math.round(Number(normalPrice)),
+          discountedPrice: Math.round(Number(discountedPrice)),
+          finalCost: Number(finalCharge),           // <-- champ explicite, numérique
+          discountRate: Number(effectiveDiscountRate),
           resellerLevel: userData.resellerLevel || ''
         };
 
@@ -1729,7 +1715,9 @@
         if (serverPayload.contactType === 'whatsapp' && !serverPayload.contact) { showNotification('❌', "❌ Veuillez saisir votre numéro WhatsApp.", 'error'); setLoadingState(false); return; }
         if (serverPayload.contactType === 'email' && !serverPayload.contact) { showNotification('❌', "❌ Veuillez saisir votre adresse Email.", 'error'); setLoadingState(false); return; }
 
-        // Envoi au serveur
+        // debug log avant envoi
+        console.log('[ORDER PAYLOAD] ', serverPayload);
+
         try {
           const SERVER_URL = 'https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev';
           const resp = await fetch(`${SERVER_URL}/order`, {
@@ -1747,17 +1735,13 @@
             return;
           }
 
-          const finalCharge = (result.finalCost !== undefined && result.finalCost !== null)
-            ? result.finalCost
-            : (result.discountedPrice !== undefined ? result.discountedPrice : discountedPrice);
-
-          const newBalance = (typeof result.newBalance === 'number')
-            ? result.newBalance
-            : ((userData.balance || 0) - finalCharge);
+          // Serveur peut renvoyer finalCost/newBalance, sinon on prend ce qu'on a calculé localement
+          const serverFinal = (result.finalCost !== undefined && result.finalCost !== null) ? Number(result.finalCost) : finalCharge;
+          const newBalance = (typeof result.newBalance === 'number') ? result.newBalance : ((userData.balance || 0) - serverFinal);
 
           userData.balance = newBalance;
 
-          showNotification('✅', `✅ Commande envoyée !<br>Montant débité : ${finalCharge.toLocaleString('fr-FR')} FCFA<br>Nouveau solde : ${newBalance.toLocaleString('fr-FR')} FCFA`, 'success');
+          showNotification('✅', `✅ Commande envoyée !<br>Montant débité : ${serverFinal.toLocaleString('fr-FR')} FCFA<br>Nouveau solde : ${newBalance.toLocaleString('fr-FR')} FCFA`, 'success');
 
           orderForm.reset();
           resetUI();
@@ -1780,7 +1764,7 @@
           setLoadingState(false);
         }
       }
-    }); // fin DOMContentLoaded
+    }); // DOMContentLoaded fin
   </script>
 </body>
 </html>
