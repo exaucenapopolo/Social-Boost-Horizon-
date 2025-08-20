@@ -718,8 +718,6 @@
       <a href="services.html"><i class="fa-solid fa-book"></i> Autres services</a>
       <a href="community.html"><i class="fa-solid fa-users"></i> Communauté</a>
       <a href="commandes.html"><i class="fa-solid fa-file-invoice"></i> Mes commandes</a>
-      <a href="services.html"><i class="fa-solid fa-cubes"></i> Autres Services</a>
-      <a href="payment.html"><i class="fa-solid fa-money-bill"></i> Autre paiement</a>
       <a href="parrainage.html"><i class="fa-solid fa-handshake"></i> Parrainage</a>
       <a href="privacy.html"><i class="fa-solid fa-shield"></i> Confidentialité</a>
       <a href="assistant.html"><i class="fa-solid fa-headset"></i> Assistance</a>
@@ -1006,8 +1004,8 @@
           remark: "Assurez-vous de ne pas insérer de “@” ni “#” dans vos commentaires. (min: 10)"
         },
         "J’aime pour direct": {
-          medium: { price: 250, time: "15 mi n" },
-          high:   { price: 560, time: "10 mi n" },
+          medium: { price: 250, time: "15 min" },
+          high:   { price: 560, time: "10 min" },
           remark: "Les likes viendront 15 ou 10 minutes après votre achat. (min : 100)"
         },
         "Téléspectateur en direct": {
@@ -1161,79 +1159,76 @@
       }
     };
 
+    // === Script principal ===
     document.addEventListener("DOMContentLoaded", function () {
-      AOS.init({ duration: 800, once: true, offset: 100 });
+      // AOS
+      if (typeof AOS !== 'undefined') {
+        AOS.init({ duration: 800, once: true, offset: 100 });
+      }
 
-      // Gestion du menu hamburger
+      // Menu hamburger
       const header = document.querySelector("header");
       const hamburger = document.querySelector(".icon-hamburger");
-      hamburger.addEventListener("click", () => {
-        header.classList.toggle("open");
-      });
-      
-      // Fermer le menu quand on clique en dehors
+      if (hamburger) {
+        hamburger.addEventListener("click", () => header.classList.toggle("open"));
+      }
+
       document.addEventListener("click", (e) => {
         const isMenuOpen = header.classList.contains("open");
         const isClickInsideMenu = header.contains(e.target);
         const isHamburgerButton = e.target.closest('#hamburgerBtn');
-
-        if (isMenuOpen && !isClickInsideMenu && !isHamburgerButton) {
-          header.classList.remove("open");
-        }
+        if (isMenuOpen && !isClickInsideMenu && !isHamburgerButton) header.classList.remove("open");
       });
 
-      // Gestion de la notification
+      // Notification close
       const notification = document.getElementById('orderNotification');
       const notificationClose = document.getElementById('notificationClose');
-      
-      notificationClose.addEventListener('click', function() {
-        notification.style.display = 'none';
-      });
-      
-      // Variables utilisateur
+      if (notificationClose) notificationClose.addEventListener('click', () => { notification.style.display = 'none'; });
+
+      /* ---------- Variables utilisateur ---------- */
       let currentUser = null;
-      let userData = {
-        isReseller: false,
-        discountRate: 0,
-        balance: 0
-      };
-      
-      // Vérifier l'authentification et le statut revendeur
+      let userData = { isReseller: false, discountRate: 0, balance: 0 };
+
+      // Auth check + chargement des données utilisateur
       auth.onAuthStateChanged(user => {
         if (!user) {
           window.location.href = 'login.html';
-        } else {
-          currentUser = user;
-          document.getElementById('userId').value = user.uid;
-          
-          // Charger les données utilisateur
-          db.collection("users").doc(user.uid).get()
-            .then(doc => {
-              if (doc.exists) {
-                userData = doc.data();
-                
-                // Vérifier le statut revendeur
-                if (!userData.isReseller) {
-                  alert("Cette page est réservée aux revendeurs. Vous allez être redirigé.");
-                  window.location.href = "commande.html";
-                }
-                
-                // Mettre à jour le taux de remise
-                document.getElementById('discountRate').value = userData.discountRate || 0;
-              }
-            })
-            .catch(error => {
-              console.error("Erreur lors du chargement des données utilisateur:", error);
-            });
+          return;
         }
+        currentUser = user;
+        const userIdInput = document.getElementById('userId');
+        if (userIdInput) userIdInput.value = user.uid;
+
+        db.collection("users").doc(user.uid).get()
+          .then(doc => {
+            if (doc.exists) {
+              const data = doc.data() || {};
+              userData = {
+                isReseller: !!data.isReseller,
+                discountRate: Number(data.discountRate || 0),
+                balance: Number(data.balance || 0)
+              };
+
+              if (!userData.isReseller) {
+                alert("Cette page est réservée aux revendeurs. Vous allez être redirigé.");
+                window.location.href = "commande.html";
+                return;
+              }
+
+              const discountRateInput = document.getElementById('discountRate');
+              if (discountRateInput) discountRateInput.value = userData.discountRate || 0;
+            } else {
+              console.warn("Utilisateur introuvable en base.");
+            }
+          })
+          .catch(error => console.error("Erreur lors du chargement des données utilisateur:", error));
       });
-      
-      // DOM references
+
+      /* ---------- DOM refs ---------- */
       let selectedPlatform = null;
       const icons            = document.querySelectorAll('.platforms img');
       const orderForm        = document.getElementById('orderForm');
       const serviceSelect    = document.getElementById('serviceSelect');
-      const qualitySection   = document.getElementById('qualitySelect').parentElement;
       const qualitySelect    = document.getElementById('qualitySelect');
       const subOptionSection = document.getElementById('subOptionSection');
       const subOptionLabel   = document.getElementById('subOptionLabel');
@@ -1249,23 +1244,25 @@
       const emailField       = document.getElementById('emailField');
       const contactInput     = document.getElementById('contactInput');
       const emailInput       = document.getElementById('emailInput');
+      const whatsappRemark   = document.getElementById('whatsappRemark');
+      const emailRemark      = document.getElementById('emailRemark');
       const timeEstimate     = document.getElementById('timeEstimate');
       const remarkBox        = document.getElementById('remarkBox');
       const orderErrorBox    = document.getElementById('orderErrorBox');
       const savingsAmount    = document.getElementById('savingsAmount');
       const submitButton     = document.querySelector('.btn');
-      const submitButtonText = document.querySelector('.btn .btn-text');
-      const spinner          = document.querySelector('.btn .spinner');
 
-      // Events binding
+      /* ---------- Events binding ---------- */
       icons.forEach(i => i.addEventListener('click', () => selectPlatform(i.dataset.platform)));
-      serviceSelect.addEventListener('change', onServiceChange);
-      qualitySelect.addEventListener('change', updateDetails);
-      subOptionSelect.addEventListener('change', updateDetails);
-      contactType.addEventListener('change', toggleContactField);
-      orderForm.addEventListener('submit', onSubmit);
-      window.addEventListener('DOMContentLoaded', () => selectPlatform('facebook'));
+      if (serviceSelect) serviceSelect.addEventListener('change', onServiceChange);
+      if (qualitySelect) qualitySelect.addEventListener('change', updateDetails);
+      if (subOptionSelect) subOptionSelect.addEventListener('change', updateDetails);
+      if (contactType) contactType.addEventListener('change', toggleContactField);
+      if (orderForm) orderForm.addEventListener('submit', onSubmit);
 
+      selectPlatform('facebook'); // plateforme par défaut
+
+      /* ---------- helpers ---------- */
       function attachQuantityInputListener() {
         if (quantityInput) {
           quantityInput.removeEventListener('input', updateDetails);
@@ -1276,13 +1273,15 @@
 
       function selectPlatform(p) {
         icons.forEach(i => i.classList.remove('active'));
-        document.querySelector(`.platforms img[data-platform="${p}"]`).classList.add('active');
+        const el = document.querySelector(`.platforms img[data-platform="${p}"]`);
+        if (el) el.classList.add('active');
         selectedPlatform = p;
         loadServices();
       }
 
       function loadServices() {
-        serviceSelect.innerHTML = '<option value=""> Choisir un service </option>';
+        if (!serviceSelect || !selectedPlatform || !window.servicesData) return;
+        serviceSelect.innerHTML = '<option value=""> Choisir un service </option>';
         Object.keys(servicesData[selectedPlatform]).forEach(s => {
           const o = document.createElement('option');
           o.value = s; o.textContent = s;
@@ -1292,41 +1291,44 @@
       }
 
       function resetUI() {
+        if (!subOptionSection || !subOptionSelect) return;
         subOptionSection.style.display = 'none';
         subOptionSelect.innerHTML = '';
-        qualitySelect.value = 'medium';
+        if (qualitySelect) qualitySelect.value = 'medium';
 
-        if (quantityInput.tagName === 'TEXTAREA') {
+        if (quantityInput && quantityInput.tagName === 'TEXTAREA') {
           const newInput = document.createElement('input');
           newInput.id = 'quantityInput';
           newInput.name = 'quantity';
           newInput.type = 'number';
           newInput.min = '1';
-          newInput.placeholder = 'Ex : 1000';
+          newInput.placeholder = 'Ex : 1000';
           quantitySection.replaceChild(newInput, quantityInput);
           quantityInput = newInput;
           attachQuantityInputListener();
         }
-        quantLabel.textContent = 'Quantité';
-        quantityInput.value = '';
-        quantityInput.style.height = '';
-        quantityInput.disabled = false;
-        quantityError.style.display = 'none';
-        quantityError.textContent = '';
-        commentsCount.style.display = 'none';
 
-        document.querySelector('.normal-price').textContent = 'Prix normal : 0 FCFA';
-        document.querySelector('.reseller-price').textContent = 'Votre prix : 0 FCFA';
-        savingsAmount.textContent = 'Économisez 0 FCFA';
-        document.getElementById('priceDetails').textContent = '';
-        timeEstimate.textContent  = 'Temps de réalisation : 2 h';
-        remarkBox.textContent      = 'Sélectionnez un service pour voir la remarque.';
+        if (quantLabel) quantLabel.textContent = 'Quantité';
+        if (quantityInput) { quantityInput.value = ''; quantityInput.disabled = false; }
+        if (quantityError) { quantityError.style.display = 'none'; quantityError.textContent = ''; }
+        if (commentsCount) commentsCount.style.display = 'none';
 
-        contactType.value = '';
+        const normalPriceEl = document.querySelector('.normal-price');
+        const resellerPriceEl = document.querySelector('.reseller-price');
+        if (normalPriceEl) normalPriceEl.textContent = 'Prix normal : 0 FCFA';
+        if (resellerPriceEl) resellerPriceEl.textContent = 'Votre prix : 0 FCFA';
+        if (savingsAmount) savingsAmount.textContent = 'Économisez 0 FCFA';
+        const priceDetailsEl = document.getElementById('priceDetails');
+        if (priceDetailsEl) priceDetailsEl.textContent = '';
+        if (timeEstimate) timeEstimate.textContent  = 'Temps de réalisation : 2 h';
+        if (remarkBox) remarkBox.textContent      = 'Sélectionnez un service pour voir la remarque.';
+
+        if (contactType) contactType.value = '';
         toggleContactField();
-        orderErrorBox.style.display = 'none';
+        if (orderErrorBox) orderErrorBox.style.display = 'none';
       }
 
+      /* ---------- service change ---------- */
       function onServiceChange() {
         resetUI();
         const selectedServiceKey = serviceSelect.value;
@@ -1346,8 +1348,8 @@
             quantityInput = newTextarea;
             attachQuantityInputListener();
           }
-          quantLabel.textContent = 'Vos commentaires (un par ligne)';
-          commentsCount.style.display = 'block';
+          if (quantLabel) quantLabel.textContent = 'Vos commentaires (un par ligne)';
+          if (commentsCount) commentsCount.style.display = 'block';
           quantityInput.disabled = false;
         } else {
           if (quantityInput.tagName === 'TEXTAREA') {
@@ -1356,13 +1358,13 @@
             newInput.name = 'quantity';
             newInput.type = 'number';
             newInput.min = '1';
-            newInput.placeholder = 'Ex : 1000';
+            newInput.placeholder = 'Ex : 1000';
             quantitySection.replaceChild(newInput, quantityInput);
             quantityInput = newInput;
             attachQuantityInputListener();
           }
-          quantLabel.textContent = 'Quantité';
-          commentsCount.style.display = 'none';
+          if (quantLabel) quantLabel.textContent = 'Quantité';
+          if (commentsCount) commentsCount.style.display = 'none';
           quantityInput.disabled = false;
         }
 
@@ -1371,7 +1373,7 @@
           subOptionSelect.innerHTML = '';
           const defaultSubOption = document.createElement('option');
           defaultSubOption.value = "";
-          defaultSubOption.textContent = " Choisir une option ";
+          defaultSubOption.textContent = " Choisir une option ";
           subOptionSelect.appendChild(defaultSubOption);
 
           Object.keys(serviceDef.options).forEach(opt => {
@@ -1391,10 +1393,7 @@
             && selectedPlatform === 'telegram';
 
           quantityInput.disabled = isQuantityFixedByOption;
-          if (isQuantityFixedByOption) {
-            quantityInput.value = '';
-            quantityError.style.display = 'none';
-          }
+          if (isQuantityFixedByOption) { quantityInput.value = ''; quantityError.style.display = 'none'; }
         } else {
           subOptionSection.style.display = 'none';
           quantityInput.disabled = false;
@@ -1403,16 +1402,11 @@
         updateDetails();
       }
 
+      /* ---------- update details ---------- */
       function updateDetails() {
         const selectedServiceKey = serviceSelect.value;
         if (!selectedServiceKey) {
-          document.querySelector('.normal-price').textContent = 'Prix normal : 0 FCFA';
-          document.querySelector('.reseller-price').textContent = 'Votre prix : 0 FCFA';
-          savingsAmount.textContent = 'Économisez 0 FCFA';
-          document.getElementById('priceDetails').textContent = '';
-          timeEstimate.textContent  = 'Temps de réalisation : 2 h';
-          remarkBox.textContent      = 'Sélectionnez un service pour voir la remarque.';
-          quantityError.style.display = 'none';
+          resetPriceDisplay();
           return;
         }
 
@@ -1425,9 +1419,7 @@
         let minQuantity = 1;
 
         const remarkMatch = serviceDef.remark && serviceDef.remark.match(/\(min:\s*(\d+)\)/);
-        if (remarkMatch && remarkMatch[1]) {
-          minQuantity = parseInt(remarkMatch[1], 10);
-        }
+        if (remarkMatch && remarkMatch[1]) minQuantity = parseInt(remarkMatch[1], 10);
 
         const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
         const discountRate = parseInt(document.getElementById('discountRate').value) || 0;
@@ -1435,12 +1427,7 @@
         if (serviceDef.options) {
           const selectedSubOption = subOptionSelect.value;
           if (!selectedSubOption) {
-            document.querySelector('.normal-price').textContent = 'Prix normal : 0 FCFA';
-            document.querySelector('.reseller-price').textContent = 'Votre prix : 0 FCFA';
-            savingsAmount.textContent = 'Économisez 0 FCFA';
-            document.getElementById('priceDetails').textContent = '';
-            timeEstimate.textContent  = 'Temps de réalisation : N/A';
-            remarkBox.textContent      = serviceDef.remark;
+            resetPriceDisplay(serviceDef.remark);
             return;
           }
 
@@ -1457,158 +1444,150 @@
 
           if (isQuantityFixedByOption) {
             normalPrice = currentConfig.price;
-            discountedPrice = Math.round(normalPrice * (1 - discountRate/100));
+            pricePerThousand = currentConfig.price;
             estimatedTime = currentConfig.time;
-            pricePerThousand = normalPrice;
+            discountedPrice = Math.round(normalPrice * (1 - discountRate/100));
           } else {
             const quantity = parseInt(quantityInput.value) || 0;
-            // Modification pour les commentaires personnalisés
             if (isCommentService) {
-              pricePerThousand = currentConfig.price * 100; // Prix pour 1000 commentaires
+              pricePerThousand = currentConfig.price * 100;
               normalPrice = (currentConfig.price / 10) * quantity;
             } else {
               pricePerThousand = currentConfig.price;
               normalPrice = (currentConfig.price / 1000) * quantity;
             }
-
             discountedPrice = Math.round(normalPrice * (1 - discountRate/100));
             estimatedTime = currentConfig.time;
 
             if (quantity > 0 && quantity < minQuantity) {
               quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
               quantityError.style.display = 'block';
-            } else {
-              quantityError.style.display = 'none';
-            }
+            } else quantityError.style.display = 'none';
           }
         } else {
           currentConfig = serviceDef[qualitySelect.value];
-          // Modification pour les commentaires personnalisés
           if (isCommentService) {
-            pricePerThousand = currentConfig.price * 100; // Prix pour 1000 commentaires
+            pricePerThousand = currentConfig.price * 100;
             const lines = quantityInput.value.split('\n').filter(l => l.trim());
             const count = lines.length;
             normalPrice = (currentConfig.price / 10) * count;
             discountedPrice = Math.round(normalPrice * (1 - discountRate/100));
             estimatedTime = currentConfig.time;
-            
-            commentsCount.textContent = count < minQuantity
-              ? `${count} commentaire(s) (minimum ${minQuantity})`
-              : `${count} commentaire(s)`;
+
+            if (commentsCount) {
+              commentsCount.textContent = count < minQuantity ? `${count} commentaire(s) (minimum ${minQuantity})` : `${count} commentaire(s)`;
+            }
 
             if (count > 0 && count < minQuantity) {
               quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`;
               quantityError.style.display = 'block';
-            } else {
-              quantityError.style.display = 'none';
-            }
+            } else quantityError.style.display = 'none';
           } else {
             pricePerThousand = currentConfig.price;
             const quantity = parseInt(quantityInput.value) || 0;
             normalPrice = (currentConfig.price / 1000) * quantity;
             discountedPrice = Math.round(normalPrice * (1 - discountRate/100));
             estimatedTime = currentConfig.time;
-            
+
             if (quantity > 0 && quantity < minQuantity) {
               quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
               quantityError.style.display = 'block';
-            } else {
-              quantityError.style.display = 'none';
-            }
+            } else quantityError.style.display = 'none';
           }
         }
 
-        document.querySelector('.normal-price').textContent = `Prix normal : ${normalPrice.toLocaleString('fr-FR')} FCFA`;
-        document.querySelector('.reseller-price').textContent = `Votre prix : ${discountedPrice.toLocaleString('fr-FR')} FCFA`;
-        
-        const savings = normalPrice - discountedPrice;
-        savingsAmount.textContent = `Économisez ${savings.toLocaleString('fr-FR')} FCFA`;
-        
-        if (serviceDef.options && !isQuantityFixedByOption) {
-          document.getElementById('priceDetails').textContent = `(Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
-        } else if (!serviceDef.options && !isCommentService) {
-          document.getElementById('priceDetails').textContent = `(Prix pour 1 : ${(pricePerThousand/1000).toLocaleString('fr-FR')} FCFA, Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
-        } else if (isCommentService) {
-          document.getElementById('priceDetails').textContent = `(Prix par commentaire : ${(pricePerThousand/1000).toLocaleString('fr-FR')} FCFA)`;
-        } else {
-          document.getElementById('priceDetails').textContent = '';
-        }
+        const normalPriceEl = document.querySelector('.normal-price');
+        const resellerPriceEl = document.querySelector('.reseller-price');
+        if (normalPriceEl) normalPriceEl.textContent = `Prix normal : ${Math.round(normalPrice).toLocaleString('fr-FR')} FCFA`;
+        if (resellerPriceEl) resellerPriceEl.textContent = `Votre prix : ${Math.round(discountedPrice).toLocaleString('fr-FR')} FCFA`;
+        if (savingsAmount) savingsAmount.textContent = `Économisez ${Math.round(normalPrice - discountedPrice).toLocaleString('fr-FR')} FCFA`;
 
-        timeEstimate.textContent = `Temps de réalisation : ${estimatedTime}`;
-        remarkBox.textContent = serviceDef.remark;
+        const priceDetailsEl = document.getElementById('priceDetails');
+        if (serviceDef.options && typeof isQuantityFixedByOption !== 'undefined' && !isQuantityFixedByOption) {
+          if (priceDetailsEl) priceDetailsEl.textContent = `(Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
+        } else if (!serviceDef.options && !isCommentService) {
+          if (priceDetailsEl) priceDetailsEl.textContent = `(Prix pour 1 : ${(pricePerThousand/1000).toLocaleString('fr-FR')} FCFA, Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
+        } else if (isCommentService) {
+          if (priceDetailsEl) priceDetailsEl.textContent = `(Prix par commentaire : ${(pricePerThousand/1000).toLocaleString('fr-FR')} FCFA)`;
+        } else if (priceDetailsEl) priceDetailsEl.textContent = '';
+
+        if (timeEstimate) timeEstimate.textContent = `Temps de réalisation : ${estimatedTime}`;
+        if (remarkBox) remarkBox.textContent = serviceDef.remark;
       }
 
+      function resetPriceDisplay(remark) {
+        const normalPriceEl = document.querySelector('.normal-price');
+        const resellerPriceEl = document.querySelector('.reseller-price');
+        if (normalPriceEl) normalPriceEl.textContent = 'Prix normal : 0 FCFA';
+        if (resellerPriceEl) resellerPriceEl.textContent = 'Votre prix : 0 FCFA';
+        if (savingsAmount) savingsAmount.textContent = 'Économisez 0 FCFA';
+        const priceDetailsEl = document.getElementById('priceDetails');
+        if (priceDetailsEl) priceDetailsEl.textContent = '';
+        if (timeEstimate) timeEstimate.textContent  = 'Temps de réalisation : 2 h';
+        if (remarkBox) remarkBox.textContent = remark || 'Sélectionnez un service pour voir la remarque.';
+      }
+
+      /* ---------- toggle contact fields ---------- */
       function toggleContactField() {
-        whatsappField.style.display = 'none';
-        emailField.style.display    = 'none';
-        contactInput.required       = false;
-        emailInput.required         = false;
-        contactInput.value          = '';
-        emailInput.value            = '';
-        whatsappRemark.style.display = 'none';
-        emailRemark.style.display    = 'none';
+        if (whatsappField) whatsappField.style.display = 'none';
+        if (emailField) emailField.style.display    = 'none';
+        if (contactInput) { contactInput.required = false; contactInput.value = ''; }
+        if (emailInput) { emailInput.required = false; emailInput.value = ''; }
+        if (whatsappRemark) whatsappRemark.style.display = 'none';
+        if (emailRemark) emailRemark.style.display    = 'none';
 
         if (contactType.value === 'whatsapp') {
-          whatsappField.style.display = 'block';
-          contactInput.required = true;
-          whatsappRemark.style.display = 'block';
+          if (whatsappField) whatsappField.style.display = 'block';
+          if (contactInput) contactInput.required = true;
+          if (whatsappRemark) whatsappRemark.style.display = 'block';
         } else if (contactType.value === 'email') {
-          emailField.style.display = 'block';
-          emailInput.required = true;
-          emailRemark.style.display = 'block';
+          if (emailField) emailField.style.display = 'block';
+          if (emailInput) emailInput.required = true;
+          if (emailRemark) emailRemark.style.display = 'block';
         }
       }
 
+      /* ---------- notifications & loading ---------- */
       function showNotification(icon, message, type) {
         const notificationIcon = document.getElementById('notificationIcon');
         const notificationMessage = document.getElementById('notificationMessage');
-        
-        notificationIcon.innerHTML = icon;
-        notificationMessage.innerHTML = message;
-        notification.className = 'order-notification notification-' + type;
-        notification.style.display = 'block';
+        const notification = document.getElementById('orderNotification');
+
+        if (notificationIcon) notificationIcon.innerHTML = icon;
+        if (notificationMessage) notificationMessage.innerHTML = message;
+        if (notification) {
+          notification.className = 'order-notification notification-' + type;
+          notification.style.display = 'block';
+        }
       }
 
       function setLoadingState(isLoading) {
         if (isLoading) {
-          submitButton.classList.add('loading');
-          submitButton.disabled = true;
+          if (submitButton) submitButton.classList.add('loading');
+          if (submitButton) submitButton.disabled = true;
         } else {
-          submitButton.classList.remove('loading');
-          submitButton.disabled = false;
+          if (submitButton) submitButton.classList.remove('loading');
+          if (submitButton) submitButton.disabled = false;
         }
       }
 
+      /* ---------- onSubmit (ENVOI AU SERVEUR) ---------- */
       async function onSubmit(e) {
         e.preventDefault();
         setLoadingState(true);
-        orderErrorBox.style.display = 'none';
-        orderErrorBox.textContent = '';
-        quantityError.style.display = 'none';
+        if (orderErrorBox) orderErrorBox.style.display = 'none';
+        if (orderErrorBox) orderErrorBox.textContent = '';
+        if (quantityError) quantityError.style.display = 'none';
 
         const selectedServiceKey = serviceSelect.value;
-        if (!selectedServiceKey) {
-          orderErrorBox.textContent = 'Veuillez sélectionner un service.';
-          orderErrorBox.style.display = 'block';
-          setLoadingState(false);
-          return;
-        }
-        
+        if (!selectedServiceKey) { if (orderErrorBox) { orderErrorBox.textContent = 'Veuillez sélectionner un service.'; orderErrorBox.style.display = 'block'; } setLoadingState(false); return; }
         const selectedQuality = qualitySelect.value;
-        if (!selectedQuality) {
-          orderErrorBox.textContent = 'Veuillez sélectionner une qualité.';
-          orderErrorBox.style.display = 'block';
-          setLoadingState(false);
-          return;
-        }
+        if (!selectedQuality) { if (orderErrorBox) { orderErrorBox.textContent = 'Veuillez sélectionner une qualité.'; orderErrorBox.style.display = 'block'; } setLoadingState(false); return; }
 
         const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
         let minQuantity = 1;
-
         const remarkMatch = serviceDef.remark && serviceDef.remark.match(/\(min:\s*(\d+)\)/);
-        if (remarkMatch && remarkMatch[1]) {
-          minQuantity = parseInt(remarkMatch[1], 10);
-        }
+        if (remarkMatch && remarkMatch[1]) minQuantity = parseInt(remarkMatch[1], 10);
 
         const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
         let quantityForValidation = 0;
@@ -1617,37 +1596,22 @@
         if (isCommentService) {
           commentsArray = quantityInput.value.split('\n').filter(l => l.trim());
           quantityForValidation = commentsArray.length;
-          if (quantityForValidation < minQuantity) {
-            quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`;
-            quantityError.style.display = 'block';
-            setLoadingState(false);
-            return;
-          }
+          if (quantityForValidation < minQuantity) { if (quantityError) { quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`; quantityError.style.display = 'block'; } setLoadingState(false); return; }
         } else {
           if (!quantityInput.disabled) {
             quantityForValidation = parseInt(quantityInput.value) || 0;
-            if (quantityForValidation < minQuantity) {
-              quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
-              quantityError.style.display = 'block';
-              setLoadingState(false);
-              return;
-            }
+            if (quantityForValidation < minQuantity) { if (quantityError) { quantityError.textContent = `La quantité minimale est de ${minQuantity}.`; quantityError.style.display = 'block'; } setLoadingState(false); return; }
           }
         }
 
-        // Calculer le prix final après remise
         const discountRate = parseInt(document.getElementById('discountRate').value) || 0;
         let normalPrice = 0;
         let discountedPrice = 0;
+        let currentConfig = null;
 
         if (serviceDef.options) {
           const selectedSubOption = subOptionSelect.value;
-          if (!selectedSubOption) {
-            showNotification('❌', "❌ Veuillez choisir une option de service.", 'error');
-            setLoadingState(false);
-            return;
-          }
-
+          if (!selectedSubOption) { showNotification('❌', "❌ Veuillez choisir une option de service.", 'error'); setLoadingState(false); return; }
           const optionData = serviceDef.options[selectedSubOption];
           currentConfig = optionData[qualitySelect.value] || optionData.medium;
 
@@ -1662,101 +1626,81 @@
           if (isQuantityFixedByOption) {
             normalPrice = currentConfig.price;
           } else {
-            if (isCommentService) {
-              normalPrice = (currentConfig.price / 10) * quantityForValidation;
-            } else {
-              normalPrice = (currentConfig.price / 1000) * quantityForValidation;
-            }
+            if (isCommentService) normalPrice = (currentConfig.price / 10) * quantityForValidation;
+            else normalPrice = (currentConfig.price / 1000) * quantityForValidation;
           }
         } else {
           currentConfig = serviceDef[qualitySelect.value];
-          if (isCommentService) {
-            normalPrice = (currentConfig.price / 10) * quantityForValidation;
-          } else {
-            normalPrice = (currentConfig.price / 1000) * quantityForValidation;
-          }
+          if (isCommentService) normalPrice = (currentConfig.price / 10) * quantityForValidation;
+          else normalPrice = (currentConfig.price / 1000) * quantityForValidation;
         }
 
         discountedPrice = Math.round(normalPrice * (1 - discountRate/100));
 
-        // Vérifier le solde
-        if (discountedPrice > userData.balance) {
-          showNotification('❌', `❌ Solde insuffisant. Il vous manque ${(discountedPrice - userData.balance).toLocaleString('fr-FR')} FCFA. Veuillez recharger votre compte.`, 'error');
+        if (discountedPrice > (userData.balance || 0)) {
+          showNotification('❌', `❌ Solde insuffisant. Il vous manque ${(discountedPrice - (userData.balance || 0)).toLocaleString('fr-FR')} FCFA. Veuillez recharger votre compte.`, 'error');
           setLoadingState(false);
           return;
         }
 
-        const payload = {
-          userId:      document.getElementById('userId').value,
-          platform:    selectedPlatform,
-          service:     selectedServiceKey,
-          quality:     qualitySelect.value,
-          subOption:   subOptionSection.style.display === 'block' ? subOptionSelect.value : undefined,
-          link:        linkInput.value,
-          quantity:    isCommentService || quantityInput.disabled ? undefined : Number(quantityInput.value),
-          comments:    isCommentService ? commentsArray : undefined,
+        const serverPayload = {
+          userId: document.getElementById('userId').value,
+          platform: selectedPlatform,
+          service: selectedServiceKey,
+          quality: qualitySelect.value,
+          subOption: subOptionSection.style.display === 'block' ? subOptionSelect.value : undefined,
+          link: linkInput.value,
+          quantity: isCommentService ? undefined : Number(quantityForValidation),
+          comments: isCommentService ? commentsArray : undefined,
           contactType: contactType.value,
-          contact:     contactType.value === 'whatsapp' ? contactInput.value : emailInput.value,
+          contact: contactType.value === 'whatsapp' ? contactInput.value : emailInput.value,
+          isResellerOrder: true,
           normalPrice: normalPrice,
           discountedPrice: discountedPrice,
           discountRate: discountRate
         };
 
-        if (!payload.userId) {
-          showNotification('❌', "❌ Erreur d'authentification. Veuillez vous reconnecter.", 'error');
-          setLoadingState(false);
-          return;
-        }
+        if (!serverPayload.userId) { showNotification('❌', "❌ Erreur d'authentification. Veuillez vous reconnecter.", 'error'); setLoadingState(false); return; }
+        if (serverPayload.subOption === "" && subOptionSection.style.display !== 'none') { showNotification('❌', "❌ Veuillez choisir une option de service.", 'error'); setLoadingState(false); return; }
+        if (!serverPayload.contactType) { showNotification('❌', "❌ Veuillez choisir un mode de contact.", 'error'); setLoadingState(false); return; }
+        if (serverPayload.contactType === 'whatsapp' && !serverPayload.contact) { showNotification('❌', "❌ Veuillez saisir votre numéro WhatsApp.", 'error'); setLoadingState(false); return; }
+        if (serverPayload.contactType === 'email' && !serverPayload.contact) { showNotification('❌', "❌ Veuillez saisir votre adresse Email.", 'error'); setLoadingState(false); return; }
 
-        if (payload.subOption === "" && subOptionSection.style.display !== 'none') {
-          showNotification('❌', "❌ Veuillez choisir une option de service.", 'error');
-          setLoadingState(false);
-          return;
-        }
-
-        if (!payload.contactType) {
-          showNotification('❌', "❌ Veuillez choisir un mode de contact.", 'error');
-          setLoadingState(false);
-          return;
-        }
-        if (payload.contactType === 'whatsapp' && !payload.contact) {
-          showNotification('❌', "❌ Veuillez saisir votre numéro WhatsApp.", 'error');
-          setLoadingState(false);
-          return;
-        }
-        if (payload.contactType === 'email' && !payload.contact) {
-          showNotification('❌', "❌ Veuillez saisir votre adresse Email.", 'error');
-          setLoadingState(false);
-          return;
-        }
-
+        // Envoi au serveur
         try {
-          // Mettre à jour le solde de l'utilisateur
-          const newBalance = userData.balance - discountedPrice;
-          await db.collection("users").doc(currentUser.uid).update({
-            balance: newBalance
+          const SERVER_URL = 'https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev';
+          const resp = await fetch(`${SERVER_URL}/order`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(serverPayload)
           });
 
-          // Enregistrer la commande
-          await db.collection("orders").add({
-            ...payload,
-            status: "pending",
-            createdAt: new Date(),
-            updatedAt: new Date()
-          });
+          const result = await resp.json().catch(() => ({}));
 
-          // Mettre à jour le solde dans l'interface
+          if (!resp.ok || !result.success) {
+            const errMsg = result.error || 'Erreur lors de l’envoi au serveur.';
+            showNotification('❌', `<strong>❌ Échec :</strong><br>${errMsg}`, 'error');
+            setLoadingState(false);
+            return;
+          }
+
+          const finalCharge = (result.finalCost !== undefined && result.finalCost !== null)
+            ? result.finalCost
+            : (result.discountedPrice !== undefined ? result.discountedPrice : discountedPrice);
+
+          const newBalance = (typeof result.newBalance === 'number')
+            ? result.newBalance
+            : ((userData.balance || 0) - finalCharge);
+
           userData.balance = newBalance;
 
-          // Afficher la notification de succès
-          showNotification('✅', `✅ Commande envoyée avec succès !<br>Montant déduit: ${discountedPrice.toLocaleString('fr-FR')} FCFA<br>Nouveau solde: ${newBalance.toLocaleString('fr-FR')} FCFA`, 'success');
-          
-          // Réinitialiser le formulaire
+          showNotification('✅', `✅ Commande envoyée !<br>Montant débité : ${finalCharge.toLocaleString('fr-FR')} FCFA<br>Nouveau solde : ${newBalance.toLocaleString('fr-FR')} FCFA`, 'success');
+
           orderForm.reset();
           resetUI();
           icons.forEach(i => i.classList.remove('active'));
         } catch (err) {
-          // Message d'erreur détaillé
+          console.error('Erreur fetch /order :', err);
           const detailedError = `
             <strong>❌ Désolé, quelque chose a mal tourné !</strong><br>
             Votre commande n'a pas été envoyée.<br><br>
@@ -1773,7 +1717,7 @@
           setLoadingState(false);
         }
       }
-    });
+    }); // fin DOMContentLoaded
   </script>
 </body>
 </html>
