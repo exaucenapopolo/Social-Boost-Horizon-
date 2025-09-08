@@ -236,7 +236,7 @@
       left: 0;
       right: 0;
       height: 4px;
-      background: linear-gradient(90deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      background: linear-gradient(90deg, var(--sbh-gradient-start), var(--sbh-gradient-end);
       transform: scaleX(0);
       transform-origin: 0 50%;
       transition: transform 0.5s ease;
@@ -537,6 +537,12 @@
             <div class="label"><i class="fas fa-shopping-basket"></i> Total commandes</div>
           </div>
           
+          <!-- Nouvelle case pour le total des commandes de la semaine -->
+          <div class="stat-box scroll-animate">
+            <div class="value" id="weeklyOrders"><span class="loading-spinner" id="weeklySpinner"></span><span>0</span></div>
+            <div class="label"><i class="fas fa-calendar-week"></i> Commandes cette semaine</div>
+          </div>
+          
           <div class="stat-box scroll-animate">
             <div class="value" id="discountRate"><span class="loading-spinner" id="discountSpinner"></span><span>0%</span></div>
             <div class="label"><i class="fas fa-percent"></i> Remise actuelle</div>
@@ -794,6 +800,8 @@
       const levelSpinner = document.getElementById('levelSpinner');
       const totalOrdersEl = document.getElementById('totalOrders');
       const ordersSpinner = document.getElementById('ordersSpinner');
+      const weeklyOrdersEl = document.getElementById('weeklyOrders');
+      const weeklySpinner = document.getElementById('weeklySpinner');
       const discountRateEl = document.getElementById('discountRate');
       const discountSpinner = document.getElementById('discountSpinner');
       const savingsAmountEl = document.getElementById('savingsAmount');
@@ -810,6 +818,7 @@
         isReseller: false,
         resellerLevel: null,
         resellerOrdersCount: 0,
+        weeklyOrdersCount: 0,
         discountRate: 0,
         balance: 0,
         totalSavings: 0
@@ -850,6 +859,7 @@
               isReseller: false,
               resellerLevel: null,
               resellerOrdersCount: 0,
+              weeklyOrdersCount: 0,
               discountRate: 0,
               balance: 0,
               totalSavings: 0
@@ -887,6 +897,7 @@
       function updateResellerUI() {
         levelSpinner.style.display = 'none';
         ordersSpinner.style.display = 'none';
+        weeklySpinner.style.display = 'none';
         discountSpinner.style.display = 'none';
         
         if (userData.isReseller) {
@@ -898,6 +909,7 @@
 
           currentLevelEl.querySelector('span').textContent = userData.resellerLevel ? String(userData.resellerLevel).charAt(0).toUpperCase() + String(userData.resellerLevel).slice(1) : "Non défini";
           totalOrdersEl.querySelector('span').textContent = userData.resellerOrdersCount || 0;
+          weeklyOrdersEl.querySelector('span').textContent = userData.weeklyOrdersCount || 0;
           discountRateEl.querySelector('span').textContent = (userData.discountRate || 0) + "%";
           savingsAmountEl.textContent = (userData.totalSavings || 0).toLocaleString('fr-FR') + " FCFA";
         } else {
@@ -909,6 +921,7 @@
 
           currentLevelEl.querySelector('span').textContent = "Non revendeur";
           totalOrdersEl.querySelector('span').textContent = "0";
+          weeklyOrdersEl.querySelector('span').textContent = "0";
           discountRateEl.querySelector('span').textContent = "0%";
           savingsAmountEl.textContent = "0 FCFA";
         }
@@ -1035,6 +1048,7 @@
             resellerLevel: "beginner",
             discountRate: 5,
             resellerOrdersCount: 0,
+            weeklyOrdersCount: 0,
             resellerSince: firebase.firestore.FieldValue.serverTimestamp()
           }, { merge: true });
 
@@ -1063,6 +1077,7 @@
             resellerLevel: null,
             discountRate: 0,
             resellerOrdersCount: 0,
+            weeklyOrdersCount: 0,
             resellerEnded: firebase.firestore.FieldValue.serverTimestamp()
           }, { merge: true });
 
