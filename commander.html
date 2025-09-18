@@ -515,6 +515,12 @@
     .notification-button:hover {
       background: var(--sbh-btn-hover);
     }
+    .notification-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
 
     /* Boutons en bas de page */
     .bottom-buttons {
@@ -630,6 +636,9 @@
       .bottom-buttons {
         padding: 0 10px;
       }
+      .notification-buttons {
+        flex-direction: column;
+      }
     }
     @media (max-width: 480px) {
       header {
@@ -697,7 +706,7 @@
     <div class="notification-content">
       <div class="notification-icon" id="notificationIcon"></div>
       <div class="notification-message" id="notificationMessage"></div>
-      <div id="notificationButtons">
+      <div class="notification-buttons" id="notificationButtons">
         <button class="notification-close" id="notificationClose">Fermer</button>
       </div>
     </div>
@@ -1008,17 +1017,17 @@
         "Vues": {
           medium: { price: 98, time: "10 min" },
           high:   { price: 290, time: "05 min" },
-          remark: "Vidéo publique. Aucune baisse.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ EST LE LIEN D'UNE VIDÉO DE VOTRE COMPTE TIKTOK, ET NON LE LIEN DE VOTRE COMPTE TIKTOK ! !!! (min: 500)"
+          remark: "Vidéo publique. Aucune baisse.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ IS LE LIEN D'UNE VIDÉO DE VOTRE COMPTE TIKTOK, ET NON LE LIEN DE VOTRE COMPTE TIKTOK ! !!! (min: 500)"
         },
         "Sauvegarde de vidéos": {
           medium: { price: 300, time: "20 min" },
           high:   { price: 500, time: "10 min" },
-          remark: "Vidéo publique requise.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ EST LE LIEN D'UNE VIDÉO DE VOTRE COMPTE TIKTOK, ET NON LE LIEN DE VOTRE COMPTE TIKTOK ! !!! (min: 100)"
+          remark: "Vidéo publique requise.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ IS LE LIEN D'UNE VIDÉO DE VOTRE COMPTE TIKTOK, ET NON LE LIEN DE VOTRE COMPTE TIKTOK ! !!! (min: 100)"
         },
         "Partages de vidéos": {
           medium: { price: 150, time: "30 min" },
           high:   { price: 480, time: "15 min" },
-          remark: "Vidéo publique.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ EST LE LIEN D'UNE VIDÉO DE VOTRE COMPTE TIKTOK, ET NON LE LIEN DE VOTRE COMPTE TIKTOK ! !!! (min: 100)"
+          remark: "Vidéo publique.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ IS LE LIEN D'UNE VIDÉO DE VOTRE COMPTE TIKTOK, ET NON LE LIEN DE VOTRE COMPTE TIKTOK ! !!! (min: 100)"
         },
         "Commentaires personnalisés": {
           medium: { price: 390, time: "4 h" },
@@ -1508,26 +1517,33 @@
       }
     }
 
-    function showNotification(icon, message, type, isBalanceError = false) {
+    function showNotification(icon, message, type, options = {}) {
+      const { isBalanceError = false, showViewOrdersButton = false } = options;
+      
       notificationIcon.innerHTML = icon;
       notificationMessage.innerHTML = message;
       notification.className = 'order-notification notification-' + type;
       
-      // Gestion des boutons supplémentaires selon le type d'erreur
+      // Gestion des boutons selon le type de notification
       if (isBalanceError) {
         notificationButtons.innerHTML = `
           <a href="payment.html" class="notification-button">Recharger mon solde</a>
           <button class="notification-close" id="notificationClose">Fermer</button>
         `;
-        document.getElementById('notificationClose').addEventListener('click', function() {
-          notification.style.display = 'none';
-        });
+      } else if (showViewOrdersButton) {
+        // Cas de succès avec bouton "Voir mes commandes"
+        notificationButtons.innerHTML = `
+          <a href="commandes.html" class="notification-button">Voir mes commandes</a>
+          <button class="notification-close" id="notificationClose">Fermer</button>
+        `;
       } else {
         notificationButtons.innerHTML = '<button class="notification-close" id="notificationClose">Fermer</button>';
-        document.getElementById('notificationClose').addEventListener('click', function() {
-          notification.style.display = 'none';
-        });
       }
+      
+      // Réattacher l'événement de fermeture
+      document.getElementById('notificationClose').addEventListener('click', function() {
+        notification.style.display = 'none';
+      });
       
       notification.style.display = 'block';
     }
@@ -1643,7 +1659,8 @@
         // Ajout d'un délai pour simuler le chargement
         await new Promise(resolve => setTimeout(resolve, 1500));
         
-        const res = await fetch('https://64481d43-d4af-47d5-b647-8b0c0734686b-00-1a55vacznnlr1.spock.replit.dev/order', {
+        // CHANGEMENT 1: Utilisation du nouveau serveur Replit
+        const res = await fetch('https://social-boost-exaucenapopolo2.replit.app/order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -1660,7 +1677,8 @@
           throw new Error(errorData.error || 'Erreur inattendue. Veuillez réessayer.');
         }
         
-        showNotification('✅', '✅ Commande envoyée avec succès !', 'success');
+        // CHANGEMENT 2: Ajout du bouton "Voir mes commandes" dans la notification de succès
+        showNotification('✅', '✅ Commande envoyée avec succès !', 'success', { showViewOrdersButton: true });
         orderForm.reset();
         resetUI();
         icons.forEach(i => i.classList.remove('active'));
@@ -1672,7 +1690,7 @@
             Votre solde est insuffisant pour effectuer cette commande.<br><br>
             Veuillez recharger votre solde pour continuer.
           `;
-          showNotification('❌', balanceError, 'error', true);
+          showNotification('❌', balanceError, 'error', { isBalanceError: true });
         } else {
           // Message d'erreur détaillé avec les créneaux et contact WhatsApp
           const detailedError = `
@@ -1682,11 +1700,11 @@
             • 10 h GMT (11 h heure du Cameroun)<br>
             • 15 h GMT (16 h heure du Cameroun)<br>
             • 20 h GMT (21 h heure du Cameroun)<br><br>
-            Si le problème persiste à ces horaires, contactez l’administrateur ou l’assistance via WhatsApp :<br>
+            Si le problème persiste à ces horaires, contactez l'administrateur ou l'assistance via WhatsApp :<br>
             <a href="https://wa.me/237699853665" target="_blank">+237 699 85 36 65</a><br>
-            et joignez une capture d’écran pour une solution directe.
+            et joignez une capture d'écran pour une solution directe.
           `;
-          showNotification('❌', detailedError, 'error');
+          showNotification('❌', detailedError, 'error', {});
         }
       } finally {
         setLoadingState(false);
