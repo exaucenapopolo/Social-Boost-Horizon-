@@ -18,8 +18,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
   <style>
-    /* ... (Ton CSS reste identique, il est parfait) ... */
-     /* Variables & fond global bleu sombre */
+    /* Variables & fond global bleu sombre */
     :root {
       --sbh-dark-blue: #0A162B;
       --sbh-gradient-start: #1e3c72;
@@ -376,6 +375,45 @@
       z-index: 5;
     }
 
+    /* Messages de notification */
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 20px;
+      border-radius: 8px;
+      color: white;
+      z-index: 1000;
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: opacity 0.3s, transform 0.3s;
+      max-width: 350px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .notification.success {
+      background: linear-gradient(45deg, #4CAF50, #2E7D32);
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .notification.error {
+      background: linear-gradient(45deg, #f44336, #c62828);
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .notification.info {
+      background: linear-gradient(45deg, #2196F3, #1565C0);
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .notification.hide {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+
     /* responsive */
     @media (max-width:768px) {
       header { padding:0.8rem 1rem; }
@@ -691,7 +729,7 @@
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   
   <script>
-    // Configuration Firebase (laisse ta config)
+    // Configuration Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -700,6 +738,9 @@
       messagingSenderId: "43658165639",
       appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
     };
+
+    // URL du serveur Replit
+    const SERVER_URL = "https://social-boost-exaucenapopolo2.replit.app";
 
     // Initialiser Firebase
     try {
@@ -713,7 +754,61 @@
     document.addEventListener("DOMContentLoaded", function () {
       AOS.init({ duration: 800, once: true, offset: 100 });
 
-      // ... (Le code pour l'animation des nuages reste identique)
+      // Fonction pour afficher les notifications
+      function showNotification(message, type = "info") {
+        const notification = document.createElement("div");
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        // Supprimer la notification après 5 secondes
+        setTimeout(() => {
+          notification.classList.add("hide");
+          setTimeout(() => {
+            document.body.removeChild(notification);
+          }, 300);
+        }, 5000);
+      }
+
+      // Fonction pour communiquer avec le serveur Replit
+      async function callServer(endpoint, method = "GET", data = null) {
+        try {
+          const user = auth.currentUser;
+          if (!user) {
+            throw new Error("Utilisateur non connecté");
+          }
+          
+          // Obtenir le token d'authentification Firebase
+          const token = await user.getIdToken();
+          
+          const options = {
+            method,
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            }
+          };
+          
+          if (data && (method === "POST" || method === "PUT")) {
+            options.body = JSON.stringify(data);
+          }
+          
+          const response = await fetch(`${SERVER_URL}${endpoint}`, options);
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Erreur serveur: ${response.status}`);
+          }
+          
+          return await response.json();
+        } catch (error) {
+          console.error(`Erreur lors de l'appel à ${endpoint}:`, error);
+          showNotification(error.message, "error");
+          throw error;
+        }
+      }
+
+      // Animation des nuages
       const backgroundAnimation = document.querySelector(".background-animation");
       const numberOfClouds = 16;
       for (let i = 0; i < numberOfClouds; i++) {
@@ -750,7 +845,7 @@
         }
       });
 
-      // --- MODIFICATION ICI : Ajout des nouveaux éléments DOM ---
+      // Éléments DOM
       const balanceEl = document.getElementById('balanceAmount');
       const balanceSpinner = document.getElementById('balanceSpinner');
       const quickDeposit = document.getElementById('quickDeposit');
@@ -767,10 +862,10 @@
       const ordersSpinner = document.getElementById('ordersSpinner');
       const discountRateEl = document.getElementById('discountRate');
       const discountSpinner = document.getElementById('discountSpinner');
-      const weeklyOrdersEl = document.getElementById('weeklyOrders'); // NOUVEAU
-      const weeklyOrdersSpinner = document.getElementById('weeklyOrdersSpinner'); // NOUVEAU
-      const totalSavingsEl = document.getElementById('totalSavings'); // NOUVEAU (anciennement savingsAmountEl)
-      const savingsSpinner = document.getElementById('savingsSpinner'); // NOUVEAU
+      const weeklyOrdersEl = document.getElementById('weeklyOrders');
+      const weeklyOrdersSpinner = document.getElementById('weeklyOrdersSpinner');
+      const totalSavingsEl = document.getElementById('totalSavings');
+      const savingsSpinner = document.getElementById('savingsSpinner');
 
       const beginnerCard = document.getElementById('beginnerCard');
       const amateurCard = document.getElementById('amateurCard');
@@ -779,7 +874,7 @@
 
       // Variables utilisateur
       let currentUser = null;
-      let userData = {}; // Sera rempli par l'écouteur
+      let userData = {};
       let userListener = null;
 
       // Initialisation de la page
@@ -787,16 +882,36 @@
         auth.onAuthStateChanged(async (user) => {
           if (user) {
             currentUser = user;
-            setupUserListener(); // Lance l'écoute des données en temps réel
+            await fetchUserData(); // Récupérer les données utilisateur
+            setupUserListener(); // Mettre en place l'écouteur Firestore
           } else {
             console.log("Utilisateur non connecté. Affichage par défaut.");
-            // Optionnel: Rediriger vers la page de connexion
-            // window.location.href = "login.html"; 
+            updateUI(); // Mettre à jour l'interface avec des valeurs par défaut
           }
         });
       }
       
-      // Écouteur Firestore pour les données de l'utilisateur
+      // Récupérer les données utilisateur depuis le serveur
+      async function fetchUserData() {
+        try {
+          const data = await callServer('/user');
+          userData = {
+            isReseller: false,
+            resellerLevel: "Non revendeur",
+            resellerWeeklyOrders: 0,
+            resellerTotalOrders: 0,
+            discountRate: 0,
+            balance: 0,
+            totalSavings: 0,
+            ...data
+          };
+          updateUI();
+        } catch (error) {
+          console.error("Erreur lors de la récupération des données utilisateur:", error);
+        }
+      }
+      
+      // Écouteur Firestore pour les données de l'utilisateur (pour le solde et autres données en temps réel)
       function setupUserListener() {
         if (!currentUser) return;
         const userRef = db.collection("users").doc(currentUser.uid);
@@ -805,19 +920,10 @@
         
         userListener = userRef.onSnapshot((doc) => {
           if (doc.exists) {
-            // Fusionne les données de la base avec des valeurs par défaut
             const data = doc.data();
-            userData = {
-              isReseller: false,
-              resellerLevel: "Non revendeur",
-              resellerWeeklyOrders: 0,
-              resellerTotalOrders: 0,
-              discountRate: 0,
-              balance: 0,
-              totalSavings: 0,
-              ...data // Les données de Firestore écrasent les valeurs par défaut
-            };
-            updateUI(); // Met à jour toute l'interface avec les nouvelles données
+            // Mettre à jour uniquement les données qui viennent de Firestore
+            userData.balance = data.balance || 0;
+            updateUI();
           }
         }, (error) => {
           console.error("Erreur de l'écouteur Firestore:", error);
@@ -839,7 +945,7 @@
         balanceEl.textContent = `${(userData.balance || 0).toLocaleString('fr-FR')} FCFA`;
       }
 
-      // --- MODIFICATION ICI : La fonction principale pour mettre à jour les statistiques ---
+      // Mise à jour des statistiques revendeur
       function updateResellerUI() {
         // Cache tous les spinners
         levelSpinner.style.display = 'none';
@@ -946,8 +1052,59 @@
         });
       }
 
-      // ... (Le reste du JavaScript pour les animations de scroll, devenir revendeur, etc. reste identique)
-       function setupScrollAnimations() {
+      // Devenir revendeur
+      async function becomeReseller() {
+        try {
+          if (!currentUser) {
+            showNotification("Veuillez vous connecter pour devenir revendeur", "error");
+            return;
+          }
+          
+          becomeResellerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Activation...';
+          becomeResellerBtn.disabled = true;
+          
+          // Appel au serveur pour devenir revendeur
+          await callServer('/become-reseller', 'POST');
+          
+          showNotification("Félicitations ! Vous êtes maintenant revendeur (Niveau Débutant, 5% de remise).", "success");
+          
+          // Rafraîchir les données utilisateur
+          await fetchUserData();
+          
+        } catch (error) {
+          console.error("Erreur lors de l'activation du statut revendeur:", error);
+          becomeResellerBtn.innerHTML = '<i class="fas fa-user-plus"></i> Devenir Revendeur';
+          becomeResellerBtn.disabled = false;
+        }
+      }
+      
+      // Démissionner en tant que revendeur
+      async function resignAsReseller() {
+        try {
+          if (!currentUser || !userData.isReseller) return;
+          
+          if (!confirm("Êtes-vous sûr de vouloir démissionner ? Vous perdrez vos avantages.")) return;
+          
+          resignBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Démission...';
+          resignBtn.disabled = true;
+          
+          // Appel au serveur pour démissionner
+          await callServer('/resign', 'POST');
+          
+          showNotification("Vous avez démissionné avec succès.", "info");
+          
+          // Rafraîchir les données utilisateur
+          await fetchUserData();
+          
+        } catch (error) {
+          console.error("Erreur lors de la démission:", error);
+          resignBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Démissionner';
+          resignBtn.disabled = false;
+        }
+      }
+      
+      // Animations au défilement
+      function setupScrollAnimations() {
         const scrollElements = document.querySelectorAll('.scroll-animate');
         const elementInView = (el, dividend = 1) => {
           const elementTop = el.getBoundingClientRect().top;
@@ -964,47 +1121,8 @@
         window.addEventListener('scroll', handleScrollAnimation);
         handleScrollAnimation();
       }
-      async function becomeReseller() {
-        try {
-          if (!currentUser) return alert("Veuillez vous connecter pour devenir revendeur");
-          becomeResellerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Activation...';
-          becomeResellerBtn.disabled = true;
-          await db.collection("users").doc(currentUser.uid).set({
-            isReseller: true,
-            resellerLevel: "beginner",
-            discountRate: 5,
-            resellerWeeklyOrders: 0,
-            resellerTotalOrders: 0,
-            totalSavings: 0,
-            resellerSince: firebase.firestore.FieldValue.serverTimestamp()
-          }, { merge: true });
-          alert("Félicitations ! Vous êtes maintenant revendeur (Niveau Débutant, 5% de remise).");
-        } catch (error) {
-          console.error("Erreur de mise à jour du statut:", error);
-          alert("Une erreur est survenue.");
-          becomeResellerBtn.innerHTML = '<i class="fas fa-user-plus"></i> Devenir Revendeur';
-          becomeResellerBtn.disabled = false;
-        }
-      }
-      async function resignAsReseller() {
-        try {
-          if (!currentUser || !userData.isReseller) return;
-          if (!confirm("Êtes-vous sûr de vouloir démissionner ? Vous perdrez vos avantages.")) return;
-          resignBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Démission...';
-          resignBtn.disabled = true;
-          await db.collection("users").doc(currentUser.uid).update({
-            isReseller: false,
-            resellerLevel: null,
-            discountRate: 0
-          });
-          alert("Vous avez démissionné avec succès.");
-        } catch (error) {
-          console.error("Erreur lors de la démission:", error);
-          alert("Une erreur est survenue.");
-          resignBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Démissionner';
-          resignBtn.disabled = false;
-        }
-      }
+      
+      // Attacher les événements
       function attachEvents() {
         becomeResellerBtn.addEventListener('click', becomeReseller);
         resignBtn.addEventListener('click', resignAsReseller);
