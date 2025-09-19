@@ -291,447 +291,415 @@
   <div id="notificationRoot" aria-live="polite" aria-atomic="true"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
-  <script>
-    AOS && AOS.init && AOS.init({ duration: 700, once: true });
-    
-/* ===================== CONFIG ===================== */
-const SERVER_URL = "https://social-boost-exaucenapopolo2.replit.app";
+<script>
+  AOS && AOS.init && AOS.init({ duration: 700, once: true });
 
-const firebaseConfig = {
-  apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-  authDomain: "social-boost-horizon.firebaseapp.com",
-  projectId: "social-boost-horizon",
-  storageBucket: "social-boost-horizon.appspot.com",
-  messagingSenderId: "43658165639",
-  appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
-};
+  /* ===================== CONFIG ===================== */
+  const SERVER_URL = "https://social-boost-exaucenapopolo2.replit.app";
 
-/* Init Firebase (compat) */
-try {
-  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-} catch (e) {
-  console.warn("Firebase init:", e);
-}
-const auth = firebase.auth();
-const db = firebase.firestore();
+  const firebaseConfig = {
+    apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+    authDomain: "social-boost-horizon.firebaseapp.com",
+    projectId: "social-boost-horizon",
+    storageBucket: "social-boost-horizon.appspot.com",
+    messagingSenderId: "43658165639",
+    appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+  };
 
-/* ===================== DOM REFS ===================== */
-const balanceAmountEl = document.getElementById('balanceAmount');
-const balanceSpinner = document.getElementById('balanceSpinner');
-const quickDepositBtn = document.getElementById('quickDeposit');
-
-const becomeResellerBtn = document.getElementById('becomeResellerBtn');
-const resignBtn = document.getElementById('resignBtn');
-const ordersBtn = document.getElementById('ordersBtn');
-const commanderBtn = document.getElementById('commanderBtn');
-const dashboardBtn = document.getElementById('dashboardBtn');
-const refreshStatsBtn = document.getElementById('refreshStatsBtn');
-
-const currentLevelEl = document.getElementById('currentLevel');
-const levelSpinner = document.getElementById('levelSpinner');
-const discountRateEl = document.getElementById('discountRate');
-const discountSpinner = document.getElementById('discountSpinner');
-const weeklyOrdersEl = document.getElementById('weeklyOrders');
-const weeklyOrdersSpinner = document.getElementById('weeklyOrdersSpinner');
-const totalOrdersEl = document.getElementById('totalOrders');
-const ordersSpinner = document.getElementById('ordersSpinner');
-const totalSavingsEl = document.getElementById('totalSavings');
-const savingsSpinner = document.getElementById('savingsSpinner');
-
-const beginnerCard = document.getElementById('beginnerCard');
-const amateurCard = document.getElementById('amateurCard');
-const intermediateCard = document.getElementById('intermediateCard');
-const professionalCard = document.getElementById('professionalCard');
-
-const notificationRoot = document.getElementById('notificationRoot') || document.body;
-
-/* ===================== STATE ===================== */
-let currentUser = null;
-let userListenerUnsubscribe = null;
-let userData = {
-  isReseller: false,
-  resellerLevel: null,
-  resellerWeeklyOrders: 0,
-  resellerTotalOrders: 0,
-  discountRate: 0,
-  balance: 0,
-  totalSavings: 0
-};
-
-/* ===================== HELPERS ===================== */
-
-/* Notifications simples */
-function showNotification(message, type = 'info', timeout = 4500) {
-  const n = document.createElement('div');
-  n.className = 'notification';
-  n.textContent = message;
-  n.style.background = (type === 'success') ? 'linear-gradient(45deg,#4CAF50,#2E7D32)'
-                 : (type === 'error')   ? 'linear-gradient(45deg,#f44336,#c62828)'
-                 : 'linear-gradient(45deg,#2196F3,#1565C0)';
-  n.style.color = '#fff';
-  n.style.padding = '12px 16px';
-  n.style.borderRadius = '8px';
-  n.style.boxShadow = '0 6px 18px rgba(0,0,0,0.25)';
-  n.style.position = 'fixed';
-  n.style.top = '20px';
-  n.style.right = '20px';
-  n.style.zIndex = 99999;
-  notificationRoot.appendChild(n);
-  setTimeout(() => { n.style.transition = 'opacity .25s'; n.style.opacity = '0'; setTimeout(()=>{ try{ notificationRoot.removeChild(n); }catch(e){} },250); }, timeout);
-}
-
-/* safe setter pour les cases qui contiennent spinner + value */
-function setStatBoxValue(boxEl, text) {
-  if (!boxEl) return;
-  const spans = boxEl.querySelectorAll('span');
-  if (spans && spans.length >= 1) {
-    // remplace le dernier span si spinner présent en premier
-    spans[spans.length - 1].textContent = text;
-  } else {
-    boxEl.textContent = text;
-  }
-}
-
-/* couleur associée au niveau */
-function getLevelColor(level) {
-  if (!level) return 'rgba(255,255,255,0.4)';
-  const l = String(level).toLowerCase();
-  if (l.includes('begin') || l.includes('début')) return 'rgba(66,165,245,0.45)';
-  if (l.includes('amateur')) return 'rgba(76,175,80,0.45)';
-  if (l.includes('inter')) return 'rgba(255,193,7,0.45)';
-  if (l.includes('pro')) return 'rgba(255,87,34,0.45)';
-  return 'rgba(255,255,255,0.45)';
-}
-
-/* ajoute l'indicateur sur la carte active */
-function updateLevelIndicators() {
-  // retirer indicateurs précédents
-  document.querySelectorAll('.current-level-indicator').forEach(n => n.remove());
-  [beginnerCard, amateurCard, intermediateCard, professionalCard].forEach(c => { if(c){ c.style.boxShadow=''; c.style.transform=''; }});
-
-  if (!userData.isReseller || !userData.resellerLevel) return;
-  const lvl = String(userData.resellerLevel).toLowerCase();
-  let activeCard = null;
-  if (lvl.includes('begin') || lvl.includes('début')) activeCard = beginnerCard;
-  else if (lvl.includes('amateur')) activeCard = amateurCard;
-  else if (lvl.includes('inter')) activeCard = intermediateCard;
-  else if (lvl.includes('pro')) activeCard = professionalCard;
-
-  if (activeCard) {
-    const indicator = document.createElement('div');
-    indicator.className = 'current-level-indicator';
-    indicator.style.position = 'absolute';
-    indicator.style.top = '-10px';
-    indicator.style.right = '-10px';
-    indicator.style.background = 'var(--gold-primary)';
-    indicator.style.color = '#0A162B';
-    indicator.style.width = '28px';
-    indicator.style.height = '28px';
-    indicator.style.borderRadius = '50%';
-    indicator.style.display = 'flex';
-    indicator.style.alignItems = 'center';
-    indicator.style.justifyContent = 'center';
-    indicator.innerHTML = '<i class="fas fa-check" style="font-size:12px;"></i>';
-    activeCard.appendChild(indicator);
-    activeCard.style.boxShadow = `0 0 24px ${getLevelColor(userData.resellerLevel)}`;
-    activeCard.style.transform = 'scale(1.04)';
-  }
-}
-
-/* met à jour prix remisés */
-function updatePricesWithDiscount() {
-  const discount = userData.isReseller ? Number(userData.discountRate || 0) : 0;
-  document.querySelectorAll('.reseller-price').forEach(el => {
-    const original = parseInt(el.getAttribute('data-original') || el.dataset.original, 10);
-    if (!isNaN(original)) {
-      const discounted = Math.round(original * (1 - discount/100));
-      el.textContent = `${discounted.toLocaleString('fr-FR')} FCFA`;
-      const parent = el.closest('.status-card') || el.parentElement;
-      const savingsSpan = parent ? parent.querySelector('.savings-percent') : null;
-      if (savingsSpan) savingsSpan.textContent = `${discount}%`;
-    }
-  });
-}
-
-/* mise à jour complète de l'UI (stat boxes, boutons, prix) */
-function updateResellerUI() {
-  // cacher spinners
-  try { if(levelSpinner) levelSpinner.style.display='none'; } catch(e){}
-  try { if(discountSpinner) discountSpinner.style.display='none'; } catch(e){}
-  try { if(weeklyOrdersSpinner) weeklyOrdersSpinner.style.display='none'; } catch(e){}
-  try { if(ordersSpinner) ordersSpinner.style.display='none'; } catch(e){}
-  try { if(savingsSpinner) savingsSpinner.style.display='none'; } catch(e){}
-  try { if(balanceSpinner) balanceSpinner.style.display='none'; } catch(e){}
-
-  // boutons
-  if (userData.isReseller) {
-    becomeResellerBtn && (becomeResellerBtn.style.display = 'none');
-    ordersBtn && (ordersBtn.style.display = 'inline-flex');
-    commanderBtn && (commanderBtn.style.display = 'inline-flex');
-    dashboardBtn && (dashboardBtn.style.display = 'inline-flex');
-    resignBtn && (resignBtn.style.display = 'inline-flex');
-  } else {
-    becomeResellerBtn && (becomeResellerBtn.style.display = 'inline-flex');
-    ordersBtn && (ordersBtn.style.display = 'none');
-    commanderBtn && (commanderBtn.style.display = 'none');
-    dashboardBtn && (dashboardBtn.style.display = 'none');
-    resignBtn && (resignBtn.style.display = 'none');
-  }
-
-  // stat values
-  setStatBoxValue(currentLevelEl, userData.isReseller ? (userData.resellerLevel || 'N/A') : 'Non revendeur');
-  setStatBoxValue(discountRateEl, (userData.discountRate || 0) + '%');
-  setStatBoxValue(weeklyOrdersEl, String(userData.resellerWeeklyOrders || 0));
-  setStatBoxValue(totalOrdersEl, String(userData.resellerTotalOrders || 0));
-  setStatBoxValue(totalSavingsEl, (userData.totalSavings || 0).toLocaleString('fr-FR') + ' FCFA');
-
-  // balance
-  if (balanceAmountEl) balanceAmountEl.textContent = `${(userData.balance || 0).toLocaleString('fr-FR')} FCFA`;
-
-  updatePricesWithDiscount();
-  updateLevelIndicators();
-}
-
-/* ===================== COMMUNICATION SERVEUR ===================== */
-
-/* robuste callServer : récupère token, gère JSON non-valide */
-async function callServer(endpoint, method = 'GET', data = null) {
+  /* Init Firebase (compat) — safe init (évite double init si déjà présent) */
   try {
-    const user = auth.currentUser;
-    if (!user) throw new Error('Utilisateur non connecté.');
+    if (!window.firebase) throw new Error('Firebase non chargé (vérifie les <script> firebase)');
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  } catch (e) {
+    console.warn("Firebase initialization:", e);
+  }
+  const auth = firebase.auth();
+  const db = firebase.firestore();
 
-    const token = await user.getIdToken();
-    const opts = {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+  /* ===================== DOM REFS ===================== */
+  const balanceAmountEl = document.getElementById('balanceAmount');
+  const balanceSpinner = document.getElementById('balanceSpinner'); // optionnel
+  const quickDepositBtn = document.getElementById('quickDeposit');   // optionnel
+
+  const becomeResellerBtn = document.getElementById('becomeResellerBtn');
+  const resignBtn = document.getElementById('resignBtn');
+  const ordersBtn = document.getElementById('ordersBtn');
+  const commanderBtn = document.getElementById('commanderBtn');
+  const dashboardBtn = document.getElementById('dashboardBtn');
+  const refreshStatsBtn = document.getElementById('refreshStatsBtn');
+
+  const currentLevelEl = document.getElementById('currentLevel');
+  const levelSpinner = document.getElementById('levelSpinner');
+  const discountRateEl = document.getElementById('discountRate');
+  const discountSpinner = document.getElementById('discountSpinner');
+  const weeklyOrdersEl = document.getElementById('weeklyOrders');
+  const weeklyOrdersSpinner = document.getElementById('weeklyOrdersSpinner');
+  const totalOrdersEl = document.getElementById('totalOrders');
+  const ordersSpinner = document.getElementById('ordersSpinner');
+  const totalSavingsEl = document.getElementById('totalSavings');
+  const savingsSpinner = document.getElementById('savingsSpinner');
+
+  const beginnerCard = document.getElementById('beginnerCard');
+  const amateurCard = document.getElementById('amateurCard');
+  const intermediateCard = document.getElementById('intermediateCard');
+  const professionalCard = document.getElementById('professionalCard');
+
+  const notificationRoot = document.getElementById('notificationRoot') || document.body;
+
+  /* ===================== STATE ===================== */
+  let currentUser = null;
+  let userListenerUnsubscribe = null;
+  let userData = {
+    isReseller: false,
+    resellerLevel: null,
+    resellerWeeklyOrders: 0,
+    resellerTotalOrders: 0,
+    discountRate: 0,
+    balance: 0,
+    totalSavings: 0
+  };
+
+  /* ===================== HELPERS ===================== */
+
+  function showNotification(message, type = 'info', timeout = 4500) {
+    const n = document.createElement('div');
+    n.className = 'notification show';
+    n.textContent = message;
+    n.style.background = (type === 'success') ? 'linear-gradient(45deg,#4CAF50,#2E7D32)'
+                   : (type === 'error')   ? 'linear-gradient(45deg,#f44336,#c62828)'
+                   : 'linear-gradient(45deg,#2196F3,#1565C0)';
+    n.style.color = '#fff';
+    n.style.padding = '12px 16px';
+    n.style.borderRadius = '8px';
+    n.style.boxShadow = '0 6px 18px rgba(0,0,0,0.25)';
+    n.style.position = 'fixed';
+    n.style.top = '20px';
+    n.style.right = '20px';
+    n.style.zIndex = 99999;
+    notificationRoot.appendChild(n);
+    setTimeout(() => { n.style.transition = 'opacity .25s'; n.style.opacity = '0'; setTimeout(()=>{ try{ notificationRoot.removeChild(n); }catch(e){} },250); }, timeout);
+  }
+
+  function setStatBoxValue(boxEl, text) {
+    if (!boxEl) return;
+    const spans = boxEl.querySelectorAll('span');
+    if (spans && spans.length >= 1) {
+      spans[spans.length - 1].textContent = text;
+    } else {
+      boxEl.textContent = text;
+    }
+  }
+
+  function getLevelColor(level) {
+    if (!level) return 'rgba(255,255,255,0.4)';
+    const l = String(level).toLowerCase();
+    if (l.includes('begin') || l.includes('début')) return 'rgba(66,165,245,0.45)';
+    if (l.includes('amateur')) return 'rgba(76,175,80,0.45)';
+    if (l.includes('inter')) return 'rgba(255,193,7,0.45)';
+    if (l.includes('pro')) return 'rgba(255,87,34,0.45)';
+    return 'rgba(255,255,255,0.45)';
+  }
+
+  function updateLevelIndicators() {
+    document.querySelectorAll('.current-level-indicator').forEach(n => n.remove());
+    [beginnerCard, amateurCard, intermediateCard, professionalCard].forEach(c => { if(c){ c.style.boxShadow=''; c.style.transform=''; }});
+
+    if (!userData.isReseller || !userData.resellerLevel) return;
+    const lvl = String(userData.resellerLevel).toLowerCase();
+    let activeCard = null;
+    if (lvl.includes('begin') || lvl.includes('début')) activeCard = beginnerCard;
+    else if (lvl.includes('amateur')) activeCard = amateurCard;
+    else if (lvl.includes('inter')) activeCard = intermediateCard;
+    else if (lvl.includes('pro')) activeCard = professionalCard;
+
+    if (activeCard) {
+      const indicator = document.createElement('div');
+      indicator.className = 'current-level-indicator';
+      indicator.style.position = 'absolute';
+      indicator.style.top = '-10px';
+      indicator.style.right = '-10px';
+      indicator.style.background = 'var(--gold-primary)';
+      indicator.style.color = '#0A162B';
+      indicator.style.width = '28px';
+      indicator.style.height = '28px';
+      indicator.style.borderRadius = '50%';
+      indicator.style.display = 'flex';
+      indicator.style.alignItems = 'center';
+      indicator.style.justifyContent = 'center';
+      indicator.innerHTML = '<i class="fas fa-check" style="font-size:12px;"></i>';
+      activeCard.appendChild(indicator);
+      activeCard.style.boxShadow = `0 0 24px ${getLevelColor(userData.resellerLevel)}`;
+      activeCard.style.transform = 'scale(1.04)';
+    }
+  }
+
+  function updatePricesWithDiscount() {
+    const discount = userData.isReseller ? Number(userData.discountRate || 0) : 0;
+    document.querySelectorAll('.reseller-price').forEach(el => {
+      const original = parseInt(el.getAttribute('data-original') || el.dataset.original, 10);
+      if (!isNaN(original)) {
+        const discounted = Math.round(original * (1 - discount/100));
+        el.textContent = `${discounted.toLocaleString('fr-FR')} FCFA`;
+        const parent = el.closest('.status-card') || el.parentElement;
+        const savingsSpan = parent ? parent.querySelector('.savings-percent') : null;
+        if (savingsSpan) savingsSpan.textContent = `${discount}%`;
       }
-    };
-    if (data && (method === 'POST' || method === 'PUT')) opts.body = JSON.stringify(data);
-
-    const res = await fetch(`${SERVER_URL}${endpoint}`, opts);
-    let payload = null;
-    try { payload = await res.json(); } catch (e) { payload = null; }
-
-    if (!res.ok) {
-      const msg = payload?.error || payload?.message || `Erreur serveur (${res.status})`;
-      throw new Error(msg);
-    }
-    return payload;
-  } catch (err) {
-    // remonter l'erreur
-    throw err;
+    });
   }
-}
 
-/* récupère /user puis normalise userData (wrapper { success:true, user:{...} }) */
-async function fetchUserData() {
-  try {
-    // show spinners while loading
-    if (levelSpinner) levelSpinner.style.display = 'inline-block';
-    if (discountSpinner) discountSpinner.style.display = 'inline-block';
-    if (weeklyOrdersSpinner) weeklyOrdersSpinner.style.display = 'inline-block';
-    if (ordersSpinner) ordersSpinner.style.display = 'inline-block';
-    if (savingsSpinner) savingsSpinner.style.display = 'inline-block';
-    if (balanceSpinner) balanceSpinner.style.display = 'inline-block';
-
-    const res = await callServer('/user', 'GET');
-    if (!res) throw new Error('Réponse vide du serveur /user.');
-
-    // server returns { success:true, user: { ... } }
-    const srvUser = res.user || (res.success && res.user) || null;
-    if (!srvUser) {
-      // try fallback: maybe server returned user directly (edge-case)
-      // if not found, throw
-      throw new Error(res.error || 'Format inattendu de la réponse /user.');
-    }
-
-    // normalise et merge
-    userData = {
-      isReseller: !!srvUser.isReseller,
-      resellerLevel: srvUser.resellerLevel || null,
-      resellerWeeklyOrders: Number(srvUser.resellerWeeklyOrders || 0),
-      resellerTotalOrders: Number(srvUser.resellerTotalOrders || 0),
-      discountRate: Number(srvUser.discountRate || 0),
-      balance: Number(srvUser.balance || 0),
-      totalSavings: Number(srvUser.totalSavings || 0),
-      ...srvUser
-    };
-
-    updateResellerUI();
-    return userData;
-  } catch (err) {
-    console.error('fetchUserData error:', err);
-    showNotification(err.message || 'Impossible de charger vos données.', 'error');
-    // hide spinners
+  function updateResellerUI() {
     try { if(levelSpinner) levelSpinner.style.display='none'; } catch(e){}
     try { if(discountSpinner) discountSpinner.style.display='none'; } catch(e){}
     try { if(weeklyOrdersSpinner) weeklyOrdersSpinner.style.display='none'; } catch(e){}
     try { if(ordersSpinner) ordersSpinner.style.display='none'; } catch(e){}
     try { if(savingsSpinner) savingsSpinner.style.display='none'; } catch(e){}
     try { if(balanceSpinner) balanceSpinner.style.display='none'; } catch(e){}
-    throw err;
-  }
-}
 
-/* mise à jour forcée des stats via endpoint (GET /update-reseller-stats) */
-async function refreshResellerStats() {
-  try {
-    refreshStatsBtn && (refreshStatsBtn.disabled = true);
-    refreshStatsBtn && (refreshStatsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mise à jour...');
-    const res = await callServer('/update-reseller-stats', 'GET');
-    if (res && res.success) {
-      // recharger user complet
-      await fetchUserData();
-      showNotification('Statistiques mises à jour.', 'success');
+    if (userData.isReseller) {
+      becomeResellerBtn && (becomeResellerBtn.style.display = 'none');
+      ordersBtn && (ordersBtn.style.display = 'inline-flex');
+      commanderBtn && (commanderBtn.style.display = 'inline-flex');
+      dashboardBtn && (dashboardBtn.style.display = 'inline-flex');
+      resignBtn && (resignBtn.style.display = 'inline-flex');
     } else {
-      await fetchUserData();
+      becomeResellerBtn && (becomeResellerBtn.style.display = 'inline-flex');
+      ordersBtn && (ordersBtn.style.display = 'none');
+      commanderBtn && (commanderBtn.style.display = 'none');
+      dashboardBtn && (dashboardBtn.style.display = 'none');
+      resignBtn && (resignBtn.style.display = 'none');
     }
-  } catch (err) {
-    console.error('refreshResellerStats:', err);
-    showNotification(err.message || 'Erreur mise à jour stats', 'error');
-  } finally {
-    refreshStatsBtn && (refreshStatsBtn.disabled = false);
-    if (refreshStatsBtn) refreshStatsBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Rafraîchir Stats';
+
+    setStatBoxValue(currentLevelEl, userData.isReseller ? (userData.resellerLevel || 'N/A') : 'Non revendeur');
+    setStatBoxValue(discountRateEl, (userData.discountRate || 0) + '%');
+    setStatBoxValue(weeklyOrdersEl, String(userData.resellerWeeklyOrders || 0));
+    setStatBoxValue(totalOrdersEl, String(userData.resellerTotalOrders || 0));
+    setStatBoxValue(totalSavingsEl, (userData.totalSavings || 0).toLocaleString('fr-FR') + ' FCFA');
+
+    if (balanceAmountEl) balanceAmountEl.textContent = `${(userData.balance || 0).toLocaleString('fr-FR')} FCFA`;
+
+    updatePricesWithDiscount();
+    updateLevelIndicators();
   }
-}
 
-/* ===================== ACTIONS UTILISATEUR ===================== */
+  /* ===================== SERVER COMMUNICATION ===================== */
 
-/* Devenir revendeur */
-async function becomeReseller() {
-  if (!auth.currentUser) { showNotification('Veuillez vous connecter.', 'error'); return; }
-  const originalHTML = becomeResellerBtn ? becomeResellerBtn.innerHTML : null;
-  const originalDisabled = becomeResellerBtn ? becomeResellerBtn.disabled : false;
-
-  try {
-    becomeResellerBtn.disabled = true;
-    becomeResellerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Activation...';
-
-    const res = await callServer('/become-reseller', 'POST');
-    if (res && res.success) {
-      showNotification(res.message || 'Vous êtes maintenant revendeur.', 'success');
-      // recharger user + UI
-      await fetchUserData();
-    } else {
-      throw new Error(res.error || res.message || 'Activation échouée.');
-    }
-  } catch (err) {
-    console.error('becomeReseller error:', err);
-    showNotification(err.message || 'Erreur lors de l\'activation.', 'error');
-  } finally {
-    // restore bouton (toujours)
-    if (becomeResellerBtn) {
-      becomeResellerBtn.disabled = false;
-      becomeResellerBtn.innerHTML = originalHTML || '<i class="fas fa-user-plus"></i> Devenir Revendeur';
-    }
-  }
-}
-
-/* Démissionner */
-async function resignAsReseller() {
-  if (!auth.currentUser) { showNotification('Veuillez vous connecter.', 'error'); return; }
-  if (!confirm('Êtes-vous sûr de vouloir démissionner ? Vous perdrez vos avantages.')) return;
-  const originalHTML = resignBtn ? resignBtn.innerHTML : null;
-
-  try {
-    resignBtn.disabled = true;
-    resignBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Démission...';
-
-    const res = await callServer('/resign', 'POST');
-    if (res && res.success) {
-      showNotification(res.message || 'Vous avez démissionné.', 'info');
-      await fetchUserData();
-    } else {
-      throw new Error(res.error || res.message || 'Démission échouée.');
-    }
-  } catch (err) {
-    console.error('resignAsReseller:', err);
-    showNotification(err.message || 'Erreur lors de la démission.', 'error');
-  } finally {
-    if (resignBtn) {
-      resignBtn.disabled = false;
-      resignBtn.innerHTML = originalHTML || '<i class="fas fa-sign-out-alt"></i> Démissionner';
-    }
-  }
-}
-
-/* ===================== FIRESTORE REALTIME LISTENER ===================== */
-function setupFirestoreListener(uid) {
-  try {
-    // detach previous
-    if (typeof userListenerUnsubscribe === 'function') {
-      try { userListenerUnsubscribe(); } catch(e) {}
-      userListenerUnsubscribe = null;
-    }
-    if (!uid) return;
-
-    const userRef = db.collection('users').doc(uid);
-    userListenerUnsubscribe = userRef.onSnapshot(doc => {
-      if (!doc.exists) return;
-      const d = doc.data() || {};
-      if (typeof d.balance !== 'undefined') {
-        userData.balance = Number(d.balance || 0);
-        if (balanceAmountEl) balanceAmountEl.textContent = `${userData.balance.toLocaleString('fr-FR')} FCFA`;
-      }
-      // reflect potential updates pushed from server
-      if (typeof d.isReseller !== 'undefined') userData.isReseller = !!d.isReseller;
-      if (typeof d.resellerLevel !== 'undefined') userData.resellerLevel = d.resellerLevel;
-      if (typeof d.resellerWeeklyOrders !== 'undefined') userData.resellerWeeklyOrders = Number(d.resellerWeeklyOrders || 0);
-      if (typeof d.resellerTotalOrders !== 'undefined') userData.resellerTotalOrders = Number(d.resellerTotalOrders || 0);
-      if (typeof d.discountRate !== 'undefined') userData.discountRate = Number(d.discountRate || 0);
-      if (typeof d.totalSavings !== 'undefined') userData.totalSavings = Number(d.totalSavings || 0);
-      updateResellerUI();
-    }, err => {
-      console.warn('Firestore listener error:', err);
-    });
-  } catch (err) {
-    console.warn('setupFirestoreListener err:', err);
-  }
-}
-
-/* ===================== EVENTS ===================== */
-function attachEvents() {
-  if (becomeResellerBtn) becomeResellerBtn.addEventListener('click', becomeReseller);
-  if (resignBtn) resignBtn.addEventListener('click', resignAsReseller);
-  if (refreshStatsBtn) refreshStatsBtn.addEventListener('click', refreshResellerStats);
-  if (quickDepositBtn) quickDepositBtn.addEventListener('click', () => location.href = 'fonds.html');
-}
-
-/* ===================== AUTH INITIALISATION ===================== */
-auth.onAuthStateChanged(async (user) => {
-  currentUser = user;
-  if (user) {
+  async function callServer(endpoint, method = 'GET', data = null) {
     try {
-      await fetchUserData();
-    } catch (e) {
-      // already handled in fetchUserData
+      const user = auth.currentUser;
+      if (!user) throw new Error('Utilisateur non connecté.');
+
+      const token = await user.getIdToken();
+      const opts = {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      };
+      if (data && (method === 'POST' || method === 'PUT')) opts.body = JSON.stringify(data);
+
+      const res = await fetch(`${SERVER_URL}${endpoint}`, opts);
+      let payload = null;
+      try { payload = await res.json(); } catch (e) { payload = null; }
+
+      if (!res.ok) {
+        const msg = payload?.error || payload?.message || `Erreur serveur (${res.status})`;
+        throw new Error(msg);
+      }
+      return payload;
+    } catch (err) {
+      throw err;
     }
-    setupFirestoreListener(user.uid);
-  } else {
-    // reset local state
-    userData = {
-      isReseller: false,
-      resellerLevel: null,
-      resellerWeeklyOrders: 0,
-      resellerTotalOrders: 0,
-      discountRate: 0,
-      balance: 0,
-      totalSavings: 0
-    };
-    updateResellerUI();
-    if (typeof userListenerUnsubscribe === 'function') { try { userListenerUnsubscribe(); } catch(e){} userListenerUnsubscribe = null; }
   }
-});
 
-/* ===================== LANCEMENT ===================== */
-attachEvents();
+  async function fetchUserData() {
+    try {
+      if (levelSpinner) levelSpinner.style.display = 'inline-block';
+      if (discountSpinner) discountSpinner.style.display = 'inline-block';
+      if (weeklyOrdersSpinner) weeklyOrdersSpinner.style.display = 'inline-block';
+      if (ordersSpinner) ordersSpinner.style.display = 'inline-block';
+      if (savingsSpinner) savingsSpinner.style.display = 'inline-block';
+      if (balanceSpinner) balanceSpinner.style.display = 'inline-block';
 
-/* small helper: if page loaded while already auth'ed, ensure fetch */
-if (auth.currentUser) {
-  (async () => {
-    try { await fetchUserData(); setupFirestoreListener(auth.currentUser.uid); } catch(e){}
-  })();
-}
-</script>
+      const res = await callServer('/user', 'GET');
+      if (!res) throw new Error('Réponse vide du serveur /user.');
+
+      const srvUser = res.user || (res.success && res.user) || null;
+      if (!srvUser) {
+        throw new Error(res.error || 'Format inattendu de la réponse /user.');
+      }
+
+      userData = {
+        isReseller: !!srvUser.isReseller,
+        resellerLevel: srvUser.resellerLevel || null,
+        resellerWeeklyOrders: Number(srvUser.resellerWeeklyOrders || 0),
+        resellerTotalOrders: Number(srvUser.resellerTotalOrders || 0),
+        discountRate: Number(srvUser.discountRate || 0),
+        balance: Number(srvUser.balance || 0),
+        totalSavings: Number(srvUser.totalSavings || 0),
+        ...srvUser
+      };
+
+      updateResellerUI();
+      return userData;
+    } catch (err) {
+      console.error('fetchUserData error:', err);
+      showNotification(err.message || 'Impossible de charger vos données.', 'error');
+      try { if(levelSpinner) levelSpinner.style.display='none'; } catch(e){}
+      try { if(discountSpinner) discountSpinner.style.display='none'; } catch(e){}
+      try { if(weeklyOrdersSpinner) weeklyOrdersSpinner.style.display='none'; } catch(e){}
+      try { if(ordersSpinner) ordersSpinner.style.display='none'; } catch(e){}
+      try { if(savingsSpinner) savingsSpinner.style.display='none'; } catch(e){}
+      try { if(balanceSpinner) balanceSpinner.style.display='none'; } catch(e){}
+      throw err;
+    }
+  }
+
+  async function refreshResellerStats() {
+    try {
+      refreshStatsBtn && (refreshStatsBtn.disabled = true);
+      refreshStatsBtn && (refreshStatsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mise à jour...');
+      const res = await callServer('/update-reseller-stats', 'GET');
+      if (res && res.success) {
+        await fetchUserData();
+        showNotification('Statistiques mises à jour.', 'success');
+      } else {
+        await fetchUserData();
+      }
+    } catch (err) {
+      console.error('refreshResellerStats:', err);
+      showNotification(err.message || 'Erreur mise à jour stats', 'error');
+    } finally {
+      refreshStatsBtn && (refreshStatsBtn.disabled = false);
+      if (refreshStatsBtn) refreshStatsBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Rafraîchir Stats';
+    }
+  }
+
+  /* ===================== USER ACTIONS ===================== */
+
+  async function becomeReseller() {
+    if (!auth.currentUser) { showNotification('Veuillez vous connecter.', 'error'); return; }
+    const originalHTML = becomeResellerBtn ? becomeResellerBtn.innerHTML : null;
+
+    try {
+      becomeResellerBtn.disabled = true;
+      becomeResellerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Activation...';
+
+      const res = await callServer('/become-reseller', 'POST');
+      if (res && res.success) {
+        showNotification(res.message || 'Vous êtes maintenant revendeur.', 'success');
+        await fetchUserData();
+      } else {
+        throw new Error(res.error || res.message || 'Activation échouée.');
+      }
+    } catch (err) {
+      console.error('becomeReseller error:', err);
+      showNotification(err.message || 'Erreur lors de l\'activation.', 'error');
+    } finally {
+      if (becomeResellerBtn) {
+        becomeResellerBtn.disabled = false;
+        becomeResellerBtn.innerHTML = originalHTML || '<i class="fas fa-user-plus"></i> Devenir Revendeur';
+      }
+    }
+  }
+
+  async function resignAsReseller() {
+    if (!auth.currentUser) { showNotification('Veuillez vous connecter.', 'error'); return; }
+    if (!confirm('Êtes-vous sûr de vouloir démissionner ? Vous perdrez vos avantages.')) return;
+    const originalHTML = resignBtn ? resignBtn.innerHTML : null;
+
+    try {
+      resignBtn.disabled = true;
+      resignBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Démission...';
+
+      const res = await callServer('/resign', 'POST');
+      if (res && res.success) {
+        showNotification(res.message || 'Vous avez démissionné.', 'info');
+        await fetchUserData();
+      } else {
+        throw new Error(res.error || res.message || 'Démission échouée.');
+      }
+    } catch (err) {
+      console.error('resignAsReseller:', err);
+      showNotification(err.message || 'Erreur lors de la démission.', 'error');
+    } finally {
+      if (resignBtn) {
+        resignBtn.disabled = false;
+        resignBtn.innerHTML = originalHTML || '<i class="fas fa-sign-out-alt"></i> Démissionner';
+      }
+    }
+  }
+
+  /* ===================== FIRESTORE LISTENER ===================== */
+
+  function setupFirestoreListener(uid) {
+    try {
+      if (typeof userListenerUnsubscribe === 'function') {
+        try { userListenerUnsubscribe(); } catch(e) {}
+        userListenerUnsubscribe = null;
+      }
+      if (!uid) return;
+
+      const userRef = db.collection('users').doc(uid);
+      userListenerUnsubscribe = userRef.onSnapshot(doc => {
+        if (!doc.exists) return;
+        const d = doc.data() || {};
+        if (typeof d.balance !== 'undefined') {
+          userData.balance = Number(d.balance || 0);
+          if (balanceAmountEl) balanceAmountEl.textContent = `${userData.balance.toLocaleString('fr-FR')} FCFA`;
+        }
+        if (typeof d.isReseller !== 'undefined') userData.isReseller = !!d.isReseller;
+        if (typeof d.resellerLevel !== 'undefined') userData.resellerLevel = d.resellerLevel;
+        if (typeof d.resellerWeeklyOrders !== 'undefined') userData.resellerWeeklyOrders = Number(d.resellerWeeklyOrders || 0);
+        if (typeof d.resellerTotalOrders !== 'undefined') userData.resellerTotalOrders = Number(d.resellerTotalOrders || 0);
+        if (typeof d.discountRate !== 'undefined') userData.discountRate = Number(d.discountRate || 0);
+        if (typeof d.totalSavings !== 'undefined') userData.totalSavings = Number(d.totalSavings || 0);
+        updateResellerUI();
+      }, err => {
+        console.warn('Firestore listener error:', err);
+      });
+    } catch (err) {
+      console.warn('setupFirestoreListener err:', err);
+    }
+  }
+
+  /* ===================== EVENTS & INIT ===================== */
+
+  function attachEvents() {
+    if (becomeResellerBtn) becomeResellerBtn.addEventListener('click', becomeReseller);
+    if (resignBtn) resignBtn.addEventListener('click', resignAsReseller);
+    if (refreshStatsBtn) refreshStatsBtn.addEventListener('click', refreshResellerStats);
+    if (quickDepositBtn) quickDepositBtn.addEventListener('click', () => location.href = 'fonds.html');
+  }
+
+  auth.onAuthStateChanged(async (user) => {
+    currentUser = user;
+    if (user) {
+      try { await fetchUserData(); } catch(e){}
+      setupFirestoreListener(user.uid);
+    } else {
+      userData = {
+        isReseller: false,
+        resellerLevel: null,
+        resellerWeeklyOrders: 0,
+        resellerTotalOrders: 0,
+        discountRate: 0,
+        balance: 0,
+        totalSavings: 0
+      };
+      updateResellerUI();
+      if (typeof userListenerUnsubscribe === 'function') { try { userListenerUnsubscribe(); } catch(e){} userListenerUnsubscribe = null; }
+    }
+  });
+
+  attachEvents();
+
+  /* si la page est ouverte et auth.currentUser déjà présent */
+  if (auth.currentUser) {
+    (async () => {
+      try { await fetchUserData(); setupFirestoreListener(auth.currentUser.uid); } catch(e){}
+    })();
+  }
+  </script>
+</body>
+</html>
