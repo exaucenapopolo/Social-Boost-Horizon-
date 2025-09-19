@@ -45,6 +45,12 @@
       display:flex; flex-direction:column;
     }
 
+    /* Animation spinner keyframes */
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
     /* Background animation simplified */
     .background-animation {
       position: fixed; inset: 0; z-index: 0;
@@ -104,6 +110,9 @@
 
     .notification { position: fixed; top:20px; right:20px; padding:12px 16px; border-radius:8px; z-index:1200; color:white; box-shadow:0 6px 18px rgba(0,0,0,0.25); opacity:0; transform:translateY(-10px); transition: all .25s ease; }
     .notification.show { opacity:1; transform:translateY(0); }
+
+    /* petits styles pour loader inline (optionnel) */
+    .loading-spinner { display:inline-block; width:18px; height:18px; border:3px solid rgba(255,255,255,0.25); border-top-color:#fff; border-radius:50%; animation: spin 1s linear infinite; vertical-align:middle; margin-right:6px; }
 
     /* responsive */
     @media (max-width:768px) {
@@ -166,27 +175,27 @@
         <div style="flex:1; min-width:260px;">
           <div class="reseller-stats" role="region" aria-label="Statistiques revendeur">
             <div class="stat-box">
-              <div class="value" id="currentLevel"><span class="loading-spinner" id="levelSpinner" style="display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;"></span><span>Chargement...</span></div>
+              <div class="value" id="currentLevel"><span class="loading-spinner" id="levelSpinner" style="display:inline-block;"></span><span>Chargement...</span></div>
               <div class="label"><i class="fas fa-chart-line"></i> Niveau actuel</div>
             </div>
 
             <div class="stat-box">
-              <div class="value" id="discountRate"><span class="loading-spinner" id="discountSpinner" style="display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;"></span><span>0%</span></div>
+              <div class="value" id="discountRate"><span class="loading-spinner" id="discountSpinner" style="display:inline-block;"></span><span>0%</span></div>
               <div class="label"><i class="fas fa-percent"></i> Votre Remise</div>
             </div>
 
             <div class="stat-box">
-              <div class="value" id="weeklyOrders"><span class="loading-spinner" id="weeklyOrdersSpinner" style="display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;"></span><span>0</span></div>
+              <div class="value" id="weeklyOrders"><span class="loading-spinner" id="weeklyOrdersSpinner" style="display:inline-block;"></span><span>0</span></div>
               <div class="label"><i class="fas fa-calendar-week"></i> Commandes (7j)</div>
             </div>
 
             <div class="stat-box">
-              <div class="value" id="totalOrders"><span class="loading-spinner" id="ordersSpinner" style="display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;"></span><span>0</span></div>
+              <div class="value" id="totalOrders"><span class="loading-spinner" id="ordersSpinner" style="display:inline-block;"></span><span>0</span></div>
               <div class="label"><i class="fas fa-shopping-basket"></i> Total Commandes</div>
             </div>
 
             <div class="stat-box">
-              <div class="value" id="totalSavings"><span class="loading-spinner" id="savingsSpinner" style="display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;"></span><span>0 FCFA</span></div>
+              <div class="value" id="totalSavings"><span class="loading-spinner" id="savingsSpinner" style="display:inline-block;"></span><span>0 FCFA</span></div>
               <div class="label"><i class="fas fa-piggy-bank"></i> Économies Totales</div>
             </div>
           </div>
@@ -295,7 +304,7 @@
   AOS && AOS.init && AOS.init({ duration: 700, once: true });
 
   /* ===================== CONFIG ===================== */
-  const SERVER_URL = "https://social-boost-exaucenapopolo2.replit.app";
+  const SERVER_URL = "https://social-boost-exaucenapopolo2.replit.app"; // <-- vérifie cette URL si nécessaire
 
   const firebaseConfig = {
     apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
@@ -318,7 +327,7 @@
 
   /* ===================== DOM REFS ===================== */
   const balanceAmountEl = document.getElementById('balanceAmount');
-  const balanceSpinner = document.getElementById('balanceSpinner'); // optionnel
+  const balanceSpinner = document.getElementById('balanceSpinner'); // optionnel si tu en ajoutes plus tard
   const quickDepositBtn = document.getElementById('quickDeposit');   // optionnel
 
   const becomeResellerBtn = document.getElementById('becomeResellerBtn');
@@ -483,6 +492,7 @@
 
   /* ===================== SERVER COMMUNICATION ===================== */
 
+  // callServer amélioré : vérifie content-type et renvoie message d'erreur lisible
   async function callServer(endpoint, method = 'GET', data = null) {
     try {
       const user = auth.currentUser;
@@ -498,9 +508,26 @@
       };
       if (data && (method === 'POST' || method === 'PUT')) opts.body = JSON.stringify(data);
 
+      console.log('callServer ->', method, `${SERVER_URL}${endpoint}`);
       const res = await fetch(`${SERVER_URL}${endpoint}`, opts);
+
+      const contentType = res.headers.get('content-type') || '';
       let payload = null;
-      try { payload = await res.json(); } catch (e) { payload = null; }
+
+      if (contentType.includes('application/json')) {
+        try { payload = await res.json(); }
+        catch (e) { payload = null; }
+      } else {
+        // not JSON: read text for better error reporting
+        const text = await res.text();
+        console.warn('callServer: réponse non-JSON:', res.status, text);
+        if (!res.ok) {
+          throw new Error(text || `Erreur serveur non-JSON (${res.status})`);
+        } else {
+          // success but not JSON: unexpected
+          throw new Error('Réponse serveur inattendue (non JSON).');
+        }
+      }
 
       if (!res.ok) {
         const msg = payload?.error || payload?.message || `Erreur serveur (${res.status})`;
@@ -508,6 +535,7 @@
       }
       return payload;
     } catch (err) {
+      console.error('callServer error:', err);
       throw err;
     }
   }
@@ -672,10 +700,33 @@
     if (quickDepositBtn) quickDepositBtn.addEventListener('click', () => location.href = 'fonds.html');
   }
 
+  // Ping health (utile pour diagnostiquer serveur injoignable)
+  async function pingServerHealth() {
+    try {
+      const r = await fetch(`${SERVER_URL}/health`);
+      if (!r.ok) {
+        const text = await r.text().catch(()=>null);
+        console.warn('Health check failed:', r.status, text);
+        showNotification('Serveur injoignable (health check). Vérifie SERVER_URL.', 'error', 6000);
+      } else {
+        console.log('Serveur health OK');
+      }
+    } catch (err) {
+      console.error('pingServerHealth error:', err);
+      showNotification('Impossible de contacter le serveur. Vérifie SERVER_URL.', 'error', 6000);
+    }
+  }
+
   auth.onAuthStateChanged(async (user) => {
     currentUser = user;
     if (user) {
-      try { await fetchUserData(); } catch(e){}
+      try {
+        // ping rapide pour diagnostiquer problèmes réseau avant fetchUserData
+        await pingServerHealth();
+        await fetchUserData();
+      } catch(e){
+        console.warn('Erreur init user:', e);
+      }
       setupFirestoreListener(user.uid);
     } else {
       userData = {
@@ -697,7 +748,7 @@
   /* si la page est ouverte et auth.currentUser déjà présent */
   if (auth.currentUser) {
     (async () => {
-      try { await fetchUserData(); setupFirestoreListener(auth.currentUser.uid); } catch(e){}
+      try { await pingServerHealth(); await fetchUserData(); setupFirestoreListener(auth.currentUser.uid); } catch(e){}
     })();
   }
   </script>
