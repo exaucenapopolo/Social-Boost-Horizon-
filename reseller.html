@@ -327,8 +327,9 @@
 
   /* ===================== DOM REFS ===================== */
   const balanceAmountEl = document.getElementById('balanceAmount');
-  const balanceSpinner = document.getElementById('balanceSpinner'); // optionnel si tu en ajoutes plus tard
-  const quickDepositBtn = document.getElementById('quickDeposit');   // optionnel
+  // éléments optionnels (peuvent être null)
+  const balanceSpinner = document.getElementById('balanceSpinner') || null;
+  const quickDepositBtn = document.getElementById('quickDeposit') || null;
 
   const becomeResellerBtn = document.getElementById('becomeResellerBtn');
   const resignBtn = document.getElementById('resignBtn');
@@ -386,13 +387,14 @@
     n.style.right = '20px';
     n.style.zIndex = 99999;
     notificationRoot.appendChild(n);
-    setTimeout(() => { n.style.transition = 'opacity .25s'; n.style.opacity = '0'; setTimeout(()=>{ try{ notificationRoot.removeChild(n); }catch(e){} },250); }, timeout);
+    setTimeout(() => { n.style.transition = 'opacity .25s'; n.style.opacity = '0'; setTimeout(()=>{ try{ notificationRoot.removeChild(n); }catch(e){} },250); },timeout);
   }
 
   function setStatBoxValue(boxEl, text) {
     if (!boxEl) return;
+    // remplace le dernier <span> s'il existe sinon le texte complet
     const spans = boxEl.querySelectorAll('span');
-    if (spans && spans.length >= 1) {
+    if (spans && spans.length > 0) {
       spans[spans.length - 1].textContent = text;
     } else {
       boxEl.textContent = text;
@@ -445,7 +447,8 @@
   function updatePricesWithDiscount() {
     const discount = userData.isReseller ? Number(userData.discountRate || 0) : 0;
     document.querySelectorAll('.reseller-price').forEach(el => {
-      const original = parseInt(el.getAttribute('data-original') || el.dataset.original, 10);
+      const originalAttr = el.getAttribute('data-original') || el.dataset.original;
+      const original = parseInt(originalAttr, 10);
       if (!isNaN(original)) {
         const discounted = Math.round(original * (1 - discount/100));
         el.textContent = `${discounted.toLocaleString('fr-FR')} FCFA`;
@@ -465,17 +468,17 @@
     try { if(balanceSpinner) balanceSpinner.style.display='none'; } catch(e){}
 
     if (userData.isReseller) {
-      becomeResellerBtn && (becomeResellerBtn.style.display = 'none');
-      ordersBtn && (ordersBtn.style.display = 'inline-flex');
-      commanderBtn && (commanderBtn.style.display = 'inline-flex');
-      dashboardBtn && (dashboardBtn.style.display = 'inline-flex');
-      resignBtn && (resignBtn.style.display = 'inline-flex');
+      if (becomeResellerBtn) becomeResellerBtn.style.display = 'none';
+      if (ordersBtn) ordersBtn.style.display = 'inline-flex';
+      if (commanderBtn) commanderBtn.style.display = 'inline-flex';
+      if (dashboardBtn) dashboardBtn.style.display = 'inline-flex';
+      if (resignBtn) resignBtn.style.display = 'inline-flex';
     } else {
-      becomeResellerBtn && (becomeResellerBtn.style.display = 'inline-flex');
-      ordersBtn && (ordersBtn.style.display = 'none');
-      commanderBtn && (commanderBtn.style.display = 'none');
-      dashboardBtn && (dashboardBtn.style.display = 'none');
-      resignBtn && (resignBtn.style.display = 'none');
+      if (becomeResellerBtn) becomeResellerBtn.style.display = 'inline-flex';
+      if (ordersBtn) ordersBtn.style.display = 'none';
+      if (commanderBtn) commanderBtn.style.display = 'none';
+      if (dashboardBtn) dashboardBtn.style.display = 'none';
+      if (resignBtn) resignBtn.style.display = 'none';
     }
 
     setStatBoxValue(currentLevelEl, userData.isReseller ? (userData.resellerLevel || 'N/A') : 'Non revendeur');
@@ -492,48 +495,46 @@
 
   /* ===================== SERVER COMMUNICATION ===================== */
 
-  // callServer amélioré : vérifie content-type et renvoie message d'erreur lisible
+  // callServer amélioré : en-têtes conditionnels, gère réponses non-JSON proprement
   async function callServer(endpoint, method = 'GET', data = null) {
     try {
       const user = auth.currentUser;
       if (!user) throw new Error('Utilisateur non connecté.');
 
       const token = await user.getIdToken();
-      const opts = {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      };
-      if (data && (method === 'POST' || method === 'PUT')) opts.body = JSON.stringify(data);
+      const headers = { 'Authorization': `Bearer ${token}` };
 
-      console.log('callServer ->', method, `${SERVER_URL}${endpoint}`);
-      const res = await fetch(`${SERVER_URL}${endpoint}`, opts);
+      let body;
+      if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+        headers['Content-Type'] = 'application/json';
+        body = JSON.stringify(data);
+      }
 
-      const contentType = res.headers.get('content-type') || '';
-      let payload = null;
+      const url = `${SERVER_URL}${endpoint}`;
+      const res = await fetch(url, { method, headers, body });
 
+      const contentType = (res.headers.get('content-type') || '').toLowerCase();
+
+      // Si JSON -> parse
       if (contentType.includes('application/json')) {
-        try { payload = await res.json(); }
-        catch (e) { payload = null; }
-      } else {
-        // not JSON: read text for better error reporting
-        const text = await res.text();
-        console.warn('callServer: réponse non-JSON:', res.status, text);
+        const payload = await res.json().catch(() => null);
         if (!res.ok) {
-          throw new Error(text || `Erreur serveur non-JSON (${res.status})`);
-        } else {
-          // success but not JSON: unexpected
-          throw new Error('Réponse serveur inattendue (non JSON).');
+          const msg = payload?.error || payload?.message || `Erreur serveur (${res.status})`;
+          throw new Error(msg);
         }
+        return payload;
       }
 
+      // Non-JSON -> lire texte pour debug
+      const text = await res.text().catch(() => null);
       if (!res.ok) {
-        const msg = payload?.error || payload?.message || `Erreur serveur (${res.status})`;
-        throw new Error(msg);
+        // message d'erreur lisible
+        const short = (text && text.length > 0) ? text : `Erreur serveur non-JSON (${res.status})`;
+        throw new Error(short);
       }
-      return payload;
+
+      // Succès mais non-JSON (peu probable) -> retourner le texte
+      return { success: true, text: text || '' };
     } catch (err) {
       console.error('callServer error:', err);
       throw err;
@@ -585,21 +586,26 @@
 
   async function refreshResellerStats() {
     try {
-      refreshStatsBtn && (refreshStatsBtn.disabled = true);
-      refreshStatsBtn && (refreshStatsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mise à jour...');
+      if (refreshStatsBtn) {
+        refreshStatsBtn.disabled = true;
+        refreshStatsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mise à jour...';
+      }
       const res = await callServer('/update-reseller-stats', 'GET');
       if (res && res.success) {
         await fetchUserData();
         showNotification('Statistiques mises à jour.', 'success');
       } else {
-        await fetchUserData();
+        // si réponse non-JSON ou message différent, tente fetchUserData quand même
+        await fetchUserData().catch(()=>{});
       }
     } catch (err) {
       console.error('refreshResellerStats:', err);
       showNotification(err.message || 'Erreur mise à jour stats', 'error');
     } finally {
-      refreshStatsBtn && (refreshStatsBtn.disabled = false);
-      if (refreshStatsBtn) refreshStatsBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Rafraîchir Stats';
+      if (refreshStatsBtn) {
+        refreshStatsBtn.disabled = false;
+        refreshStatsBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Rafraîchir Stats';
+      }
     }
   }
 
@@ -610,8 +616,10 @@
     const originalHTML = becomeResellerBtn ? becomeResellerBtn.innerHTML : null;
 
     try {
-      becomeResellerBtn.disabled = true;
-      becomeResellerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Activation...';
+      if (becomeResellerBtn) {
+        becomeResellerBtn.disabled = true;
+        becomeResellerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Activation...';
+      }
 
       const res = await callServer('/become-reseller', 'POST');
       if (res && res.success) {
@@ -637,8 +645,10 @@
     const originalHTML = resignBtn ? resignBtn.innerHTML : null;
 
     try {
-      resignBtn.disabled = true;
-      resignBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Démission...';
+      if (resignBtn) {
+        resignBtn.disabled = true;
+        resignBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Démission...';
+      }
 
       const res = await callServer('/resign', 'POST');
       if (res && res.success) {
@@ -700,20 +710,21 @@
     if (quickDepositBtn) quickDepositBtn.addEventListener('click', () => location.href = 'fonds.html');
   }
 
-  // Ping health (utile pour diagnostiquer serveur injoignable)
+  // Ping health (utile pour diagnostiquer serveur injoignable). Tolérant: si /health absent, on ne bloquera pas.
   async function pingServerHealth() {
     try {
-      const r = await fetch(`${SERVER_URL}/health`);
+      const r = await fetch(`${SERVER_URL}/health`, { method: 'GET' });
       if (!r.ok) {
         const text = await r.text().catch(()=>null);
-        console.warn('Health check failed:', r.status, text);
-        showNotification('Serveur injoignable (health check). Vérifie SERVER_URL.', 'error', 6000);
-      } else {
-        console.log('Serveur health OK');
+        console.warn('Health check non-OK:', r.status, text);
+        showNotification('Serveur injoignable (health check échoué). Vérifie SERVER_URL.', 'error', 6000);
+        return false;
       }
+      return true;
     } catch (err) {
       console.error('pingServerHealth error:', err);
       showNotification('Impossible de contacter le serveur. Vérifie SERVER_URL.', 'error', 6000);
+      return false;
     }
   }
 
@@ -721,8 +732,7 @@
     currentUser = user;
     if (user) {
       try {
-        // ping rapide pour diagnostiquer problèmes réseau avant fetchUserData
-        await pingServerHealth();
+        await pingServerHealth(); // ne bloque pas si false
         await fetchUserData();
       } catch(e){
         console.warn('Erreur init user:', e);
