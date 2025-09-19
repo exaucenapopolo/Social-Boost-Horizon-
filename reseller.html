@@ -495,6 +495,24 @@
 
   /* ===================== SERVER COMMUNICATION ===================== */
 
+  // Fonction de debug pour analyser les réponses serveur
+  function debugResponse(response, endpoint) {
+    console.log(`Debug ${endpoint}:`, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+      url: response.url
+    });
+    return response.text().then(text => {
+      console.log(`Response body from ${endpoint}:`, text);
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Réponse non-JSON de ${endpoint}: ${text.substring(0, 100)}...`);
+      }
+    });
+  }
+
   // callServer amélioré : en-têtes conditionnels, gère réponses non-JSON proprement
   async function callServer(endpoint, method = 'GET', data = null) {
     try {
@@ -512,29 +530,21 @@
 
       const url = `${SERVER_URL}${endpoint}`;
       const res = await fetch(url, { method, headers, body });
+      
+      // Debug des réponses en cas d'erreur
+      if (!res.ok) {
+        return await debugResponse(res, endpoint);
+      }
 
       const contentType = (res.headers.get('content-type') || '').toLowerCase();
-
-      // Si JSON -> parse
+      
       if (contentType.includes('application/json')) {
-        const payload = await res.json().catch(() => null);
-        if (!res.ok) {
-          const msg = payload?.error || payload?.message || `Erreur serveur (${res.status})`;
-          throw new Error(msg);
-        }
-        return payload;
+        return await res.json();
       }
-
-      // Non-JSON -> lire texte pour debug
-      const text = await res.text().catch(() => null);
-      if (!res.ok) {
-        // message d'erreur lisible
-        const short = (text && text.length > 0) ? text : `Erreur serveur non-JSON (${res.status})`;
-        throw new Error(short);
-      }
-
-      // Succès mais non-JSON (peu probable) -> retourner le texte
-      return { success: true, text: text || '' };
+      
+      // Si non-JSON, debug et erreur
+      return await debugResponse(res, endpoint);
+      
     } catch (err) {
       console.error('callServer error:', err);
       throw err;
@@ -553,11 +563,16 @@
       const res = await callServer('/user', 'GET');
       if (!res) throw new Error('Réponse vide du serveur /user.');
 
-      const srvUser = res.user || (res.success && res.user) || null;
-      if (!srvUser) {
-        throw new Error(res.error || 'Format inattendu de la réponse /user.');
+      // Vérification de la structure de réponse
+      if (!res.success) {
+        throw new Error(res.error || 'Erreur inconnue du serveur');
       }
 
+      if (!res.user) {
+        throw new Error('Format de réponse inattendu: propriété user manquante');
+      }
+
+      const srvUser = res.user;
       userData = {
         isReseller: !!srvUser.isReseller,
         resellerLevel: srvUser.resellerLevel || null,
