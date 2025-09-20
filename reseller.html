@@ -45,43 +45,24 @@
       display:flex; flex-direction:column;
     }
 
-    /* Animation spinner keyframes */
     @keyframes spin {
       from { transform: rotate(0deg); }
       to   { transform: rotate(360deg); }
     }
 
-    /* Background animation simplified */
-    .background-animation {
-      position: fixed; inset: 0; z-index: 0;
-      background: linear-gradient(180deg, #061028 0%, #031022 100%);
-      pointer-events:none;
-      overflow:hidden;
-    }
-    .cloud { position:absolute; background:white; opacity:0.06; filter:blur(18px; border-radius:50%; }
+    .background-animation { position: fixed; inset: 0; z-index: 0; background: linear-gradient(180deg, #061028 0%, #031022 100%); pointer-events:none; overflow:hidden; }
+    .cloud { position:absolute; background:white; opacity:0.06; filter:blur(18px); border-radius:50%; }
 
-    header {
-      position: sticky; top:0; z-index:100;
-      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
-      display:flex; justify-content:space-between; align-items:center;
-      padding: 1rem 1.5rem; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    }
+    header { position: sticky; top:0; z-index:100; background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end)); display:flex; justify-content:space-between; align-items:center; padding: 1rem 1.5rem; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
     .logo-text { color:var(--sbh-text-white); text-decoration:none; display:flex; flex-direction:column; line-height:1.05; }
     .boost-line { display:flex; align-items:center; gap:6px; font-weight:800; }
     .snap-avatar { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; background: radial-gradient(circle at 30% 30%, #fffc00, #ffdc00 50%, #ffbc00); color:#0A162B; font-weight:700; }
 
-    /* Balance */
-    .balance-section {
-      margin: 16px; padding:12px 18px; background: rgba(20,35,60,0.6); border-radius:12px;
-      display:flex; justify-content:space-between; align-items:center; z-index:2;
-    }
+    .balance-section { margin: 16px; padding:12px 18px; background: rgba(20,35,60,0.6); border-radius:12px; display:flex; justify-content:space-between; align-items:center; z-index:2; }
     .balance-section button { padding:8px 14px; border-radius:999px; border:none; cursor:pointer; background: linear-gradient(45deg,var(--sbh-gradient-start),var(--sbh-btn-color)); color:white; font-weight:600; }
 
-    /* Container principal */
     .reseller-container { max-width:1200px; margin:0 auto; padding:16px; z-index:2; }
-
     .reseller-section { background: rgba(20,35,60,0.6); padding:20px; border-radius:12px; border:1px solid rgba(255,255,255,0.06); box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
-
     h1,h2,h3 { font-family:'Montserrat', sans-serif; color:var(--sbh-text-white); }
     h2 { font-size:1.5rem; margin-bottom:12px; }
 
@@ -111,14 +92,13 @@
     .notification { position: fixed; top:20px; right:20px; padding:12px 16px; border-radius:8px; z-index:1200; color:white; box-shadow:0 6px 18px rgba(0,0,0,0.25); opacity:0; transform:translateY(-10px); transition: all .25s ease; }
     .notification.show { opacity:1; transform:translateY(0); }
 
-    /* petits styles pour loader inline (optionnel) */
     .loading-spinner { display:inline-block; width:18px; height:18px; border:3px solid rgba(255,255,255,0.25); border-top-color:#fff; border-radius:50%; animation: spin 1s linear infinite; vertical-align:middle; margin-right:6px; }
 
-    /* responsive */
     @media (max-width:768px) {
       header { padding:0.8rem; }
       .reseller-status, .reseller-stats { flex-direction:column; align-items:center; }
     }
+  </style>
   </style>
 </head>
 <body>
@@ -297,15 +277,14 @@
   </main>
 
   <!-- Notifications container -->
-  <div id="notificationRoot" aria-live="polite" aria-atomic="true"></div>
+   <div id="notificationRoot" aria-live="polite" aria-atomic="true"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
 <script>
   AOS && AOS.init && AOS.init({ duration: 700, once: true });
 
   /* ===================== CONFIG ===================== */
-  // Vérifiez que cette URL est correcte et que le serveur est accessible
-  const SERVER_URL = "https://social-boost-exaucenapopolo2.replit.app"; 
+  const SERVER_URL = "https://social-boost-exaucenapopolo2.replit.app"; // <-- vérifie cette URL si nécessaire
 
   const firebaseConfig = {
     apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
@@ -316,19 +295,20 @@
     appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
   };
 
-  /* Init Firebase (compat) — safe init (évite double init si déjà présent) */
   try {
     if (!window.firebase) throw new Error('Firebase non chargé (vérifie les <script> firebase)');
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
   } catch (e) {
     console.warn("Firebase initialization:", e);
-    showNotification("Erreur d'initialisation Firebase: " + e.message, 'error');
   }
   const auth = firebase.auth();
   const db = firebase.firestore();
 
   /* ===================== DOM REFS ===================== */
   const balanceAmountEl = document.getElementById('balanceAmount');
+  const balanceSpinner = document.getElementById('balanceSpinner') || null;
+  const quickDepositBtn = document.getElementById('quickDeposit') || null;
+
   const becomeResellerBtn = document.getElementById('becomeResellerBtn');
   const resignBtn = document.getElementById('resignBtn');
   const ordersBtn = document.getElementById('ordersBtn');
@@ -368,7 +348,6 @@
   };
 
   /* ===================== HELPERS ===================== */
-
   function showNotification(message, type = 'info', timeout = 4500) {
     const n = document.createElement('div');
     n.className = 'notification show';
@@ -385,13 +364,7 @@
     n.style.right = '20px';
     n.style.zIndex = 99999;
     notificationRoot.appendChild(n);
-    setTimeout(() => { 
-      n.style.transition = 'opacity .25s'; 
-      n.style.opacity = '0'; 
-      setTimeout(()=>{ 
-        try{ notificationRoot.removeChild(n); }catch(e){} 
-      },250); 
-    }, timeout);
+    setTimeout(() => { n.style.transition = 'opacity .25s'; n.style.opacity = '0'; setTimeout(()=>{ try{ notificationRoot.removeChild(n); }catch(e){} },250); },timeout);
   }
 
   function setStatBoxValue(boxEl, text) {
@@ -416,12 +389,7 @@
 
   function updateLevelIndicators() {
     document.querySelectorAll('.current-level-indicator').forEach(n => n.remove());
-    [beginnerCard, amateurCard, intermediateCard, professionalCard].forEach(c => { 
-      if(c){ 
-        c.style.boxShadow=''; 
-        c.style.transform=''; 
-      }
-    });
+    [beginnerCard, amateurCard, intermediateCard, professionalCard].forEach(c => { if(c){ c.style.boxShadow=''; c.style.transform=''; }});
 
     if (!userData.isReseller || !userData.resellerLevel) return;
     const lvl = String(userData.resellerLevel).toLowerCase();
@@ -473,6 +441,7 @@
     try { if(weeklyOrdersSpinner) weeklyOrdersSpinner.style.display='none'; } catch(e){}
     try { if(ordersSpinner) ordersSpinner.style.display='none'; } catch(e){}
     try { if(savingsSpinner) savingsSpinner.style.display='none'; } catch(e){}
+    try { if(balanceSpinner) balanceSpinner.style.display='none'; } catch(e){}
 
     if (userData.isReseller) {
       if (becomeResellerBtn) becomeResellerBtn.style.display = 'none';
@@ -502,6 +471,35 @@
 
   /* ===================== SERVER COMMUNICATION ===================== */
 
+  function debugResponse(response, endpoint) {
+    console.log(`Debug ${endpoint}:`, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+      url: response.url
+    });
+    const contentType = (response.headers.get('content-type') || '').toLowerCase();
+    return response.text().then(text => {
+      console.log(`Response body from ${endpoint}:`, text.slice(0, 1000));
+      // Si c'est du HTML, on retourne une erreur descriptive (plutôt que d'essayer JSON.parse)
+      if (contentType.includes('text/html') || text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+        const errMsg = `Réponse non-JSON de ${endpoint}: début du contenu = ${text.substring(0, 180).replace(/\s+/g,' ')}... (Vérifier que ${SERVER_URL}${endpoint} pointe vers votre API)`;
+        const err = new Error(errMsg);
+        err.raw = text;
+        err.status = response.status;
+        err.url = response.url;
+        throw err;
+      }
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        const err = new Error(`Réponse non-JSON / parse échoué pour ${endpoint}: ${e.message}`);
+        err.raw = text;
+        throw err;
+      }
+    });
+  }
+
   async function callServer(endpoint, method = 'GET', data = null) {
     try {
       const user = auth.currentUser;
@@ -519,27 +517,20 @@
       const url = `${SERVER_URL}${endpoint}`;
       const res = await fetch(url, { method, headers, body });
 
-      // Vérifier si la réponse est du HTML au lieu du JSON
-      const contentType = res.headers.get('content-type') || '';
-      if (contentType.includes('text/html')) {
-        const text = await res.text();
-        console.error('Le serveur a renvoyé du HTML au lieu de JSON:', text.substring(0, 200));
-        throw new Error('Le serveur est inaccessible ou mal configuré. Réessayez plus tard.');
-      }
-
       if (!res.ok) {
-        const errorText = await res.text();
-        console.error(`Erreur serveur ${res.status}:`, errorText);
-        throw new Error(`Erreur serveur (${res.status}): ${errorText.substring(0, 100)}`);
+        // utilise debugResponse pour avoir body en clair (JSON ou HTML)
+        return await debugResponse(res, endpoint);
       }
 
-      // Essayer de parser la réponse en JSON
-      try {
+      const contentType = (res.headers.get('content-type') || '').toLowerCase();
+
+      if (contentType.includes('application/json')) {
         return await res.json();
-      } catch (e) {
-        console.error('Erreur de parsing JSON:', e);
-        throw new Error('Format de réponse invalide du serveur');
       }
+
+      // si content-type indique html ou absent, appelle debugResponse pour diagnostiquer
+      return await debugResponse(res, endpoint);
+
     } catch (err) {
       console.error('callServer error:', err);
       throw err;
@@ -553,12 +544,18 @@
       if (weeklyOrdersSpinner) weeklyOrdersSpinner.style.display = 'inline-block';
       if (ordersSpinner) ordersSpinner.style.display = 'inline-block';
       if (savingsSpinner) savingsSpinner.style.display = 'inline-block';
+      if (balanceSpinner) balanceSpinner.style.display = 'inline-block';
 
       const res = await callServer('/user', 'GET');
-      
       if (!res) throw new Error('Réponse vide du serveur /user.');
-      if (!res.success) throw new Error(res.error || 'Erreur inconnue du serveur');
-      if (!res.user) throw new Error('Format de réponse inattendu: propriété user manquante');
+
+      if (!res.success) {
+        throw new Error(res.error || 'Erreur inconnue du serveur');
+      }
+
+      if (!res.user) {
+        throw new Error('Format de réponse inattendu: propriété user manquante');
+      }
 
       const srvUser = res.user;
       userData = {
@@ -582,6 +579,7 @@
       try { if(weeklyOrdersSpinner) weeklyOrdersSpinner.style.display='none'; } catch(e){}
       try { if(ordersSpinner) ordersSpinner.style.display='none'; } catch(e){}
       try { if(savingsSpinner) savingsSpinner.style.display='none'; } catch(e){}
+      try { if(balanceSpinner) balanceSpinner.style.display='none'; } catch(e){}
       throw err;
     }
   }
@@ -610,14 +608,8 @@
     }
   }
 
-  /* ===================== USER ACTIONS ===================== */
-
   async function becomeReseller() {
-    if (!auth.currentUser) { 
-      showNotification('Veuillez vous connecter.', 'error'); 
-      return; 
-    }
-    
+    if (!auth.currentUser) { showNotification('Veuillez vous connecter.', 'error'); return; }
     const originalHTML = becomeResellerBtn ? becomeResellerBtn.innerHTML : null;
 
     try {
@@ -645,13 +637,8 @@
   }
 
   async function resignAsReseller() {
-    if (!auth.currentUser) { 
-      showNotification('Veuillez vous connecter.', 'error'); 
-      return; 
-    }
-    
+    if (!auth.currentUser) { showNotification('Veuillez vous connecter.', 'error'); return; }
     if (!confirm('Êtes-vous sûr de vouloir démissionner ? Vous perdrez vos avantages.')) return;
-    
     const originalHTML = resignBtn ? resignBtn.innerHTML : null;
 
     try {
@@ -677,8 +664,6 @@
       }
     }
   }
-
-  /* ===================== FIRESTORE LISTENER ===================== */
 
   function setupFirestoreListener(uid) {
     try {
@@ -711,28 +696,34 @@
     }
   }
 
-  /* ===================== EVENTS & INIT ===================== */
-
   function attachEvents() {
     if (becomeResellerBtn) becomeResellerBtn.addEventListener('click', becomeReseller);
     if (resignBtn) resignBtn.addEventListener('click', resignAsReseller);
     if (refreshStatsBtn) refreshStatsBtn.addEventListener('click', refreshResellerStats);
+    if (quickDepositBtn) quickDepositBtn.addEventListener('click', () => location.href = 'fonds.html');
   }
 
-  // Vérifier la santé du serveur
   async function pingServerHealth() {
     try {
       const r = await fetch(`${SERVER_URL}/health`, { method: 'GET' });
       if (!r.ok) {
         const text = await r.text().catch(()=>null);
         console.warn('Health check non-OK:', r.status, text);
-        showNotification('Serveur injoignable. Vérifiez votre connexion.', 'error', 6000);
+        showNotification('Serveur injoignable (health check échoué). Vérifie SERVER_URL.', 'error', 6000);
+        return false;
+      }
+      // optionally verify content-type is JSON
+      const ct = (r.headers.get('content-type') || '').toLowerCase();
+      if (!ct.includes('application/json')) {
+        const t = await r.text().catch(()=>null);
+        console.warn('Health returned non-json:', ct, t && t.slice(0,200));
+        showNotification('Health check renvoie du HTML — l\'API ne répond peut-être pas.', 'error', 6000);
         return false;
       }
       return true;
     } catch (err) {
       console.error('pingServerHealth error:', err);
-      showNotification('Impossible de contacter le serveur. Vérifiez votre connexion.', 'error', 6000);
+      showNotification('Impossible de contacter le serveur. Vérifie SERVER_URL.', 'error', 6000);
       return false;
     }
   }
@@ -741,8 +732,15 @@
     currentUser = user;
     if (user) {
       try {
-        await pingServerHealth();
-        await fetchUserData();
+        const healthy = await pingServerHealth();
+        if (healthy) {
+          await fetchUserData();
+        } else {
+          // arrête l'init si le serveur ne répond pas correctement
+          console.warn('Serveur non sain — arrêt de fetchUserData');
+          showNotification('Impossible de charger les données (API indisponible).', 'error');
+          return;
+        }
       } catch(e){
         console.warn('Erreur init user:', e);
       }
@@ -758,25 +756,21 @@
         totalSavings: 0
       };
       updateResellerUI();
-      if (typeof userListenerUnsubscribe === 'function') { 
-        try { userListenerUnsubscribe(); } catch(e){} 
-        userListenerUnsubscribe = null; 
-      }
+      if (typeof userListenerUnsubscribe === 'function') { try { userListenerUnsubscribe(); } catch(e){} userListenerUnsubscribe = null; }
     }
   });
 
   attachEvents();
 
-  // Si la page est ouverte et auth.currentUser déjà présent
   if (auth.currentUser) {
     (async () => {
-      try { 
-        await pingServerHealth(); 
-        await fetchUserData(); 
-        setupFirestoreListener(auth.currentUser.uid); 
-      } catch(e){
-        console.error('Erreur initialisation:', e);
-      }
+      try {
+        const healthy = await pingServerHealth();
+        if (healthy) {
+          await fetchUserData();
+          setupFirestoreListener(auth.currentUser.uid);
+        }
+      } catch(e){}
     })();
   }
   </script>
