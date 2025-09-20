@@ -99,7 +99,6 @@
       .reseller-status, .reseller-stats { flex-direction:column; align-items:center; }
     }
   </style>
-  </style>
 </head>
 <body>
   <div class="background-animation" aria-hidden="true"></div>
@@ -281,10 +280,16 @@
 
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
 <script>
-  AOS && AOS.init && AOS.init({ duration: 700, once: true });
+  // Initialiser AOS
+  document.addEventListener('DOMContentLoaded', function() {
+    if (typeof AOS !== 'undefined') {
+      AOS.init({ duration: 700, once: true });
+    }
+  });
 
   /* ===================== CONFIG ===================== */
-  const SERVER_URL = "https://social-boost-exaucenapopolo2.replit.app"; // <-- vérifie cette URL si nécessaire
+  // IMPORTANT: Vérifiez que cette URL correspond à l'URL de votre serveur déployé
+  const SERVER_URL = "https://social-boost-exaucenapopolo2.replit.app";
 
   const firebaseConfig = {
     apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
@@ -296,11 +301,17 @@
   };
 
   try {
-    if (!window.firebase) throw new Error('Firebase non chargé (vérifie les <script> firebase)');
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    if (typeof firebase === 'undefined') {
+      console.error('Firebase non chargé. Vérifiez les scripts Firebase.');
+    } else {
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+    }
   } catch (e) {
-    console.warn("Firebase initialization:", e);
+    console.error("Erreur d'initialisation Firebase:", e);
   }
+  
   const auth = firebase.auth();
   const db = firebase.firestore();
 
@@ -364,7 +375,15 @@
     n.style.right = '20px';
     n.style.zIndex = 99999;
     notificationRoot.appendChild(n);
-    setTimeout(() => { n.style.transition = 'opacity .25s'; n.style.opacity = '0'; setTimeout(()=>{ try{ notificationRoot.removeChild(n); }catch(e){} },250); },timeout);
+    setTimeout(() => { 
+      n.style.transition = 'opacity .25s'; 
+      n.style.opacity = '0'; 
+      setTimeout(()=>{ 
+        try{ 
+          notificationRoot.removeChild(n); 
+        } catch(e){} 
+      },250); 
+    },timeout);
   }
 
   function setStatBoxValue(boxEl, text) {
@@ -389,7 +408,12 @@
 
   function updateLevelIndicators() {
     document.querySelectorAll('.current-level-indicator').forEach(n => n.remove());
-    [beginnerCard, amateurCard, intermediateCard, professionalCard].forEach(c => { if(c){ c.style.boxShadow=''; c.style.transform=''; }});
+    [beginnerCard, amateurCard, intermediateCard, professionalCard].forEach(c => { 
+      if(c){ 
+        c.style.boxShadow=''; 
+        c.style.transform=''; 
+      }
+    });
 
     if (!userData.isReseller || !userData.resellerLevel) return;
     const lvl = String(userData.resellerLevel).toLowerCase();
@@ -481,7 +505,7 @@
     const contentType = (response.headers.get('content-type') || '').toLowerCase();
     return response.text().then(text => {
       console.log(`Response body from ${endpoint}:`, text.slice(0, 1000));
-      // Si c'est du HTML, on retourne une erreur descriptive (plutôt que d'essayer JSON.parse)
+      // Si c'est du HTML, on retourne une erreur descriptive
       if (contentType.includes('text/html') || text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
         const errMsg = `Réponse non-JSON de ${endpoint}: début du contenu = ${text.substring(0, 180).replace(/\s+/g,' ')}... (Vérifier que ${SERVER_URL}${endpoint} pointe vers votre API)`;
         const err = new Error(errMsg);
@@ -518,7 +542,6 @@
       const res = await fetch(url, { method, headers, body });
 
       if (!res.ok) {
-        // utilise debugResponse pour avoir body en clair (JSON ou HTML)
         return await debugResponse(res, endpoint);
       }
 
@@ -528,7 +551,6 @@
         return await res.json();
       }
 
-      // si content-type indique html ou absent, appelle debugResponse pour diagnostiquer
       return await debugResponse(res, endpoint);
 
     } catch (err) {
@@ -705,22 +727,24 @@
 
   async function pingServerHealth() {
     try {
-      const r = await fetch(`${SERVER_URL}/health`, { method: 'GET' });
+      const r = await fetch(`${SERVER_URL}/health`, { 
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
       if (!r.ok) {
-        const text = await r.text().catch(()=>null);
-        console.warn('Health check non-OK:', r.status, text);
-        showNotification('Serveur injoignable (health check échoué). Vérifie SERVER_URL.', 'error', 6000);
-        return false;
+        throw new Error(`Health check failed with status ${r.status}`);
       }
-      // optionally verify content-type is JSON
-      const ct = (r.headers.get('content-type') || '').toLowerCase();
-      if (!ct.includes('application/json')) {
-        const t = await r.text().catch(()=>null);
-        console.warn('Health returned non-json:', ct, t && t.slice(0,200));
-        showNotification('Health check renvoie du HTML — l\'API ne répond peut-être pas.', 'error', 6000);
-        return false;
+      
+      const contentType = r.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error('Health check returned non-JSON response');
       }
-      return true;
+      
+      const data = await r.json();
+      return data && data.ok;
     } catch (err) {
       console.error('pingServerHealth error:', err);
       showNotification('Impossible de contacter le serveur. Vérifie SERVER_URL.', 'error', 6000);
@@ -736,7 +760,6 @@
         if (healthy) {
           await fetchUserData();
         } else {
-          // arrête l'init si le serveur ne répond pas correctement
           console.warn('Serveur non sain — arrêt de fetchUserData');
           showNotification('Impossible de charger les données (API indisponible).', 'error');
           return;
@@ -756,7 +779,10 @@
         totalSavings: 0
       };
       updateResellerUI();
-      if (typeof userListenerUnsubscribe === 'function') { try { userListenerUnsubscribe(); } catch(e){} userListenerUnsubscribe = null; }
+      if (typeof userListenerUnsubscribe === 'function') { 
+        try { userListenerUnsubscribe(); } catch(e){} 
+        userListenerUnsubscribe = null; 
+      }
     }
   });
 
@@ -770,7 +796,9 @@
           await fetchUserData();
           setupFirestoreListener(auth.currentUser.uid);
         }
-      } catch(e){}
+      } catch(e){
+        console.error('Error initializing with current user:', e);
+      }
     })();
   }
   </script>
