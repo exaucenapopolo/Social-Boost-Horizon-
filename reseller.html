@@ -94,6 +94,8 @@
 
     .loading-spinner { display:inline-block; width:18px; height:18px; border:3px solid rgba(255,255,255,0.25); border-top-color:#fff; border-radius:50%; animation: spin 1s linear infinite; vertical-align:middle; margin-right:6px; }
 
+    .small-muted { font-size:0.9rem; color:var(--sbh-text-light); }
+
     @media (max-width:768px) {
       header { padding:0.8rem; }
       .reseller-status, .reseller-stats { flex-direction:column; align-items:center; }
@@ -115,7 +117,17 @@
     </a>
 
     <div style="display:flex; align-items:center; gap:12px;">
-      <div id="balanceWrapper" class="snap-avatar" title="Votre solde" aria-live="polite"> <span id="balanceAmount">--</span> </div>
+      <!-- Solde + spinner -->
+      <div id="balanceWrapper" class="snap-avatar" title="Votre solde" aria-live="polite" style="position:relative; min-width:120px; justify-content:space-between; padding:6px 10px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span id="balanceAmount" style="font-size:0.85rem;">--</span>
+          <span id="balanceSpinner" class="loading-spinner" style="display:none; width:16px; height:16px; border-width:2px;"></span>
+        </div>
+      </div>
+
+      <!-- Petit bouton dépôt rapide (utile à quickDeposit dans le script) -->
+      <button id="quickDeposit" title="Déposer" style="background:transparent; border:1px solid rgba(255,255,255,0.08); color:white; padding:6px 10px; border-radius:8px;">Déposer</button>
+
       <a href="profil.html" class="snap-avatar" title="Profil utilisateur">👤</a>
     </div>
   </header>
@@ -123,7 +135,7 @@
   <main class="reseller-container" role="main">
     <section class="reseller-section" data-aos="fade-up">
       <h2><i class="fas fa-crown"></i> Programme Revendeur Social Boost Horizon</h2>
-      <p>Devenez revendeur et bénéficiez de remises croissantes selon votre activité. Ici vous pouvez activer/désactiver votre statut et consulter vos statistiques.</p>
+      <p class="small-muted">Devenez revendeur et bénéficiez de remises croissantes selon votre activité. Ici vous pouvez activer/désactiver votre statut et consulter vos statistiques.</p>
 
       <div style="margin-top:12px; display:flex; gap:12px; flex-wrap:wrap;">
         <div style="flex:1; min-width:220px;">
@@ -211,7 +223,7 @@
     <!-- Services cards (affichage des prix remisés) -->
     <section class="reseller-section" data-aos="fade-up" style="margin-top:14px;">
       <h2><i class="fas fa-tags"></i> Nos services avec remise</h2>
-      <p>Les prix affichés en mode "Revendeur" s'ajustent automatiquement selon votre remise.</p>
+      <p class="small-muted">Les prix affichés en mode "Revendeur" s'ajustent automatiquement selon votre remise.</p>
 
       <div style="display:grid; grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-top:12px;">
         <!-- Exemple : plusieurs cartes — le JS mettra à jour les .reseller-price -->
@@ -279,7 +291,8 @@
    <div id="notificationRoot" aria-live="polite" aria-atomic="true"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
-<script>
+
+  <script>
   // Initialiser AOS
   document.addEventListener('DOMContentLoaded', function() {
     if (typeof AOS !== 'undefined') {
@@ -288,8 +301,8 @@
   });
 
   /* ===================== CONFIG ===================== */
-  // IMPORTANT: Vérifiez que cette URL correspond à l'URL de votre serveur déployé
-  const SERVER_URL = "https://social-boost-exaucenapopolo2.replit.app";
+  // IMPORTANT: vérifie que cette URL correspond à ton serveur déployé API (préfixe /api)
+  const SERVER_URL = "https://social-boost-exaucenapopolo2.replit.app/api";
 
   const firebaseConfig = {
     apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
@@ -302,7 +315,7 @@
 
   try {
     if (typeof firebase === 'undefined') {
-      console.error('Firebase non chargé. Vérifiez les scripts Firebase.');
+      console.error('Firebase non chargé. Vérifie les scripts Firebase.');
     } else {
       if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
@@ -311,7 +324,7 @@
   } catch (e) {
     console.error("Erreur d'initialisation Firebase:", e);
   }
-  
+
   const auth = firebase.auth();
   const db = firebase.firestore();
 
@@ -375,14 +388,14 @@
     n.style.right = '20px';
     n.style.zIndex = 99999;
     notificationRoot.appendChild(n);
-    setTimeout(() => { 
-      n.style.transition = 'opacity .25s'; 
-      n.style.opacity = '0'; 
-      setTimeout(()=>{ 
-        try{ 
-          notificationRoot.removeChild(n); 
-        } catch(e){} 
-      },250); 
+    setTimeout(() => {
+      n.style.transition = 'opacity .25s';
+      n.style.opacity = '0';
+      setTimeout(()=>{
+        try{
+          notificationRoot.removeChild(n);
+        } catch(e){}
+      },250);
     },timeout);
   }
 
@@ -408,10 +421,10 @@
 
   function updateLevelIndicators() {
     document.querySelectorAll('.current-level-indicator').forEach(n => n.remove());
-    [beginnerCard, amateurCard, intermediateCard, professionalCard].forEach(c => { 
-      if(c){ 
-        c.style.boxShadow=''; 
-        c.style.transform=''; 
+    [beginnerCard, amateurCard, intermediateCard, professionalCard].forEach(c => {
+      if(c){
+        c.style.boxShadow='';
+        c.style.transform='';
       }
     });
 
@@ -727,22 +740,22 @@
 
   async function pingServerHealth() {
     try {
-      const r = await fetch(`${SERVER_URL}/health`, { 
+      const r = await fetch(`${SERVER_URL}/health`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json'
         }
       });
-      
+
       if (!r.ok) {
         throw new Error(`Health check failed with status ${r.status}`);
       }
-      
+
       const contentType = r.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) {
         throw new Error('Health check returned non-JSON response');
       }
-      
+
       const data = await r.json();
       return data && data.ok;
     } catch (err) {
@@ -779,9 +792,9 @@
         totalSavings: 0
       };
       updateResellerUI();
-      if (typeof userListenerUnsubscribe === 'function') { 
-        try { userListenerUnsubscribe(); } catch(e){} 
-        userListenerUnsubscribe = null; 
+      if (typeof userListenerUnsubscribe === 'function') {
+        try { userListenerUnsubscribe(); } catch(e){}
+        userListenerUnsubscribe = null;
       }
     }
   });
