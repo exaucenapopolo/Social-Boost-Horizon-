@@ -1,309 +1,122 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Espace Revendeur - Social Boost Horizon</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Espace Revendeur — Social Boost Horizon</title>
 
-  <!-- Firebase compat (utilisé pour l'écoute temps réel du solde et auth côté client) -->
+  <!-- Firebase compat -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@600;700;800&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
-
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
   <style>
-    /* --- Styles repris et légèrement nettoyés pour clarté --- */
-    :root {
-      --sbh-dark-blue: #0A162B;
-      --sbh-gradient-start: #1e3c72;
-      --sbh-gradient-end: #6a0dad;
-      --sbh-btn-color: #1E90FF;
-      --sbh-text-white: #FFFFFF;
-      --sbh-text-light: rgba(255,255,255,0.9);
-      --gold-primary: #FFD700;
-      --reseller-beginner: #42A5F5;
-      --reseller-amateur: #4CAF50;
-      --reseller-intermediate: #FFC107;
-      --reseller-professional: #FF5722;
-      --resign-btn: #e74c3c;
-      --resign-hover: #c0392b;
-      --sbh-card-radius: 12px;
+    :root{
+      --bg:#071026; --card:#15243a; --muted:rgba(255,255,255,0.75); --accent:#1E90FF; --gold:#FFD700;
     }
-
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Roboto', sans-serif;
-      color: var(--sbh-text-white);
-      background: var(--sbh-dark-blue);
-      min-height: 100vh;
-      display:flex; flex-direction:column;
-    }
-
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to   { transform: rotate(360deg); }
-    }
-
-    .background-animation { position: fixed; inset: 0; z-index: 0; background: linear-gradient(180deg, #061028 0%, #031022 100%); pointer-events:none; overflow:hidden; }
-    .cloud { position:absolute; background:white; opacity:0.06; filter:blur(18px); border-radius:50%; }
-
-    header { position: sticky; top:0; z-index:100; background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end)); display:flex; justify-content:space-between; align-items:center; padding: 1rem 1.5rem; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-    .logo-text { color:var(--sbh-text-white); text-decoration:none; display:flex; flex-direction:column; line-height:1.05; }
-    .boost-line { display:flex; align-items:center; gap:6px; font-weight:800; }
-    .snap-avatar { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; background: radial-gradient(circle at 30% 30%, #fffc00, #ffdc00 50%, #ffbc00); color:#0A162B; font-weight:700; }
-
-    .balance-section { margin: 16px; padding:12px 18px; background: rgba(20,35,60,0.6); border-radius:12px; display:flex; justify-content:space-between; align-items:center; z-index:2; }
-    .balance-section button { padding:8px 14px; border-radius:999px; border:none; cursor:pointer; background: linear-gradient(45deg,var(--sbh-gradient-start),var(--sbh-btn-color)); color:white; font-weight:600; }
-
-    .reseller-container { max-width:1200px; margin:0 auto; padding:16px; z-index:2; }
-    .reseller-section { background: rgba(20,35,60,0.6); padding:20px; border-radius:12px; border:1px solid rgba(255,255,255,0.06); box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
-    h1,h2,h3 { font-family:'Montserrat', sans-serif; color:var(--sbh-text-white); }
-    h2 { font-size:1.5rem; margin-bottom:12px; }
-
-    .reseller-status { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:14px; }
-    .status-card { padding:14px; border-radius:12px; background: rgba(25,40,65,0.65); min-width:160px; text-align:center; border:1px solid rgba(255,255,255,0.06); position:relative; }
-    .status-card .level { font-weight:700; font-size:1.4rem; margin:8px 0; color:var(--sbh-text-white); }
-
-    .reseller-stats { display:flex; gap:12px; justify-content:center; margin-top:14px; flex-wrap:wrap; }
-    .stat-box { background: rgba(30,45,70,0.8); border-radius:10px; padding:12px 18px; min-width:140px; text-align:center; border:1px solid rgba(255,255,255,0.06); }
-    .stat-box .value { font-size:1.6rem; font-weight:700; color:var(--gold-primary); }
-    .stat-box .label { font-size:0.85rem; color:var(--sbh-text-light); }
-
-    .reseller-actions { display:flex; gap:12px; justify-content:center; margin-top:18px; flex-wrap:wrap; }
-    .reseller-btn { padding:10px 18px; border-radius:999px; font-weight:700; cursor:pointer; border:none; display:inline-flex; align-items:center; gap:8px; }
-    .btn-become-reseller { background: linear-gradient(45deg,var(--reseller-beginner),var(--reseller-amateur)); color:white; animation: pulse 2s infinite; }
-    .btn-commander { background: linear-gradient(45deg,var(--reseller-intermediate),var(--reseller-professional)); color:white; }
-    .btn-orders { background: linear-gradient(45deg,var(--sbh-gradient-start),var(--sbh-btn-color)); color:white; }
-    .btn-dashboard { background: rgba(255,255,255,0.08); color:white; border:1px solid rgba(255,255,255,0.12); }
-    .btn-resign { background: linear-gradient(45deg, var(--resign-btn), #d63031); color:white; }
-
-    @keyframes pulse {
-      0%{ box-shadow:0 0 0 0 rgba(66,165,245,0.6); }
-      70%{ box-shadow:0 0 0 12px rgba(66,165,245,0); }
-      100%{ box-shadow:0 0 0 0 rgba(66,165,245,0); }
-    }
-
-    .notification { position: fixed; top:20px; right:20px; padding:12px 16px; border-radius:8px; z-index:1200; color:white; box-shadow:0 6px 18px rgba(0,0,0,0.25); opacity:0; transform:translateY(-10px); transition: all .25s ease; }
-    .notification.show { opacity:1; transform:translateY(0); }
-
-    .loading-spinner { display:inline-block; width:18px; height:18px; border:3px solid rgba(255,255,255,0.25); border-top-color:#fff; border-radius:50%; animation: spin 1s linear infinite; vertical-align:middle; margin-right:6px; }
-
-    .small-muted { font-size:0.9rem; color:var(--sbh-text-light); }
-
-    @media (max-width:768px) {
-      header { padding:0.8rem; }
-      .reseller-status, .reseller-stats { flex-direction:column; align-items:center; }
-    }
+    *{box-sizing:border-box}
+    body{font-family:Roboto,system-ui,-apple-system; margin:0; min-height:100vh; background:var(--bg); color:#fff; display:flex; flex-direction:column}
+    header{display:flex; justify-content:space-between; align-items:center; padding:12px 18px; background:linear-gradient(90deg,#133064,#6a0dad); position:sticky; top:0}
+    .logo{font-weight:700}
+    .snap{display:flex; gap:8px; align-items:center}
+    .snap .avatar{background:radial-gradient(circle at 20% 20%, #fffc00,#ffbc00); color:#071026; padding:6px 10px; border-radius:999px; font-weight:700}
+    main{max-width:1100px; margin:18px auto; width:100%; padding:0 12px}
+    .card{background:rgba(20,35,60,0.7); padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.04); margin-bottom:14px}
+    h2{font-family:Montserrat, sans-serif; margin-bottom:8px}
+    .reseller-status{display:flex; gap:10px; flex-wrap:wrap}
+    .status-card{background:rgba(255,255,255,0.02); padding:12px; border-radius:10px; min-width:160px; text-align:center}
+    .reseller-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px}
+    .btn{padding:10px 14px; border-radius:999px; border:0; cursor:pointer; font-weight:700}
+    .btn-primary{background:linear-gradient(45deg,#42A5F5,#4CAF50); color:#fff}
+    .btn-secondary{background:rgba(255,255,255,0.06); color:#fff; border:1px solid rgba(255,255,255,0.06)}
+    .small{font-size:0.9rem; color:var(--muted)}
+    .loading-spinner{display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.25); border-top-color:#fff; border-radius:50%; animation:spin 1s linear infinite; vertical-align:middle}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .notification{position:fixed; top:18px; right:18px; padding:12px 14px; border-radius:10px; z-index:9999; box-shadow:0 8px 30px rgba(0,0,0,.35)}
+    @media (max-width:720px){ .reseller-status{flex-direction:column; align-items:center} }
   </style>
 </head>
 <body>
-  <div class="background-animation" aria-hidden="true"></div>
-
-  <header data-aos="fade-down">
-    <a href="dashboard.html" class="logo-text" aria-label="Aller au dashboard">
-      <span style="font-weight:700;">SOCIAL</span>
-      <div class="boost-line" aria-hidden="true">
-        <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg"
-             alt="Logo" style="height:28px; object-fit:cover;" onerror="this.style.display='none'">
-        <span style="font-size:1.15rem;">BOOST</span>
-      </div>
-      <span style="font-size:0.95rem;">HORIZON</span>
-    </a>
-
-    <div style="display:flex; align-items:center; gap:12px;">
-      <!-- Solde + spinner -->
-      <div id="balanceWrapper" class="snap-avatar" title="Votre solde" aria-live="polite" style="position:relative; min-width:120px; justify-content:space-between; padding:6px 10px;">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span id="balanceAmount" style="font-size:0.85rem;">--</span>
-          <span id="balanceSpinner" class="loading-spinner" style="display:none; width:16px; height:16px; border-width:2px;"></span>
-        </div>
-      </div>
-
-      <!-- Petit bouton dépôt rapide (utile à quickDeposit dans le script) -->
-      <button id="quickDeposit" title="Déposer" style="background:transparent; border:1px solid rgba(255,255,255,0.08); color:white; padding:6px 10px; border-radius:8px;">Déposer</button>
-
-      <a href="profil.html" class="snap-avatar" title="Profil utilisateur">👤</a>
+  <header>
+    <div class="logo">SOCIAL <span style="color:var(--gold)">BOOST</span> HORIZON</div>
+    <div class="snap">
+      <div id="balanceWrapper" class="avatar" title="Solde">--</div>
+      <button id="quickDeposit" class="btn btn-secondary">Déposer</button>
+      <a href="profil.html" class="btn btn-secondary">Profil</a>
     </div>
   </header>
 
-  <main class="reseller-container" role="main">
-    <section class="reseller-section" data-aos="fade-up">
-      <h2><i class="fas fa-crown"></i> Programme Revendeur Social Boost Horizon</h2>
-      <p class="small-muted">Devenez revendeur et bénéficiez de remises croissantes selon votre activité. Ici vous pouvez activer/désactiver votre statut et consulter vos statistiques.</p>
+  <main>
+    <section class="card">
+      <h2><i class="fas fa-crown"></i> Programme Revendeur</h2>
+      <p class="small">Activez/désactivez votre statut revendeur, consultez vos statistiques et voyez les prix revendeur.</p>
 
-      <div style="margin-top:12px; display:flex; gap:12px; flex-wrap:wrap;">
-        <div style="flex:1; min-width:220px;">
-          <div class="reseller-status" aria-hidden="false">
-            <div class="status-card beginner" id="beginnerCard">
-              <h3><i class="fas fa-seedling"></i> Débutant</h3>
-              <div class="level">5%</div>
-              <div style="font-size:0.9rem; color:var(--sbh-text-light);">5-6 commandes / semaine</div>
-            </div>
-            <div class="status-card amateur" id="amateurCard">
-              <h3><i class="fas fa-leaf"></i> Amateur</h3>
-              <div class="level">10%</div>
-              <div style="font-size:0.9rem; color:var(--sbh-text-light);">7-9 commandes / semaine</div>
-            </div>
-            <div class="status-card intermediate" id="intermediateCard">
-              <h3><i class="fas fa-rocket"></i> Intermédiaire</h3>
-              <div class="level">15%</div>
-              <div style="font-size:0.9rem; color:var(--sbh-text-light);">10-19 commandes / semaine</div>
-            </div>
-            <div class="status-card professional" id="professionalCard">
-              <h3><i class="fas fa-crown"></i> Professionnel</h3>
-              <div class="level">20%</div>
-              <div style="font-size:0.9rem; color:var(--sbh-text-light);">20+ commandes / semaine</div>
-            </div>
+      <div style="display:flex; gap:12px; margin-top:12px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:240px">
+          <div class="reseller-status">
+            <div id="beginnerCard" class="status-card"><strong>Débutant</strong><div>5%</div><div class="small">5–6 / semaine</div></div>
+            <div id="amateurCard" class="status-card"><strong>Amateur</strong><div>10%</div><div class="small">7–9 / semaine</div></div>
+            <div id="intermediateCard" class="status-card"><strong>Intermédiaire</strong><div>15%</div><div class="small">10–19 / semaine</div></div>
+            <div id="professionalCard" class="status-card"><strong>Professionnel</strong><div>20%</div><div class="small">20+ / semaine</div></div>
           </div>
         </div>
 
-        <div style="flex:1; min-width:260px;">
-          <div class="reseller-stats" role="region" aria-label="Statistiques revendeur">
-            <div class="stat-box">
-              <div class="value" id="currentLevel"><span class="loading-spinner" id="levelSpinner" style="display:inline-block;"></span><span>Chargement...</span></div>
-              <div class="label"><i class="fas fa-chart-line"></i> Niveau actuel</div>
-            </div>
-
-            <div class="stat-box">
-              <div class="value" id="discountRate"><span class="loading-spinner" id="discountSpinner" style="display:inline-block;"></span><span>0%</span></div>
-              <div class="label"><i class="fas fa-percent"></i> Votre Remise</div>
-            </div>
-
-            <div class="stat-box">
-              <div class="value" id="weeklyOrders"><span class="loading-spinner" id="weeklyOrdersSpinner" style="display:inline-block;"></span><span>0</span></div>
-              <div class="label"><i class="fas fa-calendar-week"></i> Commandes (7j)</div>
-            </div>
-
-            <div class="stat-box">
-              <div class="value" id="totalOrders"><span class="loading-spinner" id="ordersSpinner" style="display:inline-block;"></span><span>0</span></div>
-              <div class="label"><i class="fas fa-shopping-basket"></i> Total Commandes</div>
-            </div>
-
-            <div class="stat-box">
-              <div class="value" id="totalSavings"><span class="loading-spinner" id="savingsSpinner" style="display:inline-block;"></span><span>0 FCFA</span></div>
-              <div class="label"><i class="fas fa-piggy-bank"></i> Économies Totales</div>
-            </div>
+        <div style="flex:1; min-width:280px">
+          <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px;">
+            <div class="status-card"><div class="small">Niveau</div><div id="currentLevel" style="font-weight:700">—</div></div>
+            <div class="status-card"><div class="small">Remise</div><div id="discountRate" style="font-weight:700">—</div></div>
+            <div class="status-card"><div class="small">Commandes (7j)</div><div id="weeklyOrders" style="font-weight:700">—</div></div>
+            <div class="status-card"><div class="small">Total commandes</div><div id="totalOrders" style="font-weight:700">—</div></div>
+            <div class="status-card"><div class="small">Économies</div><div id="totalSavings" style="font-weight:700">—</div></div>
+            <div class="status-card"><div class="small">Solde</div><div id="balanceAmount" style="font-weight:700">—</div></div>
           </div>
         </div>
       </div>
 
-      <div class="reseller-actions" id="resellerActions" style="margin-top:18px;">
-        <button class="reseller-btn btn-become-reseller" id="becomeResellerBtn" title="Activer le statut revendeur">
-          <i class="fas fa-user-plus"></i> Devenir Revendeur
-        </button>
-
-        <a href="commandes.html" class="reseller-btn btn-orders" id="ordersBtn" style="display:none;">
-          <i class="fas fa-shopping-cart"></i> Mes Commandes
-        </a>
-
-        <a href="command.html" class="reseller-btn btn-commander" id="commanderBtn" style="display:none;">
-          <i class="fas fa-rocket"></i> Commander
-        </a>
-
-        <a href="dashboard.html" class="reseller-btn btn-dashboard" id="dashboardBtn" style="display:none;">
-          <i class="fas fa-home"></i> Retour au Dashboard
-        </a>
-
-        <button class="reseller-btn btn-resign" id="resignBtn" style="display:none;">
-          <i class="fas fa-sign-out-alt"></i> Démissionner
-        </button>
-
-        <button class="reseller-btn" id="refreshStatsBtn" style="background: rgba(255,255,255,0.06); color:white;">
-          <i class="fas fa-sync-alt"></i> Rafraîchir Stats
-        </button>
+      <div class="reseller-actions">
+        <button id="becomeResellerBtn" class="btn btn-primary"><i class="fas fa-user-plus"></i> Devenir Revendeur</button>
+        <a id="ordersBtn" class="btn btn-secondary" href="commandes.html" style="display:none"><i class="fas fa-shopping-cart"></i> Mes Commandes</a>
+        <a id="commanderBtn" class="btn btn-primary" href="command.html" style="display:none"><i class="fas fa-rocket"></i> Commander</a>
+        <a id="dashboardBtn" class="btn btn-secondary" href="dashboard.html" style="display:none"><i class="fas fa-home"></i> Dashboard</a>
+        <button id="resignBtn" class="btn btn-secondary" style="display:none"><i class="fas fa-sign-out-alt"></i> Démissionner</button>
+        <button id="refreshStatsBtn" class="btn btn-secondary"><i class="fas fa-sync-alt"></i> Rafraîchir</button>
       </div>
     </section>
 
-    <!-- Services cards (affichage des prix remisés) -->
-    <section class="reseller-section" data-aos="fade-up" style="margin-top:14px;">
-      <h2><i class="fas fa-tags"></i> Nos services avec remise</h2>
-      <p class="small-muted">Les prix affichés en mode "Revendeur" s'ajustent automatiquement selon votre remise.</p>
-
-      <div style="display:grid; grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-top:12px;">
-        <!-- Exemple : plusieurs cartes — le JS mettra à jour les .reseller-price -->
-        <div class="status-card">
-          <h3><i class="fab fa-instagram"></i> Followers Instagram</h3>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-            <div><small style="color:var(--sbh-text-light)">Normal</small><div style="font-weight:700;">2,500 FCFA</div></div>
-            <div><small style="color:var(--sbh-text-light)">Revendeur</small><div class="reseller-price" data-original="2500">Calcul...</div><div style="font-size:0.85rem;color:var(--sbh-text-light)">Économisez <span class="savings-percent">0%</span></div></div>
-          </div>
-        </div>
-
-        <div class="status-card">
-          <h3><i class="fab fa-tiktok"></i> Likes TikTok</h3>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-            <div><small style="color:var(--sbh-text-light)">Normal</small><div style="font-weight:700;">500 FCFA</div></div>
-            <div><small style="color:var(--sbh-text-light)">Revendeur</small><div class="reseller-price" data-original="500">Calcul...</div><div style="font-size:0.85rem;color:var(--sbh-text-light)">Économisez <span class="savings-percent">0%</span></div></div>
-          </div>
-        </div>
-
-        <div class="status-card">
-          <h3><i class="fab fa-youtube"></i> Vues YouTube</h3>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-            <div><small style="color:var(--sbh-text-light)">Normal</small><div style="font-weight:700;">1,550 FCFA</div></div>
-            <div><small style="color:var(--sbh-text-light)">Revendeur</small><div class="reseller-price" data-original="1550">Calcul...</div><div style="font-size:0.85rem;color:var(--sbh-text-light)">Économisez <span class="savings-percent">0%</span></div></div>
-          </div>
-        </div>
-
-        <div class="status-card">
-          <h3><i class="fab fa-facebook"></i> Abonnés Facebook</h3>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-            <div><small style="color:var(--sbh-text-light)">Normal</small><div style="font-weight:700;">2,000 FCFA</div></div>
-            <div><small style="color:var(--sbh-text-light)">Revendeur</small><div class="reseller-price" data-original="2000">Calcul...</div><div style="font-size:0.85rem;color:var(--sbh-text-light)">Économisez <span class="savings-percent">0%</span></div></div>
-          </div>
-        </div>
-
-        <div class="status-card">
-          <h3><i class="fab fa-twitter"></i> Followers Twitter</h3>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-            <div><small style="color:var(--sbh-text-light)">Normal</small><div style="font-weight:700;">1,800 FCFA</div></div>
-            <div><small style="color:var(--sbh-text-light)">Revendeur</small><div class="reseller-price" data-original="1800">Calcul...</div><div style="font-size:0.85rem;color:var(--sbh-text-light)">Économisez <span class="savings-percent">0%</span></div></div>
-          </div>
-        </div>
-
-        <div class="status-card">
-          <h3><i class="fab fa-twitch"></i> Viewers Twitch</h3>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-            <div><small style="color:var(--sbh-text-light)">Normal</small><div style="font-weight:700;">2,200 FCFA</div></div>
-            <div><small style="color:var(--sbh-text-light)">Revendeur</small><div class="reseller-price" data-original="2200">Calcul...</div><div style="font-size:0.85rem;color:var(--sbh-text-light)">Économisez <span class="savings-percent">0%</span></div></div>
-          </div>
-        </div>
+    <section class="card">
+      <h2><i class="fas fa-tags"></i> Services / Prix</h2>
+      <p class="small">Exemples — les prix revendeur s'actualisent selon votre remise.</p>
+      <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; margin-top:12px;">
+        <div class="status-card"><strong>Followers Instagram</strong><div class="small">Normal: 2 500 FCFA</div><div class="small">Revendeur: <span class="reseller-price" data-original="2500">—</span></div></div>
+        <div class="status-card"><strong>Likes TikTok</strong><div class="small">Normal: 500 FCFA</div><div class="small">Revendeur: <span class="reseller-price" data-original="500">—</span></div></div>
+        <div class="status-card"><strong>Vues YouTube</strong><div class="small">Normal: 1 550 FCFA</div><div class="small">Revendeur: <span class="reseller-price" data-original="1550">—</span></div></div>
       </div>
     </section>
 
-    <section class="reseller-section" data-aos="fade-up" style="margin-top:14px;">
-      <h2><i class="fas fa-info-circle"></i> Informations</h2>
-      <ul style="margin-top:8px; color:var(--sbh-text-light); line-height:1.6;">
-        <li><strong>Vérification hebdomadaire</strong> : vos commandes des 7 derniers jours déterminent votre niveau.</li>
-        <li><strong>Mise à jour automatique</strong> : la plateforme recalcule vos stats — vous pouvez aussi forcer la mise à jour.</li>
-        <li><strong>Démission</strong> : vous pouvez quitter le programme en cliquant sur "Démissionner".</li>
+    <section class="card small">
+      <h2><i class="fas fa-info-circle"></i> Info</h2>
+      <ul>
+        <li>Le serveur expose les routes à la racine (ex: <code>/user</code>, <code>/become-reseller</code>).</li>
+        <li>Si tu as configuré ton serveur sur une autre URL, modifie <code>SERVER_URL</code> dans le script ci-dessous.</li>
       </ul>
     </section>
   </main>
 
-  <!-- Notifications container -->
-   <div id="notificationRoot" aria-live="polite" aria-atomic="true"></div>
-
-  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  <div id="notificationRoot" aria-live="polite"></div>
 
   <script>
-  // Initialiser AOS
-  document.addEventListener('DOMContentLoaded', function() {
-    if (typeof AOS !== 'undefined') {
-      AOS.init({ duration: 700, once: true });
-    }
-  });
+  /*****************************************************************
+   * IMPORTANT:
+   * - Ce fichier suppose que ton server.js expose les routes à la
+   *   racine (ex: https://.../health, https://.../user, /become-reseller).
+   * - Si ton server est sur une URL différente remplace SERVER_URL.
+   *****************************************************************/
+  const SERVER_URL = window.__SERVER_URL__ || 'https://social-boost-exaucenapopolo2.replit.app';
 
-  /* ===================== CONFIG ===================== */
-  // IMPORTANT: vérifie que cette URL correspond à ton serveur déployé API (préfixe /api)
-  const SERVER_URL = "https://social-boost-exaucenapopolo2.replit.app/api";
-
+  // Firebase — configure si nécessaire (même config que ton projet)
   const firebaseConfig = {
     apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
     authDomain: "social-boost-horizon.firebaseapp.com",
@@ -313,26 +126,15 @@
     appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
   };
 
-  try {
-    if (typeof firebase === 'undefined') {
-      console.error('Firebase non chargé. Vérifie les scripts Firebase.');
-    } else {
-      if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-      }
-    }
-  } catch (e) {
-    console.error("Erreur d'initialisation Firebase:", e);
+  if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
   }
+  const auth = firebase.auth ? firebase.auth() : null;
+  const db = firebase.firestore ? firebase.firestore() : null;
 
-  const auth = firebase.auth();
-  const db = firebase.firestore();
-
-  /* ===================== DOM REFS ===================== */
-  const balanceAmountEl = document.getElementById('balanceAmount');
-  const balanceSpinner = document.getElementById('balanceSpinner') || null;
-  const quickDepositBtn = document.getElementById('quickDeposit') || null;
-
+  // DOM refs
+  const balanceWrapper = document.getElementById('balanceWrapper');
+  const balanceAmount = document.getElementById('balanceAmount');
   const becomeResellerBtn = document.getElementById('becomeResellerBtn');
   const resignBtn = document.getElementById('resignBtn');
   const ordersBtn = document.getElementById('ordersBtn');
@@ -341,479 +143,319 @@
   const refreshStatsBtn = document.getElementById('refreshStatsBtn');
 
   const currentLevelEl = document.getElementById('currentLevel');
-  const levelSpinner = document.getElementById('levelSpinner');
   const discountRateEl = document.getElementById('discountRate');
-  const discountSpinner = document.getElementById('discountSpinner');
   const weeklyOrdersEl = document.getElementById('weeklyOrders');
-  const weeklyOrdersSpinner = document.getElementById('weeklyOrdersSpinner');
   const totalOrdersEl = document.getElementById('totalOrders');
-  const ordersSpinner = document.getElementById('ordersSpinner');
   const totalSavingsEl = document.getElementById('totalSavings');
-  const savingsSpinner = document.getElementById('savingsSpinner');
 
   const beginnerCard = document.getElementById('beginnerCard');
   const amateurCard = document.getElementById('amateurCard');
   const intermediateCard = document.getElementById('intermediateCard');
   const professionalCard = document.getElementById('professionalCard');
 
-  const notificationRoot = document.getElementById('notificationRoot') || document.body;
+  const notificationRoot = document.getElementById('notificationRoot');
 
-  /* ===================== STATE ===================== */
-  let currentUser = null;
-  let userListenerUnsubscribe = null;
   let userData = {
-    isReseller: false,
-    resellerLevel: null,
-    resellerWeeklyOrders: 0,
-    resellerTotalOrders: 0,
-    discountRate: 0,
-    balance: 0,
-    totalSavings: 0
+    isReseller:false, resellerLevel:null, resellerWeeklyOrders:0,
+    resellerTotalOrders:0, discountRate:0, balance:0, totalSavings:0
   };
 
-  /* ===================== HELPERS ===================== */
-  function showNotification(message, type = 'info', timeout = 4500) {
+  function notify(msg, type='info', timeout=4500){
     const n = document.createElement('div');
-    n.className = 'notification show';
-    n.textContent = message;
-    n.style.background = (type === 'success') ? 'linear-gradient(45deg,#4CAF50,#2E7D32)'
-                   : (type === 'error')   ? 'linear-gradient(45deg,#f44336,#c62828)'
-                   : 'linear-gradient(45deg,#2196F3,#1565C0)';
-    n.style.color = '#fff';
-    n.style.padding = '12px 16px';
-    n.style.borderRadius = '8px';
-    n.style.boxShadow = '0 6px 18px rgba(0,0,0,0.25)';
-    n.style.position = 'fixed';
-    n.style.top = '20px';
-    n.style.right = '20px';
-    n.style.zIndex = 99999;
+    n.className = 'notification';
+    n.style.background = type==='error' ? '#d9534f' : (type==='success' ? '#28a745' : '#2196f3');
+    n.textContent = msg;
     notificationRoot.appendChild(n);
-    setTimeout(() => {
-      n.style.transition = 'opacity .25s';
-      n.style.opacity = '0';
-      setTimeout(()=>{
-        try{
-          notificationRoot.removeChild(n);
-        } catch(e){}
-      },250);
-    },timeout);
+    setTimeout(()=>{ n.style.opacity='0'; setTimeout(()=>n.remove(),300); }, timeout);
   }
 
-  function setStatBoxValue(boxEl, text) {
-    if (!boxEl) return;
-    const spans = boxEl.querySelectorAll('span');
-    if (spans && spans.length > 0) {
-      spans[spans.length - 1].textContent = text;
-    } else {
-      boxEl.textContent = text;
-    }
-  }
+  function setStat(el, val){ if(el) el.textContent = val; }
 
-  function getLevelColor(level) {
-    if (!level) return 'rgba(255,255,255,0.4)';
+  function getLevelColor(level){
+    if(!level) return '';
     const l = String(level).toLowerCase();
-    if (l.includes('begin') || l.includes('début')) return 'rgba(66,165,245,0.45)';
-    if (l.includes('amateur')) return 'rgba(76,175,80,0.45)';
-    if (l.includes('inter')) return 'rgba(255,193,7,0.45)';
-    if (l.includes('pro')) return 'rgba(255,87,34,0.45)';
-    return 'rgba(255,255,255,0.45)';
+    if(l.includes('begin')) return '#42A5F5';
+    if(l.includes('amateur')) return '#4CAF50';
+    if(l.includes('inter')) return '#FFC107';
+    if(l.includes('pro')) return '#FF5722';
+    return '';
   }
 
-  function updateLevelIndicators() {
-    document.querySelectorAll('.current-level-indicator').forEach(n => n.remove());
-    [beginnerCard, amateurCard, intermediateCard, professionalCard].forEach(c => {
-      if(c){
-        c.style.boxShadow='';
-        c.style.transform='';
-      }
+  function updateLevelIndicators(){
+    document.querySelectorAll('.current-level-indicator').forEach(el=>el.remove());
+    [beginnerCard, amateurCard, intermediateCard, professionalCard].forEach(c=>{
+      if(c){ c.style.boxShadow=''; c.style.transform=''; }
     });
-
-    if (!userData.isReseller || !userData.resellerLevel) return;
+    if(!userData.isReseller || !userData.resellerLevel) return;
     const lvl = String(userData.resellerLevel).toLowerCase();
-    let activeCard = null;
-    if (lvl.includes('begin') || lvl.includes('début')) activeCard = beginnerCard;
-    else if (lvl.includes('amateur')) activeCard = amateurCard;
-    else if (lvl.includes('inter')) activeCard = intermediateCard;
-    else if (lvl.includes('pro')) activeCard = professionalCard;
-
-    if (activeCard) {
-      const indicator = document.createElement('div');
-      indicator.className = 'current-level-indicator';
-      indicator.style.position = 'absolute';
-      indicator.style.top = '-10px';
-      indicator.style.right = '-10px';
-      indicator.style.background = 'var(--gold-primary)';
-      indicator.style.color = '#0A162B';
-      indicator.style.width = '28px';
-      indicator.style.height = '28px';
-      indicator.style.borderRadius = '50%';
-      indicator.style.display = 'flex';
-      indicator.style.alignItems = 'center';
-      indicator.style.justifyContent = 'center';
-      indicator.innerHTML = '<i class="fas fa-check" style="font-size:12px;"></i>';
-      activeCard.appendChild(indicator);
-      activeCard.style.boxShadow = `0 0 24px ${getLevelColor(userData.resellerLevel)}`;
-      activeCard.style.transform = 'scale(1.04)';
-    }
+    let active = null;
+    if(lvl.includes('begin')) active = beginnerCard;
+    else if(lvl.includes('amateur')) active = amateurCard;
+    else if(lvl.includes('inter')) active = intermediateCard;
+    else if(lvl.includes('pro')) active = professionalCard;
+    if(!active) return;
+    const badge = document.createElement('div');
+    badge.className = 'current-level-indicator';
+    badge.style.position='absolute';
+    badge.style.top='-8px'; badge.style.right='-8px'; badge.style.background='#FFD700'; badge.style.color='#071026';
+    badge.style.padding='6px'; badge.style.borderRadius='50%';
+    badge.innerHTML = '✓';
+    active.style.position='relative';
+    active.appendChild(badge);
+    active.style.boxShadow = `0 0 18px ${getLevelColor(userData.resellerLevel)}`;
+    active.style.transform = 'scale(1.03)';
   }
 
-  function updatePricesWithDiscount() {
+  function updatePricesWithDiscount(){
     const discount = userData.isReseller ? Number(userData.discountRate || 0) : 0;
-    document.querySelectorAll('.reseller-price').forEach(el => {
-      const originalAttr = el.getAttribute('data-original') || el.dataset.original;
-      const original = parseInt(originalAttr, 10);
-      if (!isNaN(original)) {
+    document.querySelectorAll('.reseller-price').forEach(el=>{
+      const original = Number(el.getAttribute('data-original') || el.dataset.original || 0);
+      if(!isNaN(original)){
         const discounted = Math.round(original * (1 - discount/100));
-        el.textContent = `${discounted.toLocaleString('fr-FR')} FCFA`;
-        const parent = el.closest('.status-card') || el.parentElement;
-        const savingsSpan = parent ? parent.querySelector('.savings-percent') : null;
-        if (savingsSpan) savingsSpan.textContent = `${discount}%`;
+        el.textContent = `${discounted.toLocaleString('fr-FR')} FCFA (${discount}% off)`;
       }
     });
   }
 
-  function updateResellerUI() {
-    try { if(levelSpinner) levelSpinner.style.display='none'; } catch(e){}
-    try { if(discountSpinner) discountSpinner.style.display='none'; } catch(e){}
-    try { if(weeklyOrdersSpinner) weeklyOrdersSpinner.style.display='none'; } catch(e){}
-    try { if(ordersSpinner) ordersSpinner.style.display='none'; } catch(e){}
-    try { if(savingsSpinner) savingsSpinner.style.display='none'; } catch(e){}
-    try { if(balanceSpinner) balanceSpinner.style.display='none'; } catch(e){}
-
-    if (userData.isReseller) {
-      if (becomeResellerBtn) becomeResellerBtn.style.display = 'none';
-      if (ordersBtn) ordersBtn.style.display = 'inline-flex';
-      if (commanderBtn) commanderBtn.style.display = 'inline-flex';
-      if (dashboardBtn) dashboardBtn.style.display = 'inline-flex';
-      if (resignBtn) resignBtn.style.display = 'inline-flex';
+  function updateUI(){
+    setStat(currentLevelEl, userData.isReseller ? (userData.resellerLevel || 'N/A') : 'Non revendeur');
+    setStat(discountRateEl, (userData.discountRate || 0) + '%');
+    setStat(weeklyOrdersEl, String(userData.resellerWeeklyOrders || 0));
+    setStat(totalOrdersEl, String(userData.resellerTotalOrders || 0));
+    setStat(totalSavingsEl, (userData.totalSavings || 0).toLocaleString('fr-FR') + ' FCFA');
+    setStat(balanceAmount, (userData.balance || 0).toLocaleString('fr-FR') + ' FCFA');
+    // buttons
+    if(userData.isReseller){
+      becomeResellerBtn.style.display='none';
+      ordersBtn.style.display='inline-flex';
+      commanderBtn.style.display='inline-flex';
+      dashboardBtn.style.display='inline-flex';
+      resignBtn.style.display='inline-flex';
     } else {
-      if (becomeResellerBtn) becomeResellerBtn.style.display = 'inline-flex';
-      if (ordersBtn) ordersBtn.style.display = 'none';
-      if (commanderBtn) commanderBtn.style.display = 'none';
-      if (dashboardBtn) dashboardBtn.style.display = 'none';
-      if (resignBtn) resignBtn.style.display = 'none';
+      becomeResellerBtn.style.display='inline-flex';
+      ordersBtn.style.display='none';
+      commanderBtn.style.display='none';
+      dashboardBtn.style.display='none';
+      resignBtn.style.display='none';
     }
-
-    setStatBoxValue(currentLevelEl, userData.isReseller ? (userData.resellerLevel || 'N/A') : 'Non revendeur');
-    setStatBoxValue(discountRateEl, (userData.discountRate || 0) + '%');
-    setStatBoxValue(weeklyOrdersEl, String(userData.resellerWeeklyOrders || 0));
-    setStatBoxValue(totalOrdersEl, String(userData.resellerTotalOrders || 0));
-    setStatBoxValue(totalSavingsEl, (userData.totalSavings || 0).toLocaleString('fr-FR') + ' FCFA');
-
-    if (balanceAmountEl) balanceAmountEl.textContent = `${(userData.balance || 0).toLocaleString('fr-FR')} FCFA`;
-
     updatePricesWithDiscount();
     updateLevelIndicators();
   }
 
-  /* ===================== SERVER COMMUNICATION ===================== */
-
-  function debugResponse(response, endpoint) {
-    console.log(`Debug ${endpoint}:`, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries()),
-      url: response.url
-    });
-    const contentType = (response.headers.get('content-type') || '').toLowerCase();
-    return response.text().then(text => {
-      console.log(`Response body from ${endpoint}:`, text.slice(0, 1000));
-      // Si c'est du HTML, on retourne une erreur descriptive
-      if (contentType.includes('text/html') || text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-        const errMsg = `Réponse non-JSON de ${endpoint}: début du contenu = ${text.substring(0, 180).replace(/\s+/g,' ')}... (Vérifier que ${SERVER_URL}${endpoint} pointe vers votre API)`;
-        const err = new Error(errMsg);
-        err.raw = text;
-        err.status = response.status;
-        err.url = response.url;
-        throw err;
-      }
-      try {
-        return JSON.parse(text);
-      } catch (e) {
-        const err = new Error(`Réponse non-JSON / parse échoué pour ${endpoint}: ${e.message}`);
-        err.raw = text;
-        throw err;
-      }
-    });
+  // --- fetch helpers with robust HTML detection ---
+  async function debugAndParse(res, endpoint){
+    const ct = (res.headers.get('content-type') || '').toLowerCase();
+    const text = await res.text();
+    // If server returns HTML (index.html or error page), throw with snippet
+    if(ct.includes('text/html') || text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')){
+      const snippet = text.substring(0,300).replace(/\s+/g,' ');
+      const err = new Error(`Le serveur a renvoyé du HTML au lieu du JSON pour ${endpoint}. Début du contenu: ${snippet}`);
+      err.raw = text;
+      err.contentType = ct;
+      throw err;
+    }
+    // Try parse JSON
+    try{
+      return JSON.parse(text);
+    }catch(e){
+      const err = new Error(`Réponse non-JSON de ${endpoint} — parse échoué: ${e.message}`);
+      err.raw = text;
+      throw err;
+    }
   }
 
-  async function callServer(endpoint, method = 'GET', data = null) {
-    try {
-      const user = auth.currentUser;
-      if (!user) throw new Error('Utilisateur non connecté.');
-
-      const token = await user.getIdToken();
+  async function callServer(endpoint, method='GET', data=null){
+    try{
+      if(!auth || !auth.currentUser) throw new Error('Utilisateur non connecté.');
+      const token = await auth.currentUser.getIdToken();
       const headers = { 'Authorization': `Bearer ${token}` };
-
       let body;
-      if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+      if(data && ['POST','PUT','PATCH'].includes(method)){
         headers['Content-Type'] = 'application/json';
         body = JSON.stringify(data);
       }
-
-      const url = `${SERVER_URL}${endpoint}`;
+      const url = SERVER_URL + endpoint;
       const res = await fetch(url, { method, headers, body });
-
       if (!res.ok) {
-        return await debugResponse(res, endpoint);
+        // try to parse body to provide clearer message
+        return await debugAndParse(res, endpoint);
       }
-
-      const contentType = (res.headers.get('content-type') || '').toLowerCase();
-
-      if (contentType.includes('application/json')) {
-        return await res.json();
-      }
-
-      return await debugResponse(res, endpoint);
-
-    } catch (err) {
-      console.error('callServer error:', err);
+      return await debugAndParse(res, endpoint);
+    } catch(err){
+      console.error('callServer error', err);
       throw err;
     }
   }
 
-  async function fetchUserData() {
-    try {
-      if (levelSpinner) levelSpinner.style.display = 'inline-block';
-      if (discountSpinner) discountSpinner.style.display = 'inline-block';
-      if (weeklyOrdersSpinner) weeklyOrdersSpinner.style.display = 'inline-block';
-      if (ordersSpinner) ordersSpinner.style.display = 'inline-block';
-      if (savingsSpinner) savingsSpinner.style.display = 'inline-block';
-      if (balanceSpinner) balanceSpinner.style.display = 'inline-block';
-
-      const res = await callServer('/user', 'GET');
-      if (!res) throw new Error('Réponse vide du serveur /user.');
-
-      if (!res.success) {
-        throw new Error(res.error || 'Erreur inconnue du serveur');
+  async function pingServerHealth(){
+    try{
+      const r = await fetch(SERVER_URL + '/health', { method:'GET', headers:{ Accept:'application/json' }});
+      if(!r.ok){
+        throw new Error(`Health failed ${r.status}`);
       }
-
-      if (!res.user) {
-        throw new Error('Format de réponse inattendu: propriété user manquante');
+      const ct = (r.headers.get('content-type')||'').toLowerCase();
+      if(!ct.includes('application/json')) {
+        // read text to show snippet
+        const t = await r.text();
+        throw new Error(`Health returned non-json (content-type: ${ct}) — début: ${t.slice(0,200).replace(/\s+/g,' ')}`);
       }
-
-      const srvUser = res.user;
-      userData = {
-        isReseller: !!srvUser.isReseller,
-        resellerLevel: srvUser.resellerLevel || null,
-        resellerWeeklyOrders: Number(srvUser.resellerWeeklyOrders || 0),
-        resellerTotalOrders: Number(srvUser.resellerTotalOrders || 0),
-        discountRate: Number(srvUser.discountRate || 0),
-        balance: Number(srvUser.balance || 0),
-        totalSavings: Number(srvUser.totalSavings || 0),
-        ...srvUser
-      };
-
-      updateResellerUI();
-      return userData;
-    } catch (err) {
-      console.error('fetchUserData error:', err);
-      showNotification(err.message || 'Impossible de charger vos données.', 'error');
-      try { if(levelSpinner) levelSpinner.style.display='none'; } catch(e){}
-      try { if(discountSpinner) discountSpinner.style.display='none'; } catch(e){}
-      try { if(weeklyOrdersSpinner) weeklyOrdersSpinner.style.display='none'; } catch(e){}
-      try { if(ordersSpinner) ordersSpinner.style.display='none'; } catch(e){}
-      try { if(savingsSpinner) savingsSpinner.style.display='none'; } catch(e){}
-      try { if(balanceSpinner) balanceSpinner.style.display='none'; } catch(e){}
-      throw err;
-    }
-  }
-
-  async function refreshResellerStats() {
-    try {
-      if (refreshStatsBtn) {
-        refreshStatsBtn.disabled = true;
-        refreshStatsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mise à jour...';
-      }
-      const res = await callServer('/update-reseller-stats', 'GET');
-      if (res && res.success) {
-        await fetchUserData();
-        showNotification('Statistiques mises à jour.', 'success');
-      } else {
-        await fetchUserData().catch(()=>{});
-      }
-    } catch (err) {
-      console.error('refreshResellerStats:', err);
-      showNotification(err.message || 'Erreur mise à jour stats', 'error');
-    } finally {
-      if (refreshStatsBtn) {
-        refreshStatsBtn.disabled = false;
-        refreshStatsBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Rafraîchir Stats';
-      }
-    }
-  }
-
-  async function becomeReseller() {
-    if (!auth.currentUser) { showNotification('Veuillez vous connecter.', 'error'); return; }
-    const originalHTML = becomeResellerBtn ? becomeResellerBtn.innerHTML : null;
-
-    try {
-      if (becomeResellerBtn) {
-        becomeResellerBtn.disabled = true;
-        becomeResellerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Activation...';
-      }
-
-      const res = await callServer('/become-reseller', 'POST');
-      if (res && res.success) {
-        showNotification(res.message || 'Vous êtes maintenant revendeur.', 'success');
-        await fetchUserData();
-      } else {
-        throw new Error(res.error || res.message || 'Activation échouée.');
-      }
-    } catch (err) {
-      console.error('becomeReseller error:', err);
-      showNotification(err.message || 'Erreur lors de l\'activation.', 'error');
-    } finally {
-      if (becomeResellerBtn) {
-        becomeResellerBtn.disabled = false;
-        becomeResellerBtn.innerHTML = originalHTML || '<i class="fas fa-user-plus"></i> Devenir Revendeur';
-      }
-    }
-  }
-
-  async function resignAsReseller() {
-    if (!auth.currentUser) { showNotification('Veuillez vous connecter.', 'error'); return; }
-    if (!confirm('Êtes-vous sûr de vouloir démissionner ? Vous perdrez vos avantages.')) return;
-    const originalHTML = resignBtn ? resignBtn.innerHTML : null;
-
-    try {
-      if (resignBtn) {
-        resignBtn.disabled = true;
-        resignBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Démission...';
-      }
-
-      const res = await callServer('/resign', 'POST');
-      if (res && res.success) {
-        showNotification(res.message || 'Vous avez démissionné.', 'info');
-        await fetchUserData();
-      } else {
-        throw new Error(res.error || res.message || 'Démission échouée.');
-      }
-    } catch (err) {
-      console.error('resignAsReseller:', err);
-      showNotification(err.message || 'Erreur lors de la démission.', 'error');
-    } finally {
-      if (resignBtn) {
-        resignBtn.disabled = false;
-        resignBtn.innerHTML = originalHTML || '<i class="fas fa-sign-out-alt"></i> Démissionner';
-      }
-    }
-  }
-
-  function setupFirestoreListener(uid) {
-    try {
-      if (typeof userListenerUnsubscribe === 'function') {
-        try { userListenerUnsubscribe(); } catch(e) {}
-        userListenerUnsubscribe = null;
-      }
-      if (!uid) return;
-
-      const userRef = db.collection('users').doc(uid);
-      userListenerUnsubscribe = userRef.onSnapshot(doc => {
-        if (!doc.exists) return;
-        const d = doc.data() || {};
-        if (typeof d.balance !== 'undefined') {
-          userData.balance = Number(d.balance || 0);
-          if (balanceAmountEl) balanceAmountEl.textContent = `${userData.balance.toLocaleString('fr-FR')} FCFA`;
-        }
-        if (typeof d.isReseller !== 'undefined') userData.isReseller = !!d.isReseller;
-        if (typeof d.resellerLevel !== 'undefined') userData.resellerLevel = d.resellerLevel;
-        if (typeof d.resellerWeeklyOrders !== 'undefined') userData.resellerWeeklyOrders = Number(d.resellerWeeklyOrders || 0);
-        if (typeof d.resellerTotalOrders !== 'undefined') userData.resellerTotalOrders = Number(d.resellerTotalOrders || 0);
-        if (typeof d.discountRate !== 'undefined') userData.discountRate = Number(d.discountRate || 0);
-        if (typeof d.totalSavings !== 'undefined') userData.totalSavings = Number(d.totalSavings || 0);
-        updateResellerUI();
-      }, err => {
-        console.warn('Firestore listener error:', err);
-      });
-    } catch (err) {
-      console.warn('setupFirestoreListener err:', err);
-    }
-  }
-
-  function attachEvents() {
-    if (becomeResellerBtn) becomeResellerBtn.addEventListener('click', becomeReseller);
-    if (resignBtn) resignBtn.addEventListener('click', resignAsReseller);
-    if (refreshStatsBtn) refreshStatsBtn.addEventListener('click', refreshResellerStats);
-    if (quickDepositBtn) quickDepositBtn.addEventListener('click', () => location.href = 'fonds.html');
-  }
-
-  async function pingServerHealth() {
-    try {
-      const r = await fetch(`${SERVER_URL}/health`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json'
-        }
-      });
-
-      if (!r.ok) {
-        throw new Error(`Health check failed with status ${r.status}`);
-      }
-
-      const contentType = r.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) {
-        throw new Error('Health check returned non-JSON response');
-      }
-
-      const data = await r.json();
-      return data && data.ok;
-    } catch (err) {
-      console.error('pingServerHealth error:', err);
-      showNotification('Impossible de contacter le serveur. Vérifie SERVER_URL.', 'error', 6000);
+      const json = await r.json();
+      return json && json.ok;
+    }catch(e){
+      console.error('pingServerHealth', e);
+      notify('Impossible de contacter le serveur (' + e.message + ')','error',6000);
       return false;
     }
   }
 
-  auth.onAuthStateChanged(async (user) => {
-    currentUser = user;
-    if (user) {
-      try {
-        const healthy = await pingServerHealth();
-        if (healthy) {
-          await fetchUserData();
-        } else {
-          console.warn('Serveur non sain — arrêt de fetchUserData');
-          showNotification('Impossible de charger les données (API indisponible).', 'error');
-          return;
-        }
-      } catch(e){
-        console.warn('Erreur init user:', e);
-      }
-      setupFirestoreListener(user.uid);
-    } else {
+  // --- main flows ---
+  async function fetchUserData(){
+    try{
+      const res = await callServer('/user', 'GET');
+      if(!res || !res.success) throw new Error(res && res.error ? res.error : 'Réponse invalide /user');
+      const srv = res.user;
       userData = {
-        isReseller: false,
-        resellerLevel: null,
-        resellerWeeklyOrders: 0,
-        resellerTotalOrders: 0,
-        discountRate: 0,
-        balance: 0,
-        totalSavings: 0
+        isReseller: !!srv.isReseller,
+        resellerLevel: srv.resellerLevel || null,
+        resellerWeeklyOrders: Number(srv.resellerWeeklyOrders || 0),
+        resellerTotalOrders: Number(srv.resellerTotalOrders || 0),
+        discountRate: Number(srv.discountRate || 0),
+        balance: Number(srv.balance || 0),
+        totalSavings: Number(srv.totalSavings || 0),
+        ...srv
       };
-      updateResellerUI();
-      if (typeof userListenerUnsubscribe === 'function') {
-        try { userListenerUnsubscribe(); } catch(e){}
-        userListenerUnsubscribe = null;
-      }
+      updateUI();
+      notify('Données utilisateur chargées', 'success', 1800);
+      return userData;
+    }catch(err){
+      console.error('fetchUserData', err);
+      notify(err.message || 'Erreur chargement user', 'error', 6000);
+      throw err;
     }
-  });
-
-  attachEvents();
-
-  if (auth.currentUser) {
-    (async () => {
-      try {
-        const healthy = await pingServerHealth();
-        if (healthy) {
-          await fetchUserData();
-          setupFirestoreListener(auth.currentUser.uid);
-        }
-      } catch(e){
-        console.error('Error initializing with current user:', e);
-      }
-    })();
   }
+
+  async function becomeReseller(){
+    if(!auth || !auth.currentUser){ notify('Veuillez vous connecter.', 'error'); return; }
+    const orig = becomeResellerBtn.innerHTML;
+    try{
+      becomeResellerBtn.disabled = true;
+      becomeResellerBtn.innerHTML = '<span class="loading-spinner"></span> Activation...';
+      const res = await callServer('/become-reseller','POST');
+      if(res && res.success){
+        notify(res.message || 'Vous êtes maintenant revendeur','success');
+        await fetchUserData();
+      } else {
+        throw new Error(res && (res.error || res.message) ? (res.error || res.message) : 'Activation échouée');
+      }
+    }catch(e){
+      console.error('becomeReseller', e);
+      notify(e.message || 'Erreur activation', 'error',6000);
+    }finally{
+      becomeResellerBtn.disabled = false;
+      becomeResellerBtn.innerHTML = orig;
+    }
+  }
+
+  async function resignAsReseller(){
+    if(!confirm('Confirmer la démission ?')) return;
+    const orig = resignBtn.innerHTML;
+    try{
+      resignBtn.disabled = true;
+      resignBtn.innerHTML = '<span class="loading-spinner"></span> Démission...';
+      const res = await callServer('/resign','POST');
+      if(res && res.success){
+        notify(res.message || 'Vous avez démissionné','info');
+        await fetchUserData();
+      } else {
+        throw new Error(res && (res.error || res.message) ? (res.error || res.message) : 'Démission échouée');
+      }
+    }catch(e){
+      console.error('resign', e);
+      notify(e.message || 'Erreur démission', 'error',6000);
+    }finally{
+      resignBtn.disabled = false;
+      resignBtn.innerHTML = orig;
+    }
+  }
+
+  async function refreshResellerStats(){
+    try{
+      refreshStatsBtn.disabled = true;
+      refreshStatsBtn.innerHTML = '<span class="loading-spinner"></span> Mise à jour...';
+      const res = await callServer('/update-reseller-stats','GET');
+      if(res && res.success){
+        await fetchUserData();
+        notify('Stats mises à jour', 'success');
+      } else {
+        notify('Mise à jour non réalisée', 'error',4000);
+      }
+    }catch(e){
+      console.error('refreshResellerStats', e);
+      notify(e.message || 'Erreur maj stats', 'error',6000);
+    }finally{
+      refreshStatsBtn.disabled = false;
+      refreshStatsBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Rafraîchir';
+    }
+  }
+
+  // attach events
+  if(becomeResellerBtn) becomeResellerBtn.addEventListener('click', becomeReseller);
+  if(resignBtn) resignBtn.addEventListener('click', resignAsReseller);
+  if(refreshStatsBtn) refreshStatsBtn.addEventListener('click', refreshResellerStats);
+
+  // FIREBASE auth state handling
+  if(auth && auth.onAuthStateChanged){
+    auth.onAuthStateChanged(async (user)=>{
+      if(user){
+        try{
+          const healthy = await pingServerHealth();
+          if(!healthy){
+            notify('Serveur indisponible — vérifie SERVER_URL', 'error', 6000);
+            return;
+          }
+          await fetchUserData();
+          // listen realtime balance (optional) if firestore is available
+          if(db && db.collection){
+            try{
+              const ref = db.collection('users').doc(user.uid);
+              ref.onSnapshot(doc=>{
+                if(!doc.exists) return;
+                const d = doc.data() || {};
+                if(typeof d.balance !== 'undefined'){
+                  userData.balance = Number(d.balance || 0);
+                  setStat(balanceAmount, userData.balance.toLocaleString('fr-FR') + ' FCFA');
+                }
+                if(typeof d.isReseller !== 'undefined') userData.isReseller = !!d.isReseller;
+                if(typeof d.resellerLevel !== 'undefined') userData.resellerLevel = d.resellerLevel;
+                if(typeof d.resellerWeeklyOrders !== 'undefined') userData.resellerWeeklyOrders = Number(d.resellerWeeklyOrders || 0);
+                if(typeof d.resellerTotalOrders !== 'undefined') userData.resellerTotalOrders = Number(d.resellerTotalOrders || 0);
+                if(typeof d.discountRate !== 'undefined') userData.discountRate = Number(d.discountRate || 0);
+                if(typeof d.totalSavings !== 'undefined') userData.totalSavings = Number(d.totalSavings || 0);
+                updateUI();
+              });
+            }catch(e){ console.warn('firestore listener not available', e); }
+          }
+        }catch(e){
+          console.warn('init error', e);
+        }
+      } else {
+        // user logged out — reset UI
+        userData = { isReseller:false, resellerLevel:null, resellerWeeklyOrders:0, resellerTotalOrders:0, discountRate:0, balance:0, totalSavings:0 };
+        updateUI();
+      }
+    });
+  } else {
+    console.warn('Firebase Auth unavailable — make sure Firebase scripts loaded');
+  }
+
+  // quick debug helper (open console to view)
+  (function quickDebug(){
+    console.log('RESS SELLER CLIENT — SERVER_URL=', SERVER_URL);
+    console.log('Points de debug utiles:');
+    console.log('- Si tu reçois HTML: vérifie que tu appelles la bonne URL (pas /api si ton server n\'a pas /api).');
+    console.log('- Exécute dans un terminal: curl -i ' + SERVER_URL + '/health');
+  })();
+
   </script>
 </body>
 </html>
