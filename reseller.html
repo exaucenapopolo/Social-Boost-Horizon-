@@ -77,6 +77,7 @@
     .leaderboard-rank-3{color:var(--warning)}
     .leaderboard-user{flex:1; margin-left:12px}
     .leaderboard-orders{font-weight:600; color:var(--accent)}
+    .leaderboard-amount{font-weight:600; color:var(--success)}
     .leaderboard-empty{padding:20px; text-align:center; color:var(--muted); font-style:italic}
     footer{background:linear-gradient(90deg,#0a1a3a,#15243a); padding:20px; text-align:center; margin-top:40px; border-top:1px solid rgba(255,255,255,0.1)}
     .footer-content{max-width:1100px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap}
@@ -230,11 +231,22 @@
       </div>
     </section>
 
-    <!-- Nouvelle section : Classement des meilleurs vendeurs -->
+    <!-- Section : Classement des meilleurs vendeurs -->
     <section class="card fade-in">
       <h2><i class="fas fa-trophy"></i> Classement des Meilleurs Vendeurs</h2>
-      <p class="small">Top des revendeurs de la semaine selon le nombre de commandes</p>
+      <p class="small">Top des revendeurs de la semaine selon le nombre de commandes (minimum 5 commandes)</p>
       <div id="leaderboardContainer" class="leaderboard">
+        <div class="leaderboard-empty">
+          <i class="fas fa-spinner fa-spin"></i> Chargement du classement...
+        </div>
+      </div>
+    </section>
+
+    <!-- Nouvelle section : Classement des meilleurs dépensiers -->
+    <section class="card fade-in">
+      <h2><i class="fas fa-money-bill-wave"></i> Classement des Meilleurs Dépensiers</h2>
+      <p class="small">Top des utilisateurs ayant dépensé le plus cette semaine (toutes commandes confondues)</p>
+      <div id="spendersLeaderboardContainer" class="leaderboard">
         <div class="leaderboard-empty">
           <i class="fas fa-spinner fa-spin"></i> Chargement du classement...
         </div>
@@ -248,7 +260,7 @@
         <li>Vos statistiques sont mises à jour en temps réel</li>
         <li>Les prix revendeur s'appliquent immédiatement après activation</li>
         <li>Votre niveau évolue automatiquement selon votre activité</li>
-        <li>Le classement est mis à jour chaque semaine</li>
+        <li>Les classements sont mis à jour chaque semaine</li>
       </ul>
     </section>
   </main>
@@ -296,6 +308,7 @@
   const refreshStatsBtn = document.getElementById('refreshStatsBtn');
   const explanationSection = document.getElementById('explanationSection');
   const leaderboardContainer = document.getElementById('leaderboardContainer');
+  const spendersLeaderboardContainer = document.getElementById('spendersLeaderboardContainer');
 
   const currentLevelEl = document.getElementById('currentLevel');
   const discountRateEl = document.getElementById('discountRate');
@@ -406,7 +419,7 @@
     });
   }
 
-  // Charger le classement des meilleurs vendeurs
+  // Charger le classement des meilleurs vendeurs (par nombre de commandes)
   async function loadLeaderboard() {
     try {
       leaderboardContainer.innerHTML = '<div class="leaderboard-empty"><i class="fas fa-spinner fa-spin"></i> Chargement du classement...</div>';
@@ -450,8 +463,57 @@
       leaderboardContainer.innerHTML = leaderboardHTML;
       
     } catch (error) {
-      console.error('Erreur lors du chargement du classement:', error);
+      console.error('Erreur lors du chargement du classement des vendeurs:', error);
       leaderboardContainer.innerHTML = '<div class="leaderboard-empty">Erreur lors du chargement du classement</div>';
+    }
+  }
+
+  // Charger le classement des meilleurs dépensiers (par montant dépensé)
+  async function loadSpendersLeaderboard() {
+    try {
+      spendersLeaderboardContainer.innerHTML = '<div class="leaderboard-empty"><i class="fas fa-spinner fa-spin"></i> Chargement du classement...</div>';
+      
+      // Récupérer tous les utilisateurs ayant un total dépensé cette semaine
+      const usersSnapshot = await db.collection('users')
+        .where('weeklySpent', '>', 0)
+        .orderBy('weeklySpent', 'desc')
+        .limit(10)
+        .get();
+
+      if (usersSnapshot.empty) {
+        spendersLeaderboardContainer.innerHTML = '<div class="leaderboard-empty">Aucune dépense significative cette semaine</div>';
+        return;
+      }
+
+      let leaderboardHTML = '';
+      let rank = 1;
+      
+      usersSnapshot.forEach(doc => {
+        const userData = doc.data();
+        const username = userData.username || userData.email || 'Utilisateur anonyme';
+        const weeklySpent = userData.weeklySpent || 0;
+        
+        let rankClass = '';
+        if (rank === 1) rankClass = 'leaderboard-rank-1';
+        else if (rank === 2) rankClass = 'leaderboard-rank-2';
+        else if (rank === 3) rankClass = 'leaderboard-rank-3';
+        
+        leaderboardHTML += `
+          <div class="leaderboard-item">
+            <div class="leaderboard-rank ${rankClass}">#${rank}</div>
+            <div class="leaderboard-user">${username}</div>
+            <div class="leaderboard-amount">${weeklySpent.toLocaleString('fr-FR')} FCFA</div>
+          </div>
+        `;
+        
+        rank++;
+      });
+      
+      spendersLeaderboardContainer.innerHTML = leaderboardHTML;
+      
+    } catch (error) {
+      console.error('Erreur lors du chargement du classement des dépensiers:', error);
+      spendersLeaderboardContainer.innerHTML = '<div class="leaderboard-empty">Erreur lors du chargement du classement</div>';
     }
   }
 
@@ -499,8 +561,9 @@
     updatePricesWithDiscount();
     updateLevelIndicators();
     
-    // Charger le classement
+    // Charger les deux classements
     loadLeaderboard();
+    loadSpendersLeaderboard();
   }
 
   // Devenir revendeur directement via Firestore
@@ -587,9 +650,10 @@
       refreshStatsBtn.disabled = true;
       refreshStatsBtn.innerHTML = '<span class="loading-spinner"></span> Mise à jour...';
 
-      // Recharger le classement
+      // Recharger les deux classements
       await loadLeaderboard();
-      notify('Statistiques et classement mis à jour', 'success');
+      await loadSpendersLeaderboard();
+      notify('Statistiques et classements mis à jour', 'success');
       
     } catch (error) {
       console.error('Erreur lors du rafraîchissement:', error);
