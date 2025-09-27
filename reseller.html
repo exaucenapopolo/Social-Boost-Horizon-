@@ -16,22 +16,28 @@
   <style>
     :root{
       --bg:#071026; --card:#15243a; --muted:rgba(255,255,255,0.75); --accent:#1E90FF; --gold:#FFD700;
-      --success:#4CAF50; --warning:#FF9800; --error:#f44336;
+      --success:#4CAF50; --warning:#FF9800; --error:#f44336; --beginner:#42A5F5; --amateur:#4CAF50; --intermediate:#FFC107; --professional:#FF5722;
     }
     *{box-sizing:border-box}
     body{font-family:Roboto,system-ui,-apple-system; margin:0; min-height:100vh; background:var(--bg); color:#fff; display:flex; flex-direction:column}
     header{display:flex; justify-content:space-between; align-items:center; padding:12px 18px; background:linear-gradient(90deg,#133064,#6a0dad); position:sticky; top:0; z-index:1000; box-shadow:0 2px 20px rgba(0,0,0,0.3)}
-    .logo{font-weight:700; font-size:1.2rem; font-family:Montserrat, sans-serif}
+    .logo{font-weight:700; font-size:1.2rem; font-family:Montserrat, sans-serif; text-decoration:none; color:#fff; transition:transform 0.3s ease}
+    .logo:hover{transform:scale(1.05)}
     .snap{display:flex; gap:8px; align-items:center}
     .snap .avatar{background:radial-gradient(circle at 20% 20%, #fffc00,#ffbc00); color:#071026; padding:6px 10px; border-radius:999px; font-weight:700; min-width:60px; text-align:center}
     main{max-width:1100px; margin:18px auto; width:100%; padding:0 12px}
-    .card{background:rgba(20,35,60,0.7); padding:20px; border-radius:16px; border:1px solid rgba(255,255,255,0.08); margin-bottom:20px; backdrop-filter:blur(10px); box-shadow:0 8px 32px rgba(0,0,0,0.2)}
+    .card{background:rgba(20,35,60,0.7); padding:20px; border-radius:16px; border:1px solid rgba(255,255,255,0.08); margin-bottom:20px; backdrop-filter:blur(10px); box-shadow:0 8px 32px rgba(0,0,0,0.2); transition:transform 0.3s ease, box-shadow 0.3s ease}
+    .card:hover{transform:translateY(-3px); box-shadow:0 12px 40px rgba(0,0,0,0.3)}
     h2{font-family:Montserrat, sans-serif; margin-bottom:12px; display:flex; align-items:center; gap:10px}
     .reseller-status{display:flex; gap:12px; flex-wrap:wrap; justify-content:center}
-    .status-card{background:rgba(255,255,255,0.05); padding:16px; border-radius:12px; min-width:160px; text-align:center; transition:all 0.3s ease; border:1px solid rgba(255,255,255,0.05); position:relative}
-    .status-card:hover{transform:translateY(-2px); box-shadow:0 5px 15px rgba(0,0,0,0.3)}
+    .status-card{background:rgba(255,255,255,0.05); padding:16px; border-radius:12px; min-width:160px; text-align:center; transition:all 0.3s ease; border:1px solid rgba(255,255,255,0.05); position:relative; cursor:pointer}
+    .status-card:hover{transform:translateY(-5px); box-shadow:0 8px 20px rgba(0,0,0,0.4)}
     .status-card.active{border-color:var(--accent); box-shadow:0 0 20px var(--accent)}
     .status-card .badge{position:absolute; top:-8px; right:-8px; background:var(--gold); color:#071026; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold}
+    .level-icon{font-size:1.8rem; margin-bottom:8px}
+    .level-name{font-weight:700; font-size:1.1rem; margin-bottom:5px}
+    .level-discount{font-size:1.3rem; font-weight:700; margin:5px 0}
+    .level-orders{font-size:0.8rem; color:var(--muted)}
     .reseller-actions{display:flex; gap:12px; flex-wrap:wrap; margin-top:16px}
     .btn{padding:12px 20px; border-radius:12px; border:0; cursor:pointer; font-weight:600; transition:all 0.3s ease; display:inline-flex; align-items:center; gap:8px; text-decoration:none; font-size:0.95rem}
     .btn-primary{background:linear-gradient(45deg,#42A5F5,#4CAF50); color:#fff; box-shadow:0 4px 15px rgba(66,165,245,0.3)}
@@ -46,32 +52,44 @@
     .notification{position:fixed; top:20px; right:20px; padding:16px 20px; border-radius:12px; z-index:9999; box-shadow:0 8px 30px rgba(0,0,0,.4); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.1); max-width:400px; animation:slideIn 0.3s ease}
     @keyframes slideIn{from{transform:translateX(100%); opacity:0}to{transform:translateX(0); opacity:1}}
     .stats-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-top:16px}
-    .stat-item{background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; text-align:center}
+    .stat-item{background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; text-align:center; transition:transform 0.3s ease}
+    .stat-item:hover{transform:translateY(-3px)}
     .stat-value{font-size:1.4rem; font-weight:700; margin:5px 0; color:var(--accent)}
     .stat-label{font-size:0.8rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px}
     .price-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-top:16px}
-    .price-card{background:rgba(255,255,255,0.03); padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.05)}
+    .price-card{background:rgba(255,255,255,0.03); padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.05); transition:transform 0.3s ease}
+    .price-card:hover{transform:translateY(-3px)}
     .price-card h3{margin:0 0 10px 0; font-size:1rem}
     .price-regular{color:var(--muted); text-decoration:line-through; font-size:0.9rem}
     .price-reseller{color:var(--success); font-weight:600; font-size:1.1rem}
     .level-badge{display:inline-block; padding:4px 12px; border-radius:20px; font-size:0.8rem; font-weight:600; margin-left:8px}
-    .level-beginner{background:rgba(66,165,245,0.2); color:#42A5F5}
-    .level-amateur{background:rgba(76,175,80,0.2); color:#4CAF50}
-    .level-intermediate{background:rgba(255,193,7,0.2); color:#FFC107}
-    .level-professional{background:rgba(255,87,34,0.2); color:#FF5722}
+    .level-beginner{background:rgba(66,165,245,0.2); color:var(--beginner)}
+    .level-amateur{background:rgba(76,175,80,0.2); color:var(--amateur)}
+    .level-intermediate{background:rgba(255,193,7,0.2); color:var(--intermediate)}
+    .level-professional{background:rgba(255,87,34,0.2); color:var(--professional)}
+    .explanation-section{background:linear-gradient(135deg, rgba(30,144,255,0.1), rgba(106,13,173,0.1)); border-left:4px solid var(--accent); padding:15px; margin-bottom:20px; border-radius:8px}
+    footer{background:linear-gradient(90deg,#0a1a3a,#15243a); padding:20px; text-align:center; margin-top:40px; border-top:1px solid rgba(255,255,255,0.1)}
+    .footer-content{max-width:1100px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap}
+    .footer-logo{font-weight:700; font-size:1.3rem; font-family:Montserrat, sans-serif}
+    .footer-links{display:flex; gap:15px}
+    .footer-links a{color:var(--muted); text-decoration:none; transition:color 0.3s ease}
+    .footer-links a:hover{color:#fff}
     @media (max-width:720px){ 
       .reseller-status{flex-direction:column; align-items:center} 
       .reseller-actions{flex-direction:column}
       .btn{justify-content:center}
       .stats-grid{grid-template-columns:repeat(2,1fr)}
+      .footer-content{flex-direction:column; gap:15px}
     }
     .pulse{animation:pulse 2s infinite}
     @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(66,165,245,0.7)}70%{box-shadow:0 0 0 10px rgba(66,165,245,0)}100%{box-shadow:0 0 0 0 rgba(66,165,245,0)}}
+    .fade-in{animation:fadeIn 0.5s ease}
+    @keyframes fadeIn{from{opacity:0; transform:translateY(10px)}to{opacity:1; transform:translateY(0)}}
   </style>
 </head>
 <body>
   <header>
-    <div class="logo">SOCIAL <span style="color:var(--gold)">BOOST</span> HORIZON</div>
+    <a href="dashboard.html" class="logo">SOCIAL <span style="color:var(--gold)">BOOST</span> HORIZON</a>
     <div class="snap">
       <div id="balanceWrapper" class="avatar" title="Solde">--</div>
       <button id="quickDeposit" class="btn btn-secondary">Déposer</button>
@@ -80,32 +98,56 @@
   </header>
 
   <main>
-    <section class="card">
+    <!-- Section d'explication (cachée pour les revendeurs) -->
+    <section id="explanationSection" class="card explanation-section fade-in">
+      <h2><i class="fas fa-info-circle"></i> Devenir Revendeur Social Boost Horizon</h2>
+      <p>Le programme revendeur vous permet de bénéficier de réductions exclusives sur tous les services de Social Boost Horizon pour les revendre à vos propres clients.</p>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:15px; margin-top:15px">
+        <div>
+          <h3 style="color:var(--accent); margin-bottom:8px"><i class="fas fa-handshake"></i> Partenariat</h3>
+          <p class="small">Associez-vous à Social Boost Horizon et proposez nos services à votre réseau.</p>
+        </div>
+        <div>
+          <h3 style="color:var(--success); margin-bottom:8px"><i class="fas fa-percentage"></i> Réductions</h3>
+          <p class="small">Bénéficiez de réductions progressives selon votre volume de commandes hebdomadaires.</p>
+        </div>
+        <div>
+          <h3 style="color:var(--gold); margin-bottom:8px"><i class="fas fa-chart-line"></i> Évolution</h3>
+          <p class="small">Votre niveau évolue automatiquement chaque semaine selon votre activité.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card fade-in">
       <h2><i class="fas fa-crown"></i> Programme Revendeur</h2>
       <p class="small">Activez votre statut revendeur instantanément, consultez vos statistiques et bénéficiez des prix préférentiels.</p>
 
       <div style="display:flex; gap:16px; margin-top:16px; flex-wrap:wrap;">
         <div style="flex:1; min-width:260px">
           <div class="reseller-status">
-            <div id="beginnerCard" class="status-card">
-              <strong>Débutant</strong>
-              <div>5% de remise</div>
-              <div class="small">5–6 commandes/semaine</div>
+            <div id="beginnerCard" class="status-card" style="border-color:var(--beginner)">
+              <div class="level-icon" style="color:var(--beginner)"><i class="fas fa-seedling"></i></div>
+              <div class="level-name">Débutant</div>
+              <div class="level-discount" style="color:var(--beginner)">5%</div>
+              <div class="level-orders">5–6 cmd/semaine</div>
             </div>
-            <div id="amateurCard" class="status-card">
-              <strong>Amateur</strong>
-              <div>10% de remise</div>
-              <div class="small">7–9 commandes/semaine</div>
+            <div id="amateurCard" class="status-card" style="border-color:var(--amateur)">
+              <div class="level-icon" style="color:var(--amateur)"><i class="fas fa-leaf"></i></div>
+              <div class="level-name">Amateur</div>
+              <div class="level-discount" style="color:var(--amateur)">10%</div>
+              <div class="level-orders">7–9 cmd/semaine</div>
             </div>
-            <div id="intermediateCard" class="status-card">
-              <strong>Intermédiaire</strong>
-              <div>15% de remise</div>
-              <div class="small">10–19 commandes/semaine</div>
+            <div id="intermediateCard" class="status-card" style="border-color:var(--intermediate)">
+              <div class="level-icon" style="color:var(--intermediate)"><i class="fas fa-tree"></i></div>
+              <div class="level-name">Intermédiaire</div>
+              <div class="level-discount" style="color:var(--intermediate)">15%</div>
+              <div class="level-orders">10–19 cmd/semaine</div>
             </div>
-            <div id="professionalCard" class="status-card">
-              <strong>Professionnel</strong>
-              <div>20% de remise</div>
-              <div class="small">20+ commandes/semaine</div>
+            <div id="professionalCard" class="status-card" style="border-color:var(--professional)">
+              <div class="level-icon" style="color:var(--professional)"><i class="fas fa-trophy"></i></div>
+              <div class="level-name">Professionnel</div>
+              <div class="level-discount" style="color:var(--professional)">20%</div>
+              <div class="level-orders">20+ cmd/semaine</div>
             </div>
           </div>
         </div>
@@ -150,34 +192,34 @@
       </div>
     </section>
 
-    <section class="card">
+    <section class="card fade-in">
       <h2><i class="fas fa-tags"></i> Prix Revendeur</h2>
       <p class="small">Les prix s'actualisent automatiquement selon votre niveau de remise actuel.</p>
       <div class="price-grid">
         <div class="price-card">
-          <h3>Followers Instagram</h3>
+          <h3><i class="fab fa-instagram" style="color:#E4405F"></i> Followers Instagram</h3>
           <div class="price-regular">Normal: 2 500 FCFA</div>
           <div class="price-reseller">Revendeur: <span class="reseller-price" data-original="2500">—</span></div>
         </div>
         <div class="price-card">
-          <h3>Likes TikTok</h3>
-          <div class="price-regular">Normal: 500 FCFA</div>
-          <div class="price-reseller">Revendeur: <span class="reseller-price" data-original="500">—</span></div>
+          <h3><i class="fab fa-tiktok" style="color:#000000"></i> Likes TikTok</h3>
+          <div class="price-regular">Normal: 150 FCFA</div>
+          <div class="price-reseller">Revendeur: <span class="reseller-price" data-original="150">—</span></div>
         </div>
         <div class="price-card">
-          <h3>Vues YouTube</h3>
+          <h3><i class="fab fa-youtube" style="color:#FF0000"></i> Vues YouTube</h3>
           <div class="price-regular">Normal: 1 550 FCFA</div>
           <div class="price-reseller">Revendeur: <span class="reseller-price" data-original="1550">—</span></div>
         </div>
         <div class="price-card">
-          <h3>Abonnés TikTok</h3>
-          <div class="price-regular">Normal: 3 200 FCFA</div>
-          <div class="price-reseller">Revendeur: <span class="reseller-price" data-original="3200">—</span></div>
+          <h3><i class="fab fa-tiktok" style="color:#69C9D0"></i> Abonnés TikTok</h3>
+          <div class="price-regular">Normal: 1 150 FCFA</div>
+          <div class="price-reseller">Revendeur: <span class="reseller-price" data-original="1150">—</span></div>
         </div>
       </div>
     </section>
 
-    <section class="card small">
+    <section class="card small fade-in">
       <h2><i class="fas fa-info-circle"></i> Informations Importantes</h2>
       <ul>
         <li>Le statut revendeur est activé instantanément sans validation manuelle</li>
@@ -187,6 +229,18 @@
       </ul>
     </section>
   </main>
+
+  <footer>
+    <div class="footer-content">
+      <div class="footer-logo">SOCIAL <span style="color:var(--gold)">BOOST</span> HORIZON</div>
+      <div class="footer-links">
+        <a href="dashboard.html"><i class="fas fa-home"></i> Dashboard</a>
+        <a href="profil.html"><i class="fas fa-user"></i> Profil</a>
+        <a href="fond.html"><i class="fas fa-wallet"></i> Recharger</a>
+        <a href="commandes.html"><i class="fas fa-shopping-cart"></i> Commandes</a>
+      </div>
+    </div>
+  </footer>
 
   <div id="notificationRoot" aria-live="polite"></div>
 
@@ -217,6 +271,7 @@
   const commanderBtn = document.getElementById('commanderBtn');
   const dashboardBtn = document.getElementById('dashboardBtn');
   const refreshStatsBtn = document.getElementById('refreshStatsBtn');
+  const explanationSection = document.getElementById('explanationSection');
 
   const currentLevelEl = document.getElementById('currentLevel');
   const discountRateEl = document.getElementById('discountRate');
@@ -330,6 +385,9 @@
   // Mise à jour complète de l'interface
   function updateUI() {
     if (userData.isReseller) {
+      // Cacher la section d'explication pour les revendeurs
+      if (explanationSection) explanationSection.style.display = 'none';
+      
       const levelInfo = calculateResellerLevel(userData.resellerWeeklyOrders);
       setStat(currentLevelEl, userData.resellerLevel);
       currentLevelEl.innerHTML = `${userData.resellerLevel} <span class="level-badge ${levelInfo.class}">${levelInfo.discount}%</span>`;
@@ -345,6 +403,9 @@
       dashboardBtn.style.display = 'inline-flex';
       resignBtn.style.display = 'inline-flex';
     } else {
+      // Afficher la section d'explication pour les non-revendeurs
+      if (explanationSection) explanationSection.style.display = 'block';
+      
       setStat(currentLevelEl, 'Non revendeur');
       setStat(discountRateEl, '0%');
       setStat(weeklyOrdersEl, '0');
@@ -539,7 +600,7 @@
   document.getElementById('quickDeposit')?.addEventListener('click', () => {
     notify('Redirection vers la page de dépôt...', 'info');
     setTimeout(() => {
-      window.location.href = 'depot.html';
+      window.location.href = 'fond.html';
     }, 1000);
   });
 
