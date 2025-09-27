@@ -30,7 +30,7 @@
     .card:hover{transform:translateY(-3px); box-shadow:0 12px 40px rgba(0,0,0,0.3)}
     h2{font-family:Montserrat, sans-serif; margin-bottom:12px; display:flex; align-items:center; gap:10px}
     .reseller-status{display:flex; gap:12px; flex-wrap:wrap; justify-content:center}
-    .status-card{background:rgba(255,255,255,0.05); padding:16px; border-radius:12px; min-width:160px; text-align:center; transition:all 0.3s ease; border:1px solid rgba(255,255,255,0.05); position:relative; cursor:pointer}
+    .status-card{background:rgba(255,255,255,0.05); padding:16px; border-radius:12px; min-width:200px; width:100%; text-align:center; transition:all 0.3s ease; border:1px solid rgba(255,255,255,0.05); position:relative; cursor:pointer; margin-bottom:10px}
     .status-card:hover{transform:translateY(-5px); box-shadow:0 8px 20px rgba(0,0,0,0.4)}
     .status-card.active{border-color:var(--accent); box-shadow:0 0 20px var(--accent)}
     .status-card .badge{position:absolute; top:-8px; right:-8px; background:var(--gold); color:#071026; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold}
@@ -68,6 +68,16 @@
     .level-intermediate{background:rgba(255,193,7,0.2); color:var(--intermediate)}
     .level-professional{background:rgba(255,87,34,0.2); color:var(--professional)}
     .explanation-section{background:linear-gradient(135deg, rgba(30,144,255,0.1), rgba(106,13,173,0.1)); border-left:4px solid var(--accent); padding:15px; margin-bottom:20px; border-radius:8px}
+    .leaderboard{width:100%; margin-top:16px}
+    .leaderboard-item{display:flex; align-items:center; padding:12px 16px; background:rgba(255,255,255,0.03); border-radius:10px; margin-bottom:8px; transition:transform 0.3s ease}
+    .leaderboard-item:hover{transform:translateX(5px); background:rgba(255,255,255,0.05)}
+    .leaderboard-rank{font-weight:700; font-size:1.2rem; min-width:40px; text-align:center}
+    .leaderboard-rank-1{color:var(--gold)}
+    .leaderboard-rank-2{color:var(--muted)}
+    .leaderboard-rank-3{color:var(--warning)}
+    .leaderboard-user{flex:1; margin-left:12px}
+    .leaderboard-orders{font-weight:600; color:var(--accent)}
+    .leaderboard-empty{padding:20px; text-align:center; color:var(--muted); font-style:italic}
     footer{background:linear-gradient(90deg,#0a1a3a,#15243a); padding:20px; text-align:center; margin-top:40px; border-top:1px solid rgba(255,255,255,0.1)}
     .footer-content{max-width:1100px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap}
     .footer-logo{font-weight:700; font-size:1.3rem; font-family:Montserrat, sans-serif}
@@ -80,6 +90,7 @@
       .btn{justify-content:center}
       .stats-grid{grid-template-columns:repeat(2,1fr)}
       .footer-content{flex-direction:column; gap:15px}
+      .status-card{min-width:100%}
     }
     .pulse{animation:pulse 2s infinite}
     @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(66,165,245,0.7)}70%{box-shadow:0 0 0 10px rgba(66,165,245,0)}100%{box-shadow:0 0 0 0 rgba(66,165,245,0)}}
@@ -198,8 +209,8 @@
       <div class="price-grid">
         <div class="price-card">
           <h3><i class="fab fa-instagram" style="color:#E4405F"></i> Followers Instagram</h3>
-          <div class="price-regular">Normal: 2 500 FCFA</div>
-          <div class="price-reseller">Revendeur: <span class="reseller-price" data-original="2500">—</span></div>
+          <div class="price-regular">Normal: 1 250 FCFA</div>
+          <div class="price-reseller">Revendeur: <span class="reseller-price" data-original="1250">—</span></div>
         </div>
         <div class="price-card">
           <h3><i class="fab fa-tiktok" style="color:#000000"></i> Likes TikTok</h3>
@@ -219,6 +230,17 @@
       </div>
     </section>
 
+    <!-- Nouvelle section : Classement des meilleurs vendeurs -->
+    <section class="card fade-in">
+      <h2><i class="fas fa-trophy"></i> Classement des Meilleurs Vendeurs</h2>
+      <p class="small">Top des revendeurs de la semaine selon le nombre de commandes</p>
+      <div id="leaderboardContainer" class="leaderboard">
+        <div class="leaderboard-empty">
+          <i class="fas fa-spinner fa-spin"></i> Chargement du classement...
+        </div>
+      </div>
+    </section>
+
     <section class="card small fade-in">
       <h2><i class="fas fa-info-circle"></i> Informations Importantes</h2>
       <ul>
@@ -226,6 +248,7 @@
         <li>Vos statistiques sont mises à jour en temps réel</li>
         <li>Les prix revendeur s'appliquent immédiatement après activation</li>
         <li>Votre niveau évolue automatiquement selon votre activité</li>
+        <li>Le classement est mis à jour chaque semaine</li>
       </ul>
     </section>
   </main>
@@ -236,7 +259,7 @@
       <div class="footer-links">
         <a href="dashboard.html"><i class="fas fa-home"></i> Dashboard</a>
         <a href="profil.html"><i class="fas fa-user"></i> Profil</a>
-        <a href="fond.html"><i class="fas fa-wallet"></i> Recharger</a>
+        <a href="fonds.html"><i class="fas fa-wallet"></i> Recharger</a>
         <a href="commandes.html"><i class="fas fa-shopping-cart"></i> Commandes</a>
       </div>
     </div>
@@ -272,6 +295,7 @@
   const dashboardBtn = document.getElementById('dashboardBtn');
   const refreshStatsBtn = document.getElementById('refreshStatsBtn');
   const explanationSection = document.getElementById('explanationSection');
+  const leaderboardContainer = document.getElementById('leaderboardContainer');
 
   const currentLevelEl = document.getElementById('currentLevel');
   const discountRateEl = document.getElementById('discountRate');
@@ -382,6 +406,55 @@
     });
   }
 
+  // Charger le classement des meilleurs vendeurs
+  async function loadLeaderboard() {
+    try {
+      leaderboardContainer.innerHTML = '<div class="leaderboard-empty"><i class="fas fa-spinner fa-spin"></i> Chargement du classement...</div>';
+      
+      const usersSnapshot = await db.collection('users')
+        .where('isReseller', '==', true)
+        .where('resellerWeeklyOrders', '>=', 5)
+        .orderBy('resellerWeeklyOrders', 'desc')
+        .limit(10)
+        .get();
+
+      if (usersSnapshot.empty) {
+        leaderboardContainer.innerHTML = '<div class="leaderboard-empty">Aucun vendeur n\'a atteint 5 commandes cette semaine</div>';
+        return;
+      }
+
+      let leaderboardHTML = '';
+      let rank = 1;
+      
+      usersSnapshot.forEach(doc => {
+        const userData = doc.data();
+        const username = userData.username || userData.email || 'Utilisateur anonyme';
+        const weeklyOrders = userData.resellerWeeklyOrders || 0;
+        
+        let rankClass = '';
+        if (rank === 1) rankClass = 'leaderboard-rank-1';
+        else if (rank === 2) rankClass = 'leaderboard-rank-2';
+        else if (rank === 3) rankClass = 'leaderboard-rank-3';
+        
+        leaderboardHTML += `
+          <div class="leaderboard-item">
+            <div class="leaderboard-rank ${rankClass}">#${rank}</div>
+            <div class="leaderboard-user">${username}</div>
+            <div class="leaderboard-orders">${weeklyOrders} commandes</div>
+          </div>
+        `;
+        
+        rank++;
+      });
+      
+      leaderboardContainer.innerHTML = leaderboardHTML;
+      
+    } catch (error) {
+      console.error('Erreur lors du chargement du classement:', error);
+      leaderboardContainer.innerHTML = '<div class="leaderboard-empty">Erreur lors du chargement du classement</div>';
+    }
+  }
+
   // Mise à jour complète de l'interface
   function updateUI() {
     if (userData.isReseller) {
@@ -425,6 +498,9 @@
     
     updatePricesWithDiscount();
     updateLevelIndicators();
+    
+    // Charger le classement
+    loadLeaderboard();
   }
 
   // Devenir revendeur directement via Firestore
@@ -511,9 +587,9 @@
       refreshStatsBtn.disabled = true;
       refreshStatsBtn.innerHTML = '<span class="loading-spinner"></span> Mise à jour...';
 
-      // Simulation du recalcul des statistiques
-      // Dans une vraie implémentation, vous pourriez recalculer les commandes de la semaine
-      notify('Statistiques mises à jour', 'success');
+      // Recharger le classement
+      await loadLeaderboard();
+      notify('Statistiques et classement mis à jour', 'success');
       
     } catch (error) {
       console.error('Erreur lors du rafraîchissement:', error);
@@ -600,7 +676,7 @@
   document.getElementById('quickDeposit')?.addEventListener('click', () => {
     notify('Redirection vers la page de dépôt...', 'info');
     setTimeout(() => {
-      window.location.href = 'fond.html';
+      window.location.href = 'fonds.html';
     }, 1000);
   });
 
