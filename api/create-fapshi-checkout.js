@@ -1,162 +1,78 @@
-// netlify/functions/create-fapshi-checkout.js
-// Node 18+ (Netlify) - serverless function
-// Combines robust Fapshi payload + timeout + Firestore transaction logging + Firebase token verification
 
-const fetch = globalThis.fetch || ((...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args)));
-const admin = require('firebase-admin');
 
-let firebaseInitialized = false;
+// api/create-fapshi-checkout.js
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+const admin = require('firebase-admin'); // Importez admin
 
-function initFirebaseAdminFromServiceAccountBase64(base64) {
+// Initialisation Firebase (comme dans le webhook)
+if (!admin.apps.length) {
   try {
-    const svcJson = JSON.parse(Buffer.from(base64, 'base64').toString('utf8'));
-    if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert(svcJson)
-      });
-    }
-    firebaseInitialized = true;
-    console.log('✅ Firebase admin initialized from BASE64.');
-  } catch (err) {
-    console.error('❌ Failed to init Firebase from BASE64:', err.message);
-    throw err;
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY
+      }),
+    });
+    console.log("✅ Firebase initialized in create-fapshi-checkout.js.");
+  } catch (firebaseInitError) {
+    console.error("❌ Firebase initialization failed in create-fapshi-checkout.js:", firebaseInitError.message);
+    // Continue l'exécution pour que l'erreur soit renvoyée au client si la config est mauvaise
   }
 }
 
-function initFirebaseAdminFromEnvVars() {
+export default async function handler(req, res) {
+  console.log(">>> create-fapshi-checkout REQ RECEIVED:", JSON.stringify({
+    method: req.method,
+    headers: req.headers,
+    body: req.body // Log le body pour voir ce qui est reçu
+  }, null, 2));
+
+  console.log(">>> ENV CHECK (create-fapshi-checkout):", {
+    FAPSHI_API_USER: !!process.env.FAPSHI_API_USER,
+    FAPSHI_SECRET_KEY: !!process.env.FAPSHI_SECRET_KEY,
+    FAPSHI_WEBHOOK_URL: !!process.env.FAPSHI_WEBHOOK_URL
+  });
+
   try {
-    // FIREBASE_PRIVATE_KEY often contains \n sequences; convert them
-    const projectId = process.env.FIREBASE_PROJECT_ID;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    let privateKey = process.env.FIREBASE_PRIVATE_KEY;
-
-    if (!projectId || !clientEmail || !privateKey) {
-      throw new Error('Missing FIREBASE_PROJECT_ID or FIREBASE_CLIENT_EMAIL or FIREBASE_PRIVATE_KEY');
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method Not Allowed. Use POST only' });
     }
 
-    // If key was pasted with escaped newlines, fix them
-    privateKey = privateKey.includes('\\n') ? privateKey.replace(/\\n/g, '\n') : privateKey;
+    const API_USER = process.env.FAPSHI_API_USER;
+    const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
+    const WEBHOOK_URL = process.env.FAPSHI_WEBHOOK_URL;
 
-    if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId,
-          clientEmail,
-          privateKey
-        })
-      });
-    }
-    firebaseInitialized = true;
-    console.log('✅ Firebase admin initialized from ENV VARS.');
-  } catch (err) {
-    console.error('❌ Failed to init Firebase from ENV VARS:', err.message);
-    throw err;
-  }
-}
-
-function ensureFirebaseInitialized() {
-  if (firebaseInitialized) return;
-
-  const base64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
-  if (base64) {
-    initFirebaseAdminFromServiceAccountBase64(base64);
-    return;
-  }
-
-  // Try env var form
-  if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
-    initFirebaseAdminFromEnvVars();
-    return;
-  }
-
-  // No Firebase credentials — we won't init admin; some flows may still work but token verification will be skipped.
-  console.warn('⚠️ Firebase admin not initialized: no service account provided (BASE64 or ENV VARS). Token verification will be skipped.');
-  firebaseInitialized = false; // explicit
-}
-
-// Helper: safe JSON parse
-function tryParseJson(text) {
-  try { return JSON.parse(text); } catch (e) { return null; }
-}
-
-exports.handler = async (event, context) => {
-  try {
-    if (event.httpMethod !== 'POST') {
-      return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed. Use POST only' }) };
+    if (!API_USER || !SECRET_KEY || !WEBHOOK_URL) {
+      console.error('CRITICAL: Missing env vars in create-fapshi-checkout.js');
+      return res.status(500).json({ error: 'Configuration serveur incomplète' });
     }
 
-    // parse body (Netlify sometimes passes body as string)
-    let body;
-    try {
-      body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
-    } catch (err) {
-      console.error('Invalid JSON body:', err.message);
-      return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON body' }) };
+    const { amount, currency, description, redirectUrl, externalId } = req.body; 
+
+    // Validation des paramètres reçus du frontend
+    if (!amount || !currency || !redirectUrl || !externalId) {
+      console.error('Paramètres manquants dans la requête client:', { amount, currency, redirectUrl, externalId });
+      return res.status(400).json({ error: 'Paramètres manquants: amount, currency, redirectUrl ou externalId' });
     }
 
-    // Basic validation
-    const { amount, currency = 'XAF', description, redirectUrl, externalId } = body || {};
-    if (!amount || !redirectUrl || !externalId) {
-      console.error('Missing parameters:', { amount, redirectUrl, externalId });
-      return { statusCode: 400, body: JSON.stringify({ error: 'Paramètres manquants: amount, redirectUrl ou externalId' }) };
-    }
-
-    // Init Firebase admin if possible (for token verification + Firestore writes)
-    try {
-      ensureFirebaseInitialized();
-    } catch (initErr) {
-      console.error('Firebase init error (continuing without admin):', initErr.message);
-    }
-
-    // If auth token provided in header and admin initialized, verify it
-    const authHeader = (event.headers && (event.headers.authorization || event.headers.Authorization)) || '';
-    let uidFromToken = null;
-    if (authHeader && authHeader.startsWith('Bearer ') && admin.apps.length) {
-      const idToken = authHeader.split(' ')[1];
-      try {
-        const decoded = await admin.auth().verifyIdToken(idToken);
-        uidFromToken = decoded.uid;
-        console.log('Token verified, uid =', uidFromToken);
-      } catch (err) {
-        console.warn('Invalid Firebase token:', err.message);
-        return { statusCode: 401, body: JSON.stringify({ error: 'Token Firebase invalide' }) };
-      }
-    }
-
-    // Validate env vars for Fapshi (support multiple names)
-    const API_USER = process.env.FAPSHI_API_USER || process.env.FAPSHI_APIUSER || process.env.FAPSHI_API;
-    const SECRET_KEY = process.env.FAPSHI_API_KEY || process.env.FAPSHI_SECRET_KEY || process.env.FAPSHI_SECRET;
-    const WEBHOOK_URL = process.env.FAPSHI_WEBHOOK_URL || process.env.FAPSHI_WEBHOOK;
-    const ENV = (process.env.FAPSHI_ENV || process.env.NODE_ENV || '').toLowerCase();
-
-    if (!API_USER || !SECRET_KEY) {
-      console.error('Fapshi env vars missing', { hasApiUser: !!API_USER, hasSecret: !!SECRET_KEY, hasWebhook: !!WEBHOOK_URL });
-      return { statusCode: 500, body: JSON.stringify({ error: 'Configuration serveur Fapshi incomplète' }) };
-    }
-
-    // Build payload according to the other project's structure
     const payload = {
-      amount: Math.round(amount),
+      amount,
       currency,
-      description: description || 'Paiement MADIL',
+      description: description || 'Paiement Social Boost Horizon',
       redirect_url: redirectUrl,
-      webhook_url: WEBHOOK_URL || undefined,
-      metadata: { userId: externalId, uidFromToken } // useful for webhook reconciliation
+      webhook_url: WEBHOOK_URL,
+      // On passe externalId comme metadata.userId pour le cas où Fapshi le renverrait un jour
+      metadata: { userId: externalId } 
     };
 
-    // Fapshi endpoint selection (adjust if your provider docs differ)
-    const fapshiUrl = (ENV === 'production' || process.env.FAPSHI_LIVE === 'true')
-      ? 'https://live.fapshi.com/initiate-pay'
-      : (process.env.FAPSHI_SANDBOX_URL || 'https://sandbox.fapshi.com/initiate-pay');
-
-    console.log('Calling Fapshi', { fapshiUrl, amount: payload.amount, currency: payload.currency, externalId });
+    console.log(">>> Fapshi Payload (create-fapshi-checkout):", JSON.stringify(payload, null, 2));
 
     const controller = new AbortController();
-    const timeoutMs = parseInt(process.env.FAPSHI_TIMEOUT_MS || '10000', 10); // default 10s
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const timeout = setTimeout(() => controller.abort(), 8000);
 
     try {
-      const fapshiResp = await fetch(fapshiUrl, {
+      const fapshiResponse = await fetch('https://live.fapshi.com/initiate-pay', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -167,86 +83,72 @@ exports.handler = async (event, context) => {
         signal: controller.signal
       });
 
-      const rawText = await fapshiResp.text();
-      const respJson = tryParseJson(rawText);
-
-      console.log('Fapshi response status:', fapshiResp.status);
-      // don't log secrets - rawText can be ok for debugging but avoid logging API keys
-      console.log('Fapshi response body (truncated):', (typeof rawText === 'string' && rawText.length > 1000) ? rawText.slice(0,1000) + '... (truncated)' : rawText);
-
-      if (!fapshiResp.ok) {
-        // return the provider response to client for debugging (status + body)
-        return {
-          statusCode: fapshiResp.status === 200 ? 500 : fapshiResp.status,
-          body: JSON.stringify({
-            error: 'Erreur Fapshi',
-            fapshiStatus: fapshiResp.status,
-            fapshiBody: respJson || rawText
-          })
-        };
+      const rawText = await fapshiResponse.text();
+      console.log('>>> Fapshi raw response (create-fapshi-checkout):', fapshiResponse.status, rawText);
+      
+      let respJson;
+      try {
+        respJson = JSON.parse(rawText);
+      } catch (parseErr) {
+        console.error('Erreur parsing réponse Fapshi non-JSON (create-fapshi-checkout):', parseErr);
+        return res.status(502).json({ error: 'Réponse invalide du processeur (non-JSON)', details: rawText });
       }
 
-      // Extract checkout URL from various possible shapes
-      const checkoutUrl = respJson?.data?.url || respJson?.link || respJson?.checkoutUrl || respJson?.url;
-      const fapshiTransId = respJson?.transId || respJson?.transactionId || respJson?.data?.transId || null;
+      if (!fapshiResponse.ok) {
+        console.error('Fapshi API error response:', respJson);
+        return res.status(fapshiResponse.status).json(respJson); 
+      }
+
+      const checkoutUrl = respJson.data?.url || respJson.link;
+      const fapshiTransId = respJson.transId || null; // Essayer de récupérer le transId si Fapshi le renvoie ici
 
       if (!checkoutUrl) {
-        console.error('Fapshi returned success but no checkout URL', respJson || rawText);
-        return {
-          statusCode: 502,
-          body: JSON.stringify({ error: 'Réponse du processeur incomplète: URL de paiement manquante', details: respJson || rawText })
-        };
+        console.error('Structure de réponse Fapshi inattendue: pas de checkoutUrl', respJson);
+        return res.status(502).json({ error: 'Réponse du processeur incomplète: URL de paiement manquante', details: respJson });
       }
 
-      // Record transaction in Firestore if admin initialized
-      try {
-        if (admin.apps.length) {
-          const db = admin.firestore();
-          const transactionsRef = db.collection('fapshiTransactions');
-          const transactionDocId = fapshiTransId || (Math.random().toString(36).slice(2, 12) + Math.random().toString(36).slice(2, 12));
+      // --- NOUVEAU : Enregistrer la transaction dans Firestore ---
+      const db = admin.firestore();
+      const transactionsRef = db.collection('fapshiTransactions'); // Nouvelle collection pour suivre les transactions
 
-          await transactionsRef.doc(transactionDocId).set({
-            fapshiTransId: fapshiTransId,
-            userId: externalId,
-            uidFromToken: uidFromToken || null,
-            amount: payload.amount,
-            currency: payload.currency,
-            status: 'PENDING',
-            dateInitiated: admin.firestore.FieldValue.serverTimestamp(),
-            checkoutUrl
-          });
+      // Créer un document pour suivre cette transaction Fapshi
+      // Utilisez le transId de Fapshi comme ID du document si disponible, sinon un ID généré.
+      const transactionDocId = fapshiTransId || (Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
+      
+      await transactionsRef.doc(transactionDocId).set({
+        fapshiTransId: fapshiTransId, // L'ID de transaction de Fapshi (si disponible)
+        userId: externalId, // L'ID de ton utilisateur Firebase
+        amount: amount,
+        currency: currency,
+        status: 'PENDING', // Statut initial
+        dateInitiated: admin.firestore.FieldValue.serverTimestamp(),
+        checkoutUrl: checkoutUrl // Utile pour le debug si besoin
+      });
+      console.log(`✅ Transaction (${transactionDocId}) recorded in Firestore for user ${externalId}.`);
+      // --- FIN NOUVEAU ---
 
-          console.log(`✅ Transaction recorded: ${transactionDocId}`);
-        } else {
-          console.warn('Firestore not initialized — skipping transaction record');
-        }
-      } catch (dbErr) {
-        console.error('Failed to write transaction to Firestore:', dbErr.message);
-        // continue: we still return checkoutUrl even if DB write failed
-      }
-
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
-          checkoutUrl,
-          transId: fapshiTransId || null,
-          raw: respJson || rawText
-        })
-      };
+      // Succès: renvoie l'URL de paiement
+      return res.status(200).json({ checkoutUrl });
 
     } catch (err) {
       if (err.name === 'AbortError') {
-        console.error('Fapshi API timeout');
-        return { statusCode: 504, body: JSON.stringify({ error: 'Timeout lors de la connexion à Fapshi' }) };
+        console.error('Fapshi API timeout (create-fapshi-checkout)');
+        return res.status(504).json({ error: 'Timeout lors de la connexion à Fapshi' });
       }
-      console.error('Error while calling Fapshi:', err.stack || err.message);
-      return { statusCode: 500, body: JSON.stringify({ error: 'Erreur interne lors de la communication avec Fapshi' }) };
+      console.error('❌ ERREUR LORS DE L\'APPEL FAPSHI (create-fapshi-checkout):', err.stack);
+      return res.status(500).json({ 
+        error: 'Erreur interne lors de la communication avec Fapshi',
+        details: process.env.NODE_ENV === 'development' ? err.message : null
+      });
     } finally {
       clearTimeout(timeout);
     }
 
   } catch (err) {
-    console.error('Unhandled error in create-fapshi-checkout:', err.stack || err.message);
-    return { statusCode: 500, body: JSON.stringify({ error: 'Erreur serveur interne' }) };
+    console.error('❌ ERREUR GÉNÉRALE DANS HANDLER (create-fapshi-checkout):', err.stack);
+    return res.status(500).json({
+      error: 'Erreur serveur interne',
+      details: process.env.NODE_ENV === 'development' ? err.message : null
+    });
   }
-};
+}
