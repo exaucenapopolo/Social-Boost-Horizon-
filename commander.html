@@ -44,6 +44,11 @@
       --success-bg: rgba(76, 175, 80, 0.2);
       --error-bg: rgba(255, 107, 107, 0.2);
     }
+    
+    /* CORRECTION 1: Garantit que le body (avec 100vh) fonctionne */
+    html {
+      height: 100%;
+    }
 
     /* Body et fond animé (étoiles) */
     body {
@@ -57,7 +62,7 @@
       min-height: 100vh;
       overflow-x: hidden;
       display: flex;
-      flex-direction: column;
+      flex-direction: column; /* CRITICAL: Organise les enfants verticalement */
     }
 
     /* Animation étoiles */
@@ -67,7 +72,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      z-index: -1;
+      z-index: -1; /* CRITICAL: Reste en arrière-plan */
       background-color: var(--sbh-dark-blue);
       overflow: hidden;
     }
@@ -131,14 +136,14 @@
 
     /* HEADER (logo + hamburger) */
     header {
-      position: sticky;
+      position: sticky; /* CRITICAL: Maintient l'en-tête en haut au défilement */
       top: 0;
       background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
       display: flex;
       justify-content: space-between;
       align-items: center;
       padding: 1rem 2rem;
-      z-index: 100;
+      z-index: 1000; /* CORRECTION 2: Assure que le header est au-dessus de tout */
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     }
     .logo-text {
@@ -191,7 +196,7 @@
       border-radius: 10px;
       padding: 1.5rem;
       flex-direction: column;
-      z-index: 200;
+      z-index: 2000; /* REINFORCEMENT: Assure que le menu est au-dessus du header */
       min-width: 250px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     }
@@ -251,7 +256,7 @@
 
     /* Conteneur de la page principale */
     .content {
-      flex: 1;
+      flex: 1; /* CRITICAL: Permet au conteneur de prendre l'espace restant et de pousser le footer */
       max-width: 800px;
       width: 100%;
       padding: 20px 15px;
@@ -439,7 +444,7 @@
       border-radius: 15px;
       padding: 30px;
       text-align: center;
-      z-index: 1000;
+      z-index: 10000; /* REINFORCEMENT: Au-dessus de tout */
       box-shadow: 0 10px 30px rgba(0,0,0,0.5);
       display: none;
       max-width: 400px;
@@ -565,9 +570,10 @@
       background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
       color: var(--sbh-text-white);
       padding: 2rem 1rem;
-      margin-top: auto;
+      margin-top: auto; /* CRITICAL: Pousse le footer vers le bas */
       position: relative;
       overflow: hidden;
+      z-index: 100; /* CORRECTION 3: Assure que le footer est bien au-dessus du background */
     }
     .footer-content {
       max-width: 1200px;
@@ -929,7 +935,7 @@
         "Followers": {
           medium: { price: 2250, time: "20 min" },
           high:   { price: 3650, time: "10 min" },
-          remark: "Ne changez pas votre nom d'utilisateur.NB: En raison d'une récente mise à jour d'instagram, vous devez maintenant désactiver l'option « À VÉRIFIER » sur votre compte instagram avant d'acheter des followers, cette option est automatiquement activée pour TOUS les comptes instagram et c'est à vous de la désactiver.VOUS N'OBTENDREZ AUCUN FOLLOWER ET PERDREZ VOTRE ARGENT SI VOUS NE LE DÉSACTIVEZ PAS AVANT D'ACHETER, N'APPUYEZ PAS SUR ACHETER SI VOUS N'ÊTES PAS SÛR À 100% QU'IL EST DÉSACTIVÉ. (min: 100)"
+          remark: "Ne changez pas votre nom d'utilisateur.NB: En raison d'une récente mise à jour d'instagram, vous devez maintenant désactiver l'option « À VÉRIFIER » sur votre compte instagram avant d'acheter des followers, cette option est automatiquement activée pour TOUS les comptes instagram et c'est à vous de la désactiver.VOUS N'OBTIENDREZ AUCUN FOLLOWER ET PERDREZ VOTRE ARGENT SI VOUS NE LE DÉSACTIVEZ PAS AVANT D'ACHETER, N'APPUYEZ PAS SUR ACHETER SI VOUS N'ÊTES PAS SÛR À 100% QU'IL EST DÉSACTIVÉ. (min: 100)"
         },
         "J'aime": {
           medium: { price: 250, time: "30 min" },
@@ -1227,9 +1233,12 @@
       // Fonction pour attacher l'écouteur 'input' à l'élément 'quantityInput' actuel
       function attachQuantityInputListener() {
         // Enlève l'écouteur de l'élément précédent (si applicable)
-        quantityInput.removeEventListener('input', updateDetails);
+        if (quantityInput.listenerAttached) {
+            quantityInput.removeEventListener('input', updateDetails);
+        }
         // Attache l'écouteur à l'élément DOM référencé par 'quantityInput'
         quantityInput.addEventListener('input', updateDetails);
+        quantityInput.listenerAttached = true;
       }
       // Initialiser l'écouteur pour le <input type="number"> initial
       attachQuantityInputListener(); 
