@@ -844,6 +844,8 @@
 
   <!-- Scripts AOS -->
   <script defer src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  
+  <!-- ✅ SCRIPT PRINCIPAL TOUT-EN-UN -->
   <script>
     // ✅ Configuration Firebase (VOS VRAIES VALEURS)
     const firebaseConfig = {
@@ -866,44 +868,6 @@
     // ✅ URL API DYNAMIQUE - Fonctionne en dev ET en production
     const API_URL = window.location.origin;
 
-    document.addEventListener("DOMContentLoaded", function () {
-      AOS.init({ duration: 800, once: true });
-
-      // Gestion du menu hamburger
-      const hamburgerBtn = document.getElementById("hamburgerBtn");
-      const header = document.querySelector("header");
-      hamburgerBtn.addEventListener("click", () => {
-        header.classList.toggle("open");
-      });
-      
-      // Fermer le menu quand on clique en dehors
-      document.addEventListener("click", (e) => {
-        if (!header.contains(e.target) && header.classList.contains("open")) {
-          header.classList.remove("open");
-        }
-      });
-      
-      // Gestion de la notification
-      const notification = document.getElementById('orderNotification');
-      const notificationClose = document.getElementById('notificationClose');
-      
-      notificationClose.addEventListener('click', function() {
-        notification.style.display = 'none';
-      });
-      
-      // Vérifier l'authentification
-      auth.onAuthStateChanged(user => {
-        if (!user) {
-          window.location.href = 'login.html';
-        } else {
-          document.getElementById('userId').value = user.uid;
-        }
-      });
-    });
-  </script>
-
-  <!-- Script principal pour le formulaire de commande -->
-  <script>
     // === Données des services (TOUS VOS SERVICES) ===
     const servicesData = {
       facebook: {
@@ -1196,134 +1160,113 @@
       }
     };
 
-    // DOM references
-    let selectedPlatform = null;
-    const icons            = document.querySelectorAll('.platforms img');
-    const orderForm        = document.getElementById('orderForm');
-    const serviceSelect    = document.getElementById('serviceSelect');
-    const qualitySection   = document.getElementById('qualitySelect').parentElement;
-    const qualitySelect    = document.getElementById('qualitySelect');
-    const subOptionSection = document.getElementById('subOptionSection');
-    const subOptionLabel   = document.getElementById('subOptionLabel');
-    const subOptionSelect  = document.getElementById('subOptionSelect');
-    const linkInput        = document.getElementById('linkInput');
-    let   quantityInput    = document.getElementById('quantityInput');
-    const quantLabel       = document.getElementById('quantLabel');
-    const quantitySection  = document.getElementById('quantitySection');
-    const quantityError    = document.getElementById('quantityError');
-    const commentsCount    = document.getElementById('commentsCount');
-    const contactType      = document.getElementById('contactType');
-    const whatsappField    = document.getElementById('whatsappField');
-    const emailField       = document.getElementById('emailField');
-    const contactInput     = document.getElementById('contactInput');
-    const emailInput       = document.getElementById('emailInput');
-    const priceEstimate    = document.getElementById('priceEstimate');
-    const priceDetails     = document.getElementById('priceDetails');
-    const timeEstimate     = document.getElementById('timeEstimate');
-    const remarkBox        = document.getElementById('remarkBox');
-    const orderErrorBox    = document.getElementById('orderErrorBox');
-    const notification     = document.getElementById('orderNotification');
-    const notificationIcon = document.getElementById('notificationIcon');
-    const notificationMessage = document.getElementById('notificationMessage');
-    const notificationButtons = document.getElementById('notificationButtons');
-    const notificationClose = document.getElementById('notificationClose');
-    const whatsappRemark   = document.getElementById('whatsappRemark');
-    const emailRemark      = document.getElementById('emailRemark');
-    const submitButton     = document.querySelector('.btn');
-    const submitButtonText = document.querySelector('.btn .btn-text');
-    const spinner          = document.querySelector('.btn .spinner');
+    // ✅ TOUT LE CODE DANS UN SEUL BLOC APRÈS LE CHARGEMENT
+    document.addEventListener("DOMContentLoaded", function() {
+      // Init AOS
+      if (typeof AOS !== 'undefined') AOS.init({ duration: 800, once: true });
 
-    // Events binding
-    icons.forEach(i => i.addEventListener('click', () => selectPlatform(i.dataset.platform)));
-    serviceSelect.addEventListener('change', onServiceChange);
-    qualitySelect.addEventListener('change', updateDetails);
-    subOptionSelect.addEventListener('change', updateDetails);
-    contactType.addEventListener('change', toggleContactField);
-    orderForm.addEventListener('submit', onSubmit);
-    window.addEventListener('DOMContentLoaded', () => selectPlatform('facebook'));
-
-    function attachQuantityInputListener() {
-      if (quantityInput) {
-        quantityInput.removeEventListener('input', updateDetails);
-        quantityInput.addEventListener('input', updateDetails);
+      // Gestion du menu hamburger
+      const hamburgerBtn = document.getElementById("hamburgerBtn");
+      const header = document.querySelector("header");
+      if (hamburgerBtn) {
+        hamburgerBtn.addEventListener("click", () => {
+          header.classList.toggle("open");
+        });
       }
-    }
-    attachQuantityInputListener();
-
-    function selectPlatform(p) {
-      icons.forEach(i => i.classList.remove('active'));
-      document.querySelector(`.platforms img[data-platform="${p}"]`).classList.add('active');
-      selectedPlatform = p;
-      loadServices();
-    }
-
-    function loadServices() {
-      serviceSelect.innerHTML = '<option value=""> Choisir un service </option>';
-      Object.keys(servicesData[selectedPlatform]).forEach(s => {
-        const o = document.createElement('option');
-        o.value = s; o.textContent = s;
-        serviceSelect.appendChild(o);
-      });
-      resetUI();
-    }
-
-    function resetUI() {
-      subOptionSection.style.display = 'none';
-      subOptionSelect.innerHTML = '';
-      qualitySelect.value = 'medium';
-
-      if (quantityInput.tagName === 'TEXTAREA') {
-        const newInput = document.createElement('input');
-        newInput.id = 'quantityInput';
-        newInput.name = 'quantity';
-        newInput.type = 'number';
-        newInput.min = '1';
-        newInput.placeholder = 'Ex : 1000';
-        quantitySection.replaceChild(newInput, quantityInput);
-        quantityInput = newInput;
-        attachQuantityInputListener();
-      }
-      quantLabel.textContent = 'Quantité';
-      quantityInput.value = '';
-      quantityInput.style.height = '';
-      quantityInput.disabled = false;
-      quantityError.style.display = 'none';
-      quantityError.textContent = '';
-      commentsCount.style.display = 'none';
-
-      priceEstimate.textContent = 'Prix estimé : 0 FCFA';
-      priceDetails.textContent  = '';
-      timeEstimate.textContent  = 'Temps de réalisation : 2 h';
-      remarkBox.textContent      = 'Sélectionnez un service pour voir la remarque.';
-
-      contactType.value = '';
-      toggleContactField();
-      orderErrorBox.style.display = 'none';
-    }
-
-    function onServiceChange() {
-      resetUI();
-      const selectedServiceKey = serviceSelect.value;
-      if (!selectedServiceKey) return;
-
-      const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
-      const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
-
-      if (isCommentService) {
-        if (quantityInput.tagName !== 'TEXTAREA') {
-          const newTextarea = document.createElement('textarea');
-          newTextarea.id = 'quantityInput';
-          newTextarea.name = 'comments';
-          newTextarea.rows = '5';
-          newTextarea.placeholder = 'Un commentaire par ligne...';
-          quantitySection.replaceChild(newTextarea, quantityInput);
-          quantityInput = newTextarea;
-          attachQuantityInputListener();
+      
+      // Fermer le menu quand on clique en dehors
+      document.addEventListener("click", (e) => {
+        if (!header.contains(e.target) && header.classList.contains("open")) {
+          header.classList.remove("open");
         }
-        quantLabel.textContent = 'Vos commentaires (un par ligne)';
-        commentsCount.style.display = 'block';
-        quantityInput.disabled = false;
-      } else {
+      });
+      
+      // Gestion de la notification
+      const notification = document.getElementById('orderNotification');
+      const notificationClose = document.getElementById('notificationClose');
+      
+      if (notificationClose) {
+        notificationClose.addEventListener('click', function() {
+          notification.style.display = 'none';
+        });
+      }
+      
+      // Vérifier l'authentification
+      auth.onAuthStateChanged(user => {
+        if (!user) {
+          window.location.href = 'login.html';
+        } else {
+          document.getElementById('userId').value = user.uid;
+        }
+      });
+
+      // DOM references
+      let selectedPlatform = null;
+      const icons            = document.querySelectorAll('.platforms img');
+      const orderForm        = document.getElementById('orderForm');
+      const serviceSelect    = document.getElementById('serviceSelect');
+      const qualitySelect    = document.getElementById('qualitySelect');
+      const subOptionSection = document.getElementById('subOptionSection');
+      const subOptionLabel   = document.getElementById('subOptionLabel');
+      const subOptionSelect  = document.getElementById('subOptionSelect');
+      const linkInput        = document.getElementById('linkInput');
+      let   quantityInput    = document.getElementById('quantityInput');
+      const quantLabel       = document.getElementById('quantLabel');
+      const quantitySection  = document.getElementById('quantitySection');
+      const quantityError    = document.getElementById('quantityError');
+      const commentsCount    = document.getElementById('commentsCount');
+      const contactType      = document.getElementById('contactType');
+      const whatsappField    = document.getElementById('whatsappField');
+      const emailField       = document.getElementById('emailField');
+      const contactInput     = document.getElementById('contactInput');
+      const emailInput       = document.getElementById('emailInput');
+      const priceEstimate    = document.getElementById('priceEstimate');
+      const priceDetails     = document.getElementById('priceDetails');
+      const timeEstimate     = document.getElementById('timeEstimate');
+      const remarkBox        = document.getElementById('remarkBox');
+      const orderErrorBox    = document.getElementById('orderErrorBox');
+      const whatsappRemark   = document.getElementById('whatsappRemark');
+      const emailRemark      = document.getElementById('emailRemark');
+      const submitButton     = document.querySelector('.btn');
+
+      // Events binding
+      icons.forEach(i => i.addEventListener('click', () => selectPlatform(i.dataset.platform)));
+      serviceSelect.addEventListener('change', onServiceChange);
+      qualitySelect.addEventListener('change', updateDetails);
+      subOptionSelect.addEventListener('change', updateDetails);
+      contactType.addEventListener('change', toggleContactField);
+      orderForm.addEventListener('submit', onSubmit);
+
+      function attachQuantityInputListener() {
+        if (quantityInput) {
+          quantityInput.removeEventListener('input', updateDetails);
+          quantityInput.addEventListener('input', updateDetails);
+        }
+      }
+      attachQuantityInputListener();
+
+      function selectPlatform(p) {
+        icons.forEach(i => i.classList.remove('active'));
+        document.querySelector(`.platforms img[data-platform="${p}"]`).classList.add('active');
+        selectedPlatform = p;
+        loadServices();
+      }
+
+      function loadServices() {
+        serviceSelect.innerHTML = '<option value="">-- Choisir un service --</option>';
+        Object.keys(servicesData[selectedPlatform]).forEach(s => {
+          const o = document.createElement('option');
+          o.value = s; o.textContent = s;
+          serviceSelect.appendChild(o);
+        });
+        resetUI();
+      }
+
+      function resetUI() {
+        subOptionSection.style.display = 'none';
+        subOptionSelect.innerHTML = '';
+        qualitySelect.value = 'medium';
+
         if (quantityInput.tagName === 'TEXTAREA') {
           const newInput = document.createElement('input');
           newInput.id = 'quantityInput';
@@ -1336,374 +1279,432 @@
           attachQuantityInputListener();
         }
         quantLabel.textContent = 'Quantité';
+        quantityInput.value = '';
+        quantityInput.disabled = false;
+        quantityError.style.display = 'none';
+        quantityError.textContent = '';
         commentsCount.style.display = 'none';
-        quantityInput.disabled = false;
-      }
 
-      if (serviceDef.options) {
-        subOptionSection.style.display = 'block';
-        subOptionSelect.innerHTML = '';
-        const defaultSubOption = document.createElement('option');
-        defaultSubOption.value = "";
-        defaultSubOption.textContent = " Choisir une option ";
-        subOptionSelect.appendChild(defaultSubOption);
-
-        Object.keys(serviceDef.options).forEach(opt => {
-          const optionElement = document.createElement('option');
-          optionElement.value = opt;
-          optionElement.textContent = opt;
-          subOptionSelect.appendChild(optionElement);
-        });
-        subOptionLabel.textContent = serviceDef.subOptionLabel || 'Option';
-
-        const servicesWithFixedQuantityInOptions = [
-          "Vues publication spécifique", "Vues des publications précédentes",
-          "Vues futures publications", "Réactions précédentes", "Réactions futures"
-        ];
-        const isQuantityFixedByOption =
-          servicesWithFixedQuantityInOptions.includes(selectedServiceKey)
-          && selectedPlatform === 'telegram';
-
-        quantityInput.disabled = isQuantityFixedByOption;
-        if (isQuantityFixedByOption) {
-          quantityInput.value = '';
-          quantityError.style.display = 'none';
-        }
-      } else {
-        subOptionSection.style.display = 'none';
-        quantityInput.disabled = false;
-      }
-
-      updateDetails();
-    }
-
-    function updateDetails() {
-      const selectedServiceKey = serviceSelect.value;
-      if (!selectedServiceKey) {
         priceEstimate.textContent = 'Prix estimé : 0 FCFA';
         priceDetails.textContent  = '';
         timeEstimate.textContent  = 'Temps de réalisation : 2 h';
         remarkBox.textContent      = 'Sélectionnez un service pour voir la remarque.';
-        quantityError.style.display = 'none';
-        return;
+
+        contactType.value = '';
+        toggleContactField();
+        orderErrorBox.style.display = 'none';
       }
 
-      const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
-      let currentConfig = null;
-      let calculatedPrice = 0;
-      let unitPrice = 0;
-      let pricePerThousand = 0;
-      let estimatedTime = 'N/A';
-      let minQuantity = 1;
+      function onServiceChange() {
+        resetUI();
+        const selectedServiceKey = serviceSelect.value;
+        if (!selectedServiceKey) return;
 
-      const remarkMatch = serviceDef.remark && serviceDef.remark.match(/\(min:\s*(\d+)\)/);
-      if (remarkMatch && remarkMatch[1]) {
-        minQuantity = parseInt(remarkMatch[1], 10);
+        const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
+        const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
+
+        if (isCommentService) {
+          if (quantityInput.tagName !== 'TEXTAREA') {
+            const newTextarea = document.createElement('textarea');
+            newTextarea.id = 'quantityInput';
+            newTextarea.name = 'comments';
+            newTextarea.rows = '5';
+            newTextarea.placeholder = 'Un commentaire par ligne...';
+            quantitySection.replaceChild(newTextarea, quantityInput);
+            quantityInput = newTextarea;
+            attachQuantityInputListener();
+          }
+          quantLabel.textContent = 'Vos commentaires (un par ligne)';
+          commentsCount.style.display = 'block';
+          quantityInput.disabled = false;
+        } else {
+          if (quantityInput.tagName === 'TEXTAREA') {
+            const newInput = document.createElement('input');
+            newInput.id = 'quantityInput';
+            newInput.name = 'quantity';
+            newInput.type = 'number';
+            newInput.min = '1';
+            newInput.placeholder = 'Ex : 1000';
+            quantitySection.replaceChild(newInput, quantityInput);
+            quantityInput = newInput;
+            attachQuantityInputListener();
+          }
+          quantLabel.textContent = 'Quantité';
+          commentsCount.style.display = 'none';
+          quantityInput.disabled = false;
+        }
+
+        if (serviceDef.options) {
+          subOptionSection.style.display = 'block';
+          subOptionSelect.innerHTML = '';
+          const defaultSubOption = document.createElement('option');
+          defaultSubOption.value = "";
+          defaultSubOption.textContent = "-- Choisir une option --";
+          subOptionSelect.appendChild(defaultSubOption);
+
+          Object.keys(serviceDef.options).forEach(opt => {
+            const optionElement = document.createElement('option');
+            optionElement.value = opt;
+            optionElement.textContent = opt;
+            subOptionSelect.appendChild(optionElement);
+          });
+          subOptionLabel.textContent = serviceDef.subOptionLabel || 'Option';
+
+          const servicesWithFixedQuantityInOptions = [
+            "Vues publication spécifique", "Vues des publications précédentes",
+            "Vues futures publications", "Réactions précédentes", "Réactions futures"
+          ];
+          const isQuantityFixedByOption =
+            servicesWithFixedQuantityInOptions.includes(selectedServiceKey)
+            && selectedPlatform === 'telegram';
+
+          quantityInput.disabled = isQuantityFixedByOption;
+          if (isQuantityFixedByOption) {
+            quantityInput.value = '';
+            quantityError.style.display = 'none';
+          }
+        } else {
+          subOptionSection.style.display = 'none';
+          quantityInput.disabled = false;
+        }
+
+        updateDetails();
       }
 
-      const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
-
-      if (serviceDef.options) {
-        const selectedSubOption = subOptionSelect.value;
-        if (!selectedSubOption) {
+      function updateDetails() {
+        const selectedServiceKey = serviceSelect.value;
+        if (!selectedServiceKey) {
           priceEstimate.textContent = 'Prix estimé : 0 FCFA';
           priceDetails.textContent  = '';
-          timeEstimate.textContent  = 'Temps de réalisation : N/A';
-          remarkBox.textContent      = serviceDef.remark;
+          timeEstimate.textContent  = 'Temps de réalisation : 2 h';
+          remarkBox.textContent      = 'Sélectionnez un service pour voir la remarque.';
+          quantityError.style.display = 'none';
           return;
         }
 
-        const optionData = serviceDef.options[selectedSubOption];
-        currentConfig = optionData[qualitySelect.value] || optionData.medium;
+        const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
+        let currentConfig = null;
+        let calculatedPrice = 0;
+        let unitPrice = 0;
+        let pricePerThousand = 0;
+        let estimatedTime = 'N/A';
+        let minQuantity = 1;
 
-        const servicesWithFixedQuantityInOptions = [
-          "Vues publication spécifique", "Vues des publications précédentes",
-          "Vues futures publications", "Réactions précédentes", "Réactions futures"
-        ];
-        const isQuantityFixedByOption =
-          servicesWithFixedQuantityInOptions.includes(selectedServiceKey)
-          && selectedPlatform === 'telegram';
+        const remarkMatch = serviceDef.remark && serviceDef.remark.match(/\(min:\s*(\d+)\)/);
+        if (remarkMatch && remarkMatch[1]) {
+          minQuantity = parseInt(remarkMatch[1], 10);
+        }
 
-        if (isQuantityFixedByOption) {
-          calculatedPrice = currentConfig.price;
-          estimatedTime = currentConfig.time;
-          pricePerThousand = calculatedPrice;
+        const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
+
+        if (serviceDef.options) {
+          const selectedSubOption = subOptionSelect.value;
+          if (!selectedSubOption) {
+            priceEstimate.textContent = 'Prix estimé : 0 FCFA';
+            priceDetails.textContent  = '';
+            timeEstimate.textContent  = 'Temps de réalisation : N/A';
+            remarkBox.textContent      = serviceDef.remark;
+            return;
+          }
+
+          const optionData = serviceDef.options[selectedSubOption];
+          currentConfig = optionData[qualitySelect.value] || optionData.medium;
+
+          const servicesWithFixedQuantityInOptions = [
+            "Vues publication spécifique", "Vues des publications précédentes",
+            "Vues futures publications", "Réactions précédentes", "Réactions futures"
+          ];
+          const isQuantityFixedByOption =
+            servicesWithFixedQuantityInOptions.includes(selectedServiceKey)
+            && selectedPlatform === 'telegram';
+
+          if (isQuantityFixedByOption) {
+            calculatedPrice = currentConfig.price;
+            estimatedTime = currentConfig.time;
+            pricePerThousand = calculatedPrice;
+          } else {
+            const quantity = parseInt(quantityInput.value) || 0;
+            if (isCommentService) {
+              unitPrice = currentConfig.price / 10;
+            } else {
+              unitPrice = currentConfig.price / 1000;
+            }
+            pricePerThousand = currentConfig.price;
+
+            if (quantity > 0 && quantity < minQuantity) {
+              quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
+              quantityError.style.display = 'block';
+            } else {
+              quantityError.style.display = 'none';
+            }
+
+            calculatedPrice = Math.round(unitPrice * quantity);
+            estimatedTime = currentConfig.time;
+          }
         } else {
-          const quantity = parseInt(quantityInput.value) || 0;
+          currentConfig = serviceDef[qualitySelect.value];
           if (isCommentService) {
             unitPrice = currentConfig.price / 10;
+            pricePerThousand = currentConfig.price * 100;
           } else {
             unitPrice = currentConfig.price / 1000;
+            pricePerThousand = currentConfig.price;
           }
-          pricePerThousand = currentConfig.price;
 
-          if (quantity > 0 && quantity < minQuantity) {
-            quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
-            quantityError.style.display = 'block';
+          if (isCommentService) {
+            const lines = quantityInput.value.split('\n').filter(l => l.trim());
+            const count = lines.length;
+            commentsCount.textContent = count < minQuantity
+              ? `${count} commentaire(s) (minimum ${minQuantity})`
+              : `${count} commentaire(s)`;
+
+            if (count > 0 && count < minQuantity) {
+              quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`;
+              quantityError.style.display = 'block';
+            } else {
+              quantityError.style.display = 'none';
+            }
+            calculatedPrice = Math.round(count * unitPrice);
+            estimatedTime = currentConfig.time;
           } else {
-            quantityError.style.display = 'none';
+            const quantity = parseInt(quantityInput.value) || 0;
+            if (quantity > 0 && quantity < minQuantity) {
+              quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
+              quantityError.style.display = 'block';
+            } else {
+              quantityError.style.display = 'none';
+            }
+            calculatedPrice = Math.round(quantity * unitPrice);
+            estimatedTime = currentConfig.time;
           }
-
-          calculatedPrice = Math.round(unitPrice * quantity);
-          estimatedTime = currentConfig.time;
         }
-      } else {
-        currentConfig = serviceDef[qualitySelect.value];
-        if (isCommentService) {
-          unitPrice = currentConfig.price / 10;
-          pricePerThousand = currentConfig.price * 100;
+
+        priceEstimate.textContent = `Prix estimé : ${calculatedPrice.toLocaleString('fr-FR')} FCFA`;
+        if (serviceDef.options && typeof isQuantityFixedByOption !== 'undefined' && !isQuantityFixedByOption) {
+          priceDetails.textContent = `(Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
+        } else if (!serviceDef.options && !isCommentService) {
+          priceDetails.textContent = `(Prix pour 1 : ${unitPrice.toLocaleString('fr-FR')} FCFA, Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
+        } else if (isCommentService) {
+          priceDetails.textContent = `(Prix par commentaire : ${unitPrice.toLocaleString('fr-FR')} FCFA)`;
         } else {
-          unitPrice = currentConfig.price / 1000;
-          pricePerThousand = currentConfig.price;
+          priceDetails.textContent = '';
         }
 
-        if (isCommentService) {
-          const lines = quantityInput.value.split('\n').filter(l => l.trim());
-          const count = lines.length;
-          commentsCount.textContent = count < minQuantity
-            ? `${count} commentaire(s) (minimum ${minQuantity})`
-            : `${count} commentaire(s)`;
+        timeEstimate.textContent = `Temps de réalisation : ${estimatedTime}`;
+        remarkBox.textContent = serviceDef.remark;
+      }
 
-          if (count > 0 && count < minQuantity) {
-            quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`;
-            quantityError.style.display = 'block';
-          } else {
-            quantityError.style.display = 'none';
-          }
-          calculatedPrice = Math.round(count * unitPrice);
-          estimatedTime = currentConfig.time;
+      function toggleContactField() {
+        whatsappField.style.display = 'none';
+        emailField.style.display    = 'none';
+        contactInput.required       = false;
+        emailInput.required         = false;
+        contactInput.value          = '';
+        emailInput.value            = '';
+        whatsappRemark.style.display = 'none';
+        emailRemark.style.display    = 'none';
+
+        if (contactType.value === 'whatsapp') {
+          whatsappField.style.display = 'block';
+          contactInput.required = true;
+          whatsappRemark.style.display = 'block';
+        } else if (contactType.value === 'email') {
+          emailField.style.display = 'block';
+          emailInput.required = true;
+          emailRemark.style.display = 'block';
+        }
+      }
+
+      function showNotification(icon, message, type, options = {}) {
+        const { isBalanceError = false, showViewOrdersButton = false } = options;
+        const notificationIcon = document.getElementById('notificationIcon');
+        const notificationMessage = document.getElementById('notificationMessage');
+        const notificationButtons = document.getElementById('notificationButtons');
+        
+        notificationIcon.innerHTML = icon;
+        notificationMessage.innerHTML = message;
+        notification.className = 'order-notification notification-' + type;
+        
+        if (isBalanceError) {
+          notificationButtons.innerHTML = `
+            <a href="payment.html" class="notification-button">Recharger mon solde</a>
+            <button class="notification-close" id="notificationClose2">Fermer</button>
+          `;
+        } else if (showViewOrdersButton) {
+          notificationButtons.innerHTML = `
+            <a href="commandes.html" class="notification-button">Voir mes commandes</a>
+            <button class="notification-close" id="notificationClose2">Fermer</button>
+          `;
         } else {
-          const quantity = parseInt(quantityInput.value) || 0;
-          if (quantity > 0 && quantity < minQuantity) {
-            quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
-            quantityError.style.display = 'block';
-          } else {
-            quantityError.style.display = 'none';
-          }
-          calculatedPrice = Math.round(quantity * unitPrice);
-          estimatedTime = currentConfig.time;
+          notificationButtons.innerHTML = '<button class="notification-close" id="notificationClose2">Fermer</button>';
+        }
+        
+        document.getElementById('notificationClose2').addEventListener('click', function() {
+          notification.style.display = 'none';
+        });
+        
+        notification.style.display = 'block';
+      }
+
+      function setLoadingState(isLoading) {
+        if (isLoading) {
+          submitButton.classList.add('loading');
+          submitButton.disabled = true;
+        } else {
+          submitButton.classList.remove('loading');
+          submitButton.disabled = false;
         }
       }
 
-      priceEstimate.textContent = `Prix estimé : ${calculatedPrice.toLocaleString('fr-FR')} FCFA`;
-      if (serviceDef.options && !isQuantityFixedByOption) {
-        priceDetails.textContent = `(Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
-      } else if (!serviceDef.options && !isCommentService) {
-        priceDetails.textContent = `(Prix pour 1 : ${unitPrice.toLocaleString('fr-FR')} FCFA, Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
-      } else if (isCommentService) {
-        priceDetails.textContent = `(Prix par commentaire : ${unitPrice.toLocaleString('fr-FR')} FCFA)`;
-      } else {
-        priceDetails.textContent = '';
-      }
+      async function onSubmit(e) {
+        e.preventDefault();
+        setLoadingState(true);
+        orderErrorBox.style.display = 'none';
+        orderErrorBox.textContent = '';
+        quantityError.style.display = 'none';
 
-      timeEstimate.textContent = `Temps de réalisation : ${estimatedTime}`;
-      remarkBox.textContent = serviceDef.remark;
-    }
-
-    function toggleContactField() {
-      whatsappField.style.display = 'none';
-      emailField.style.display    = 'none';
-      contactInput.required       = false;
-      emailInput.required         = false;
-      contactInput.value          = '';
-      emailInput.value            = '';
-      whatsappRemark.style.display = 'none';
-      emailRemark.style.display    = 'none';
-
-      if (contactType.value === 'whatsapp') {
-        whatsappField.style.display = 'block';
-        contactInput.required = true;
-        whatsappRemark.style.display = 'block';
-      } else if (contactType.value === 'email') {
-        emailField.style.display = 'block';
-        emailInput.required = true;
-        emailRemark.style.display = 'block';
-      }
-    }
-
-    function showNotification(icon, message, type, options = {}) {
-      const { isBalanceError = false, showViewOrdersButton = false } = options;
-      
-      notificationIcon.innerHTML = icon;
-      notificationMessage.innerHTML = message;
-      notification.className = 'order-notification notification-' + type;
-      
-      if (isBalanceError) {
-        notificationButtons.innerHTML = `
-          <a href="payment.html" class="notification-button">Recharger mon solde</a>
-          <button class="notification-close" id="notificationClose">Fermer</button>
-        `;
-      } else if (showViewOrdersButton) {
-        notificationButtons.innerHTML = `
-          <a href="commandes.html" class="notification-button">Voir mes commandes</a>
-          <button class="notification-close" id="notificationClose">Fermer</button>
-        `;
-      } else {
-        notificationButtons.innerHTML = '<button class="notification-close" id="notificationClose">Fermer</button>';
-      }
-      
-      document.getElementById('notificationClose').addEventListener('click', function() {
-        notification.style.display = 'none';
-      });
-      
-      notification.style.display = 'block';
-    }
-
-    function setLoadingState(isLoading) {
-      if (isLoading) {
-        submitButton.classList.add('loading');
-        submitButton.disabled = true;
-      } else {
-        submitButton.classList.remove('loading');
-        submitButton.disabled = false;
-      }
-    }
-
-    async function onSubmit(e) {
-      e.preventDefault();
-      setLoadingState(true);
-      orderErrorBox.style.display = 'none';
-      orderErrorBox.textContent = '';
-      quantityError.style.display = 'none';
-
-      const selectedServiceKey = serviceSelect.value;
-      if (!selectedServiceKey) {
-        orderErrorBox.textContent = 'Veuillez sélectionner un service.';
-        orderErrorBox.style.display = 'block';
-        setLoadingState(false);
-        return;
-      }
-      const selectedQuality = qualitySelect.value;
-      if (!selectedQuality) {
-        orderErrorBox.textContent = 'Veuillez sélectionner une qualité.';
-        orderErrorBox.style.display = 'block';
-        setLoadingState(false);
-        return;
-      }
-
-      const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
-      let minQuantity = 1;
-
-      const remarkMatch = serviceDef.remark && serviceDef.remark.match(/\(min:\s*(\d+)\)/);
-      if (remarkMatch && remarkMatch[1]) {
-        minQuantity = parseInt(remarkMatch[1], 10);
-      }
-
-      const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
-      let quantityForValidation = 0;
-      let commentsArray = [];
-
-      if (isCommentService) {
-        commentsArray = quantityInput.value.split('\n').filter(l => l.trim());
-        quantityForValidation = commentsArray.length;
-        if (quantityForValidation < minQuantity) {
-          quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`;
-          quantityError.style.display = 'block';
+        const selectedServiceKey = serviceSelect.value;
+        if (!selectedServiceKey) {
+          orderErrorBox.textContent = 'Veuillez sélectionner un service.';
+          orderErrorBox.style.display = 'block';
           setLoadingState(false);
           return;
         }
-      } else {
-        if (!quantityInput.disabled) {
-          quantityForValidation = parseInt(quantityInput.value) || 0;
+        const selectedQuality = qualitySelect.value;
+        if (!selectedQuality) {
+          orderErrorBox.textContent = 'Veuillez sélectionner une qualité.';
+          orderErrorBox.style.display = 'block';
+          setLoadingState(false);
+          return;
+        }
+
+        const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
+        let minQuantity = 1;
+
+        const remarkMatch = serviceDef.remark && serviceDef.remark.match(/\(min:\s*(\d+)\)/);
+        if (remarkMatch && remarkMatch[1]) {
+          minQuantity = parseInt(remarkMatch[1], 10);
+        }
+
+        const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
+        let quantityForValidation = 0;
+        let commentsArray = [];
+
+        if (isCommentService) {
+          commentsArray = quantityInput.value.split('\n').filter(l => l.trim());
+          quantityForValidation = commentsArray.length;
           if (quantityForValidation < minQuantity) {
-            quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
+            quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`;
             quantityError.style.display = 'block';
             setLoadingState(false);
             return;
           }
+        } else {
+          if (!quantityInput.disabled) {
+            quantityForValidation = parseInt(quantityInput.value) || 0;
+            if (quantityForValidation < minQuantity) {
+              quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
+              quantityError.style.display = 'block';
+              setLoadingState(false);
+              return;
+            }
+          }
         }
-      }
 
-      const payload = {
-        userId:      document.getElementById('userId').value,
-        platform:    selectedPlatform,
-        service:     selectedServiceKey,
-        quality:     qualitySelect.value,
-        subOption:   subOptionSection.style.display === 'block' ? subOptionSelect.value : undefined,
-        link:        linkInput.value,
-        quantity:    isCommentService || quantityInput.disabled ? undefined : Number(quantityInput.value),
-        comments:    isCommentService ? commentsArray : undefined,
-        contactType: contactType.value,
-        contact:     contactType.value === 'whatsapp' ? contactInput.value : emailInput.value,
-        isResellerOrder: false  // ✅ CORRECTION: Commande normale (pas de réduction)
-      };
+        const payload = {
+          userId:      document.getElementById('userId').value,
+          platform:    selectedPlatform,
+          service:     selectedServiceKey,
+          quality:     qualitySelect.value,
+          subOption:   subOptionSection.style.display === 'block' ? subOptionSelect.value : undefined,
+          link:        linkInput.value,
+          quantity:    isCommentService || quantityInput.disabled ? undefined : Number(quantityInput.value),
+          comments:    isCommentService ? commentsArray : undefined,
+          contactType: contactType.value,
+          contact:     contactType.value === 'whatsapp' ? contactInput.value : emailInput.value,
+          isResellerOrder: false  // ✅ CORRECTION: Commande normale (pas de réduction)
+        };
 
-      if (!payload.userId) {
-        showNotification('❌', "❌ Erreur d'authentification. Veuillez vous reconnecter.", 'error');
-        setLoadingState(false);
-        return;
-      }
+        if (!payload.userId) {
+          showNotification('❌', "❌ Erreur d'authentification. Veuillez vous reconnecter.", 'error');
+          setLoadingState(false);
+          return;
+        }
 
-      if (payload.subOption === "" && subOptionSection.style.display !== 'none') {
-        showNotification('❌', "❌ Veuillez choisir une option de service.", 'error');
-        setLoadingState(false);
-        return;
-      }
+        if (payload.subOption === "" && subOptionSection.style.display !== 'none') {
+          showNotification('❌', "❌ Veuillez choisir une option de service.", 'error');
+          setLoadingState(false);
+          return;
+        }
 
-      if (!payload.contactType) {
-        showNotification('❌', "❌ Veuillez choisir un mode de contact.", 'error');
-        setLoadingState(false);
-        return;
-      }
-      if (payload.contactType === 'whatsapp' && !payload.contact) {
-        showNotification('❌', "❌ Veuillez saisir votre numéro WhatsApp.", 'error');
-        setLoadingState(false);
-        return;
-      }
-      if (payload.contactType === 'email' && !payload.contact) {
-        showNotification('❌', "❌ Veuillez saisir votre adresse Email.", 'error');
-        setLoadingState(false);
-        return;
-      }
+        if (!payload.contactType) {
+          showNotification('❌', "❌ Veuillez choisir un mode de contact.", 'error');
+          setLoadingState(false);
+          return;
+        }
+        if (payload.contactType === 'whatsapp' && !payload.contact) {
+          showNotification('❌', "❌ Veuillez saisir votre numéro WhatsApp.", 'error');
+          setLoadingState(false);
+          return;
+        }
+        if (payload.contactType === 'email' && !payload.contact) {
+          showNotification('❌', "❌ Veuillez saisir votre adresse Email.", 'error');
+          setLoadingState(false);
+          return;
+        }
 
-      try {
-        // ✅ CORRECTION: URL dynamique au lieu d'URL codée en dur
-        const res = await fetch(`${API_URL}/order`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        
-        if (!res.ok) {
-          const errorData = await res.json();
+        try {
+          // ✅ CORRECTION: URL dynamique au lieu d'URL codée en dur
+          const res = await fetch(`${API_URL}/order`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
           
-          if (errorData.error && errorData.error.toLowerCase().includes("solde")) {
-            throw new Error("SOLDE_INSUFFISANT");
+          if (!res.ok) {
+            const errorData = await res.json();
+            
+            if (errorData.error && errorData.error.toLowerCase().includes("solde")) {
+              throw new Error("SOLDE_INSUFFISANT");
+            }
+            
+            throw new Error(errorData.error || 'Erreur inattendue. Veuillez réessayer.');
           }
           
-          throw new Error(errorData.error || 'Erreur inattendue. Veuillez réessayer.');
+          showNotification('✅', '✅ Commande envoyée avec succès !', 'success', { showViewOrdersButton: true });
+          orderForm.reset();
+          resetUI();
+          icons.forEach(i => i.classList.remove('active'));
+        } catch (err) {
+          if (err.message === "SOLDE_INSUFFISANT") {
+            const balanceError = `
+              <strong>❌ Solde insuffisant !</strong><br>
+              Votre solde est insuffisant pour effectuer cette commande.<br><br>
+              Veuillez recharger votre solde pour continuer.
+            `;
+            showNotification('❌', balanceError, 'error', { isBalanceError: true });
+          } else {
+            const detailedError = `
+              <strong>❌ Désolé, quelque chose a mal tourné !</strong><br>
+              Votre commande n'a pas été envoyée.<br><br>
+              <u>les commandes sont disponibles a :</u><br>
+              • 10 h GMT (11 h heure du Cameroun)<br>
+              • 15 h GMT (16 h heure du Cameroun)<br>
+              • 20 h GMT (21 h heure du Cameroun)<br><br>
+              Si le problème persiste à ces horaires, contactez l'administrateur ou l'assistance via WhatsApp :<br>
+              <a href="https://wa.me/237699853665" target="_blank">+237 699 85 36 65</a><br>
+              et joignez une capture d'écran pour une solution directe.
+            `;
+            showNotification('❌', detailedError, 'error', {});
+          }
+        } finally {
+          setLoadingState(false);
         }
-        
-        showNotification('✅', '✅ Commande envoyée avec succès !', 'success', { showViewOrdersButton: true });
-        orderForm.reset();
-        resetUI();
-        icons.forEach(i => i.classList.remove('active'));
-      } catch (err) {
-        if (err.message === "SOLDE_INSUFFISANT") {
-          const balanceError = `
-            <strong>❌ Solde insuffisant !</strong><br>
-            Votre solde est insuffisant pour effectuer cette commande.<br><br>
-            Veuillez recharger votre solde pour continuer.
-          `;
-          showNotification('❌', balanceError, 'error', { isBalanceError: true });
-        } else {
-          const detailedError = `
-            <strong>❌ Désolé, quelque chose a mal tourné !</strong><br>
-            Votre commande n'a pas été envoyée.<br><br>
-            <u>les commandes sont disponibles a :</u><br>
-            • 10 h GMT (11 h heure du Cameroun)<br>
-            • 15 h GMT (16 h heure du Cameroun)<br>
-            • 20 h GMT (21 h heure du Cameroun)<br><br>
-            Si le problème persiste à ces horaires, contactez l'administrateur ou l'assistance via WhatsApp :<br>
-            <a href="https://wa.me/237699853665" target="_blank">+237 699 85 36 65</a><br>
-            et joignez une capture d'écran pour une solution directe.
-          `;
-          showNotification('❌', detailedError, 'error', {});
-        }
-      } finally {
-        setLoadingState(false);
       }
-    }
+
+      // ✅ SÉLECTIONNER FACEBOOK AU DÉMARRAGE
+      selectPlatform('facebook');
+    });
   </script>
 </body>
 </html>
