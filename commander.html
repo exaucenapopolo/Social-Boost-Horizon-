@@ -758,14 +758,14 @@
 
       <div class="form-group" id="quantitySection">
         <label for="quantityInput" id="quantLabel">Quantité</label>
-        <input id="quantityInput" name="quantity" type="number" min="1" placeholder="Ex : 1000">
+        <input id="quantityInput" class="quantity-input-field" name="quantity" type="number" min="1" placeholder="Ex : 1000"> 
         <div class="error-message" id="quantityError" style="display:none;"></div>
         <div class="price-details" id="commentsCount" style="display:none;"></div>
       </div>
 
       <div class="form-group">
         <label for="contactType">Mode de contact</label>
-        <select id="contactType" name="contactType">
+        <select id="contactType" name="contactType" required>
           <option value="">-- Choisir --</option>
           <option value="whatsapp">WhatsApp</option>
           <option value="email">Email</option>
@@ -774,13 +774,13 @@
 
       <div class="form-group" id="whatsappField" style="display:none;">
         <label for="contactInput">Numéro WhatsApp</label>
-        <input id="contactInput" name="contact" type="tel" placeholder="+237 699 85 36 65">
+        <input id="contactInput" name="contactWhatsapp" type="tel" placeholder="+237 699 85 36 65">
         <p class="contact-remark" id="whatsappRemark">Veuillez fournir le numéro de téléphone associé à votre compte Social Boost ou votre numéro WhatsApp.</p>
       </div>
 
       <div class="form-group" id="emailField" style="display:none;">
         <label for="emailInput">Adresse Email</label>
-        <input id="emailInput" name="contact" type="email" placeholder="socialboosthorizon984@gmail.com">
+        <input id="emailInput" name="contactEmail" type="email" placeholder="socialboosthorizon984@gmail.com">
         <p class="contact-remark" id="emailRemark">Merci de saisir l'adresse e-mail utilisée pour créer votre compte.</p>
       </div>
 
@@ -863,9 +863,6 @@
     // URL API DYNAMIQUE pour le backend
     const API_URL = window.location.origin;
 
-    // Constante pour l'URL du logo (pour la clarté)
-    const LOGO_URL = "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg";
-    
     // Services Telegram avec quantité fixée par l'option sélectionnée
     const SERVICES_TELEGRAM_FIXED_QUANTITY = [
       "Vues publication spécifique", 
@@ -1186,28 +1183,37 @@
       const subOptionLabel   = document.getElementById('subOptionLabel');
       const subOptionSelect  = document.getElementById('subOptionSelect');
       const linkInput        = document.getElementById('linkInput');
-      // On utilise un let car cet élément peut être remplacé (Input vs Textarea)
-      let quantityInput      = document.getElementById('quantityInput');
-      const quantLabel       = document.getElementById('quantLabel');
+      
+      // Références aux éléments qui changent ou manipulent le champ quantité
       const quantitySection  = document.getElementById('quantitySection');
+      const quantLabel       = document.getElementById('quantLabel');
       const quantityError    = document.getElementById('quantityError');
       const commentsCount    = document.getElementById('commentsCount');
+      
+      // Références de contact
       const contactType      = document.getElementById('contactType');
       const whatsappField    = document.getElementById('whatsappField');
       const emailField       = document.getElementById('emailField');
       const contactInput     = document.getElementById('contactInput');
       const emailInput       = document.getElementById('emailInput');
+      const whatsappRemark   = document.getElementById('whatsappRemark');
+      const emailRemark      = document.getElementById('emailRemark');
+      
+      // Références d'affichage
       const priceEstimate    = document.getElementById('priceEstimate');
       const priceDetails     = document.getElementById('priceDetails');
       const timeEstimate     = document.getElementById('timeEstimate');
       const remarkBox        = document.getElementById('remarkBox');
       const orderErrorBox    = document.getElementById('orderErrorBox');
-      const whatsappRemark   = document.getElementById('whatsappRemark');
-      const emailRemark      = document.getElementById('emailRemark');
       const submitButton     = document.querySelector('.btn');
       const hamburgerBtn     = document.getElementById("hamburgerBtn");
       const header           = document.querySelector("header");
       const notification     = document.getElementById('orderNotification');
+
+      // Pour la référence dynamique de l'input (le champ Quantité/Commentaires actuel)
+      // On l'initialise avec l'input existant
+      let currentQuantityField = document.getElementById('quantityInput');
+
 
       // Gestion du menu hamburger
       if (hamburgerBtn) {
@@ -1218,188 +1224,26 @@
       
       // Fermer le menu quand on clique en dehors
       document.addEventListener("click", (e) => {
-        if (!header.contains(e.target) && header.classList.contains("open")) {
+        if (!header.contains(e.target) && header.classList.contains("open") && !notification.contains(e.target)) {
           header.classList.remove("open");
         }
       });
       
       // Gestion de la notification (un seul gestionnaire pour la fermeture)
       notification.addEventListener('click', function(e) {
-        if (e.target.id.startsWith('notificationClose')) {
+        // Cibler n'importe quel élément ayant une ID qui commence par 'notificationClose'
+        if (e.target.id && e.target.id.startsWith('notificationClose')) {
             notification.style.display = 'none';
         }
       });
-
-      // Fonction pour attacher l'écouteur 'input' à l'élément 'quantityInput' actuel
-      function attachQuantityInputListener() {
-        // Enlève l'écouteur de l'élément précédent (si applicable)
-        if (quantityInput.listenerAttached) {
-            quantityInput.removeEventListener('input', updateDetails);
-        }
-        // Attache l'écouteur à l'élément DOM référencé par 'quantityInput'
-        quantityInput.addEventListener('input', updateDetails);
-        quantityInput.listenerAttached = true;
-      }
-      // Initialiser l'écouteur pour le <input type="number"> initial
-      attachQuantityInputListener(); 
-
-
-      // =======================================================
-      // III. FONCTIONS DE LOGIQUE
-      // =======================================================
-
+      
       /**
-       * Sélectionne la plateforme et charge les services associés.
-       * @param {string} p - La clé de la plateforme (ex: 'facebook').
-       */
-      function selectPlatform(p) {
-        icons.forEach(i => i.classList.remove('active'));
-        const activeIcon = document.querySelector(`.platforms img[data-platform="${p}"]`);
-        if(activeIcon) activeIcon.classList.add('active');
-        selectedPlatform = p;
-        loadServices();
-      }
-
-      /**
-       * Peuple le menu déroulant des services.
-       */
-      function loadServices() {
-        serviceSelect.innerHTML = '<option value="">-- Choisir un service --</option>';
-        if (servicesData[selectedPlatform]) {
-          Object.keys(servicesData[selectedPlatform]).forEach(s => {
-            const o = document.createElement('option');
-            o.value = s; o.textContent = s;
-            serviceSelect.appendChild(o);
-          });
-        }
-        resetUI();
-      }
-
-      /**
-       * Réinitialise les champs et les informations du formulaire.
-       */
-      function resetUI() {
-        // Réinitialisation des options/qualité
-        subOptionSection.style.display = 'none';
-        subOptionSelect.innerHTML = '';
-        qualitySelect.value = 'medium';
-
-        // Remplacement par l'input (si c'est un textarea)
-        if (quantityInput.tagName === 'TEXTAREA') {
-          const newInput = document.createElement('input');
-          newInput.id = 'quantityInput';
-          newInput.name = 'quantity';
-          newInput.type = 'number';
-          newInput.min = '1';
-          newInput.placeholder = 'Ex : 1000';
-          quantitySection.replaceChild(newInput, quantityInput);
-          quantityInput = newInput; // IMPORTANT: Mettre à jour la référence globale
-          attachQuantityInputListener();
-        }
-
-        // Réinitialisation de la quantité
-        quantLabel.textContent = 'Quantité';
-        quantityInput.value = '';
-        quantityInput.disabled = false;
-        quantityInput.name = 'quantity'; // Assure que le nom est correct
-        quantityError.style.display = 'none';
-        quantityError.textContent = '';
-        commentsCount.style.display = 'none';
-
-        // Réinitialisation des détails
-        priceEstimate.textContent = 'Prix estimé : 0 FCFA';
-        priceDetails.textContent  = '';
-        timeEstimate.textContent  = 'Temps de réalisation : 2 h';
-        remarkBox.textContent      = 'Sélectionnez un service pour voir la remarque.';
-
-        // Réinitialisation du contact
-        contactType.value = '';
-        toggleContactField();
-        orderErrorBox.style.display = 'none';
-      }
-
-      /**
-       * Gère le changement de service (options, commentaires, quantité).
-       */
-      function onServiceChange() {
-        resetUI();
-        const selectedServiceKey = serviceSelect.value;
-        if (!selectedServiceKey) return;
-
-        const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
-        const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
-        const isTelegramFixedQuantity = selectedPlatform === 'telegram' && SERVICES_TELEGRAM_FIXED_QUANTITY.includes(selectedServiceKey);
-
-        // 1. GESTION QUANTITÉ/COMMENTAIRES
-        if (isCommentService) {
-          if (quantityInput.tagName !== 'TEXTAREA') {
-            const newTextarea = document.createElement('textarea');
-            newTextarea.id = 'quantityInput';
-            newTextarea.name = 'comments';
-            newTextarea.rows = '5';
-            newTextarea.placeholder = 'Un commentaire par ligne...';
-            quantitySection.replaceChild(newTextarea, quantityInput);
-            quantityInput = newTextarea; // IMPORTANT: Mettre à jour la référence
-            attachQuantityInputListener();
-          }
-          quantLabel.textContent = 'Vos commentaires (un par ligne)';
-          commentsCount.style.display = 'block';
-          quantityInput.disabled = false;
-        } else {
-          // Revenir à l'input si on était sur un textarea
-          if (quantityInput.tagName === 'TEXTAREA') {
-            const newInput = document.createElement('input');
-            newInput.id = 'quantityInput';
-            newInput.name = 'quantity';
-            newInput.type = 'number';
-            newInput.min = '1';
-            newInput.placeholder = 'Ex : 1000';
-            quantitySection.replaceChild(newInput, quantityInput);
-            quantityInput = newInput; // IMPORTANT: Mettre à jour la référence
-            attachQuantityInputListener();
-          }
-          quantLabel.textContent = 'Quantité';
-          commentsCount.style.display = 'none';
-          quantityInput.name = 'quantity';
-          quantityInput.disabled = isTelegramFixedQuantity; // Désactiver si quantité fixée par option
-        }
-
-        // 2. GESTION DES SOUS-OPTIONS
-        if (serviceDef.options) {
-          subOptionSection.style.display = 'block';
-          subOptionSelect.innerHTML = '';
-          const defaultSubOption = document.createElement('option');
-          defaultSubOption.value = "";
-          defaultSubOption.textContent = "-- Choisir une option --";
-          subOptionSelect.appendChild(defaultSubOption);
-
-          Object.keys(serviceDef.options).forEach(opt => {
-            const optionElement = document.createElement('option');
-            optionElement.value = opt;
-            optionElement.textContent = opt;
-            subOptionSelect.appendChild(optionElement);
-          });
-          subOptionLabel.textContent = serviceDef.subOptionLabel || 'Option';
-          
-          if (isTelegramFixedQuantity) {
-             quantityInput.value = ''; // Vider le champ car la quantité est déterminée par l'option
-          }
-        } else {
-          subOptionSection.style.display = 'none';
-          quantityInput.disabled = false;
-        }
-
-        updateDetails();
-      }
-
-
-      /**
-       * Met à jour le prix estimé, le temps et la remarque.
+       * Fonction qui met à jour l'état visuel du formulaire (prix, temps, erreur).
        */
       function updateDetails() {
         const selectedServiceKey = serviceSelect.value;
         if (!selectedServiceKey) {
-          resetUI();
+          resetDisplay();
           return;
         }
 
@@ -1411,6 +1255,9 @@
         let estimatedTime = 'N/A';
         let minQuantity = 1;
         let quantity = 0;
+
+        // Récupérer la quantité/les commentaires du champ ACTUEL
+        const currentFieldValue = currentQuantityField ? currentQuantityField.value : '';
 
         const remarkMatch = serviceDef.remark && serviceDef.remark.match(/\(min:\s*(\d+)\)/);
         if (remarkMatch && remarkMatch[1]) {
@@ -1425,26 +1272,28 @@
           // Service avec sous-options
           const selectedSubOption = subOptionSelect.value;
           if (!selectedSubOption) {
-            priceEstimate.textContent = 'Prix estimé : 0 FCFA';
-            priceDetails.textContent  = '';
-            timeEstimate.textContent  = 'Temps de réalisation : N/A';
-            remarkBox.textContent      = serviceDef.remark;
-            quantityError.style.display = 'none';
+            resetDisplay(serviceDef.remark);
             return;
           }
 
-          const optionData = serviceDef.options[selectedSubOption];
-          currentConfig = optionData[qualitySelect.value];
+          const optionData = serviceDef.options[qualitySelect.value][selectedSubOption]; // CORRECTION: L'ordre était inversé
+          currentConfig = optionData[qualitySelect.value]; // CORRECTION: Re-récupérer la config par qualité
+          
+          if (!currentConfig) {
+             console.error("Erreur de configuration: impossible de trouver le prix pour l'option sélectionnée.");
+             resetDisplay(serviceDef.remark);
+             return;
+          }
+
 
           if (isTelegramFixedQuantity) {
             // Quantité fixée par l'option
             calculatedPrice = currentConfig.price;
             estimatedTime = currentConfig.time;
-            pricePerThousand = calculatedPrice; // Ne s'applique pas vraiment, mais pour la cohérence
-            quantityInput.value = ''; // S'assurer que le champ reste vide et désactivé
+            pricePerThousand = calculatedPrice; 
           } else {
             // Option normale (quantité saisie)
-            quantity = parseInt(quantityInput.value) || 0;
+            quantity = parseInt(currentFieldValue) || 0;
             unitPrice = currentConfig.price / 1000;
             pricePerThousand = currentConfig.price;
 
@@ -1464,10 +1313,10 @@
 
           if (isCommentService) {
             // Service de commentaires (quantité = lignes)
-            const lines = quantityInput.value.split('\n').filter(l => l.trim());
+            const lines = currentFieldValue.split('\n').filter(l => l.trim());
             quantity = lines.length;
             unitPrice = currentConfig.price / 10;
-            pricePerThousand = currentConfig.price * 100; // Prix pour 1000 * 10 = Prix pour 10
+            pricePerThousand = currentConfig.price * 100; // Prix pour 1000 * (prix/10) = Prix pour 1000
 
             commentsCount.textContent = quantity < minQuantity
               ? `${quantity} commentaire(s) (minimum ${minQuantity})`
@@ -1484,7 +1333,7 @@
             estimatedTime = currentConfig.time;
           } else {
             // Service de quantité normale
-            quantity = parseInt(quantityInput.value) || 0;
+            quantity = parseInt(currentFieldValue) || 0;
             unitPrice = currentConfig.price / 1000;
             pricePerThousand = currentConfig.price;
 
@@ -1515,12 +1364,190 @@
       }
 
       /**
+       * Réinitialise seulement l'affichage des détails de prix/temps/remarque.
+       * @param {string} [defaultRemark] - Remarque par défaut si pas de service sélectionné.
+       */
+      function resetDisplay(defaultRemark = 'Sélectionnez un service pour voir la remarque.') {
+        priceEstimate.textContent = 'Prix estimé : 0 FCFA';
+        priceDetails.textContent  = '';
+        timeEstimate.textContent  = 'Temps de réalisation : 2 h';
+        remarkBox.textContent      = defaultRemark;
+        quantityError.style.display = 'none';
+        quantityError.textContent = '';
+        commentsCount.style.display = 'none';
+        commentsCount.textContent = '';
+      }
+      
+
+      /**
+       * Attache ou ré-attache l'écouteur `input` au champ quantité/commentaires actuel.
+       */
+      function attachQuantityInputListener() {
+          // On enlève l'écouteur de l'élément précédent si l'ID existe encore dans le DOM
+          const oldField = document.querySelector('.quantity-input-field:not([id="'+currentQuantityField.id+'"])');
+          if (oldField) {
+             oldField.removeEventListener('input', updateDetails);
+          }
+          // On attache l'écouteur à l'élément actuel
+          currentQuantityField.removeEventListener('input', updateDetails); // Double sécurité
+          currentQuantityField.addEventListener('input', updateDetails);
+      }
+
+
+      /**
+       * Sélectionne la plateforme et charge les services associés.
+       * @param {string} p - La clé de la plateforme (ex: 'facebook').
+       */
+      function selectPlatform(p) {
+        icons.forEach(i => i.classList.remove('active'));
+        const activeIcon = document.querySelector(`.platforms img[data-platform="${p}"]`);
+        if(activeIcon) activeIcon.classList.add('active');
+        selectedPlatform = p;
+        loadServices();
+      }
+
+      /**
+       * Peuple le menu déroulant des services.
+       */
+      function loadServices() {
+        serviceSelect.innerHTML = '<option value="">-- Choisir un service --</option>';
+        if (servicesData[selectedPlatform]) {
+          Object.keys(servicesData[selectedPlatform]).forEach(s => {
+            const o = document.createElement('option');
+            o.value = s; o.textContent = s;
+            serviceSelect.appendChild(o);
+          });
+        }
+        resetUI();
+      }
+
+      /**
+       * Réinitialise les champs et les informations du formulaire (sauf la plateforme).
+       */
+      function resetUI() {
+        // Réinitialisation des options/qualité
+        subOptionSection.style.display = 'none';
+        subOptionSelect.innerHTML = '';
+        qualitySelect.value = 'medium';
+
+        // Revenir à l'input de quantité standard si on était sur un textarea
+        if (currentQuantityField.tagName === 'TEXTAREA') {
+          const newField = createQuantityInput('input');
+          quantitySection.replaceChild(newField, currentQuantityField);
+          currentQuantityField = newField; // IMPORTANT: Mettre à jour la référence
+          attachQuantityInputListener();
+        }
+
+        // Réinitialisation de la quantité
+        quantLabel.textContent = 'Quantité';
+        currentQuantityField.value = '';
+        currentQuantityField.disabled = false;
+        currentQuantityField.name = 'quantity'; // Assure que le nom est correct
+
+        // Réinitialisation des détails d'affichage
+        resetDisplay();
+
+        // Réinitialisation du contact
+        contactType.value = '';
+        toggleContactField();
+        orderErrorBox.style.display = 'none';
+      }
+      
+      /**
+       * Crée le champ quantité (Input ou Textarea)
+       */
+      function createQuantityInput(type) {
+        if (type === 'textarea') {
+            const newTextarea = document.createElement('textarea');
+            newTextarea.id = 'quantityInput';
+            newTextarea.className = 'quantity-input-field'; // Ajout de la classe
+            newTextarea.name = 'comments';
+            newTextarea.rows = '5';
+            newTextarea.placeholder = 'Un commentaire par ligne...';
+            return newTextarea;
+        } else {
+            const newInput = document.createElement('input');
+            newInput.id = 'quantityInput';
+            newInput.className = 'quantity-input-field'; // Ajout de la classe
+            newInput.name = 'quantity';
+            newInput.type = 'number';
+            newInput.min = '1';
+            newInput.placeholder = 'Ex : 1000';
+            return newInput;
+        }
+      }
+
+
+      /**
+       * Gère le changement de service (options, commentaires, quantité).
+       */
+      function onServiceChange() {
+        resetUI(); // Réinitialise l'UI d'abord
+        const selectedServiceKey = serviceSelect.value;
+        if (!selectedServiceKey || !servicesData[selectedPlatform]) return;
+
+        const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
+        const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
+        const isTelegramFixedQuantity = selectedPlatform === 'telegram' && SERVICES_TELEGRAM_FIXED_QUANTITY.includes(selectedServiceKey);
+
+        // 1. GESTION QUANTITÉ/COMMENTAIRES
+        if (isCommentService) {
+          if (currentQuantityField.tagName !== 'TEXTAREA') {
+            const newTextarea = createQuantityInput('textarea');
+            quantitySection.replaceChild(newTextarea, currentQuantityField);
+            currentQuantityField = newTextarea; // IMPORTANT: Mettre à jour la référence
+            attachQuantityInputListener(); // Rétablir l'écouteur
+          }
+          quantLabel.textContent = 'Vos commentaires (un par ligne)';
+          commentsCount.style.display = 'block';
+          currentQuantityField.disabled = false;
+        } else {
+          // Revenir à l'input si on était sur un textarea
+          if (currentQuantityField.tagName === 'TEXTAREA') {
+            const newInput = createQuantityInput('input');
+            quantitySection.replaceChild(newInput, currentQuantityField);
+            currentQuantityField = newInput; // IMPORTANT: Mettre à jour la référence
+            attachQuantityInputListener(); // Rétablir l'écouteur
+          }
+          quantLabel.textContent = 'Quantité';
+          commentsCount.style.display = 'none';
+          currentQuantityField.name = 'quantity';
+          currentQuantityField.disabled = isTelegramFixedQuantity; // Désactiver si quantité fixée par option
+          currentQuantityField.value = isTelegramFixedQuantity ? '' : currentQuantityField.value;
+        }
+
+        // 2. GESTION DES SOUS-OPTIONS
+        if (serviceDef.options) {
+          subOptionSection.style.display = 'block';
+          subOptionSelect.innerHTML = '';
+          const defaultSubOption = document.createElement('option');
+          defaultSubOption.value = "";
+          defaultSubOption.textContent = "-- Choisir une option --";
+          subOptionSelect.appendChild(defaultSubOption);
+
+          Object.keys(serviceDef.options).forEach(opt => {
+            const optionElement = document.createElement('option');
+            optionElement.value = opt;
+            optionElement.textContent = opt;
+            subOptionSelect.appendChild(optionElement);
+          });
+          subOptionLabel.textContent = serviceDef.subOptionLabel || 'Option';
+        } else {
+          subOptionSection.style.display = 'none';
+        }
+
+        updateDetails();
+      }
+
+
+      /**
        * Gère la visibilité et la validation du champ de contact.
        */
       function toggleContactField() {
         whatsappField.style.display = 'none';
         emailField.style.display    = 'none';
-        contactInput.required       = false;
+        // CRITICAL: Rendre les champs non requis par défaut
+        contactInput.required       = false; 
         emailInput.required         = false;
         contactInput.value          = '';
         emailInput.value            = '';
@@ -1619,7 +1646,7 @@
         let commentsArray = undefined;
 
         if (isCommentService) {
-          commentsArray = quantityInput.value.split('\n').filter(l => l.trim());
+          commentsArray = currentQuantityField.value.split('\n').filter(l => l.trim());
           if (commentsArray.length < minQuantity) {
             quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`;
             quantityError.style.display = 'block';
@@ -1627,7 +1654,7 @@
             return;
           }
         } else if (!isTelegramFixedQuantity) {
-          quantityValue = parseInt(quantityInput.value) || 0;
+          quantityValue = parseInt(currentQuantityField.value) || 0;
           if (quantityValue < minQuantity) {
             quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
             quantityError.style.display = 'block';
@@ -1635,20 +1662,19 @@
             return;
           }
         }
-        // Pour les services à quantité fixe (Telegram), la quantité n'est pas envoyée dans le champ 'quantity'
 
+        const contactValue = contactType.value === 'whatsapp' ? contactInput.value : emailInput.value;
         const payload = {
           userId:      document.getElementById('userId').value,
           platform:    selectedPlatform,
           service:     selectedServiceKey,
           quality:     qualitySelect.value,
-          // La sous-option est envoyée si la section est affichée ET qu'une valeur est sélectionnée
           subOption:   subOptionSection.style.display !== 'none' && subOptionSelect.value ? subOptionSelect.value : undefined,
           link:        linkInput.value,
           quantity:    !isCommentService && !isTelegramFixedQuantity ? quantityValue : undefined,
           comments:    isCommentService ? commentsArray : undefined,
           contactType: contactType.value,
-          contact:     contactType.value === 'whatsapp' ? contactInput.value : emailInput.value,
+          contact:     contactValue,
           isResellerOrder: false
         };
 
@@ -1674,7 +1700,6 @@
         }
 
         try {
-          // Appel API corrigé avec l'URL dynamique
           const res = await fetch(`${API_URL}/order`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1735,10 +1760,14 @@
       contactType.addEventListener('change', toggleContactField);
       orderForm.addEventListener('submit', onSubmit);
       
+      // Initialiser l'écouteur du champ de quantité initial
+      attachQuantityInputListener();
+
       // Vérifier l'authentification et rediriger si nécessaire
       auth.onAuthStateChanged(user => {
         if (!user) {
           // Redirection si l'utilisateur n'est pas connecté
+          // IMPORTANT: Assurez-vous d'avoir une page login.html
           window.location.href = 'login.html'; 
         } else {
           document.getElementById('userId').value = user.uid;
