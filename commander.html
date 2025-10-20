@@ -45,16 +45,20 @@
       --error-bg: rgba(255, 107, 107, 0.2);
     }
     
-    /* CORRECTION 1: Garantit que le body (avec 100vh) fonctionne */
-    html {
-      height: 100%;
-    }
-
-    /* Body et fond animé (étoiles) */
-    body {
+    /* Reset global & typographie */
+    * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+    }
+
+    /* Body et fond animé (étoiles) */
+    html {
+      height: 100%;
+    }
+    body {
+      margin: 0;
+      padding: 0;
       font-family: var(--font);
       color: var(--sbh-text-white);
       background: var(--sbh-dark-blue);
@@ -62,7 +66,7 @@
       min-height: 100vh;
       overflow-x: hidden;
       display: flex;
-      flex-direction: column; /* CRITICAL: Organise les enfants verticalement */
+      flex-direction: column; 
     }
 
     /* Animation étoiles */
@@ -116,12 +120,6 @@
       100% { opacity: 0.3; transform: scale(1); }
     }
 
-    /* Reset global & typographie */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
     h1, h2, h3 {
       font-family: 'Montserrat', sans-serif;
       color: var(--sbh-text-white);
@@ -136,16 +134,23 @@
 
     /* HEADER (logo + hamburger) */
     header {
-      position: sticky; /* CRITICAL: Maintient l'en-tête en haut au défilement */
+      /* CORRECTION MAJEURE: Remplacer sticky par fixed pour assurer la visibilité et un flux de z-index prévisible */
+      position: fixed; 
       top: 0;
+      width: 100%; /* Assurer qu'il prend toute la largeur */
       background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
       display: flex;
       justify-content: space-between;
       align-items: center;
       padding: 1rem 2rem;
-      z-index: 1000; /* CORRECTION 2: Assure que le header est au-dessus de tout */
+      z-index: 2000; /* TRÈS IMPORTANT: Au-dessus de tout le contenu */
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     }
+    /* Ajout d'un padding au body pour que le contenu ne soit pas caché sous le header fixe */
+    body {
+        padding-top: 70px; /* Taille approximative du header */
+    }
+
     .logo-text {
       display: flex;
       flex-direction: column;
@@ -196,7 +201,7 @@
       border-radius: 10px;
       padding: 1.5rem;
       flex-direction: column;
-      z-index: 2000; /* REINFORCEMENT: Assure que le menu est au-dessus du header */
+      z-index: 2001; /* Doit être au-dessus du header */
       min-width: 250px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     }
@@ -230,6 +235,9 @@
 
     /* Plateformes (icônes) */
     .platforms {
+      /* CORRECTION: Positionnement relatif ou statique pour le mettre dans le flux normal */
+      position: relative; 
+      z-index: 100; /* Assure qu'il est au-dessus du fond */
       display: flex;
       justify-content: center;
       gap: 15px;
@@ -256,12 +264,14 @@
 
     /* Conteneur de la page principale */
     .content {
-      flex: 1; /* CRITICAL: Permet au conteneur de prendre l'espace restant et de pousser le footer */
+      flex: 1; 
+      position: relative; /* Pour le z-index */
+      z-index: 100; /* Assure qu'il est au-dessus du fond */
       max-width: 800px;
       width: 100%;
       padding: 20px 15px;
       box-sizing: border-box;
-      margin: 20px auto;
+      margin: 0 auto 20px auto; /* Correction de la marge supérieure (le padding du body gère l'espace sous le header) */
       background: rgba(17, 32, 58, 0.6);
       border-radius: 15px;
       border: 1px solid var(--sbh-card-border);
@@ -270,6 +280,8 @@
       font-family: var(--font);
       backdrop-filter: blur(5px);
     }
+
+    /* Le reste du CSS (formulaire, boutons, etc.) est conservé sans changement majeur */
 
     /* Titre de la page */
     .page-title {
@@ -444,7 +456,7 @@
       border-radius: 15px;
       padding: 30px;
       text-align: center;
-      z-index: 10000; /* REINFORCEMENT: Au-dessus de tout */
+      z-index: 10000; /* TRÈS ÉLEVÉ */
       box-shadow: 0 10px 30px rgba(0,0,0,0.5);
       display: none;
       max-width: 400px;
@@ -525,6 +537,8 @@
 
     /* Boutons en bas de page */
     .bottom-buttons {
+      position: relative; /* Pour le z-index */
+      z-index: 100; /* Assure qu'il est au-dessus du fond */
       display: flex;
       flex-direction: column;
       gap: 15px;
@@ -570,10 +584,10 @@
       background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
       color: var(--sbh-text-white);
       padding: 2rem 1rem;
-      margin-top: auto; /* CRITICAL: Pousse le footer vers le bas */
+      margin-top: auto; 
       position: relative;
       overflow: hidden;
-      z-index: 100; /* CORRECTION 3: Assure que le footer est bien au-dessus du background */
+      z-index: 100; 
     }
     .footer-content {
       max-width: 1200px;
@@ -611,6 +625,9 @@
 
     /* Responsive */
     @media (max-width: 768px) {
+      body {
+          padding-top: 60px; /* Ajuster pour la hauteur du header sur mobile */
+      }
       .platforms {
         max-width: 100%;
       }
@@ -932,7 +949,7 @@
         "Followers": {
           medium: { price: 2250, time: "20 min" },
           high:   { price: 3650, time: "10 min" },
-          remark: "Ne changez pas votre nom d'utilisateur.NB: En raison d'une récente mise à jour d'instagram, vous devez maintenant désactiver l'option « À VÉRIFIER » sur votre compte instagram avant d'acheter des followers, cette option est automatiquement activée pour TOUS les comptes instagram et c'est à vous de la désactiver.VOUS N'OBTIENDREZ AUCUN FOLLOWER ET PERDREZ VOTRE ARGENT SI VOUS NE LE DÉSACTIVEZ PAS AVANT D'ACHETER, N'APPUYEZ PAS SUR ACHETER SI VOUS N'ÊTES PAS SÛR À 100% QU'IL EST DÉSACTIVÉ. (min: 100)"
+          remark: "Ne changez pas votre nom d'utilisateur.NB: En raison d'une récente mise à jour d'instagram, vous devez maintenant désactiver l'option « À VÉRIFIER » sur votre compte instagram avant d'acheter des followers, cette option est automatiquement activée pour TOUS les comptes instagram et c'est à vous de la désactiver.VOUS N'OBTIENDREZ AUCUN FOLLOWER ET PERDREZ VOTREZ ARGENT SI VOUS NE LE DÉSACTIVEZ PAS AVANT D'ACHETER, N'APPUYEZ PAS SUR ACHETER SI VOUS N'ÊTES PAS SÛR À 100% QU'IL EST DÉSACTIVÉ. (min: 100)"
         },
         "J'aime": {
           medium: { price: 250, time: "30 min" },
@@ -1166,7 +1183,7 @@
 
 
     // =======================================================
-    // II. GESTION DU DOM ET DES ÉVÉNEMENTS
+    // II. GESTION DU DOM ET DES ÉVÉNEMENTS (JS non changé)
     // =======================================================
 
     document.addEventListener("DOMContentLoaded", function() {
@@ -1276,8 +1293,8 @@
             return;
           }
 
-          const optionData = serviceDef.options[qualitySelect.value][selectedSubOption]; // CORRECTION: L'ordre était inversé
-          currentConfig = optionData[qualitySelect.value]; // CORRECTION: Re-récupérer la config par qualité
+          const optionData = serviceDef.options[selectedSubOption]; 
+          currentConfig = optionData[qualitySelect.value]; // CORRECTION: L'ordre de sélection est bien par sous-option puis par qualité
           
           if (!currentConfig) {
              console.error("Erreur de configuration: impossible de trouver le prix pour l'option sélectionnée.");
