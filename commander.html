@@ -50,6 +50,9 @@
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      /* AJOUT CRITIQUE POUR FORCER LA VISIBILITÉ EN CAS D'ERREUR GLOBALE */
+      visibility: visible !important; 
+      opacity: 1 !important;
     }
 
     /* Body et fond animé (étoiles) */
@@ -76,7 +79,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      z-index: -1; /* CRITICAL: Reste en arrière-plan */
+      z-index: -1; 
       background-color: var(--sbh-dark-blue);
       overflow: hidden;
     }
@@ -134,22 +137,30 @@
 
     /* HEADER (logo + hamburger) */
     header {
-      /* CORRECTION MAJEURE: Remplacer sticky par fixed pour assurer la visibilité et un flux de z-index prévisible */
       position: fixed; 
       top: 0;
-      width: 100%; /* Assurer qu'il prend toute la largeur */
+      left: 0; /* Assurer qu'il commence à gauche */
+      width: 100%; 
+      height: 60px; /* Fixer une hauteur pour le calcul du margin de dégagement */
       background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 1rem 2rem;
-      z-index: 2000; /* TRÈS IMPORTANT: Au-dessus de tout le contenu */
+      padding: 0.8rem 2rem;
+      z-index: 2000; 
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     }
-    /* Ajout d'un padding au body pour que le contenu ne soit pas caché sous le header fixe */
-    body {
-        padding-top: 70px; /* Taille approximative du header */
+    
+    /* NOUVEAU: Élément de dégagement pour le header fixe */
+    .header-spacer {
+        height: 60px; /* Doit correspondre à la hauteur du header */
+        width: 100%;
+        min-height: 60px;
+        z-index: 50; /* Doit être dans le flux */
+        /* background-color: rgba(255, 0, 0, 0.1); /* Décommenter pour debug */
     }
+    /* RETIRÉ: le padding-top du body est moins fiable avec flex-direction: column */
+    /* body { padding-top: 70px; } */ 
 
     .logo-text {
       display: flex;
@@ -194,14 +205,14 @@
     .mobile-menu {
       display: none;
       position: absolute;
-      top: 68px;
+      top: 60px; /* Ajusté à la hauteur du header */
       right: 2rem;
       background: rgba(10, 22, 43, 0.95);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 10px;
       padding: 1.5rem;
       flex-direction: column;
-      z-index: 2001; /* Doit être au-dessus du header */
+      z-index: 2001; 
       min-width: 250px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     }
@@ -235,9 +246,9 @@
 
     /* Plateformes (icônes) */
     .platforms {
-      /* CORRECTION: Positionnement relatif ou statique pour le mettre dans le flux normal */
+      /* CORRECTION: Assurer la visibilité et l'empilement */
       position: relative; 
-      z-index: 100; /* Assure qu'il est au-dessus du fond */
+      z-index: 100; 
       display: flex;
       justify-content: center;
       gap: 15px;
@@ -265,13 +276,13 @@
     /* Conteneur de la page principale */
     .content {
       flex: 1; 
-      position: relative; /* Pour le z-index */
-      z-index: 100; /* Assure qu'il est au-dessus du fond */
+      position: relative; 
+      z-index: 100; 
       max-width: 800px;
       width: 100%;
       padding: 20px 15px;
       box-sizing: border-box;
-      margin: 0 auto 20px auto; /* Correction de la marge supérieure (le padding du body gère l'espace sous le header) */
+      margin: 0 auto 20px auto; 
       background: rgba(17, 32, 58, 0.6);
       border-radius: 15px;
       border: 1px solid var(--sbh-card-border);
@@ -281,12 +292,13 @@
       backdrop-filter: blur(5px);
     }
 
-    /* Le reste du CSS (formulaire, boutons, etc.) est conservé sans changement majeur */
+    /* Le reste du CSS (formulaire, boutons, etc.) est conservé */
 
     /* Titre de la page */
     .page-title {
       text-align: center;
       margin-bottom: 20px;
+      opacity: 1; /* S'assurer qu'il est visible */
     }
     .page-title h2 {
       font-family: 'Montserrat', sans-serif;
@@ -315,6 +327,7 @@
       border-radius: 15px;
       border: 1px solid var(--sbh-card-border);
       box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+      opacity: 1; /* S'assurer qu'il est visible */
     }
     .form-group { margin-bottom: 15px; }
     .form-group label {
@@ -456,7 +469,7 @@
       border-radius: 15px;
       padding: 30px;
       text-align: center;
-      z-index: 10000; /* TRÈS ÉLEVÉ */
+      z-index: 10000; 
       box-shadow: 0 10px 30px rgba(0,0,0,0.5);
       display: none;
       max-width: 400px;
@@ -537,8 +550,8 @@
 
     /* Boutons en bas de page */
     .bottom-buttons {
-      position: relative; /* Pour le z-index */
-      z-index: 100; /* Assure qu'il est au-dessus du fond */
+      position: relative; 
+      z-index: 100; 
       display: flex;
       flex-direction: column;
       gap: 15px;
@@ -588,6 +601,7 @@
       position: relative;
       overflow: hidden;
       z-index: 100; 
+      opacity: 1; /* S'assurer qu'il est visible */
     }
     .footer-content {
       max-width: 1200px;
@@ -625,8 +639,9 @@
 
     /* Responsive */
     @media (max-width: 768px) {
-      body {
-          padding-top: 60px; /* Ajuster pour la hauteur du header sur mobile */
+      .header-spacer {
+          height: 60px; /* Ajuster si le header change de taille */
+          min-height: 60px;
       }
       .platforms {
         max-width: 100%;
@@ -717,6 +732,8 @@
       <a href="https://chat.whatsapp.com/HRgWJFxTgkiEkEC0Ou2028" target="_blank"><i class="fab fa-whatsapp"></i> Rejoindre WhatsApp</a>
     </div>
   </header>
+
+  <div class="header-spacer"></div>
 
   <div class="order-notification" id="orderNotification">
     <div class="notification-content">
@@ -857,6 +874,7 @@
   <script>
     // =======================================================
     // I. CONFIGURATION ET DONNÉES
+    // (Non modifiées depuis la version 2.0)
     // =======================================================
 
     // Configuration Firebase
@@ -1183,7 +1201,8 @@
 
 
     // =======================================================
-    // II. GESTION DU DOM ET DES ÉVÉNEMENTS (JS non changé)
+    // II. GESTION DU DOM ET DES ÉVÉNEMENTS
+    // (Non modifiés depuis la version 2.0)
     // =======================================================
 
     document.addEventListener("DOMContentLoaded", function() {
