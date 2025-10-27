@@ -1,0 +1,1744 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Commander Boost – Social Boost Horizon</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@600;700;800&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <!-- AOS (Animate On Scroll) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" />
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+  <style>
+    /* =======================================================
+       Variables & fond global bleu sombre
+       ======================================================= */
+    :root {
+      --sbh-dark-blue: #0A162B;
+      --sbh-gradient-start: #1e3c72;
+      --sbh-gradient-end: #6a0dad;
+      --sbh-btn-color: #1E90FF;
+      --sbh-btn-hover: #187bcd;
+      --sbh-icon-color: #4CAF50;
+      --sbh-text-white: #FFFFFF;
+      --sbh-text-green: #4CAF50;
+      --sbh-card-bg: rgba(17, 32, 58, 0.6);
+      --sbh-card-border: rgba(255, 255, 255, 0.1);
+      --sbh-text-light: rgba(255, 255, 255, 0.9);
+      --sbh-accent: #FF6B6B;
+      --sbh-light-blue: #4DA6FF;
+      --primary: #007bff;
+      --primary-hover: #0056b3;
+      --bg-light: #f9f9f9;
+      --bg-warning: #fff3cd;
+      --border-warning: #ffc107;
+      --font: 'Roboto', sans-serif;
+      --success-bg: rgba(76, 175, 80, 0.2);
+      --error-bg: rgba(255, 107, 107, 0.2);
+    }
+
+    /* Body et fond animé (étoiles) */
+    body {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: var(--font);
+      color: var(--sbh-text-white);
+      background: var(--sbh-dark-blue);
+      position: relative;
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Animation étoiles */
+    .background-animation {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      background-color: var(--sbh-dark-blue);
+      overflow: hidden;
+    }
+    .background-animation::before,
+    .background-animation::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.4);
+      animation: twinkle 5s infinite alternate;
+    }
+    .background-animation::before {
+      width: 2px;
+      height: 2px;
+      box-shadow:
+        100px  50px  0 0 white, 200px 150px  0 0 white, 300px 250px  0 0 white,
+        400px  70px  0 0 white,  50px 300px  0 0 white, 350px 100px  0 0 white,
+        500px 400px  0 0 white, 600px 120px  0 0 white, 700px 350px  0 0 white,
+        80px  10px  0 0 white, 420px 220px 0 0 white, 680px 50px 0 0 white,
+        150px 450px 0 0 white, 550px 320px 0 0 white, 220px 180px 0 0 white,
+        780px 280px 0 0 white, 120px 70px 0 0 white, 480px 380px 0 0 white,
+        850px 150px 0 0 white, 90px 390px 0 0 white;
+      animation-delay: 0s;
+    }
+    .background-animation::after {
+      width: 3px;
+      height: 3px;
+      box-shadow:
+        150px 200px  0 0 white, 250px 300px  0 0 white,  50px 100px  0 0 white,
+        300px  10px  0 0 white, 450px 200px  0 0 white,  10px 250px  0 0 white,
+        550px  50px  0 0 white, 650px 280px  0 0 white, 750px  150px  0 0 white,
+        20px  400px 0 0 white, 380px 180px 0 0 white, 620px 430px 0 0 white,
+        250px 20px 0 0 white, 700px 480px 0 0 white, 330px 50px 0 0 white,
+        800px 300px 0 0 white, 50px 500px 0 0 white, 900px 200px 0 0 white,
+        180px 420px 0 0 white, 720px 100px 0 0 white;
+      animation-delay: 2s;
+    }
+    @keyframes twinkle {
+      0%   { opacity: 0.3; transform: scale(1); }
+      50%  { opacity: 0.7; transform: scale(1.1); }
+      100% { opacity: 0.3; transform: scale(1); }
+    }
+
+    /* Reset global & typographie */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    h1, h2, h3 {
+      font-family: 'Montserrat', sans-serif;
+      color: var(--sbh-text-white);
+      text-align: center;
+    }
+    p {
+      font-size: 0.9rem;
+      color: var(--sbh-text-light);
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    /* HEADER (logo + hamburger) */
+    header {
+      position: sticky;
+      top: 0;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    .logo-text {
+      display: flex;
+      flex-direction: column;
+      font-family: 'Poppins', sans-serif;
+      text-decoration: none;
+      line-height: 1.2;
+    }
+    .logo-text .text-social,
+    .logo-text .text-horizon {
+      color: var(--sbh-text-white);
+      font-size: 1.3rem;
+      font-weight: 600;
+    }
+    .logo-text .boost-line {
+      display: flex;
+      align-items: center;
+      color: var(--sbh-text-green);
+      font-size: 1.8rem;
+      font-weight: 800;
+    }
+    .logo-text .boost-line img {
+      height: 1.8rem;
+      margin-right: 0.4rem;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    .icon-hamburger {
+      font-size: 1.8rem;
+      color: var(--sbh-text-white);
+      cursor: pointer;
+      transition: transform 0.3s;
+    }
+    .icon-hamburger:hover {
+      transform: scale(1.1);
+    }
+    /* Menu mobile */
+    .mobile-menu {
+      display: none;
+      position: absolute;
+      top: 68px;
+      right: 2rem;
+      background: rgba(10, 22, 43, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      padding: 1.5rem;
+      flex-direction: column;
+      z-index: 200;
+      min-width: 250px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+    header.open .mobile-menu {
+      display: flex;
+    }
+    .mobile-menu a {
+      color: var(--sbh-text-white);
+      text-decoration: none;
+      padding: 0.8rem 1rem;
+      font-weight: 500;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+    }
+    .mobile-menu a:last-child {
+      border-bottom: none;
+    }
+    .mobile-menu a i {
+      margin-right: 10px;
+      color: var(--sbh-light-blue);
+      width: 24px;
+      text-align: center;
+    }
+    .mobile-menu a:hover {
+      background: rgba(30, 60, 114, 0.3);
+      border-radius: 6px;
+      transform: translateX(5px);
+    }
+
+    /* Plateformes (icônes) */
+    .platforms {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      overflow-x: auto;
+      background: rgba(17, 32, 58, 0.5);
+      margin: 20px auto;
+      max-width: 800px;
+      border-radius: 8px;
+    }
+    .platforms img {
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      filter: brightness(0.7);
+      transition: transform .2s, filter .2s;
+      border-bottom: 3px solid transparent;
+    }
+    .platforms img.active {
+      filter: brightness(1);
+      border-bottom-color: var(--sbh-light-blue);
+    }
+
+    /* Conteneur de la page principale */
+    .content {
+      flex: 1;
+      max-width: 800px;
+      width: 100%;
+      padding: 20px 15px;
+      box-sizing: border-box;
+      margin: 20px auto;
+      background: rgba(17, 32, 58, 0.6);
+      border-radius: 15px;
+      border: 1px solid var(--sbh-card-border);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+      color: var(--sbh-text-white);
+      font-family: var(--font);
+      backdrop-filter: blur(5px);
+    }
+
+    /* Titre de la page */
+    .page-title {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .page-title h2 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 2rem;
+      color: var(--sbh-text-white);
+      position: relative;
+      display: inline-block;
+    }
+    .page-title h2::after {
+      content: "";
+      position: absolute;
+      bottom: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 4px;
+      background: linear-gradient(90deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      border-radius: 2px;
+    }
+
+    /* Formulaire de commande */
+    .service-form {
+      width: 100%;
+      background: rgba(17, 32, 58, 0.8);
+      padding: 25px;
+      border-radius: 15px;
+      border: 1px solid var(--sbh-card-border);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    }
+    .form-group { margin-bottom: 15px; }
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+      color: var(--sbh-text-white);
+    }
+    .form-group select,
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      box-sizing: border-box;
+      font-family: var(--font);
+      color: var(--sbh-text-white);
+    }
+    .form-group input::placeholder,
+    .form-group textarea::placeholder {
+      color: rgba(255, 255, 255, 0.6);
+    }
+    .service-form textarea { resize: vertical; }
+    .price-estimate {
+      color: var(--sbh-text-green);
+      font-weight: bold;
+      font-size: 18px;
+      margin-top: 10px;
+    }
+    .price-details {
+      font-size: 14px;
+      color: var(--sbh-text-light);
+      margin-top: 5px;
+    }
+    .time-estimate {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 12px;
+      margin-top: 10px;
+      border-radius: 8px;
+      font-weight: bold;
+      color: var(--sbh-text-white);
+      border-left: 4px solid var(--sbh-light-blue);
+    }
+    .remark-box {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 15px;
+      margin-top: 15px;
+      border-left: 5px solid var(--border-warning);
+      font-size: 15px;
+      color: var(--sbh-text-white);
+      border-radius: 8px;
+    }
+    #orderErrorBox { 
+      color: var(--sbh-accent); 
+      margin-bottom: 1rem;
+      padding: 10px;
+      background: rgba(255, 107, 107, 0.1);
+      border-radius: 8px;
+      text-align: center;
+      display: none;
+    }
+    .error-message {
+      color: var(--sbh-accent);
+      margin-top: .5rem;
+      font-size: 0.9rem;
+    }
+    .btn {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      color: #fff;
+      font-size: 18px;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      margin-top: 20px;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .btn:hover { 
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-hover));
+      transform: translateY(-3px);
+      box-shadow: 0 7px 20px rgba(30, 144, 255, 0.4);
+    }
+    .btn.loading {
+      pointer-events: none;
+      opacity: 0.8;
+    }
+    .btn .spinner {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+    .btn.loading .spinner {
+      display: block;
+    }
+    .btn .btn-text {
+      transition: opacity 0.3s;
+    }
+    .btn.loading .btn-text {
+      opacity: 0;
+    }
+    @keyframes spin {
+      to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+    
+    /* Remarques contact */
+    .contact-remark {
+      font-size: 0.85rem;
+      color: var(--sbh-text-green);
+      margin-top: 5px;
+      padding-left: 5px;
+      display: none;
+    }
+
+    /* Notification de commande */
+    .order-notification {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(17, 32, 58, 0.95); /* Fond plus doux */
+      border: 1px solid var(--sbh-card-border);
+      border-radius: 15px;
+      padding: 30px;
+      text-align: center;
+      z-index: 1000;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      display: none;
+      max-width: 400px;
+      width: 90%;
+      backdrop-filter: blur(5px); /* Effet de flou */
+    }
+    .notification-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    .notification-icon {
+      font-size: 4rem;
+    }
+    .notification-success .notification-icon {
+      color: var(--sbh-text-green);
+    }
+    .notification-error .notification-icon {
+      color: var(--sbh-accent);
+    }
+    .notification-error {
+      background: rgba(255, 107, 107, 0.15); /* Fond doux pour erreur */
+      border: 1px solid rgba(255, 107, 107, 0.3); /* Bordure légère */
+    }
+    .notification-message {
+      font-size: 1.2rem;
+      font-weight: 500;
+      line-height: 1.6; /* Meilleur espacement */
+    }
+    .notification-message a {
+      color: #4DA6FF; /* Couleur visible sur fond doux */
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    .notification-message a:hover {
+      text-decoration: underline;
+    }
+    .notification-close {
+      background: var(--sbh-btn-color);
+      color: white;
+      border: none;
+      padding: 10px 25px;
+      border-radius: 50px;
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 600;
+      margin-top: 15px;
+      transition: background 0.3s;
+    }
+    .notification-close:hover {
+      background: var(--sbh-btn-hover);
+    }
+    .notification-button {
+      background: var(--sbh-btn-color);
+      color: white;
+      border: none;
+      padding: 10px 25px;
+      border-radius: 50px;
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 600;
+      margin-top: 10px;
+      transition: background 0.3s;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .notification-button:hover {
+      background: var(--sbh-btn-hover);
+    }
+    .notification-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* Boutons en bas de page */
+    .bottom-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin: 20px auto;
+      max-width: 800px;
+      padding: 0 15px;
+    }
+    .button-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .button-section p {
+      margin: 0;
+      text-align: left;
+      font-size: 0.9rem;
+      color: var(--sbh-text-light);
+    }
+    .bottom-button {
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      text-align: center;
+      background-color: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: var(--sbh-text-white);
+      font-size: 0.9rem;
+    }
+    .bottom-button:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+    }
+    .bottom-button i {
+      margin-right: 8px;
+    }
+
+    /* FOOTER */
+    footer {
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      color: var(--sbh-text-white);
+      padding: 2rem 1rem;
+      margin-top: auto;
+      position: relative;
+      overflow: hidden;
+    }
+    .footer-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    .social-icons {
+      display: flex;
+      gap: 20px;
+    }
+    .social-icons a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 45px;
+      height: 45px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      color: white;
+      font-size: 1.3rem;
+      transition: all 0.3s ease;
+    }
+    .social-icons a:hover {
+      background: var(--sbh-light-blue);
+      transform: translateY(-5px);
+    }
+    .footer-bottom {
+      text-align: center;
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .platforms {
+        max-width: 100%;
+      }
+      .content {
+        margin: 10px;
+        padding: 15px;
+      }
+      .service-form {
+        padding: 15px;
+      }
+      .page-title h2 {
+        font-size: 1.7rem;
+      }
+      .social-icons {
+        gap: 15px;
+      }
+      .social-icons a {
+        width: 40px;
+        height: 40px;
+        font-size: 1.1rem;
+      }
+      .order-notification {
+        padding: 20px;
+      }
+      .bottom-buttons {
+        padding: 0 10px;
+      }
+      .notification-buttons {
+        flex-direction: column;
+      }
+    }
+    @media (max-width: 480px) {
+      header {
+        padding: 1rem;
+      }
+      .logo-text .text-social,
+      .logo-text .text-horizon {
+        font-size: 1.1rem;
+      }
+      .logo-text .boost-line {
+        font-size: 1.5rem;
+      }
+      .logo-text .boost-line img {
+        height: 1.5rem;
+      }
+      .mobile-menu {
+        right: 1rem;
+        top: 60px;
+      }
+      .platforms {
+        gap: 10px;
+      }
+      .platforms img {
+        width: 35px;
+        height: 35px;
+      }
+      .notification-message {
+        font-size: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Fond animé (étoiles) -->
+  <div class="background-animation"></div>
+
+  <!-- Header avec logo et menu hamburger -->
+  <header data-aos="fade-down">
+    <a href="dashboard.html" class="logo-text">
+      <span class="text-social">SOCIAL</span>
+      <div class="boost-line">
+        <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Rocket Icon">
+        <span class="text-boost">BOOST</span>
+      </div>
+      <span class="text-horizon">HORIZON</span>
+    </a>
+    <i class="fa-solid fa-bars icon-hamburger" id="hamburgerBtn"></i>
+    <div class="mobile-menu">
+      <a href="dashboard.html"><i class="fa-solid fa-house"></i> Accueil</a>
+      <a href="wallet.html"><i class="fa-solid fa-wallet"></i> Mon portefeuille</a>
+      <a href="services.html"><i class="fa-solid fa-book"></i> Autres services</a>
+      <a href="community.html"><i class="fa-solid fa-users"></i> Communauté</a>
+      <a href="commandes.html"><i class="fa-solid fa-file-invoice"></i> Mes commandes</a>
+      <a href="services.html"><i class="fa-solid fa-cubes"></i> Autres Services</a>
+      <a href="payment.html"><i class="fa-solid fa-money-bill"></i> Autre paiement</a>
+      <a href="parrainage.html"><i class="fa-solid fa-handshake"></i> Parrainage</a>
+      <a href="privacy.html"><i class="fa-solid fa-shield"></i> Confidentialité</a>
+      <a href="assistant.html"><i class="fa-solid fa-headset"></i> Assistance</a>
+      <a href="https://chat.whatsapp.com/HRgWJFxTgkiEkEC0Ou2028" target="_blank"><i class="fab fa-whatsapp"></i> Rejoindre WhatsApp</a>
+    </div>
+  </header>
+
+  <!-- Notification de commande -->
+  <div class="order-notification" id="orderNotification">
+    <div class="notification-content">
+      <div class="notification-icon" id="notificationIcon"></div>
+      <div class="notification-message" id="notificationMessage"></div>
+      <div class="notification-buttons" id="notificationButtons">
+        <button class="notification-close" id="notificationClose">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section des plateformes -->
+  <div class="platforms">
+    <img src="https://img.icons8.com/color/48/facebook.png"      alt="Facebook"    data-platform="facebook">
+    <img src="https://img.icons8.com/color/48/instagram-new.png" alt="Instagram"   data-platform="instagram">
+    <img src="https://img.icons8.com/color/48/youtube-play.png"  alt="YouTube"     data-platform="youtube">
+    <img src="https://img.icons8.com/color/48/tiktok--v1.png"    alt="TikTok"      data-platform="tiktok">
+    <img src="https://img.icons8.com/color/48/telegram-app.png"  alt="Telegram"    data-platform="telegram">
+    <img src="https://img.icons8.com/ios-filled/50/000000/x.png" alt="Twitter"     data-platform="twitter">
+    <img src="https://img.icons8.com/color/48/whatsapp--v1.png"  alt="WhatsApp"    data-platform="whatsapp">
+    <img src="https://img.icons8.com/color/48/spotify.png"      alt="Spotify"     data-platform="spotify">
+    <img src="https://img.icons8.com/color/48/linkedin.png"     alt="LinkedIn"    data-platform="linkedin">
+  </div>
+
+  <!-- Conteneur de la page principale -->
+  <div class="content" data-aos="fade-up">
+    <!-- Titre de la page -->
+    <div class="page-title">
+      <h2>Commander un Boostage</h2>
+    </div>
+
+    <!-- Formulaire de commande -->
+    <form id="orderForm" class="service-form">
+      <input type="hidden" name="userId" id="userId">
+
+      <div class="form-group">
+        <label for="serviceSelect">Service</label>
+        <select id="serviceSelect" name="service" required></select>
+      </div>
+
+      <div class="form-group" id="qualitySection">
+        <label for="qualitySelect">Qualité</label>
+        <select id="qualitySelect" name="quality" required>
+          <option value="medium">Qualité moyenne</option>
+          <option value="high">Haute qualité</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="subOptionSection" style="display:none;">
+        <label for="subOptionSelect" id="subOptionLabel">Option</label>
+        <select id="subOptionSelect" name="subOption"></select>
+      </div>
+
+      <div class="form-group">
+        <label for="linkInput">Lien du compte / publication</label>
+        <input id="linkInput" name="link" type="url" required placeholder="https://...">
+      </div>
+
+      <div class="form-group" id="quantitySection">
+        <label for="quantityInput" id="quantLabel">Quantité</label>
+        <input id="quantityInput" name="quantity" type="number" min="1" placeholder="Ex : 1000">
+        <div id="quantityError" class="error-message" style="display:none;"></div>
+        <p id="commentsCount" style="display:none;">0 commentaire(s) (minimum 10)</p>
+      </div>
+
+      <div class="form-group">
+        <label for="contactType">Mode de contact</label>
+        <select id="contactType" name="contactType" required>
+          <option value="">Choisir</option>
+          <option value="whatsapp">WhatsApp</option>
+          <option value="email">Email</option>
+        </select>
+      </div>
+      <div class="form-group" id="whatsappField" style="display:none;">
+        <label for="contactInput">Numéro WhatsApp</label>
+        <input id="contactInput" name="contact" type="tel" placeholder="+237 699 85 36 65">
+        <p class="contact-remark" id="whatsappRemark">Veuillez fournir le numéro de téléphone associé à votre compte Social Boost ou votre numéro WhatsApp.</p>
+      </div>
+      <div class="form-group" id="emailField" style="display:none;">
+        <label for="emailInput">Adresse Email</label>
+        <input id="emailInput" name="contact" type="email" placeholder="socialboosthorizon984@gmail.com">
+        <p class="contact-remark" id="emailRemark">Merci de saisir l'adresse e-mail utilisée pour créer votre compte.</p>
+      </div>
+
+      <div id="orderErrorBox" class="error-message"></div>
+      <div class="price-estimate" id="priceEstimate">Prix estimé : 0 FCFA</div>
+      <div class="price-details" id="priceDetails"></div>
+      <div class="time-estimate"  id="timeEstimate">Temps de réalisation : 2 h</div>
+      <div class="remark-box"     id="remarkBox">Sélectionnez un service pour voir sa remarque.</div>
+
+      <button type="submit" class="btn">
+        <span class="btn-text">Commander Maintenant</span>
+        <span class="spinner"></span>
+      </button>
+    </form>
+  </div>
+
+  <!-- Boutons en bas de page (hors formulaire) -->
+  <div class="bottom-buttons">
+    <div class="button-section">
+      <p>Vous avez un téléphone Android, téléchargez l'application officielle Social Boost Horizon :</p>
+      <a href="https://web2apkpro.com/public_download.php?project_id=501&token=9553436f25" target="_blank" class="bottom-button">
+        <i class="fab fa-android"></i> Télécharger l'application
+      </a>
+    </div>
+    
+    <div class="button-section">
+      <p>Besoin d'aide pour commander ? Regardez notre tutoriel complet :</p>
+      <a href="https://youtube.com/shorts/sIjvVTTLRz0?feature=shared" target="_blank" class="bottom-button">
+        <i class="fa-solid fa-video"></i> Regarder le tutoriel complet
+      </a>
+    </div>
+    
+    <div class="button-section">
+      <p>Votre solde est insuffisant ? Rechargez-le facilement :</p>
+      <a href="payment.html" class="bottom-button">
+        <i class="fas fa-wallet"></i> Recharger mon solde
+      </a>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer data-aos="fade-up">
+    <div class="footer-content">
+      <div class="social-icons">
+        <a href="https://www.facebook.com/share/1ACQ14Cg9h/?mibextid=wwXIfr" target="_blank" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+        <a href="https://www.instagram.com/social.boost.horizon?igsh=MXJvZ2h2azQ0NjhicA%3D%3D&utm_source=qr" target="_blank" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+        <a href="https://x.com/mcexau?s=21" target="_blank" aria-label="Twitter"><i class="fa-brands fa-twitter"></i></a>
+        <a href="https://www.tiktok.com/@social.boost.hori?_t=ZN-8x1AOi6jZP4&_r=1" target="_blank" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i></a>
+        <a href="http://www.youtube.com/@SocialBoostHorizon-d7t" target="_blank" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
+      </div>
+      <div class="footer-bottom">
+        © 2025 Social Boost Horizon. Mč Exau - Tous droits réservés.
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts AOS, Animation nuages et menu hamburger -->
+  <script defer src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  <script>
+    // Configuration Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.appspot.com",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+    };
+    
+    // Initialisation de Firebase
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // === MAPPING DES NOMS DE SERVICES (résout le problème d'apostrophes) ===
+    const serviceMapping = {
+      facebook: {
+        "J'aime (page)": "jaime_page",
+        "J'aime (publication)": "jaime_publication"
+      },
+      instagram: {
+        "J'aime": "jaime"
+      },
+      youtube: {
+        "J'aime": "jaime"
+      },
+      tiktok: {
+        "J'aime": "jaime",
+        "J'aime pour direct": "jaime_direct"
+      },
+      twitter: {
+        "Likes (J'aime)": "likes_jaime"
+      }
+    };
+
+    // Fonction pour convertir nom d'affichage → clé technique
+    function getServiceKey(displayName, platform) {
+      if (serviceMapping[platform] && serviceMapping[platform][displayName]) {
+        return serviceMapping[platform][displayName];
+      }
+      return displayName; // Si pas de mapping, retourner tel quel
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      AOS.init({ duration: 800, once: true });
+
+      // Gestion du menu hamburger
+      const hamburgerBtn = document.getElementById("hamburgerBtn");
+      const header = document.querySelector("header");
+      hamburgerBtn.addEventListener("click", () => {
+        header.classList.toggle("open");
+      });
+      
+      // Fermer le menu quand on clique en dehors
+      document.addEventListener("click", (e) => {
+        if (!header.contains(e.target) && header.classList.contains("open")) {
+          header.classList.remove("open");
+        }
+      });
+      
+      // Gestion de la notification
+      const notification = document.getElementById('orderNotification');
+      const notificationClose = document.getElementById('notificationClose');
+      const notificationButtons = document.getElementById('notificationButtons');
+      
+      notificationClose.addEventListener('click', function() {
+        notification.style.display = 'none';
+      });
+      
+      // Vérifier l'authentification
+      auth.onAuthStateChanged(user => {
+        if (!user) {
+          window.location.href = 'login.html';
+        } else {
+          document.getElementById('userId').value = user.uid;
+        }
+      });
+    });
+  </script>
+
+  <!-- Script principal pour le formulaire de commande -->
+  <script>
+    // === Données des services (tous vos services) ===
+    const servicesData = {
+      facebook: {
+        "Followers (page)": {
+          medium: { price: 1994, time: "3 h" },
+          high:   { price: 2500, time: "2 h" },
+          remark: "VOTRE COMMANDE PEUT PRENDRE UN PEU PLUS DE TEMPS QUE D'HABITUDE EN CAS DE MISE A JOUR DE FACEBOOK (min: 100)"
+        },
+        "Followers (profil)": {
+          medium: { price: 1994, time: "3 h" },
+          high:   { price: 2550, time: "2 h" },
+          remark: "ASSUREZ-VOUS QUE LE PROFIL FACEBOOK EST EN MODE PROFESSIONNEL.SI VOUS NE SAVEZ PAS COMMENT FAIRE, REGARDEZ LE TUTORIEL SUR NOTRE CHAINE YOUTUBE (min: 100)"
+        },
+        "J’aime (page)": {
+          medium: { price: 2200, time: "3 h" },
+          high:   { price: 2800, time: "2 h" },
+          remark: "Vous obtiendrez des followers en bonus. C'EST L'AVANTAGE DE CE SERVICE.Assurez vous que vous envoyez les j'aime à une page et non à un profil ! (min: 100)"
+        },
+        "J’aime (publication)": {
+          medium: { price: 955, time: "2 h" },
+          high:   { price: 1100, time: "1 h" },
+          remark: "Si la publication provient d'un compte facebook, Assurez-vous que ces publication sont publiques (min: 100)"
+        },
+        "Partages": {
+          medium: { price: 930, time: "3 h" },
+          high:   { price: 1330, time: "2 h" },
+          remark: "Assurez-vous que la publication est publique.Si la publication provient d'un compte Facebook, assurez vous que les publications du compte sont publiques ! (min: 1000)"
+        },
+        "Membres de groupe": {
+          medium: { price: 2000, time: "6 h" },
+          high:   { price: 2500, time: "4 h" },
+          remark: "Le groupe doit être public, sinon votre commande sera annulée. (min: 100)"
+        },
+        "Vues de vidéo": {
+          medium: { price: 270, time: "4 h" },
+          high:   { price: 560, time: "3 h" },
+          remark: "Lien direct de la vidéo publique requis. Elle doit être publique (min: 500)"
+        },
+        "Commentaires personnalisés": {
+          medium: { price: 984, time: "24 h" },
+          high:   { price: 1150, time: "18 h" },
+          remark: "Ce sont des comptes masculins américains qui commenteront. (min: 10)"
+        },
+        "Réaction Emoji": {
+          subOptionLabel: "Emoji à choisir",
+          options: {
+            "Reaction 🥰": { medium: { price: 900, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+            "Reaction ❤️": { medium: { price: 900, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+            "Reaction 😂": { medium: { price: 900, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+            "Reaction 😮": { medium: { price: 900, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+            "Reaction 😢": { medium: { price: 900, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+            "Reaction 😡": { medium: { price: 900, time: "3 h" }, high: { price: 1100, time: "2 h" } }
+          },
+          remark: "Choisissez l’emoji à appliquer aux publications.Si la publication provient d'un compte Facebook, assurez vous que les publications du compte sont publiques ! (min: 100)"
+        }
+      },
+      instagram: {
+        "Followers": {
+          medium: { price: 2250, time: "20 min" },
+          high:   { price: 3650, time: "10 min" },
+          remark: "Ne changez pas votre nom d’utilisateur.NB: En raison d'une récente mise à jour d'instagram, vous devez maintenant désactiver l'option « À VÉRIFIER » sur votre compte instagram avant d'acheter des followers, cette option est automatiquement activée pour TOUS les comptes instagram et c'est à vous de la désactiver.VOUS N'OBTIENDREZ AUCUN FOLLOWER ET PERDREZ VOTRE ARGENT SI VOUS NE LE DÉSACTIVEZ PAS AVANT D'ACHETER, N'APPUYEZ PAS SUR ACHETER SI VOUS N'ÊTES PAS SÛR À 100% QU'IL EST DÉSACTIVÉ. (min: 100)"
+        },
+        "J’aime": {
+          medium: { price: 250, time: "30 min" },
+          high:   { price: 500, time: "15 min" },
+          remark: "Baisse de 3–5 % des likes. video publique obligatoire (min: 100)"
+        },
+        "Vues de vidéos": {
+          medium: { price: 245, time: "30 min" },
+          high:   { price: 495, time: "10 min" },
+          remark: "Assurez vous que la vidéo provient d'un compte instagram qui n'est pas privé ! (min: 1000)"
+        },
+        "Commentaires personnalisés": {
+          medium: { price: 419, time: "12 h" },
+          high:   { price: 559, time: "10 h" },
+          remark: "Veuillez ne pas insérer de “@” ni “#” dans vos commentaires. (min: 10)"
+        },
+        "Vues de story": {
+          medium: { price: 350, time: "30 min" },
+          high:   { price: 557, time: "15 min" },
+          remark: "Ce sont des spectateurs asiatiques qui regarderont votre story. (min: 100)"
+        }
+      },
+      youtube: {
+        "Abonnés": {
+          medium: { price: 18315, time: "24 h" },
+          high:   { price: 20060, time: "15 h" },
+          remark: "Il faut vous attendre à une baisse de 1–5 % d'abonnés après quelques semaines suivant la livraison pour la qualité moyenne uniquement. (min: 50)"
+        },
+        "Vues": {
+          medium: { price: 1350, time: "9 h" },
+          high:   { price: 1980, time: "8 h" },
+          remark: "Presque aucune baisse de vues. Ce sont des vues de haute qualité : ils regarderont toute votre vidéo jusqu'à la fin (min: 500)"
+        },
+        "J’aime": {
+          medium: { price: 1390, time: "2 h" },
+          high:   { price: 1750, time: "1 h" },
+          remark: "Presque aucune baisse de j'aimes. (min: 200)"
+        },
+        "Commentaires personnalisés": {
+          medium: { price: 250, time: "24 h" },
+          high:   { price: 500, time: "18 h" },
+          remark: "Veuillez ne pas insérer de “@” ni “#” dans vos commentaires. (min: 10)"
+        }
+      },
+      tiktok: {
+        "Followers": {
+          medium: { price: 1990, time: "2 h" },
+          high:   { price: 3500, time: "1 h" },
+          remark: "Assurez-vous que le compte Tiktok n'est pas privé, et ne changez pas le nom d'utilisateur du compte pendant que des followers sont ajoutés !. Il faut s'attendre à une légère baisse de 1–2 % après quelques semaines pour la qualité moyenne. (min: 100)"
+        },
+        "J’aime": {
+          medium: { price: 279, time: "20 min" },
+          high:   { price: 510, time: "10 min" },
+          remark: "Lien direct de la vidéo. (min: 50)"
+        },
+        "Vues": {
+          medium: { price: 98, time: "10 min" },
+          high:   { price: 290, time: "05 min" },
+          remark: "Vidéo publique. Aucune baisse.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ IS LE LIEN D'UNE VIDÉO DE VOTRE COMPTE TIKTOK, ET NON LE LIEN DE VOTRE COMPTE TIKTOK ! !!! (min: 500)"
+        },
+        "Sauvegarde de vidéos": {
+          medium: { price: 300, time: "20 min" },
+          high:   { price: 500, time: "10 min" },
+          remark: "Vidéo publique requise.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ IS LE LIEN D'UNE VIDÉO DE VOTRE COMPTE TIKTOK, ET NON LE LIEN DE VOTRE COMPTE TIKTOK ! !!! (min: 100)"
+        },
+        "Partages de vidéos": {
+          medium: { price: 150, time: "30 min" },
+          high:   { price: 480, time: "15 min" },
+          remark: "Vidéo publique.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ IS LE LIEN D'UNE VIDÉO DE VOTRE COMPTE TIKTOK, ET NON LE LIEN DE VOTRE COMPTE TIKTOK ! !!! (min: 100)"
+        },
+        "Commentaires personnalisés": {
+          medium: { price: 390, time: "4 h" },
+          high:   { price: 569, time: "2 h" },
+          remark: "Assurez-vous de ne pas insérer de “@” ni “#” dans vos commentaires. (min: 10)"
+        },
+        "J’aime pour direct": {
+          medium: { price: 250, time: "15 mi n" },
+          high:   { price: 560, time: "10 mi n" },
+          remark: "Les likes viendront 15 ou 10 minutes après votre achat. (min : 100)"
+        },
+        "Téléspectateur en direct": {
+          subOptionLabel: "Durée",
+          options: {
+            "20 min": { medium: { price: 2750, time: "20 min" }, high: { price: 3010, time: "20 min" } },
+            "1 h":     { medium: { price: 3800, time: "1 h" },    high: { price: 4010, time: "1 h" } },
+            "1 h 30":  { medium: { price: 5850, time: "1 h 30" }, high: { price: 6500, time: "1 h 30" } }
+          },
+          remark: "Spectateurs en live sur votre direct TikTok.ceux de haute Qualité, commenteront, et vont beaucoup intereagir (min: 50)"
+        }
+      },
+      telegram: {
+        "Membres groupe/canal": {
+          medium: { price: 1200, time: "3 h" },
+          high:   { price: 2250, time: "3 h" },
+          remark: "Lien d’invitation public requis. (min: 500)"
+        },
+        "Vues publication spécifique": {
+          subOptionLabel: "Qualité des vues",
+          options: {
+            "Qualité moyenne": { medium: { price: 150, time: "Instantané" }, high: { price: 150, time: "Instantané" } },
+            "Haute qualité":   { medium: { price: 299, time: "Instantané" }, high: { price: 299, time: "Instantané" } }
+          },
+          remark: "Vues sur la publication spécifique."
+        },
+        "Vues des publications précédentes": {
+          subOptionLabel: "Nombre de vues",
+          options: {
+            "20 vues":  { medium: { price: 880, time: "Instantané" }, high: { price: 1000, time: "Instantané" } },
+            "50 vues":  { medium: { price: 1356, time: "Instantané" }, high: { price: 1771, time: "Instantané" } },
+            "100 vues": { medium: { price: 2357, time: "Instantané" }, high: { price: 2887, time: "Instantané" } }
+          },
+          remark: "Choisissez le nombre de vues."
+        },
+        "Vues futures publications": {
+          subOptionLabel: "Nombre de vues futures",
+          options: {
+            "20 futures vues":  { medium: { price: 970,  time: "Instantané" }, high: { price: 1277, time: "Instantané" } },
+            "50 futures vues":  { medium: { price: 1995, time: "Instantané" }, high: { price: 2357, time: "Instantané" } },
+            "100 futures vues": { medium: { price: 3999, time: "Instantané" }, high: { price: 4599, time: "Instantané" } }
+          },
+          remark: "Vues programmées pour futures publications."
+        },
+        "Réactions publication spécifique": {
+          medium: { price: 210, time: "Instantané" },
+          high:   { price: 455, time: "Instantané" },
+          remark: "Réaction (👍😏😅🔥🤩😭) sur la publication spécifique. (min: 10)"
+        },
+        "Réactions précédentes": {
+          subOptionLabel: "Nombre de réactions",
+          options: {
+            "20 réactions":  { medium: { price: 1250, time: "Instantané" }, high: { price: 1250, time: "Instantané" } },
+            "50 réactions":  { medium: { price: 3000, time: "Instantané" }, high: { price: 3000, time: "Instantané" } },
+            "100 réactions": { medium: { price: 5000, time: "Instantané" }, high: { price: 5000, time: "Instantané" } }
+          },
+          remark: "Réactions (🤩🥳💚🥰😎👍) sur publications précédentes selon votre nombre sélectionné."
+        },
+        "Réactions futures": {
+          subOptionLabel: "Nombre de réactions futures",
+          options: {
+            "20 réactions":  { medium: { price: 1250, time: "Instantané" }, high: { price: 1250, time: "Instantané" } },
+            "50 réactions":  { medium: { price: 3000, time: "Instantané" }, high: { price: 3000, time: "Instantané" } },
+            "100 réactions": { medium: { price: 5000, time: "Instantané" }, high: { price: 5000, time: "Instantané" } }
+          },
+          remark: "Réactions (😹🥰🤩💚😏👍) sur vos futures publications."
+        }
+      },
+      twitter: {
+        "Followers": {
+          medium: { price: 6580, time: "4 h" },
+          high:   { price: 7321, time: "3 h" },
+          remark: "Profil public requis. (min: 100)"
+        },
+        "Likes (J'aime)": {
+          medium: { price: 2070, time: "2 h" },
+          high:   { price: 2480, time: "1 h" },
+          remark: "Lien direct du tweet public. (min: 50)"
+        },
+        "Retweets": {
+          medium: { price: 1880, time: "3 h" },
+          high:   { price: 2010, time: "2 h" },
+          remark: "Tweet public requis. (min: 50)"
+        },
+        "Vues de vidéo (Twitter)": {
+          medium: { price: 5000, time: "5 h" },
+          high:   { price: 7000, time: "4 h" },
+          remark: "Lien de la vidéo Twitter. (min: 500)"
+        },
+        "Commentaires personnalisés": {
+          medium: { price: 900, time: "20 h" },
+          high:   { price: 1200, time: "18 h" },
+          remark: "Un commentaire par ligne. (min: 10)"
+        }
+      },
+      whatsapp: {
+        "Abonnés internationaux": {
+          medium: { price: 3030, time: "3 h" },
+          high:   { price: 4010, time: "2 h" },
+          remark: "Abonnés de pays aléatoires. (min: 100)"
+        },
+        "Abonnés américains": {
+          medium: { price: 4430, time: "3 h" },
+          high:   { price: 5500, time: "3 h" },
+          remark: "Abonnés ciblés uniquement USA. (min: 100)"
+        },
+        "Abonnés indiens": {
+          medium: { price: 4430, time: "3 h" },
+          high:   { price: 5500, time: "3 h" },
+          remark: "Abonnés ciblés uniquement de l'Inde. (min: 100)"
+        },
+        "Réaction Emoji": {
+          subOptionLabel: "Emoji à choisir",
+          options: {
+            "Reaction 👍":        { medium: { price: 2040, time: "Instantané" }, high: { price: 2780, time: "Instantané" } },
+            "Reaction ❤️":        { medium: { price: 2040, time: "Instantané" }, high: { price: 2780, time: "Instantané" } },
+            "Reaction 😂":        { medium: { price: 2040, time: "Instantané" }, high: { price: 2780, time: "Instantané" } },
+            "Reaction aléatoires": { medium: { price: 2900, time: "30 min" }, high: { price: 3500, time: "15 min" } }
+          },
+          remark: "Emoji react sur vos messages. (min: 100)"
+        }
+      },
+      spotify: {
+        "Followers": {
+          medium: { price: 3950, time: "3 h" },
+          high:   { price: 4510, time: "2 h" },
+          remark: "Profil public requis. Ne touchez à rien pendant le travail. (min: 500)"
+        },
+        "Abonnés à la playlist": {
+          medium: { price: 3500, time: "2 h" },
+          high:   { price: 4150, time: "1 h" },
+          remark: "Lien de la playlist requis. (min: 500)"
+        }
+      },
+      linkedin: {
+        "Abonnés pour votre page": {
+          medium: { price: 7500, time: "5 h" },
+          high:   { price: 8000, time: "4 h" },
+          remark: "Page publique requise. (min: 500)"
+        },
+        "Abonnés pour votre profil": {
+          medium: { price: 7700, time: "5 h" },
+          high:   { price: 8700, time: "4 h" },
+          remark: "Profil professionnel requis. (min: 500)"
+        },
+        "Likes postes": {
+          medium: { price: 35000, time: "7 h" },
+          high:   { price: 40000, time: "6 h" },
+          remark: "Posts publics requis. (min: 100)"
+        }
+      }
+    };
+
+    // DOM references
+    let selectedPlatform = null;
+    const icons            = document.querySelectorAll('.platforms img');
+    const orderForm        = document.getElementById('orderForm');
+    const serviceSelect    = document.getElementById('serviceSelect');
+    const qualitySection   = document.getElementById('qualitySelect').parentElement;
+    const qualitySelect    = document.getElementById('qualitySelect');
+    const subOptionSection = document.getElementById('subOptionSection');
+    const subOptionLabel   = document.getElementById('subOptionLabel');
+    const subOptionSelect  = document.getElementById('subOptionSelect');
+    const linkInput        = document.getElementById('linkInput');
+    let   quantityInput    = document.getElementById('quantityInput');
+    const quantLabel       = document.getElementById('quantLabel');
+    const quantitySection  = document.getElementById('quantitySection');
+    const quantityError    = document.getElementById('quantityError');
+    const commentsCount    = document.getElementById('commentsCount');
+    const contactType      = document.getElementById('contactType');
+    const whatsappField    = document.getElementById('whatsappField');
+    const emailField       = document.getElementById('emailField');
+    const contactInput     = document.getElementById('contactInput');
+    const emailInput       = document.getElementById('emailInput');
+    const priceEstimate    = document.getElementById('priceEstimate');
+    const priceDetails     = document.getElementById('priceDetails');
+    const timeEstimate     = document.getElementById('timeEstimate');
+    const remarkBox        = document.getElementById('remarkBox');
+    const orderErrorBox    = document.getElementById('orderErrorBox');
+    const notification     = document.getElementById('orderNotification');
+    const notificationIcon = document.getElementById('notificationIcon');
+    const notificationMessage = document.getElementById('notificationMessage');
+    const notificationButtons = document.getElementById('notificationButtons');
+    const notificationClose = document.getElementById('notificationClose');
+    const whatsappRemark   = document.getElementById('whatsappRemark');
+    const emailRemark      = document.getElementById('emailRemark');
+    const submitButton     = document.querySelector('.btn');
+    const submitButtonText = document.querySelector('.btn .btn-text');
+    const spinner          = document.querySelector('.btn .spinner');
+
+    // Events binding
+    icons.forEach(i => i.addEventListener('click', () => selectPlatform(i.dataset.platform)));
+    serviceSelect.addEventListener('change', onServiceChange);
+    qualitySelect.addEventListener('change', updateDetails);
+    subOptionSelect.addEventListener('change', updateDetails);
+    contactType.addEventListener('change', toggleContactField);
+    orderForm.addEventListener('submit', onSubmit);
+    window.addEventListener('DOMContentLoaded', () => selectPlatform('facebook'));
+
+    function attachQuantityInputListener() {
+      if (quantityInput) {
+        quantityInput.removeEventListener('input', updateDetails);
+        quantityInput.addEventListener('input', updateDetails);
+      }
+    }
+    attachQuantityInputListener();
+
+    function selectPlatform(p) {
+      icons.forEach(i => i.classList.remove('active'));
+      document.querySelector(`.platforms img[data-platform="${p}"]`).classList.add('active');
+      selectedPlatform = p;
+      loadServices();
+    }
+
+    function loadServices() {
+      serviceSelect.innerHTML = '<option value=""> Choisir un service </option>';
+      Object.keys(servicesData[selectedPlatform]).forEach(s => {
+        const o = document.createElement('option');
+        o.value = s; o.textContent = s;
+        serviceSelect.appendChild(o);
+      });
+      resetUI();
+    }
+
+    function resetUI() {
+      subOptionSection.style.display = 'none';
+      subOptionSelect.innerHTML = '';
+      qualitySelect.value = 'medium';
+
+      if (quantityInput.tagName === 'TEXTAREA') {
+        const newInput = document.createElement('input');
+        newInput.id = 'quantityInput';
+        newInput.name = 'quantity';
+        newInput.type = 'number';
+        newInput.min = '1';
+        newInput.placeholder = 'Ex : 1000';
+        quantitySection.replaceChild(newInput, quantityInput);
+        quantityInput = newInput;
+        attachQuantityInputListener();
+      }
+      quantLabel.textContent = 'Quantité';
+      quantityInput.value = '';
+      quantityInput.style.height = '';
+      quantityInput.disabled = false;
+      quantityError.style.display = 'none';
+      quantityError.textContent = '';
+      commentsCount.style.display = 'none';
+
+      priceEstimate.textContent = 'Prix estimé : 0 FCFA';
+      priceDetails.textContent  = '';
+      timeEstimate.textContent  = 'Temps de réalisation : 2 h';
+      remarkBox.textContent      = 'Sélectionnez un service pour voir la remarque.';
+
+      contactType.value = '';
+      toggleContactField();
+      orderErrorBox.style.display = 'none';
+    }
+
+    function onServiceChange() {
+      resetUI();
+      const selectedServiceKey = serviceSelect.value;
+      if (!selectedServiceKey) return;
+
+      const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
+      const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
+
+      if (isCommentService) {
+        if (quantityInput.tagName !== 'TEXTAREA') {
+          const newTextarea = document.createElement('textarea');
+          newTextarea.id = 'quantityInput';
+          newTextarea.name = 'comments';
+          newTextarea.rows = '5';
+          newTextarea.placeholder = 'Un commentaire par ligne...';
+          quantitySection.replaceChild(newTextarea, quantityInput);
+          quantityInput = newTextarea;
+          attachQuantityInputListener();
+        }
+        quantLabel.textContent = 'Vos commentaires (un par ligne)';
+        commentsCount.style.display = 'block';
+        quantityInput.disabled = false;
+      } else {
+        if (quantityInput.tagName === 'TEXTAREA') {
+          const newInput = document.createElement('input');
+          newInput.id = 'quantityInput';
+          newInput.name = 'quantity';
+          newInput.type = 'number';
+          newInput.min = '1';
+          newInput.placeholder = 'Ex : 1000';
+          quantitySection.replaceChild(newInput, quantityInput);
+          quantityInput = newInput;
+          attachQuantityInputListener();
+        }
+        quantLabel.textContent = 'Quantité';
+        commentsCount.style.display = 'none';
+        quantityInput.disabled = false;
+      }
+
+      if (serviceDef.options) {
+        subOptionSection.style.display = 'block';
+        subOptionSelect.innerHTML = '';
+        const defaultSubOption = document.createElement('option');
+        defaultSubOption.value = "";
+        defaultSubOption.textContent = " Choisir une option ";
+        subOptionSelect.appendChild(defaultSubOption);
+
+        Object.keys(serviceDef.options).forEach(opt => {
+          const optionElement = document.createElement('option');
+          optionElement.value = opt;
+          optionElement.textContent = opt;
+          subOptionSelect.appendChild(optionElement);
+        });
+        subOptionLabel.textContent = serviceDef.subOptionLabel || 'Option';
+
+        const servicesWithFixedQuantityInOptions = [
+          "Vues publication spécifique", "Vues des publications précédentes",
+          "Vues futures publications", "Réactions précédentes", "Réactions futures"
+        ];
+        const isQuantityFixedByOption =
+          servicesWithFixedQuantityInOptions.includes(selectedServiceKey)
+          && selectedPlatform === 'telegram';
+
+        quantityInput.disabled = isQuantityFixedByOption;
+        if (isQuantityFixedByOption) {
+          quantityInput.value = '';
+          quantityError.style.display = 'none';
+        }
+      } else {
+        subOptionSection.style.display = 'none';
+        quantityInput.disabled = false;
+      }
+
+      updateDetails();
+    }
+
+    function updateDetails() {
+      const selectedServiceKey = serviceSelect.value;
+      if (!selectedServiceKey) {
+        priceEstimate.textContent = 'Prix estimé : 0 FCFA';
+        priceDetails.textContent  = '';
+        timeEstimate.textContent  = 'Temps de réalisation : 2 h';
+        remarkBox.textContent      = 'Sélectionnez un service pour voir la remarque.';
+        quantityError.style.display = 'none';
+        return;
+      }
+
+      const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
+      let currentConfig = null;
+      let calculatedPrice = 0;
+      let unitPrice = 0;
+      let pricePerThousand = 0;
+      let estimatedTime = 'N/A';
+      let minQuantity = 1;
+
+      const remarkMatch = serviceDef.remark && serviceDef.remark.match(/\(min:\s*(\d+)\)/);
+      if (remarkMatch && remarkMatch[1]) {
+        minQuantity = parseInt(remarkMatch[1], 10);
+      }
+
+      const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
+
+      if (serviceDef.options) {
+        const selectedSubOption = subOptionSelect.value;
+        if (!selectedSubOption) {
+          priceEstimate.textContent = 'Prix estimé : 0 FCFA';
+          priceDetails.textContent  = '';
+          timeEstimate.textContent  = 'Temps de réalisation : N/A';
+          remarkBox.textContent      = serviceDef.remark;
+          return;
+        }
+
+        const optionData = serviceDef.options[selectedSubOption];
+        currentConfig = optionData[qualitySelect.value] || optionData.medium;
+
+        const servicesWithFixedQuantityInOptions = [
+          "Vues publication spécifique", "Vues des publications précédentes",
+          "Vues futures publications", "Réactions précédentes", "Réactions futures"
+        ];
+        const isQuantityFixedByOption =
+          servicesWithFixedQuantityInOptions.includes(selectedServiceKey)
+          && selectedPlatform === 'telegram';
+
+        if (isQuantityFixedByOption) {
+          calculatedPrice = currentConfig.price;
+          estimatedTime = currentConfig.time;
+          pricePerThousand = calculatedPrice;
+        } else {
+          const quantity = parseInt(quantityInput.value) || 0;
+          // Modification pour les commentaires personnalisés
+          if (isCommentService) {
+            unitPrice = currentConfig.price / 10;  // Prix pour 10 commentaires
+          } else {
+            unitPrice = currentConfig.price / 1000;
+          }
+          pricePerThousand = currentConfig.price;
+
+          if (quantity > 0 && quantity < minQuantity) {
+            quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
+            quantityError.style.display = 'block';
+          } else {
+            quantityError.style.display = 'none';
+          }
+
+          calculatedPrice = Math.round(unitPrice * quantity);
+          estimatedTime = currentConfig.time;
+        }
+      } else {
+        currentConfig = serviceDef[qualitySelect.value];
+        // Modification pour les commentaires personnalisés
+        if (isCommentService) {
+          unitPrice = currentConfig.price / 10;  // Prix pour 10 commentaires
+          pricePerThousand = currentConfig.price * 100; // Prix pour 1000 commentaires
+        } else {
+          unitPrice = currentConfig.price / 1000;
+          pricePerThousand = currentConfig.price;
+        }
+
+        if (isCommentService) {
+          const lines = quantityInput.value.split('\n').filter(l => l.trim());
+          const count = lines.length;
+          commentsCount.textContent = count < minQuantity
+            ? `${count} commentaire(s) (minimum ${minQuantity})`
+            : `${count} commentaire(s)`;
+
+          if (count > 0 && count < minQuantity) {
+            quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`;
+            quantityError.style.display = 'block';
+          } else {
+            quantityError.style.display = 'none';
+          }
+          calculatedPrice = Math.round(count * unitPrice);
+          estimatedTime = currentConfig.time;
+        } else {
+          const quantity = parseInt(quantityInput.value) || 0;
+          if (quantity > 0 && quantity < minQuantity) {
+            quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
+            quantityError.style.display = 'block';
+          } else {
+            quantityError.style.display = 'none';
+          }
+          calculatedPrice = Math.round(quantity * unitPrice);
+          estimatedTime = currentConfig.time;
+        }
+      }
+
+      priceEstimate.textContent = `Prix estimé : ${calculatedPrice.toLocaleString('fr-FR')} FCFA`;
+      if (serviceDef.options && !isQuantityFixedByOption) {
+        priceDetails.textContent = `(Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
+      } else if (!serviceDef.options && !isCommentService) {
+        priceDetails.textContent = `(Prix pour 1 : ${unitPrice.toLocaleString('fr-FR')} FCFA, Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
+      } else if (isCommentService) {
+        priceDetails.textContent = `(Prix par commentaire : ${unitPrice.toLocaleString('fr-FR')} FCFA)`;
+      } else {
+        priceDetails.textContent = '';
+      }
+
+      timeEstimate.textContent = `Temps de réalisation : ${estimatedTime}`;
+      remarkBox.textContent = serviceDef.remark;
+    }
+
+    function toggleContactField() {
+      whatsappField.style.display = 'none';
+      emailField.style.display    = 'none';
+      contactInput.required       = false;
+      emailInput.required         = false;
+      contactInput.value          = '';
+      emailInput.value            = '';
+      whatsappRemark.style.display = 'none';
+      emailRemark.style.display    = 'none';
+
+      if (contactType.value === 'whatsapp') {
+        whatsappField.style.display = 'block';
+        contactInput.required = true;
+        whatsappRemark.style.display = 'block';
+      } else if (contactType.value === 'email') {
+        emailField.style.display = 'block';
+        emailInput.required = true;
+        emailRemark.style.display = 'block';
+      }
+    }
+
+    function showNotification(icon, message, type, options = {}) {
+      const { isBalanceError = false, showViewOrdersButton = false } = options;
+      
+      notificationIcon.innerHTML = icon;
+      notificationMessage.innerHTML = message;
+      notification.className = 'order-notification notification-' + type;
+      
+      // Gestion des boutons selon le type de notification
+      if (isBalanceError) {
+        notificationButtons.innerHTML = `
+          <a href="payment.html" class="notification-button">Recharger mon solde</a>
+          <button class="notification-close" id="notificationClose">Fermer</button>
+        `;
+      } else if (showViewOrdersButton) {
+        // Cas de succès avec bouton "Voir mes commandes"
+        notificationButtons.innerHTML = `
+          <a href="commandes.html" class="notification-button">Voir mes commandes</a>
+          <button class="notification-close" id="notificationClose">Fermer</button>
+        `;
+      } else {
+        notificationButtons.innerHTML = '<button class="notification-close" id="notificationClose">Fermer</button>';
+      }
+      
+      // Réattacher l'événement de fermeture
+      document.getElementById('notificationClose').addEventListener('click', function() {
+        notification.style.display = 'none';
+      });
+      
+      notification.style.display = 'block';
+    }
+
+    function setLoadingState(isLoading) {
+      if (isLoading) {
+        submitButton.classList.add('loading');
+        submitButton.disabled = true;
+      } else {
+        submitButton.classList.remove('loading');
+        submitButton.disabled = false;
+      }
+    }
+
+    async function onSubmit(e) {
+      e.preventDefault();
+      setLoadingState(true);
+      orderErrorBox.style.display = 'none';
+      orderErrorBox.textContent = '';
+      quantityError.style.display = 'none';
+
+      const selectedServiceKey = serviceSelect.value;
+      if (!selectedServiceKey) {
+        orderErrorBox.textContent = 'Veuillez sélectionner un service.';
+        orderErrorBox.style.display = 'block';
+        setLoadingState(false);
+        return;
+      }
+      const selectedQuality = qualitySelect.value;
+      if (!selectedQuality) {
+        orderErrorBox.textContent = 'Veuillez sélectionner une qualité.';
+        orderErrorBox.style.display = 'block';
+        setLoadingState(false);
+        return;
+      }
+
+      const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
+      let minQuantity = 1;
+
+      const remarkMatch = serviceDef.remark && serviceDef.remark.match(/\(min:\s*(\d+)\)/);
+      if (remarkMatch && remarkMatch[1]) {
+        minQuantity = parseInt(remarkMatch[1], 10);
+      }
+
+      const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
+      let quantityForValidation = 0;
+      let commentsArray = [];
+
+      if (isCommentService) {
+        commentsArray = quantityInput.value.split('\n').filter(l => l.trim());
+        quantityForValidation = commentsArray.length;
+        if (quantityForValidation < minQuantity) {
+          quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`;
+          quantityError.style.display = 'block';
+          setLoadingState(false);
+          return;
+        }
+      } else {
+        if (!quantityInput.disabled) {
+          quantityForValidation = parseInt(quantityInput.value) || 0;
+          if (quantityForValidation < minQuantity) {
+            quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
+            quantityError.style.display = 'block';
+            setLoadingState(false);
+            return;
+          }
+        }
+      }
+
+      const payload = {
+        userId:      document.getElementById('userId').value,
+        platform:    selectedPlatform,
+        service:     getServiceKey(selectedServiceKey, selectedPlatform), // ✅ Convertit nom français → clé technique
+        quality:     qualitySelect.value,
+        subOption:   subOptionSection.style.display === 'block' ? subOptionSelect.value : undefined,
+        link:        linkInput.value,
+        quantity:    isCommentService || quantityInput.disabled ? undefined : Number(quantityInput.value),
+        comments:    isCommentService ? commentsArray : undefined,
+        contactType: contactType.value,
+        contact:     contactType.value === 'whatsapp' ? contactInput.value : emailInput.value
+      };
+
+      if (!payload.userId) {
+        showNotification('❌', "❌ Erreur d'authentification. Veuillez vous reconnecter.", 'error');
+        setLoadingState(false);
+        return;
+      }
+
+      if (payload.subOption === "" && subOptionSection.style.display !== 'none') {
+        showNotification('❌', "❌ Veuillez choisir une option de service.", 'error');
+        setLoadingState(false);
+        return;
+      }
+
+      if (!payload.contactType) {
+        showNotification('❌', "❌ Veuillez choisir un mode de contact.", 'error');
+        setLoadingState(false);
+        return;
+      }
+      if (payload.contactType === 'whatsapp' && !payload.contact) {
+        showNotification('❌', "❌ Veuillez saisir votre numéro WhatsApp.", 'error');
+        setLoadingState(false);
+        return;
+      }
+      if (payload.contactType === 'email' && !payload.contact) {
+        showNotification('❌', "❌ Veuillez saisir votre adresse Email.", 'error');
+        setLoadingState(false);
+        return;
+      }
+
+      try {
+        // Simulation d'envoi de commande (remplacer par votre vrai endpoint)
+        // Ajout d'un délai pour simuler le chargement
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // CHANGEMENT 1: Utilisation du nouveau serveur Replit
+        const res = await fetch('https://social-boost-exaucenapopolo2.replit.app/order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        if (!res.ok) {
+          const errorData = await res.json();
+          
+          // Vérification spécifique pour les erreurs de solde insuffisant
+          if (errorData.error && errorData.error.toLowerCase().includes("solde")) {
+            throw new Error("SOLDE_INSUFFISANT");
+          }
+          
+          throw new Error(errorData.error || 'Erreur inattendue. Veuillez réessayer.');
+        }
+        
+        // CHANGEMENT 2: Ajout du bouton "Voir mes commandes" dans la notification de succès
+        showNotification('✅', '✅ Commande envoyée avec succès !', 'success', { showViewOrdersButton: true });
+        orderForm.reset();
+        resetUI();
+        icons.forEach(i => i.classList.remove('active'));
+      } catch (err) {
+        // Gestion spécifique des erreurs de solde insuffisant
+        if (err.message === "SOLDE_INSUFFISANT") {
+          const balanceError = `
+            <strong>❌ Solde insuffisant !</strong><br>
+            Votre solde est insuffisant pour effectuer cette commande.<br><br>
+            Veuillez recharger votre solde pour continuer.
+          `;
+          showNotification('❌', balanceError, 'error', { isBalanceError: true });
+        } else {
+          // Message d'erreur détaillé avec les créneaux et contact WhatsApp
+          const detailedError = `
+            <strong>❌ Désolé, quelque chose a mal tourné !</strong><br>
+            Votre commande n'a pas été envoyée.<br><br>
+            <u>les commandes sont disponibles a :</u><br>
+            • 10 h GMT (11 h heure du Cameroun)<br>
+            • 15 h GMT (16 h heure du Cameroun)<br>
+            • 20 h GMT (21 h heure du Cameroun)<br><br>
+            Si le problème persiste à ces horaires, contactez l'administrateur ou l'assistance via WhatsApp :<br>
+            <a href="https://wa.me/237699853665" target="_blank">+237 699 85 36 65</a><br>
+            et joignez une capture d'écran pour une solution directe.
+          `;
+          showNotification('❌', detailedError, 'error', {});
+        }
+      } finally {
+        setLoadingState(false);
+      }
+    }
+  </script>
+</body>
+</html>
