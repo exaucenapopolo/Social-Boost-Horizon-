@@ -5,14 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Commander Boost – Social Boost Horizon</title>
 
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@600;700;800&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
 
+  <!-- AOS (Animate On Scroll) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" />
 
+  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -668,8 +672,10 @@
   </style>
 </head>
 <body>
+  <!-- Fond animé (étoiles) -->
   <div class="background-animation"></div>
 
+  <!-- Header avec logo et menu hamburger -->
   <header data-aos="fade-down">
     <a href="dashboard.html" class="logo-text">
       <span class="text-social">SOCIAL</span>
@@ -695,6 +701,7 @@
     </div>
   </header>
 
+  <!-- Notification de commande -->
   <div class="order-notification" id="orderNotification">
     <div class="notification-content">
       <div class="notification-icon" id="notificationIcon"></div>
@@ -705,6 +712,7 @@
     </div>
   </div>
 
+  <!-- Section des plateformes -->
   <div class="platforms">
     <img src="https://img.icons8.com/color/48/facebook.png"      alt="Facebook"    data-platform="facebook">
     <img src="https://img.icons8.com/color/48/instagram-new.png" alt="Instagram"   data-platform="instagram">
@@ -717,11 +725,14 @@
     <img src="https://img.icons8.com/color/48/linkedin.png"     alt="LinkedIn"    data-platform="linkedin">
   </div>
 
+  <!-- Conteneur de la page principale -->
   <div class="content" data-aos="fade-up">
+    <!-- Titre de la page -->
     <div class="page-title">
       <h2>Commander un Boostage</h2>
     </div>
 
+    <!-- Formulaire de commande -->
     <form id="orderForm" class="service-form">
       <input type="hidden" name="userId" id="userId">
 
@@ -787,6 +798,7 @@
     </form>
   </div>
 
+  <!-- Boutons en bas de page (hors formulaire) -->
   <div class="bottom-buttons">
     <div class="button-section">
       <p>Vous avez un téléphone Android, téléchargez l'application officielle Social Boost Horizon :</p>
@@ -810,6 +822,7 @@
     </div>
   </div>
 
+  <!-- FOOTER -->
   <footer data-aos="fade-up">
     <div class="footer-content">
       <div class="social-icons">
@@ -825,6 +838,7 @@
     </div>
   </footer>
 
+  <!-- Scripts AOS, Animation nuages et menu hamburger -->
   <script defer src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   <script>
     // Configuration Firebase
@@ -844,6 +858,35 @@
     
     const auth = firebase.auth();
     const db = firebase.firestore();
+
+    // === MAPPING DES NOMS DE SERVICES (résout le problème d'apostrophes) ===
+    const serviceMapping = {
+      facebook: {
+        "J'aime (page)": "jaime_page",
+        "J'aime (publication)": "jaime_publication"
+      },
+      instagram: {
+        "J'aime": "jaime"
+      },
+      youtube: {
+        "J'aime": "jaime"
+      },
+      tiktok: {
+        "J'aime": "jaime",
+        "J'aime pour direct": "jaime_direct"
+      },
+      twitter: {
+        "Likes (J'aime)": "likes_jaime"
+      }
+    };
+
+    // Fonction pour convertir nom d'affichage → clé technique
+    function getServiceKey(displayName, platform) {
+      if (serviceMapping[platform] && serviceMapping[platform][displayName]) {
+        return serviceMapping[platform][displayName];
+      }
+      return displayName; // Si pas de mapping, retourner tel quel
+    }
 
     document.addEventListener("DOMContentLoaded", function () {
       AOS.init({ duration: 800, once: true });
@@ -882,6 +925,7 @@
     });
   </script>
 
+  <!-- Script principal pour le formulaire de commande -->
   <script>
     // === Données des services (tous vos services) ===
     const servicesData = {
@@ -1601,7 +1645,7 @@
       const payload = {
         userId:      document.getElementById('userId').value,
         platform:    selectedPlatform,
-        service:     selectedServiceKey,
+        service:     selectedServiceKey, // Le backend normalise automatiquement les apostrophes
         quality:     qualitySelect.value,
         subOption:   subOptionSection.style.display === 'block' ? subOptionSelect.value : undefined,
         link:        linkInput.value,
