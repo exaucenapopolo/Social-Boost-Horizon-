@@ -373,12 +373,11 @@
     if (weeklyOrders >= 10) return { level: 'Intermédiaire', discount: 15, class: 'level-intermediate' };
     if (weeklyOrders >= 7) return { level: 'Amateur', discount: 10, class: 'level-amateur' };
     if (weeklyOrders >= 5) return { level: 'Débutant', discount: 5, class: 'level-beginner' };
-    return { level: 'Débutant', discount: 5, class: 'level-beginner' }; // Niveau par défaut
+    return { level: 'Débutant', discount: 5, class: 'level-beginner' };
   }
 
   // Mise à jour des indicateurs de niveau
   function updateLevelIndicators() {
-    // Reset all cards
     [beginnerCard, amateurCard, intermediateCard, professionalCard].forEach(card => {
       if (card) {
         card.classList.remove('active');
@@ -419,31 +418,50 @@
     });
   }
 
-  // Charger le classement des meilleurs vendeurs (par nombre de commandes)
+  // CORRECTION : Charger le classement des meilleurs vendeurs (par nombre de commandes)
   async function loadLeaderboard() {
     try {
-      leaderboardContainer.innerHTML = '<div class="leaderboard-empty"><i class="fas fa-spinner fa-spin"></i> Chargement du classement...</div>';
+      leaderboardContainer.innerHTML = '<div class="leaderboard-empty"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
       
+      // Récupérer TOUS les revendeurs et filtrer/trier côté client
       const usersSnapshot = await db.collection('users')
         .where('isReseller', '==', true)
-        .where('resellerWeeklyOrders', '>=', 5)
-        .orderBy('resellerWeeklyOrders', 'desc')
-        .limit(10)
         .get();
 
       if (usersSnapshot.empty) {
+        leaderboardContainer.innerHTML = '<div class="leaderboard-empty">Aucun revendeur pour le moment</div>';
+        return;
+      }
+
+      // Filtrer et trier côté client
+      const resellers = [];
+      usersSnapshot.forEach(doc => {
+        const data = doc.data();
+        const weeklyOrders = data.resellerWeeklyOrders || 0;
+        
+        // Filtre : minimum 5 commandes
+        if (weeklyOrders >= 5) {
+          resellers.push({
+            username: data.username || data.email || 'Utilisateur anonyme',
+            weeklyOrders: weeklyOrders
+          });
+        }
+      });
+
+      // Tri par nombre de commandes (décroissant)
+      resellers.sort((a, b) => b.weeklyOrders - a.weeklyOrders);
+
+      // Limiter aux 10 premiers
+      const top10 = resellers.slice(0, 10);
+
+      if (top10.length === 0) {
         leaderboardContainer.innerHTML = '<div class="leaderboard-empty">Aucun vendeur n\'a atteint 5 commandes cette semaine</div>';
         return;
       }
 
       let leaderboardHTML = '';
-      let rank = 1;
-      
-      usersSnapshot.forEach(doc => {
-        const userData = doc.data();
-        const username = userData.username || userData.email || 'Utilisateur anonyme';
-        const weeklyOrders = userData.resellerWeeklyOrders || 0;
-        
+      top10.forEach((reseller, index) => {
+        const rank = index + 1;
         let rankClass = '';
         if (rank === 1) rankClass = 'leaderboard-rank-1';
         else if (rank === 2) rankClass = 'leaderboard-rank-2';
@@ -452,47 +470,62 @@
         leaderboardHTML += `
           <div class="leaderboard-item">
             <div class="leaderboard-rank ${rankClass}">#${rank}</div>
-            <div class="leaderboard-user">${username}</div>
-            <div class="leaderboard-orders">${weeklyOrders} commandes</div>
+            <div class="leaderboard-user">${reseller.username}</div>
+            <div class="leaderboard-orders">${reseller.weeklyOrders} commandes</div>
           </div>
         `;
-        
-        rank++;
       });
       
       leaderboardContainer.innerHTML = leaderboardHTML;
       
     } catch (error) {
-      console.error('Erreur lors du chargement du classement des vendeurs:', error);
-      leaderboardContainer.innerHTML = '<div class="leaderboard-empty">Erreur lors du chargement du classement</div>';
+      console.error('Erreur classement vendeurs:', error);
+      leaderboardContainer.innerHTML = `<div class="leaderboard-empty">Erreur: ${error.message}</div>`;
     }
   }
 
-  // Charger le classement des meilleurs dépensiers (par montant dépensé)
+  // CORRECTION : Charger le classement des meilleurs dépensiers (par montant dépensé)
   async function loadSpendersLeaderboard() {
     try {
-      spendersLeaderboardContainer.innerHTML = '<div class="leaderboard-empty"><i class="fas fa-spinner fa-spin"></i> Chargement du classement...</div>';
+      spendersLeaderboardContainer.innerHTML = '<div class="leaderboard-empty"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
       
-      // Récupérer tous les utilisateurs ayant un total dépensé cette semaine
-      const usersSnapshot = await db.collection('users')
-        .where('weeklySpent', '>', 0)
-        .orderBy('weeklySpent', 'desc')
-        .limit(10)
-        .get();
+      // Récupérer TOUS les utilisateurs et filtrer/trier côté client
+      const usersSnapshot = await db.collection('users').get();
 
       if (usersSnapshot.empty) {
+        spendersLeaderboardContainer.innerHTML = '<div class="leaderboard-empty">Aucun utilisateur pour le moment</div>';
+        return;
+      }
+
+      // Filtrer et trier côté client
+      const spenders = [];
+      usersSnapshot.forEach(doc => {
+        const data = doc.data();
+        const weeklySpent = data.weeklySpent || 0;
+        
+        // Filtre : montant > 0
+        if (weeklySpent > 0) {
+          spenders.push({
+            username: data.username || data.email || 'Utilisateur anonyme',
+            weeklySpent: weeklySpent
+          });
+        }
+      });
+
+      // Tri par montant dépensé (décroissant)
+      spenders.sort((a, b) => b.weeklySpent - a.weeklySpent);
+
+      // Limiter aux 10 premiers
+      const top10 = spenders.slice(0, 10);
+
+      if (top10.length === 0) {
         spendersLeaderboardContainer.innerHTML = '<div class="leaderboard-empty">Aucune dépense significative cette semaine</div>';
         return;
       }
 
       let leaderboardHTML = '';
-      let rank = 1;
-      
-      usersSnapshot.forEach(doc => {
-        const userData = doc.data();
-        const username = userData.username || userData.email || 'Utilisateur anonyme';
-        const weeklySpent = userData.weeklySpent || 0;
-        
+      top10.forEach((spender, index) => {
+        const rank = index + 1;
         let rankClass = '';
         if (rank === 1) rankClass = 'leaderboard-rank-1';
         else if (rank === 2) rankClass = 'leaderboard-rank-2';
@@ -501,26 +534,23 @@
         leaderboardHTML += `
           <div class="leaderboard-item">
             <div class="leaderboard-rank ${rankClass}">#${rank}</div>
-            <div class="leaderboard-user">${username}</div>
-            <div class="leaderboard-amount">${weeklySpent.toLocaleString('fr-FR')} FCFA</div>
+            <div class="leaderboard-user">${spender.username}</div>
+            <div class="leaderboard-amount">${spender.weeklySpent.toLocaleString('fr-FR')} FCFA</div>
           </div>
         `;
-        
-        rank++;
       });
       
       spendersLeaderboardContainer.innerHTML = leaderboardHTML;
       
     } catch (error) {
-      console.error('Erreur lors du chargement du classement des dépensiers:', error);
-      spendersLeaderboardContainer.innerHTML = '<div class="leaderboard-empty">Erreur lors du chargement du classement</div>';
+      console.error('Erreur classement dépensiers:', error);
+      spendersLeaderboardContainer.innerHTML = `<div class="leaderboard-empty">Erreur: ${error.message}</div>`;
     }
   }
 
   // Mise à jour complète de l'interface
   function updateUI() {
     if (userData.isReseller) {
-      // Cacher la section d'explication pour les revendeurs
       if (explanationSection) explanationSection.style.display = 'none';
       
       const levelInfo = calculateResellerLevel(userData.resellerWeeklyOrders);
@@ -531,14 +561,12 @@
       setStat(totalOrdersEl, userData.resellerTotalOrders);
       setStat(totalSavingsEl, userData.totalSavings.toLocaleString('fr-FR') + ' FCFA');
       
-      // Affichage des boutons pour revendeur
       becomeResellerBtn.style.display = 'none';
       ordersBtn.style.display = 'inline-flex';
       commanderBtn.style.display = 'inline-flex';
       dashboardBtn.style.display = 'inline-flex';
       resignBtn.style.display = 'inline-flex';
     } else {
-      // Afficher la section d'explication pour les non-revendeurs
       if (explanationSection) explanationSection.style.display = 'block';
       
       setStat(currentLevelEl, 'Non revendeur');
@@ -547,7 +575,6 @@
       setStat(totalOrdersEl, '0');
       setStat(totalSavingsEl, '0 FCFA');
       
-      // Affichage des boutons pour non-revendeur
       becomeResellerBtn.style.display = 'inline-flex';
       ordersBtn.style.display = 'none';
       commanderBtn.style.display = 'none';
@@ -561,7 +588,6 @@
     updatePricesWithDiscount();
     updateLevelIndicators();
     
-    // Charger les deux classements
     loadLeaderboard();
     loadSpendersLeaderboard();
   }
@@ -580,7 +606,6 @@
       becomeResellerBtn.disabled = true;
       becomeResellerBtn.innerHTML = '<span class="loading-spinner"></span> Activation...';
 
-      // Mise à jour directe dans Firestore
       await db.collection('users').doc(userId).update({
         isReseller: true,
         resellerLevel: 'Débutant',
@@ -588,14 +613,16 @@
         resellerSince: new Date(),
         resellerWeeklyOrders: 0,
         resellerTotalOrders: 0,
-        totalSavings: 0
+        totalSavings: 0,
+        resellerRevenue: 0,
+        resellerOrdersByDay: {}
       });
 
       notify('Félicitations ! Vous êtes maintenant revendeur.', 'success');
       
     } catch (error) {
-      console.error('Erreur lors de l\'activation revendeur:', error);
-      notify('Erreur lors de l\'activation: ' + error.message, 'error');
+      console.error('Erreur activation revendeur:', error);
+      notify('Erreur: ' + error.message, 'error');
     } finally {
       becomeResellerBtn.disabled = false;
       becomeResellerBtn.innerHTML = originalText;
@@ -621,16 +648,14 @@
       resignBtn.innerHTML = '<span class="loading-spinner"></span> Démission...';
 
       await db.collection('users').doc(userId).update({
-        isReseller: false,
-        resellerLevel: null,
-        discountRate: 0
+        isReseller: false
       });
 
       notify('Vous avez démissionné en tant que revendeur.', 'info');
       
     } catch (error) {
-      console.error('Erreur lors de la démission:', error);
-      notify('Erreur lors de la démission: ' + error.message, 'error');
+      console.error('Erreur démission:', error);
+      notify('Erreur: ' + error.message, 'error');
     } finally {
       resignBtn.disabled = false;
       resignBtn.innerHTML = originalText;
@@ -650,14 +675,13 @@
       refreshStatsBtn.disabled = true;
       refreshStatsBtn.innerHTML = '<span class="loading-spinner"></span> Mise à jour...';
 
-      // Recharger les deux classements
       await loadLeaderboard();
       await loadSpendersLeaderboard();
-      notify('Statistiques et classements mis à jour', 'success');
+      notify('Classements mis à jour', 'success');
       
     } catch (error) {
-      console.error('Erreur lors du rafraîchissement:', error);
-      notify('Erreur lors de la mise à jour: ' + error.message, 'error');
+      console.error('Erreur rafraîchissement:', error);
+      notify('Erreur: ' + error.message, 'error');
     } finally {
       refreshStatsBtn.disabled = false;
       refreshStatsBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Rafraîchir';
@@ -667,12 +691,10 @@
   // Écoute des changements d'authentification
   auth.onAuthStateChanged(async (user) => {
     if (user) {
-      // Désabonnement précédent si existant
       if (userUnsubscribe) {
         userUnsubscribe();
       }
 
-      // Écoute en temps réel des données utilisateur
       userUnsubscribe = db.collection('users').doc(user.uid).onSnapshot(
         (doc) => {
           if (doc.exists) {
@@ -687,7 +709,6 @@
               totalSavings: data.totalSavings || 0
             };
             
-            // Recalcul du niveau si nécessaire
             if (userData.isReseller) {
               const newLevel = calculateResellerLevel(userData.resellerWeeklyOrders);
               userData.resellerLevel = newLevel.level;
@@ -704,7 +725,6 @@
       );
       
     } else {
-      // Utilisateur déconnecté
       if (userUnsubscribe) {
         userUnsubscribe();
         userUnsubscribe = null;
@@ -724,19 +744,16 @@
     }
   });
 
-  // Gestion des événements
   becomeResellerBtn.addEventListener('click', becomeReseller);
   resignBtn.addEventListener('click', resignAsReseller);
   refreshStatsBtn.addEventListener('click', refreshResellerStats);
 
-  // Initialisation au chargement
   document.addEventListener('DOMContentLoaded', () => {
     if (auth.currentUser) {
       notify('Chargement de vos données revendeur...', 'info', 2000);
     }
   });
 
-  // Gestion du dépôt rapide
   document.getElementById('quickDeposit')?.addEventListener('click', () => {
     notify('Redirection vers la page de dépôt...', 'info');
     setTimeout(() => {
