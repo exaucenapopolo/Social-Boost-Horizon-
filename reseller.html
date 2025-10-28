@@ -197,7 +197,7 @@
       <div class="reseller-actions">
         <button id="becomeResellerBtn" class="btn btn-primary pulse"><i class="fas fa-user-plus"></i> Devenir Revendeur</button>
         <a id="ordersBtn" class="btn btn-secondary" href="commandes.html" style="display:none"><i class="fas fa-shopping-cart"></i> Mes Commandes</a>
-        <a id="commanderBtn" class="btn btn-primary" href="command.html" style="display:none"><i class="fas fa-rocket"></i> Commander</a>
+        <a id="commanderBtn" class="btn btn-primary" href="commande-revendeur.html" style="display:none"><i class="fas fa-rocket"></i> Commander</a>
         <a id="dashboardBtn" class="btn btn-secondary" href="dashboard.html" style="display:none"><i class="fas fa-home"></i> Dashboard</a>
         <button id="resignBtn" class="btn btn-danger" style="display:none"><i class="fas fa-sign-out-alt"></i> Démissionner</button>
         <button id="refreshStatsBtn" class="btn btn-secondary"><i class="fas fa-sync-alt"></i> Rafraîchir</button>
@@ -242,10 +242,10 @@
       </div>
     </section>
 
-    <!-- Nouvelle section : Classement des meilleurs dépensiers -->
+    <!-- Nouvelle section : Classement des meilleurs vendeurs par chiffre d'affaires -->
     <section class="card fade-in">
-      <h2><i class="fas fa-money-bill-wave"></i> Classement des Meilleurs Dépensiers</h2>
-      <p class="small">Top des utilisateurs ayant dépensé le plus cette semaine (toutes commandes confondues)</p>
+      <h2><i class="fas fa-money-bill-wave"></i> Classement des Meilleurs Vendeurs par CA</h2>
+      <p class="small">Top des revendeurs avec le plus gros chiffre d'affaires total (minimum 1 000 FCFA de ventes)</p>
       <div id="spendersLeaderboardContainer" class="leaderboard">
         <div class="leaderboard-empty">
           <i class="fas fa-spinner fa-spin"></i> Chargement du classement...
@@ -484,16 +484,18 @@
     }
   }
 
-  // CORRECTION : Charger le classement des meilleurs dépensiers (par montant dépensé)
+  // CORRECTION : Charger le classement des meilleurs dépensiers (par total de vente)
   async function loadSpendersLeaderboard() {
     try {
       spendersLeaderboardContainer.innerHTML = '<div class="leaderboard-empty"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
       
-      // Récupérer TOUS les utilisateurs et filtrer/trier côté client
-      const usersSnapshot = await db.collection('users').get();
+      // Récupérer UNIQUEMENT les revendeurs
+      const usersSnapshot = await db.collection('users')
+        .where('isReseller', '==', true)
+        .get();
 
       if (usersSnapshot.empty) {
-        spendersLeaderboardContainer.innerHTML = '<div class="leaderboard-empty">Aucun utilisateur pour le moment</div>';
+        spendersLeaderboardContainer.innerHTML = '<div class="leaderboard-empty">Aucun revendeur pour le moment</div>';
         return;
       }
 
@@ -501,25 +503,25 @@
       const spenders = [];
       usersSnapshot.forEach(doc => {
         const data = doc.data();
-        const weeklySpent = data.weeklySpent || 0;
+        const resellerRevenue = data.resellerRevenue || 0;
         
-        // Filtre : montant > 0
-        if (weeklySpent > 0) {
+        // Filtre : Total de vente >= 1000 FCFA
+        if (resellerRevenue >= 1000) {
           spenders.push({
             username: data.username || data.email || 'Utilisateur anonyme',
-            weeklySpent: weeklySpent
+            resellerRevenue: resellerRevenue
           });
         }
       });
 
-      // Tri par montant dépensé (décroissant)
-      spenders.sort((a, b) => b.weeklySpent - a.weeklySpent);
+      // Tri par total de vente (décroissant)
+      spenders.sort((a, b) => b.resellerRevenue - a.resellerRevenue);
 
       // Limiter aux 10 premiers
       const top10 = spenders.slice(0, 10);
 
       if (top10.length === 0) {
-        spendersLeaderboardContainer.innerHTML = '<div class="leaderboard-empty">Aucune dépense significative cette semaine</div>';
+        spendersLeaderboardContainer.innerHTML = '<div class="leaderboard-empty">Aucun revendeur n\'a atteint 1 000 FCFA de ventes</div>';
         return;
       }
 
@@ -535,7 +537,7 @@
           <div class="leaderboard-item">
             <div class="leaderboard-rank ${rankClass}">#${rank}</div>
             <div class="leaderboard-user">${spender.username}</div>
-            <div class="leaderboard-amount">${spender.weeklySpent.toLocaleString('fr-FR')} FCFA</div>
+            <div class="leaderboard-amount">${spender.resellerRevenue.toLocaleString('fr-FR')} FCFA</div>
           </div>
         `;
       });
