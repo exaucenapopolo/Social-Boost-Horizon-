@@ -371,6 +371,81 @@
       margin-top: .5rem;
       font-size: 0.9rem;
     }
+    
+    /* Style pour le Mode Vitesse */
+    .speed-mode-container {
+      margin: 15px 0;
+      padding: 15px;
+      background: rgba(30, 144, 255, 0.1);
+      border-radius: 10px;
+      border: 1px solid rgba(30, 144, 255, 0.3);
+    }
+    .speed-mode-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+    .speed-mode-label {
+      display: flex;
+      align-items: center;
+      font-weight: 600;
+      color: var(--sbh-text-white);
+    }
+    .speed-mode-icon {
+      margin-right: 10px;
+      font-size: 1.2rem;
+      color: var(--sbh-light-blue);
+    }
+    .speed-mode-description {
+      margin-top: 8px;
+      font-size: 0.85rem;
+      color: var(--sbh-text-light);
+    }
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.2);
+      transition: .4s;
+      border-radius: 24px;
+    }
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .toggle-slider {
+      background-color: var(--sbh-light-blue);
+    }
+    input:checked + .toggle-slider:before {
+      transform: translateX(26px);
+    }
+    .speed-mode-active {
+      background: rgba(76, 175, 80, 0.15);
+      border-color: rgba(76, 175, 80, 0.5);
+    }
+
     .btn {
       width: 100%;
       padding: 15px;
@@ -764,6 +839,23 @@
         <input id="quantityInput" name="quantity" type="number" min="1" placeholder="Ex : 1000">
         <div id="quantityError" class="error-message" style="display:none;"></div>
         <p id="commentsCount" style="display:none;">0 commentaire(s) (minimum 10)</p>
+      </div>
+
+      <!-- Mode Vitesse - Nouvelle section ajoutée -->
+      <div class="speed-mode-container" id="speedModeContainer">
+        <div class="speed-mode-toggle">
+          <div class="speed-mode-label">
+            <i class="fas fa-bolt speed-mode-icon"></i>
+            <span>Mode Vitesse</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="speedModeToggle">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="speed-mode-description">
+          Activez cette option pour accélérer le traitement de votre commande (+10% du prix total)
+        </div>
       </div>
 
       <div class="form-group">
@@ -1226,6 +1318,14 @@
     const submitButton     = document.querySelector('.btn');
     const submitButtonText = document.querySelector('.btn .btn-text');
     const spinner          = document.querySelector('.btn .spinner');
+    
+    // Nouveaux éléments pour le mode vitesse
+    const speedModeContainer = document.getElementById('speedModeContainer');
+    const speedModeToggle = document.getElementById('speedModeToggle');
+
+    // Variables pour le mode vitesse
+    let isSpeedModeActive = false;
+    let basePrice = 0;
 
     // Events binding
     icons.forEach(i => i.addEventListener('click', () => selectPlatform(i.dataset.platform)));
@@ -1234,6 +1334,7 @@
     subOptionSelect.addEventListener('change', updateDetails);
     contactType.addEventListener('change', toggleContactField);
     orderForm.addEventListener('submit', onSubmit);
+    speedModeToggle.addEventListener('change', toggleSpeedMode);
     window.addEventListener('DOMContentLoaded', () => selectPlatform('facebook'));
 
     function attachQuantityInputListener() {
@@ -1284,6 +1385,11 @@
       quantityError.style.display = 'none';
       quantityError.textContent = '';
       commentsCount.style.display = 'none';
+
+      // Reset du mode vitesse
+      speedModeToggle.checked = false;
+      isSpeedModeActive = false;
+      speedModeContainer.classList.remove('speed-mode-active');
 
       priceEstimate.textContent = 'Prix estimé : 0 FCFA';
       priceDetails.textContent  = '';
@@ -1368,6 +1474,18 @@
         quantityInput.disabled = false;
       }
 
+      updateDetails();
+    }
+
+    function toggleSpeedMode() {
+      isSpeedModeActive = speedModeToggle.checked;
+      
+      if (isSpeedModeActive) {
+        speedModeContainer.classList.add('speed-mode-active');
+      } else {
+        speedModeContainer.classList.remove('speed-mode-active');
+      }
+      
       updateDetails();
     }
 
@@ -1481,16 +1599,32 @@
         }
       }
 
-      priceEstimate.textContent = `Prix estimé : ${calculatedPrice.toLocaleString('fr-FR')} FCFA`;
-      if (serviceDef.options && !isQuantityFixedByOption) {
-        priceDetails.textContent = `(Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
-      } else if (!serviceDef.options && !isCommentService) {
-        priceDetails.textContent = `(Prix pour 1 : ${unitPrice.toLocaleString('fr-FR')} FCFA, Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
-      } else if (isCommentService) {
-        priceDetails.textContent = `(Prix par commentaire : ${unitPrice.toLocaleString('fr-FR')} FCFA)`;
-      } else {
-        priceDetails.textContent = '';
+      // Sauvegarde du prix de base
+      basePrice = calculatedPrice;
+      
+      // Application du mode vitesse si activé
+      if (isSpeedModeActive) {
+        calculatedPrice = Math.round(calculatedPrice * 1.1);
       }
+
+      priceEstimate.textContent = `Prix estimé : ${calculatedPrice.toLocaleString('fr-FR')} FCFA`;
+      
+      // Affichage des détails de prix
+      let detailsText = '';
+      if (serviceDef.options && !isQuantityFixedByOption) {
+        detailsText = `(Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
+      } else if (!serviceDef.options && !isCommentService) {
+        detailsText = `(Prix pour 1 : ${unitPrice.toLocaleString('fr-FR')} FCFA, Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
+      } else if (isCommentService) {
+        detailsText = `(Prix par commentaire : ${unitPrice.toLocaleString('fr-FR')} FCFA)`;
+      }
+      
+      // Ajout de l'info sur le mode vitesse si activé
+      if (isSpeedModeActive) {
+        detailsText += detailsText ? ' + Mode Vitesse (+10%)' : 'Mode Vitesse (+10%)';
+      }
+      
+      priceDetails.textContent = detailsText;
 
       timeEstimate.textContent = `Temps de réalisation : ${estimatedTime}`;
       remarkBox.textContent = serviceDef.remark;
@@ -1624,7 +1758,8 @@
         comments:    isCommentService ? commentsArray : undefined,
         contactType: contactType.value,
         contact:     contactType.value === 'whatsapp' ? contactInput.value : emailInput.value,
-        isResellerOrder: false  // Commande normale (pas revendeur)
+        isResellerOrder: false,  // Commande normale (pas revendeur)
+        speedMode:   isSpeedModeActive  // Nouveau champ pour le mode vitesse
       };
 
       if (!payload.userId) {
