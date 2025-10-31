@@ -328,80 +328,6 @@
     }
     .service-form textarea { resize: vertical; }
     
-    /* Style pour le Mode Vitesse */
-    .speed-mode-container {
-      margin: 15px 0;
-      padding: 15px;
-      background: rgba(30, 144, 255, 0.1);
-      border-radius: 10px;
-      border: 1px solid rgba(30, 144, 255, 0.3);
-    }
-    .speed-mode-toggle {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      cursor: pointer;
-    }
-    .speed-mode-label {
-      display: flex;
-      align-items: center;
-      font-weight: 600;
-      color: var(--sbh-text-white);
-    }
-    .speed-mode-icon {
-      margin-right: 10px;
-      font-size: 1.2rem;
-      color: var(--sbh-light-blue);
-    }
-    .speed-mode-description {
-      margin-top: 8px;
-      font-size: 0.85rem;
-      color: var(--sbh-text-light);
-    }
-    .toggle-switch {
-      position: relative;
-      display: inline-block;
-      width: 50px;
-      height: 24px;
-    }
-    .toggle-switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-    .toggle-slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: rgba(255, 255, 255, 0.2);
-      transition: .4s;
-      border-radius: 24px;
-    }
-    .toggle-slider:before {
-      position: absolute;
-      content: "";
-      height: 16px;
-      width: 16px;
-      left: 4px;
-      bottom: 4px;
-      background-color: white;
-      transition: .4s;
-      border-radius: 50%;
-    }
-    input:checked + .toggle-slider {
-      background-color: var(--sbh-light-blue);
-    }
-    input:checked + .toggle-slider:before {
-      transform: translateX(26px);
-    }
-    .speed-mode-active {
-      background: rgba(76, 175, 80, 0.15);
-      border-color: rgba(76, 175, 80, 0.5);
-    }
-    
     .price-estimate {
       font-size: 18px;
       margin-top: 10px;
@@ -873,23 +799,6 @@
         <p id="commentsCount" style="display:none;">0 commentaire(s) (minimum 10)</p>
       </div>
 
-      <!-- Mode Vitesse - Nouvelle section ajoutée -->
-      <div class="speed-mode-container" id="speedModeContainer">
-        <div class="speed-mode-toggle">
-          <div class="speed-mode-label">
-            <i class="fas fa-bolt speed-mode-icon"></i>
-            <span>Mode Vitesse</span>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="speedModeToggle">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div class="speed-mode-description">
-          Activez cette option pour accélérer le traitement de votre commande (+10% du prix total)
-        </div>
-      </div>
-
       <div class="form-group">
         <label for="contactType">Mode de contact</label>
         <select id="contactType" name="contactType" required>
@@ -977,6 +886,35 @@
     const db = firebase.firestore();
     const auth = firebase.auth();
 
+    // === MAPPING DES NOMS DE SERVICES (résout le problème d'apostrophes) ===
+    const serviceMapping = {
+      facebook: {
+        "J'aime (page)": "jaime_page",
+        "J'aime (publication)": "jaime_publication"
+      },
+      instagram: {
+        "J'aime": "jaime"
+      },
+      youtube: {
+        "J'aime": "jaime"
+      },
+      tiktok: {
+        "J'aime": "jaime",
+        "J'aime pour direct": "jaime_direct"
+      },
+      twitter: {
+        "Likes (J'aime)": "likes_jaime"
+      }
+    };
+
+    // Fonction pour convertir nom d'affichage → clé technique
+    function getServiceKey(displayName, platform) {
+      if (serviceMapping[platform] && serviceMapping[platform][displayName]) {
+        return serviceMapping[platform][displayName];
+      }
+      return displayName; // Si pas de mapping, retourner tel quel
+    }
+
     // === Données des services (tous vos services) ===
     const servicesData = {
       facebook: {
@@ -1030,16 +968,16 @@
             "Reaction 😢": { medium: { price: 900, time: "3 h" }, high: { price: 1100, time: "2 h" } },
             "Reaction 😡": { medium: { price: 900, time: "3 h" }, high: { price: 1100, time: "2 h" } }
           },
-          remark: "Choisissez l'emoji à appliquer aux publications.Si la publication provient d'un compte Facebook, assurez vous que les publications du compte sont publiques ! (min: 100)"
+          remark: "Choisissez l’emoji à appliquer aux publications.Si la publication provient d'un compte Facebook, assurez vous que les publications du compte sont publiques ! (min: 100)"
         }
       },
       instagram: {
         "Followers": {
           medium: { price: 2250, time: "20 min" },
           high:   { price: 3650, time: "10 min" },
-          remark: "Ne changez pas votre nom d'utilisateur.NB: En raison d'une récente mise à jour d'instagram, vous devez maintenant désactiver l'option « À VÉRIFIER » sur votre compte instagram avant d'acheter des followers, cette option est automatiquement activée pour TOUS les comptes instagram et c'est à vous de la désactiver.VOUS N'OBTIENDREZ AUCUN FOLLOWER ET PERDREZ VOTRE ARGENT SI VOUS NE LE DÉSACTIVEZ PAS AVANT D'ACHETER, N'APPUYEZ PAS SUR ACHETER SI VOUS N'ÊTES PAS SÛR À 100% QU'IL EST DÉSACTIVÉ. (min: 100)"
+          remark: "Ne changez pas votre nom d’utilisateur.NB: En raison d'une récente mise à jour d'instagram, vous devez maintenant désactiver l'option « À VÉRIFIER » sur votre compte instagram avant d'acheter des followers, cette option est automatiquement activée pour TOUS les comptes instagram et c'est à vous de la désactiver.VOUS N'OBTIENDREZ AUCUN FOLLOWER ET PERDREZ VOTRE ARGENT SI VOUS NE LE DÉSACTIVEZ PAS AVANT D'ACHETER, N'APPUYEZ PAS SUR ACHETER SI VOUS N'ÊTES PAS SÛR À 100% QU'IL EST DÉSACTIVÉ. (min: 100)"
         },
-        "J'aime": {
+        "J’aime": {
           medium: { price: 250, time: "30 min" },
           high:   { price: 500, time: "15 min" },
           remark: "Baisse de 3–5 % des likes. video publique obligatoire (min: 100)"
@@ -1052,7 +990,7 @@
         "Commentaires personnalisés": {
           medium: { price: 419, time: "12 h" },
           high:   { price: 559, time: "10 h" },
-          remark: "Veuillez ne pas insérer de '@' ni '#' dans vos commentaires. (min: 10)"
+          remark: "Veuillez ne pas insérer de “@” ni “#” dans vos commentaires. (min: 10)"
         },
         "Vues de story": {
           medium: { price: 350, time: "30 min" },
@@ -1071,7 +1009,7 @@
           high:   { price: 1980, time: "8 h" },
           remark: "Presque aucune baisse de vues. Ce sont des vues de haute qualité : ils regarderont toute votre vidéo jusqu'à la fin (min: 100)"
         },
-        "J'aime": {
+        "J’aime": {
           medium: { price: 1390, time: "2 h" },
           high:   { price: 1750, time: "1 h" },
           remark: "Presque aucune baisse de j'aimes. (min: 100)"
@@ -1083,7 +1021,7 @@
           high:   { price: 3500, time: "1 h" },
           remark: "Assurez-vous que le compte Tiktok n'est pas privé, et ne changez pas le nom d'utilisateur du compte pendant que des followers sont ajoutés !. Il faut s'attendre à une légère baisse de 1–2 % après quelques semaines pour la qualité moyenne. (min: 100)"
         },
-        "J'aime": {
+        "J’aime": {
           medium: { price: 279, time: "20 min" },
           high:   { price: 510, time: "10 min" },
           remark: "Lien direct de la vidéo. (min: 50)"
@@ -1106,9 +1044,9 @@
         "Commentaires personnalisés": {
           medium: { price: 390, time: "4 h" },
           high:   { price: 569, time: "2 h" },
-          remark: "Assurez-vous de ne pas insérer de '@' ni '#' dans vos commentaires. (min: 10)"
+          remark: "Assurez-vous de ne pas insérer de “@” ni “#” dans vos commentaires. (min: 10)"
         },
-        "J'aime pour direct": {
+        "J’aime pour direct": {
           medium: { price: 250, time: "15 min" },
           high:   { price: 560, time: "10 min" },
           remark: "Les likes viendront 15 ou 10 minutes après votre achat. (min : 100)"
@@ -1127,7 +1065,7 @@
         "Membres groupe/canal": {
           medium: { price: 1200, time: "3 h" },
           high:   { price: 2250, time: "3 h" },
-          remark: "Lien d'invitation public requis. (min: 500)"
+          remark: "Lien d’invitation public requis. (min: 500)"
         },
         "Vues publication spécifique": {
           subOptionLabel: "Qualité des vues",
@@ -1285,10 +1223,6 @@
       // userData: isReseller, discountRate (from FreeRestore or firestore), balance, resellerLevel
       let userData = { isReseller: false, discountRate: 0, balance: 0, resellerLevel: '' };
 
-      // Variables pour le mode vitesse
-      let isSpeedModeActive = false;
-      let basePrice = 0;
-
       // ---- Fonction qui interroge ton service FreeRestore (exemple) ----
       async function fetchResellerLevel(uid) {
         try {
@@ -1334,10 +1268,6 @@
       const orderErrorBox    = document.getElementById('orderErrorBox');
       const savingsAmount    = document.getElementById('savingsAmount');
       const submitButton     = document.querySelector('.btn');
-      
-      // Nouveaux éléments pour le mode vitesse
-      const speedModeContainer = document.getElementById('speedModeContainer');
-      const speedModeToggle = document.getElementById('speedModeToggle');
 
       // events
       icons.forEach(i => i.addEventListener('click', () => selectPlatform(i.dataset.platform)));
@@ -1346,7 +1276,6 @@
       if (subOptionSelect) subOptionSelect.addEventListener('change', updateDetails);
       if (contactType) contactType.addEventListener('change', toggleContactField);
       if (orderForm) orderForm.addEventListener('submit', onSubmit);
-      if (speedModeToggle) speedModeToggle.addEventListener('change', toggleSpeedMode);
 
       selectPlatform('facebook');
 
@@ -1357,18 +1286,6 @@
         }
       }
       attachQuantityInputListener();
-      
-      function toggleSpeedMode() {
-        isSpeedModeActive = speedModeToggle.checked;
-        
-        if (isSpeedModeActive) {
-          speedModeContainer.classList.add('speed-mode-active');
-        } else {
-          speedModeContainer.classList.remove('speed-mode-active');
-        }
-        
-        updateDetails();
-      }
 
       function selectPlatform(p) {
         icons.forEach(i => i.classList.remove('active'));
@@ -1415,11 +1332,6 @@
         if (quantityInput) { quantityInput.value = ''; quantityInput.disabled = false; }
         if (quantityError) { quantityError.style.display = 'none'; quantityError.textContent = ''; }
         if (commentsCount) commentsCount.style.display = 'none';
-
-        // Reset du mode vitesse
-        if (speedModeToggle) speedModeToggle.checked = false;
-        isSpeedModeActive = false;
-        if (speedModeContainer) speedModeContainer.classList.remove('speed-mode-active');
 
         const normalPriceEl = document.querySelector('.normal-price');
         const resellerPriceEl = document.querySelector('.reseller-price');
@@ -1600,14 +1512,6 @@
           }
         }
 
-        // Sauvegarde du prix de base
-        basePrice = discountedPrice;
-        
-        // Application du mode vitesse si activé
-        if (isSpeedModeActive) {
-          discountedPrice = Math.round(discountedPrice * 1.1);
-        }
-
         const normalPriceEl = document.querySelector('.normal-price');
         const resellerPriceEl = document.querySelector('.reseller-price');
         if (normalPriceEl) normalPriceEl.textContent = `Prix normal : ${Math.round(normalPrice).toLocaleString('fr-FR')} FCFA`;
@@ -1615,21 +1519,13 @@
         if (savingsAmount) savingsAmount.textContent = `Économisez ${Math.round(normalPrice - discountedPrice).toLocaleString('fr-FR')} FCFA`;
 
         const priceDetailsEl = document.getElementById('priceDetails');
-        let detailsText = '';
         if (serviceDef.options && typeof isQuantityFixedByOption !== 'undefined' && !isQuantityFixedByOption) {
-          detailsText = `(Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
+          if (priceDetailsEl) priceDetailsEl.textContent = `(Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
         } else if (!serviceDef.options && !isCommentService) {
-          detailsText = `(Prix pour 1 : ${(pricePerThousand/1000).toLocaleString('fr-FR')} FCFA, Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
+          if (priceDetailsEl) priceDetailsEl.textContent = `(Prix pour 1 : ${(pricePerThousand/1000).toLocaleString('fr-FR')} FCFA, Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
         } else if (isCommentService) {
-          detailsText = `(Prix par commentaire : ${(pricePerThousand/1000).toLocaleString('fr-FR')} FCFA)`;
-        }
-        
-        // Ajout de l'info sur le mode vitesse si activé
-        if (isSpeedModeActive) {
-          detailsText += detailsText ? ' + Mode Vitesse (+10%)' : 'Mode Vitesse (+10%)';
-        }
-        
-        if (priceDetailsEl) priceDetailsEl.textContent = detailsText;
+          if (priceDetailsEl) priceDetailsEl.textContent = `(Prix par commentaire : ${(pricePerThousand/1000).toLocaleString('fr-FR')} FCFA)`;
+        } else if (priceDetailsEl) priceDetailsEl.textContent = '';
 
         if (timeEstimate) timeEstimate.textContent = `Temps de réalisation : ${estimatedTime}`;
         if (remarkBox) remarkBox.textContent = serviceDef.remark;
@@ -1813,12 +1709,6 @@
         }
 
         discountedPrice = Math.round(normalPrice * (1 - effectiveDiscountRate/100));
-        
-        // Application du mode vitesse si activé
-        if (isSpeedModeActive) {
-          discountedPrice = Math.round(discountedPrice * 1.1);
-        }
-        
         const finalCharge = Math.round(discountedPrice); // integer FCFA
 
         // protection: finalCharge doit être un nombre finite
@@ -1837,7 +1727,7 @@
         const serverPayload = {
           userId: document.getElementById('userId').value,
           platform: selectedPlatform,
-          service: selectedServiceKey, // Le backend normalise automatiquement les apostrophes
+          service: getServiceKey(selectedServiceKey, selectedPlatform), // ✅ Convertit nom français → clé technique
           quality: qualitySelect.value,
           subOption: subOptionSection.style.display === 'block' ? subOptionSelect.value : undefined,
           link: linkInput.value,
@@ -1850,8 +1740,7 @@
           discountedPrice: Math.round(Number(discountedPrice)),
           finalCost: Number(finalCharge),           // <-- champ explicite, numérique
           discountRate: Number(effectiveDiscountRate),
-          resellerLevel: userData.resellerLevel || '',
-          speedMode: isSpeedModeActive  // Nouveau champ pour le mode vitesse
+          resellerLevel: userData.resellerLevel || ''
         };
 
         if (!serverPayload.userId) { showNotification('❌', "❌ Erreur d'authentification. Veuillez vous reconnecter.", 'error'); setLoadingState(false); return; }
@@ -1875,7 +1764,7 @@
           const result = await resp.json().catch(() => ({}));
 
           if (!resp.ok || !result.success) {
-            const errMsg = result.error || 'Erreur lors de l'envoi au serveur.';
+            const errMsg = result.error || 'Erreur lors de l’envoi au serveur.';
             showNotification('❌', `<strong>❌ Échec :</strong><br>${errMsg}`, 'error');
             setLoadingState(false);
             return;
@@ -1901,9 +1790,9 @@
             • 10 h GMT (11 h heure du Cameroun)<br>
             • 15 h GMT (16 h heure du Cameroun)<br>
             • 20 h GMT (21 h heure du Cameroun)<br><br>
-            Si le problème persiste à ces horaires, contactez l'administrateur ou l'assistance via WhatsApp :<br>
+            Si le problème persiste à ces horaires, contactez l’administrateur ou l’assistance via WhatsApp :<br>
             <a href="https://wa.me/237699853665" target="_blank">+237 699 85 36 65</a><br>
-            et joignez une capture d'écran pour une solution directe.
+            et joignez une capture d’écran pour une solution directe.
           `;
           showNotification('❌', detailedError, 'error');
         } finally {
@@ -1913,4 +1802,4 @@
     }); // DOMContentLoaded fin
   </script>
 </body>
-</html>
+</html> 
