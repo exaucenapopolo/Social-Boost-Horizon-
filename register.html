@@ -583,11 +583,11 @@
     </a>
     <i class="fa-solid fa-bars icon-hamburger"></i>
     <div class="mobile-menu">
-      <a href="#hero"><i class="fa-solid fa-house"></i> Accueil</a>
-      <a href="#services"><i class="fa-solid fa-list-check"></i> Services</a>
-      <a href="#why"><i class="fa-solid fa-star"></i> Pourquoi nous</a>
-      <a href="#process"><i class="fa-solid fa-gears"></i> Comment ça marche</a>
-      <a href="#faq"><i class="fa-solid fa-circle-question"></i> FAQ</a>
+      <a href="index.html#hero"><i class="fa-solid fa-house"></i> Accueil</a>
+      <a href="index.html#services"><i class="fa-solid fa-list-check"></i> Services</a>
+      <a href="index.html#why"><i class="fa-solid fa-star"></i> Pourquoi nous</a>
+      <a href="index.html#process"><i class="fa-solid fa-gears"></i> Comment ça marche</a>
+      <a href="index.html#faq"><i class="fa-solid fa-circle-question"></i> FAQ</a>
       <a href="https://chat.whatsapp.com/HRgWJFxTgkiEkEC0Ou2028" target="_blank"><i class="fab fa-whatsapp"></i> Rejoindre WhatsApp</a>
       <a href="login.html"><i class="fa-solid fa-right-to-bracket"></i> Se connecter</a>
       <a href="register.html"><i class="fa-solid fa-user-plus"></i> Inscription</a>
@@ -625,7 +625,7 @@
             <option value="ca">Canada 🇨🇦 (+1)</option>
             <option value="cf">Centrafrique 🇨🇫 (+236)</option>
             <option value="cg">Congo Brazzaville 🇨🇬 (+242)</option>
-            <option value="ci">Côte d’Ivoire 🇨🇮 (+225)</option>
+            <option value="ci">Côte d'Ivoire 🇨🇮 (+225)</option>
             <option value="ga">Gabon 🇬🇦 (+241)</option>
             <option value="ke">Kenya 🇰🇪 (+254)</option>
             <option value="mw">Malawi 🇲🇼 (+265)</option>
@@ -650,6 +650,11 @@
             <input type="tel" id="telephone" required placeholder="xx xx xx xx">
           </div>
           <div class="error" id="phoneError"></div>
+        </div>
+        
+        <div class="form-group" id="referrerNameGroup" style="display: none;">
+          <label for="referrerName"><i class="fas fa-user-check"></i>Parrainé par</label>
+          <input type="text" id="referrerName" readonly placeholder="Nom du parrain" style="background: rgba(76, 175, 80, 0.1); border-color: var(--sbh-icon-color); color: var(--sbh-text-green); font-weight: 600;">
         </div>
         
         <div class="form-group">
@@ -699,7 +704,7 @@
         <a href="http://www.youtube.com/@SocialBoostHorizon-d7t" target="_blank" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
       </div>
       <div class="footer-bottom">
-        © 2025 Social Boost Horizon • 
+        © 2025 Social Boost Horizon • 
         <a href="legal.html">Mentions légales</a> • 
         <a href="terms.html">CGV</a> • 
         <a href="privacy.html">Confidentialité</a>
@@ -755,25 +760,26 @@
     const db = firebase.firestore();
     const provider = new firebase.auth.GoogleAuthProvider();
     
-    // URL du backend Replit
-    const BACKEND_URL = 'https://social-boost-exaucenapopolo2.replit.app/';
+    // ✅ URL DU BACKEND (CORRIGÉ - SANS SLASH FINAL)
+    const BACKEND_URL = window.location.hostname.includes('localhost') 
+      ? 'http://localhost:5000'
+      : 'https://social-boost-exaucenapopolo2.replit.app';
 
     // -------------------------
     //  Bloc de debug Google Auth
     // -------------------------
-    // 1) Afficher domaine et URL au chargement
     document.addEventListener("DOMContentLoaded", () => {
       console.log("=== Debug Google Auth ===");
       console.log("Host (window.location.host) =", window.location.host);
       console.log("Full URL (window.location.href) =", window.location.href);
+      console.log("Backend URL =", BACKEND_URL);
     });
 
-    // 2) onAuthStateChanged : détecte toute connexion Firebase (popup ou redirect).
+    // onAuthStateChanged : détecte toute connexion Firebase (popup ou redirect).
     firebase.auth().onAuthStateChanged(async (user) => {
       console.log("onAuthStateChanged appelé, user =", user);
       if (user) {
-        // Si on arrive ici, Firebase nous dit que l’utilisateur est connecté.
-        // Vérifier/créer document Firestore si nécessaire
+        // Si on arrive ici, Firebase nous dit que l'utilisateur est connecté.
         const userId = user.uid;
         try {
           const userDoc = await firebase.firestore().collection('users').doc(userId).get();
@@ -787,7 +793,8 @@
             const referralCode = Math.random().toString(36).substring(2,10).toUpperCase();
             const urlParams = new URLSearchParams(window.location.search);
             const referralCodeUsed = urlParams.get('ref') || null;
-            // Créer le document avec les champs nécessaires pour la modale de bienvenue
+            
+            // Créer le document avec les champs nécessaires
             await firebase.firestore().collection('users').doc(userId).set({
               userId,
               username,
@@ -796,14 +803,14 @@
               country: '',
               referralCode: referralCode,
               referredBy: referralCodeUsed,
-              balance: 0,          // Initialisation du solde
+              balance: 0,
               referralBalance: 0,
               discountUsesLeft: 10,
               referralsCount: 0,
               createdAt: firebase.firestore.FieldValue.serverTimestamp(),
               provider: 'google',
-              isFirstAccess: true, // Marquer premier accès
-              openedChests: []     // Initialiser les coffres ouverts (tableau vide)
+              isFirstAccess: true,
+              openedChests: []
             });
             console.log("onAuthStateChanged : document créé.");
           } else {
@@ -812,6 +819,7 @@
         } catch (err) {
           console.error("onAuthStateChanged : erreur Firestore lors de la vérification/creation :", err);
         }
+        
         // Redirection après connexion
         console.log("onAuthStateChanged : redirection vers dashboard.html");
         showNotification('✅ Authentifié via Google, redirection...', 'success');
@@ -819,11 +827,11 @@
           window.location.href = 'dashboard.html';
         }, 1500);
       } else {
-        console.log("onAuthStateChanged : pas d’utilisateur connecté.");
+        console.log("onAuthStateChanged : pas d'utilisateur connecté.");
       }
     });
 
-    // 3) Fonction qui traite getRedirectResult au chargement, pour logger le résultat ou l’erreur
+    // Fonction qui traite getRedirectResult au chargement
     async function handleGoogleRedirectDebug() {
       try {
         console.log("handleGoogleRedirectDebug : appel getRedirectResult()");
@@ -832,11 +840,8 @@
         if (result && result.user) {
           console.log("handleGoogleRedirectDebug : result.user détecté :", result.user);
           showNotification('✅ Retour Google détecté, traitement en cours...', 'success');
-          // Enregistrement en Firestore et redirection gérés dans onAuthStateChanged
         } else {
-          console.log("handleGoogleRedirectDebug : result.user undefined. Pas de redirection Google à traiter ou déjà consommé.");
-          // Pour info discrète, on peut décommenter :
-          // showNotification('ℹ️ Aucune connexion Google à traiter.', 'success');
+          console.log("handleGoogleRedirectDebug : result.user undefined. Pas de redirection Google à traiter.");
         }
       } catch (error) {
         console.error("handleGoogleRedirectDebug : erreur dans getRedirectResult() :", error);
@@ -844,7 +849,7 @@
       }
     }
 
-    // 4) Listener pour le clic "S'inscrire avec Google" : utilise signInWithPopup avec fallback redirect en cas de popup bloquée
+    // Listener pour le clic "S'inscrire avec Google"
     document.getElementById('googleSignup').addEventListener('click', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('googleSignup');
@@ -859,11 +864,11 @@
         console.log("Tentative signInWithPopup...");
         const result = await firebase.auth().signInWithPopup(provider);
         console.log("signInWithPopup résultat :", result);
-        // onAuthStateChanged s'en chargera
       } catch (error) {
         console.error("Erreur signInWithPopup Google :", error);
         showNotification(`❌ Erreur Google popup: ${error.code || ''} — ${error.message}`, 'error');
-        // Fallback redirect si popup bloquée ou non supportée
+        
+        // Fallback redirect si popup bloquée
         if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request' 
             || error.code === 'auth/operation-not-supported-in-this-environment') {
           console.log("Popup Google bloquée ou non supportée, on passe à signInWithRedirect...");
@@ -880,13 +885,13 @@
       }
     });
 
-    // 5) Au chargement de la page, appeler handleGoogleRedirectDebug
+    // Au chargement de la page
     document.addEventListener("DOMContentLoaded", function () {
       AOS.init({ duration: 800, once: true, offset: 100 });
       console.log("DOMContentLoaded: appel handleGoogleRedirectDebug()");
       handleGoogleRedirectDebug();
       
-      // Code existant pour le menu hamburger et animation clouds :
+      // Animation clouds
       const backgroundAnimation = document.querySelector(".background-animation");
       const numberOfClouds = 20;
       for (let i = 0; i < numberOfClouds; i++) {
@@ -919,6 +924,7 @@
       hamburger.addEventListener("click", () => {
         header.classList.toggle("open");
       });
+      
       // Fermer le menu quand on clique en dehors
       document.addEventListener("click", (e) => {
         if (!header.contains(e.target) && header.classList.contains("open")) {
@@ -927,7 +933,7 @@
       });
     });
 
-    // Mise à jour de l’indicatif
+    // Mise à jour de l'indicatif
     function updateIndicatif() {
       const codes = {
         bj: '+229', bf: '+226', cm: '+237', ca: '+1',
@@ -940,14 +946,71 @@
         codes[document.getElementById('pays').value] || '';
     }
 
-    // Vérification du code de parrainage
+    // ✅ AUTO-REMPLISSAGE DU CODE DE PARRAINAGE DEPUIS L'URL
+    async function checkAndFillReferralCode() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const refCodeFromUrl = urlParams.get('ref');
+      const referralInput = document.getElementById('referral');
+      const referralSuccess = document.getElementById('referralSuccess');
+      const referrerNameGroup = document.getElementById('referrerNameGroup');
+      const referrerNameInput = document.getElementById('referrerName');
+      
+      if (refCodeFromUrl) {
+        // Auto-remplir le code de parrainage
+        referralInput.value = refCodeFromUrl.toUpperCase();
+        // Rendre le champ non modifiable
+        referralInput.readOnly = true;
+        referralInput.style.background = 'rgba(76, 175, 80, 0.1)';
+        referralInput.style.borderColor = 'var(--sbh-icon-color)';
+        referralInput.style.color = 'var(--sbh-text-green)';
+        referralInput.style.fontWeight = '600';
+        
+        console.log('🎁 Code de parrainage détecté depuis URL:', refCodeFromUrl);
+        
+        // Rechercher et afficher le nom du parrain
+        try {
+          const querySnapshot = await db.collection('users')
+            .where('referralCode', '==', refCodeFromUrl.toUpperCase())
+            .limit(1)
+            .get();
+          
+          if (!querySnapshot.empty) {
+            const referrerData = querySnapshot.docs[0].data();
+            const referrerUsername = referrerData.username || 'Utilisateur inconnu';
+            
+            // Afficher le champ "Parrainé par"
+            referrerNameGroup.style.display = 'block';
+            referrerNameInput.value = `✅ ${referrerUsername}`;
+            
+            referralSuccess.textContent = `✅ Code valide ! Vous êtes parrainé par ${referrerUsername}`;
+            referralSuccess.style.display = 'block';
+            referralSuccess.style.color = 'var(--sbh-success-color)';
+            
+            console.log('✅ Parrain trouvé:', referrerUsername);
+          } else {
+            referralSuccess.textContent = '⚠️ Code de parrainage invalide';
+            referralSuccess.style.color = 'var(--sbh-error-color)';
+            referralSuccess.style.display = 'block';
+            console.warn('⚠️ Code de parrainage invalide:', refCodeFromUrl);
+          }
+        } catch (error) {
+          console.error("Erreur lors de la recherche du parrain:", error);
+        }
+      }
+    }
+
+    // Vérification du code de parrainage (quand l'utilisateur entre manuellement)
     document.getElementById('referral').addEventListener('blur', async function() {
       const referralCode = this.value.trim();
       if (!referralCode) return;
       
       const referralSuccess = document.getElementById('referralSuccess');
+      const referrerNameGroup = document.getElementById('referrerNameGroup');
+      const referrerNameInput = document.getElementById('referrerName');
+      
       referralSuccess.textContent = '';
       referralSuccess.style.display = 'none';
+      referrerNameGroup.style.display = 'none';
       
       try {
         // Vérification dans Firestore
@@ -957,8 +1020,16 @@
           .get();
         
         if (!querySnapshot.empty) {
-          referralSuccess.textContent = '✅ Code de parrainage valide !';
+          const referrerData = querySnapshot.docs[0].data();
+          const referrerUsername = referrerData.username || 'Utilisateur inconnu';
+          
+          // Afficher le champ "Parrainé par"
+          referrerNameGroup.style.display = 'block';
+          referrerNameInput.value = `✅ ${referrerUsername}`;
+          
+          referralSuccess.textContent = `✅ Code valide ! Vous êtes parrainé par ${referrerUsername}`;
           referralSuccess.style.display = 'block';
+          referralSuccess.style.color = 'var(--sbh-success-color)';
         } else {
           referralSuccess.textContent = '⚠️ Code de parrainage invalide';
           referralSuccess.style.color = 'var(--sbh-error-color)';
@@ -968,8 +1039,11 @@
         console.error("Erreur de vérification du parrainage:", error);
       }
     });
+    
+    // ✅ Appeler la fonction au chargement de la page
+    checkAndFillReferralCode();
 
-    // Gestion de l'inscription par email avec backend Replit conditionnel
+    // ✅ GESTION DE L'INSCRIPTION (CORRIGÉE)
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('registerBtn');
@@ -1043,14 +1117,15 @@
         // Déterminer le code de parrainage utilisé
         const referralCodeUsed = referral || new URLSearchParams(location.search).get('ref') || null;
         
-        // LOGIQUE CONDITIONNELLE POUR LE PARRAINAGE
-        if (referral) {
+        // ✅ LOGIQUE CONDITIONNELLE AVEC TOUS LES CHAMPS
+        if (referralCodeUsed) {
           // Cas 1: Code de parrainage fourni -> utiliser le backend Replit
+          console.log('Inscription avec parrainage via backend:', referralCodeUsed);
+          
           const response = await fetch(`${BACKEND_URL}/register`, {
             method: 'POST',
             headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${await user.getIdToken()}`
+              'Content-Type': 'application/json'
             },
             body: JSON.stringify({
               userId,
@@ -1059,22 +1134,29 @@
               phone: `${indicatif} ${telephone}`,
               country: pays,
               referralCode: generatedCode,
-              referralCodeUsed,
+              referralCodeUsed: referralCodeUsed.toUpperCase(),
               welcomeModalShown: false,
-              isFirstAccess: true, // Marquer premier accès
-              openedChests: [],    // Initialiser les coffres ouverts (tableau vide)
-              balance: 0           // Initialisation du solde
+              isFirstAccess: true,
+              openedChests: [],
+              balance: 0
             })
           });
           
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Erreur serveur: ${response.status}`);
+          }
+          
           const responseData = await response.json();
           if (!responseData.success) {
-            throw new Error(responseData.error || 'Erreur du serveur Replit');
+            throw new Error(responseData.error || 'Erreur du serveur');
           }
           
           showNotification('✅ Inscription réussie avec parrainage ! Redirection...', 'success');
         } else {
           // Cas 2: Pas de code de parrainage -> enregistrement direct dans Firestore
+          console.log('Inscription sans parrainage, enregistrement Firestore direct');
+          
           await db.collection('users').doc(userId).set({
             userId,
             username,
@@ -1082,13 +1164,16 @@
             phone: `${indicatif} ${telephone}`,
             country: pays,
             referralCode: generatedCode,
-            referralCodeUsed,
+            referredBy: null,
+            balance: 0,
+            referralBalance: 0,
+            discountUsesLeft: 10,
+            referralsCount: 0,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             provider: 'email',
             welcomeModalShown: false,
-            isFirstAccess: true, // Marquer premier accès
-            openedChests: [],    // Initialiser les coffres ouverts (tableau vide)
-            balance: 0           // Initialisation du solde
+            isFirstAccess: true,
+            openedChests: []
           });
           
           showNotification('✅ Inscription réussie ! Redirection...', 'success');
