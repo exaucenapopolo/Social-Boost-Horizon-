@@ -30,6 +30,7 @@
       --sbh-text-light: rgba(255, 255, 255, 0.9);
       --sbh-accent: #FF6B6B;
       --sbh-light-blue: #4DA6FF;
+      --sbh-cashback: #FFD700;
     }
 
     body {
@@ -919,7 +920,7 @@
       </div>
       
       <div class="footer-bottom">
-        <p>© 2025 Social Boost Horizon. Mč Exau - Tous droits réservés.</p>
+        <p>© 2025 Social Boost Horizon. Mč Exau - Tous droits réservés.</p>
         <div>
           <a href="legal.html">Mentions légales</a>
           <a href="terms.html">CGV</a>
@@ -945,12 +946,10 @@
   
   <script>
     document.addEventListener("DOMContentLoaded", function () {
-      // 1. Initialisation AOS
       if (typeof AOS !== 'undefined') {
         AOS.init({ duration: 800, once: true, offset: 100 });
       }
 
-      // 2. Animation nuages
       (function initCloudsAnimation() {
         const backgroundAnimation = document.querySelector(".background-animation");
         if (!backgroundAnimation) return;
@@ -974,7 +973,6 @@
         }
       })();
 
-      // 3. Hamburger menu
       (function initHamburgerMenu() {
         const header = document.querySelector("header");
         const hamburger = document.querySelector(".icon-hamburger");
@@ -989,7 +987,6 @@
         });
       })();
 
-      // 4. Newsletter
       (function initNewsletter() {
         const newsletterForm = document.getElementById("newsletterForm");
         const newsletterMessage = document.getElementById("newsletterMessage");
@@ -1006,7 +1003,6 @@
         });
       })();
 
-      // 5. Configuration Firebase
       const firebaseConfig = {
         apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
         authDomain: "social-boost-horizon.firebaseapp.com",
@@ -1025,7 +1021,6 @@
       const auth = firebase.auth();
       const db = firebase.firestore();
 
-      // Références UI
       const logoutBtn = document.getElementById('logoutBtn');
       const quickDeposit = document.getElementById('quickDeposit');
       const addFundsBtn = document.getElementById('addFunds');
@@ -1049,7 +1044,6 @@
         }, 4000);
       }
 
-      // 6. Auth state
       auth.onAuthStateChanged(user => {
         if (!user) {
           window.location.href = 'login.html';
@@ -1057,7 +1051,6 @@
         }
         currentUid = user.uid;
 
-        // Afficher nom si #welcome
         const welcomeEl = document.getElementById('welcome');
         if (welcomeEl) {
           db.collection('users').doc(user.uid).get().then(doc => {
@@ -1068,7 +1061,6 @@
           }).catch(err => console.warn("Erreur lecture user pour welcome:", err));
         }
 
-        // Snapshot user pour soldes
         const userDocRef = db.collection('users').doc(currentUid);
         userDocRef.onSnapshot(docSnap => {
           if (!docSnap.exists) return;
@@ -1085,11 +1077,9 @@
           console.error("Erreur snapshot user:", err);
         });
 
-        // Charger activités
         loadActivities();
       });
 
-      // 7. Transfert solde d'affiliation
       if (transferBtn) {
         transferBtn.addEventListener('click', async () => {
           if (!currentUid) return;
@@ -1116,8 +1106,6 @@
               tx.set(txColRef, {
                 userId: currentUid,
                 date: firebase.firestore.FieldValue.serverTimestamp(),
-                // Pas de statut dans Firestore pour transfert, on gère l'affichage côté front
-                // Mais on peut laisser status undefined ici
                 type: "Transfert"
               });
             });
@@ -1126,8 +1114,8 @@
           } catch (err) {
             console.error("Erreur transfert:", err);
             if (err.message && err.message.includes('requires an index')) {
-              showWalletNotification("Erreur Firestore : un index est requis pour charger les activités. Veuillez créer l’index dans la console Firestore.", 'error');
-              console.warn("Créer l’index composite userId + date(desc) sur fapshiTransactions.");
+              showWalletNotification("Erreur Firestore : un index est requis pour charger les activités. Veuillez créer l'index dans la console Firestore.", 'error');
+              console.warn("Créer l'index composite userId + date(desc) sur fapshiTransactions.");
             } else {
               showWalletNotification("Erreur lors du transfert : " + err.message, 'error');
             }
@@ -1138,10 +1126,9 @@
         });
       }
 
-      // 8. Charger les activités : recharges + transferts
+      // ✅ FONCTION AMÉLIORÉE POUR CHARGER LES ACTIVITÉS + BONUS DE PARRAINAGE
       async function loadActivities() {
         if (!currentUid) return;
-        // Afficher loader
         activityList.innerHTML = `
           <tr>
             <td colspan="4" class="loading">
@@ -1152,41 +1139,74 @@
         `;
         try {
           const allTransactions = [];
-          const queryLimit = 100; // nombre max de docs à récupérer pour tri local
-          // Requête Firestore : uniquement filter userId, sans orderBy
-          const query = db.collection('fapshiTransactions')
-                          .where('userId', '==', currentUid)
-                          .limit(queryLimit);
-          const snapshot = await query.get();
-          // Parcours des docs récupérées
-          snapshot.forEach(docSnap => {
+          const queryLimit = 100;
+
+          // 1️⃣ Récupérer les transactions Fapshi (recharges + transferts)
+          const transQuery = db.collection('fapshiTransactions')
+                              .where('userId', '==', currentUid)
+                              .limit(queryLimit);
+          const transSnapshot = await transQuery.get();
+          
+          transSnapshot.forEach(docSnap => {
             const data = docSnap.data();
-            // On va déterminer une date JS pour le tri
             let timestamp = 0;
-            // Si dateConfirmed est Timestamp Firestore
             if (data.dateConfirmed && typeof data.dateConfirmed.toDate === 'function') {
               timestamp = data.dateConfirmed.toDate().getTime();
-            }
-            // Sinon, si date est Timestamp (cas transferts)
-            else if (data.date && typeof data.date.toDate === 'function') {
+            } else if (data.date && typeof data.date.toDate === 'function') {
               timestamp = data.date.toDate().getTime();
-            }
-            // Sinon, si dateConfirmed est string, on tente de parser
-            else if (data.dateConfirmed && typeof data.dateConfirmed === 'string') {
+            } else if (data.dateConfirmed && typeof data.dateConfirmed === 'string') {
               const parsed = Date.parse(data.dateConfirmed);
-              if (!isNaN(parsed)) {
-                timestamp = parsed;
-              } else {
-                timestamp = 0;
-              }
+              if (!isNaN(parsed)) timestamp = parsed;
             }
-            // On collecte la donnée complète + timestamp de tri
             allTransactions.push({
               __id: docSnap.id,
               __ts: timestamp,
+              __type: 'transaction',
               ...data
             });
           });
+
+          // 2️⃣ NOUVEAU : Récupérer les bonus de parrainage depuis la sous-collection referrals
+          console.log('🎁 Chargement des bonus de parrainage...');
+          const referralsQuery = db.collection('users')
+                                   .doc(currentUid)
+                                   .collection('referrals')
+                                   .limit(queryLimit);
+          const referralsSnapshot = await referralsQuery.get();
+          
+          console.log(`📊 ${referralsSnapshot.size} bonus de parrainage trouvés`);
+
+          // Récupérer les noms d'utilisateurs des filleuls en parallèle
+          const refereePromises = [];
+          referralsSnapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            let timestamp = 0;
+            if (data.date && typeof data.date.toDate === 'function') {
+              timestamp = data.date.toDate().getTime();
+            }
+            
+            // Récupérer le nom d'utilisateur du filleul (si possible)
+            const refereeUid = data.refereeUid;
+            const refereePromise = refereeUid 
+              ? db.collection('users').doc(refereeUid).get()
+                  .then(doc => doc.exists ? doc.data().username : null)
+                  .catch(() => null)
+              : Promise.resolve(null);
+            
+            refereePromises.push(
+              refereePromise.then(username => ({
+                __id: docSnap.id,
+                __ts: timestamp,
+                __type: 'referral_bonus',
+                __refereeUsername: username,
+                ...data
+              }))
+            );
+          });
+
+          const referralBonuses = await Promise.all(refereePromises);
+          allTransactions.push(...referralBonuses);
+
           if (allTransactions.length === 0) {
             activityList.innerHTML = `
               <tr>
@@ -1198,14 +1218,14 @@
             `;
             return;
           }
-          // Tri local descendant selon __ts
+
+          // Tri par date décroissante
           allTransactions.sort((a, b) => b.__ts - a.__ts);
-          // On limite l'affichage à 50 éléments
           const toDisplay = allTransactions.slice(0, 50);
+
           // Génération du HTML
           let html = '';
           toDisplay.forEach(activity => {
-            // Déterminer la date à afficher : préférence dateConfirmed, sinon date
             let dateStr = '';
             if (activity.dateConfirmed && typeof activity.dateConfirmed.toDate === 'function') {
               dateStr = activity.dateConfirmed.toDate().toLocaleString('fr-FR');
@@ -1213,49 +1233,57 @@
               dateStr = activity.date.toDate().toLocaleString('fr-FR');
             } else if (activity.dateConfirmed && typeof activity.dateConfirmed === 'string') {
               dateStr = activity.dateConfirmed;
-            } else {
-              dateStr = '';
             }
-            // Montant
-            const rawAmount = activity.amount;
-            const amount = Number(rawAmount) || 0;
-            // Description/label
+
+            let amount = 0;
             let label = '';
-            if (activity.label) {
-              label = activity.label;
-            } else {
-              if (activity.type === 'Transfert') {
-                label = "Transfert solde d'affiliation";
-              }
-              else if (activity.dateConfirmed) {
-                label = `Recharge ${amount} XAF`;
-              } else {
-                label = "Transaction";
-              }
-            }
-            // Icône selon type
             let iconHtml = '';
-            if (activity.type === 'Transfert') {
-              iconHtml = '<i class="fas fa-handshake" title="Transfert"></i> ';
-            } else if (activity.dateConfirmed) {
-              iconHtml = '<i class="fas fa-arrow-down" title="Recharge"></i> ';
-            }
-            // Statut : si présent dans Firestore, on utilise, sinon si transfert on met "Succès" par défaut
             let statusText = '';
-            if (activity.status) {
-              statusText = activity.status;
-            } else if (activity.type === 'Transfert') {
-              statusText = "Succès";
-            } else {
-              statusText = ""; // ou autre valeur par défaut si souhaité
-            }
-            // Couleur montant
             let amountClass = '';
-            if (amount < 0 || activity.type === 'Retrait') {
-              amountClass = 'color: var(--sbh-accent);';
-            } else {
-              amountClass = 'color: var(--sbh-text-green);';
+
+            // ✅ GESTION DES BONUS DE PARRAINAGE
+            if (activity.__type === 'referral_bonus') {
+              amount = activity.referrerShare || 0;
+              const filleulName = activity.__refereeUsername || 'un utilisateur';
+              label = `🎁 Cashback de parrainage (par ${filleulName})`;
+              iconHtml = '<i class="fas fa-gift" style="color: var(--sbh-cashback);" title="Bonus parrainage"></i> ';
+              statusText = activity.status || 'Complété';
+              amountClass = 'color: var(--sbh-cashback);';
             }
+            // GESTION DES TRANSACTIONS NORMALES
+            else {
+              amount = Number(activity.amount) || 0;
+              if (activity.label) {
+                label = activity.label;
+              } else {
+                if (activity.type === 'Transfert') {
+                  label = "Transfert solde d'affiliation";
+                } else if (activity.dateConfirmed) {
+                  label = `Recharge ${amount} XAF`;
+                } else {
+                  label = "Transaction";
+                }
+              }
+
+              if (activity.type === 'Transfert') {
+                iconHtml = '<i class="fas fa-exchange-alt" title="Transfert"></i> ';
+              } else if (activity.dateConfirmed) {
+                iconHtml = '<i class="fas fa-arrow-down" title="Recharge"></i> ';
+              }
+
+              if (activity.status) {
+                statusText = activity.status;
+              } else if (activity.type === 'Transfert') {
+                statusText = "Succès";
+              }
+
+              if (amount < 0 || activity.type === 'Retrait') {
+                amountClass = 'color: var(--sbh-accent);';
+              } else {
+                amountClass = 'color: var(--sbh-text-green);';
+              }
+            }
+
             html += `
               <tr>
                 <td class="activity-date">${dateStr}</td>
@@ -1266,6 +1294,7 @@
             `;
           });
           activityList.innerHTML = html;
+          console.log(`✅ ${toDisplay.length} activités affichées (incluant les bonus de parrainage)`);
         } catch (err) {
           console.error("Erreur chargement activités:", err);
           activityList.innerHTML = `
@@ -1279,7 +1308,6 @@
         }
       }
 
-      // 9. Redirection dépôts
       if (quickDeposit) {
         quickDeposit.addEventListener('click', () => {
           window.location.href = 'fonds.html';
@@ -1291,7 +1319,6 @@
         });
       }
 
-      // 10. Déconnexion
       if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
           if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
