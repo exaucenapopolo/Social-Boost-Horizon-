@@ -765,6 +765,9 @@
       ? 'http://localhost:5000'
       : 'https://social-boost-exaucenapopolo2.replit.app';
 
+    // ✅ FLAG POUR DÉSACTIVER onAuthStateChanged PENDANT L'INSCRIPTION EMAIL
+    let isRegisteringWithEmail = false;
+
     // -------------------------
     //  Bloc de debug Google Auth
     // -------------------------
@@ -778,6 +781,13 @@
     // onAuthStateChanged : détecte toute connexion Firebase (popup ou redirect).
     firebase.auth().onAuthStateChanged(async (user) => {
       console.log("onAuthStateChanged appelé, user =", user);
+      
+      // ✅ IGNORER SI ON EST EN TRAIN DE S'INSCRIRE PAR EMAIL
+      if (isRegisteringWithEmail) {
+        console.log("⏸️ onAuthStateChanged ignoré : inscription par email en cours");
+        return;
+      }
+      
       if (user) {
         // Si on arrive ici, Firebase nous dit que l'utilisateur est connecté.
         const userId = user.uid;
@@ -1107,9 +1117,14 @@
       }
       
       try {
+        // ✅ ACTIVER LE FLAG POUR IGNORER onAuthStateChanged
+        isRegisteringWithEmail = true;
+        console.log('🚀 Début inscription par email, onAuthStateChanged désactivé');
+        
         // Créer l'utilisateur avec Firebase Auth
         const { user } = await auth.createUserWithEmailAndPassword(email, password);
         const userId = user.uid;
+        console.log('✅ Compte Firebase créé:', userId);
         
         // Générer un code de parrainage
         const generatedCode = Math.random().toString(36).substring(2,10).toUpperCase();
@@ -1180,10 +1195,16 @@
         }
         
         // Redirection vers le dashboard après 1.5s
-        setTimeout(() => window.location.href = 'dashboard.html', 1500);
+        setTimeout(() => {
+          console.log('📍 Redirection vers dashboard...');
+          window.location.href = 'dashboard.html';
+        }, 1500);
         
       } catch (error) {
         console.error("Erreur d'inscription:", error);
+        
+        // ✅ RÉACTIVER onAuthStateChanged EN CAS D'ERREUR
+        isRegisteringWithEmail = false;
         
         let errorMessage = "Une erreur s'est produite lors de l'inscription";
         if (error.code === 'auth/email-already-in-use') {
