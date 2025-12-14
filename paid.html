@@ -711,9 +711,21 @@
       e.preventDefault();
       hideAlert();
       
+      console.log('=== DEBUT PAIEMENT ===');
+      
+      if (!currentUser) {
+        showAlert('ERREUR: Utilisateur non connecté. Veuillez vous reconnecter.', 'error');
+        console.error('currentUser est null');
+        return;
+      }
+      
+      console.log('Utilisateur:', currentUser.email);
+      
       const amount = parseInt(amountInput.value);
       const country = document.getElementById('country').value;
       const phone = document.getElementById('phone').value;
+      
+      console.log('Montant:', amount, 'Pays:', country, 'Tel:', phone);
       
       if (!amount || amount < 500) {
         showAlert('Le montant minimum est de 500 FCFA', 'error');
@@ -728,21 +740,32 @@
       showLoading(true);
       document.getElementById('submitBtn').disabled = true;
 
+      const requestBody = {
+        email: currentUser.email,
+        userId: currentUser.uid,
+        username: userData?.username || currentUser.email.split('@')[0],
+        country: country,
+        phone: phone,
+        amount: amount
+      };
+      
+      console.log('Envoi requête:', JSON.stringify(requestBody));
+      showAlert('Envoi en cours... Email: ' + currentUser.email + ', Montant: ' + amount, 'success');
+
       try {
-        const response = await fetch('/create-payment', {
+        const apiUrl = window.location.origin + '/create-payment';
+        console.log('URL API:', apiUrl);
+        
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: currentUser.email,
-            userId: currentUser.uid,
-            username: userData?.username || currentUser.email.split('@')[0],
-            country: country,
-            phone: phone,
-            amount: amount
-          })
+          body: JSON.stringify(requestBody)
         });
 
+        console.log('Réponse statut:', response.status);
+        
         const data = await response.json();
+        console.log('Réponse data:', JSON.stringify(data));
         
         if (data.success && data.checkoutUrl) {
           localStorage.setItem('pendingPayment', JSON.stringify({
@@ -751,15 +774,17 @@
             timestamp: Date.now()
           }));
           
+          showAlert('Redirection vers le paiement...', 'success');
           window.location.href = data.checkoutUrl;
         } else {
-          showAlert(data.error || 'Erreur lors de la création du paiement', 'error');
+          showAlert('ERREUR SERVEUR: ' + (data.error || 'Erreur inconnue'), 'error');
+          console.error('Erreur serveur:', data);
           showLoading(false);
           document.getElementById('submitBtn').disabled = false;
         }
       } catch (error) {
         console.error('Erreur paiement:', error);
-        showAlert('Erreur de connexion. Veuillez réessayer.', 'error');
+        showAlert('ERREUR CONNEXION: ' + error.message, 'error');
         showLoading(false);
         document.getElementById('submitBtn').disabled = false;
       }
