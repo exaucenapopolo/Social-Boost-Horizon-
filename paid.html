@@ -630,27 +630,33 @@
     AOS.init({ duration: 800, once: true });
 
     const firebaseConfig = {
-      apiKey: "AIzaSyA8M8B28CvPfmFbfPkSaZUOB1Y1uhOXwPw",
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
       projectId: "social-boost-horizon",
       storageBucket: "social-boost-horizon.appspot.com",
-      messagingSenderId: "649706733498",
-      appId: "1:649706733498:web:2c7c4da4e82f34d9f65c7e"
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
     };
-    firebase.initializeApp(firebaseConfig);
+    if (typeof firebase === 'undefined') {
+      console.error("Firebase SDK non chargé.");
+    } else {
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+    }
     const auth = firebase.auth();
     const db = firebase.firestore();
 
     let currentUser = null;
     let userData = null;
 
-    auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        currentUser = user;
-        await loadUserData();
-      } else {
+    auth.onAuthStateChanged(user => {
+      if (!user) {
         window.location.href = 'login.html';
+        return;
       }
+      currentUser = user;
+      loadUserData();
     });
 
     async function loadUserData() {
