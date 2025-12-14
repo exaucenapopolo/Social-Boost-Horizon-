@@ -533,7 +533,7 @@
       </div>
       <div class="balance-amount">
         <span id="currentBalance">0</span>
-        <span class="balance-currency">FCFA</span>
+        <span class="balance-currency" id="balanceCurrency">FCFA</span>
       </div>
     </div>
 
@@ -559,6 +559,11 @@
             <option value="CD">RD Congo (CDF)</option>
             <option value="GH">Ghana (GHS)</option>
             <option value="NG">Nigeria (NGN)</option>
+            <option value="KE">Kenya (KES)</option>
+            <option value="UG">Ouganda (UGX)</option>
+            <option value="TZ">Tanzanie (TZS)</option>
+            <option value="RW">Rwanda (RWF)</option>
+            <option value="ZM">Zambie (ZMW)</option>
           </select>
         </div>
 
@@ -568,7 +573,7 @@
         </div>
 
         <div class="form-group">
-          <label for="amount">Montant à déposer (FCFA)</label>
+          <label for="amount">Montant à déposer (<span id="amountCurrency">FCFA</span>)</label>
           <div class="amount-presets">
             <button type="button" class="preset-btn" data-amount="1000">1 000</button>
             <button type="button" class="preset-btn" data-amount="2000">2 000</button>
@@ -650,6 +655,73 @@
     let currentUser = null;
     let userData = null;
 
+    const COUNTRIES_CONFIG = {
+      CM: { name: 'Cameroun', currency: 'XAF', symbol: 'FCFA', rate: 1 },
+      SN: { name: 'Sénégal', currency: 'XOF', symbol: 'FCFA', rate: 1 },
+      CI: { name: 'Côte d\'Ivoire', currency: 'XOF', symbol: 'FCFA', rate: 1 },
+      BF: { name: 'Burkina Faso', currency: 'XOF', symbol: 'FCFA', rate: 1 },
+      ML: { name: 'Mali', currency: 'XOF', symbol: 'FCFA', rate: 1 },
+      BJ: { name: 'Bénin', currency: 'XOF', symbol: 'FCFA', rate: 1 },
+      TG: { name: 'Togo', currency: 'XOF', symbol: 'FCFA', rate: 1 },
+      NE: { name: 'Niger', currency: 'XOF', symbol: 'FCFA', rate: 1 },
+      GA: { name: 'Gabon', currency: 'XAF', symbol: 'FCFA', rate: 1 },
+      CG: { name: 'Congo', currency: 'XAF', symbol: 'FCFA', rate: 1 },
+      CD: { name: 'RD Congo', currency: 'CDF', symbol: 'CDF', rate: 4.35 },
+      GH: { name: 'Ghana', currency: 'GHS', symbol: 'GHS', rate: 0.025 },
+      NG: { name: 'Nigeria', currency: 'NGN', symbol: 'NGN', rate: 2.65 },
+      KE: { name: 'Kenya', currency: 'KES', symbol: 'KES', rate: 0.22 },
+      UG: { name: 'Ouganda', currency: 'UGX', symbol: 'UGX', rate: 6.25 },
+      TZ: { name: 'Tanzanie', currency: 'TZS', symbol: 'TZS', rate: 4.2 },
+      RW: { name: 'Rwanda', currency: 'RWF', symbol: 'RWF', rate: 2.15 },
+      ZM: { name: 'Zambie', currency: 'ZMW', symbol: 'ZMW', rate: 0.045 }
+    };
+
+    let selectedCountry = 'CM';
+
+    function convertFromXAF(amountXAF, countryCode) {
+      const config = COUNTRIES_CONFIG[countryCode] || COUNTRIES_CONFIG.CM;
+      return Math.round(amountXAF * config.rate);
+    }
+
+    function convertToXAF(amountLocal, countryCode) {
+      const config = COUNTRIES_CONFIG[countryCode] || COUNTRIES_CONFIG.CM;
+      return Math.round(amountLocal / config.rate);
+    }
+
+    function getCurrencySymbol(countryCode) {
+      const config = COUNTRIES_CONFIG[countryCode] || COUNTRIES_CONFIG.CM;
+      return config.symbol;
+    }
+
+    function updateCurrencyDisplay(countryCode) {
+      const symbol = getCurrencySymbol(countryCode);
+      document.getElementById('balanceCurrency').textContent = symbol;
+      document.getElementById('amountCurrency').textContent = symbol;
+      
+      if (userData && userData.balance !== undefined) {
+        const balanceInLocal = convertFromXAF(userData.balance, countryCode);
+        document.getElementById('currentBalance').textContent = balanceInLocal.toLocaleString('fr-FR');
+      }
+      
+      const minLocal = convertFromXAF(500, countryCode);
+      const amountInput = document.getElementById('amount');
+      amountInput.min = minLocal;
+      amountInput.placeholder = `Minimum: ${minLocal.toLocaleString('fr-FR')} ${symbol}`;
+      
+      updatePresetButtons(countryCode);
+    }
+
+    function updatePresetButtons(countryCode) {
+      const baseAmountsXAF = [1000, 2000, 5000, 10000, 20000, 50000];
+      const presetBtns = document.querySelectorAll('.preset-btn');
+      
+      presetBtns.forEach((btn, index) => {
+        const localAmount = convertFromXAF(baseAmountsXAF[index], countryCode);
+        btn.dataset.amount = localAmount;
+        btn.textContent = localAmount.toLocaleString('fr-FR');
+      });
+    }
+
     auth.onAuthStateChanged(user => {
       if (!user) {
         window.location.href = 'login.html';
@@ -664,8 +736,13 @@
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
         if (userDoc.exists) {
           userData = userDoc.data();
-          const balance = userData.balance || 0;
-          document.getElementById('currentBalance').textContent = balance.toLocaleString('fr-FR');
+          
+          if (userData.country && COUNTRIES_CONFIG[userData.country]) {
+            selectedCountry = userData.country;
+            document.getElementById('country').value = selectedCountry;
+          }
+          
+          updateCurrencyDisplay(selectedCountry);
           
           if (userData.phone) {
             document.getElementById('phone').value = userData.phone;
@@ -678,6 +755,13 @@
 
     const presetBtns = document.querySelectorAll('.preset-btn');
     const amountInput = document.getElementById('amount');
+
+    document.getElementById('country').addEventListener('change', (e) => {
+      selectedCountry = e.target.value;
+      updateCurrencyDisplay(selectedCountry);
+      amountInput.value = '';
+      presetBtns.forEach(b => b.classList.remove('active'));
+    });
 
     presetBtns.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -725,19 +809,25 @@
       
       console.log('Utilisateur:', currentUser.email);
       
-      const amount = parseInt(amountInput.value);
+      const amountLocal = parseInt(amountInput.value);
       const country = document.getElementById('country').value;
       const phone = document.getElementById('phone').value;
+      const currencySymbol = getCurrencySymbol(country);
+      const currencyCode = COUNTRIES_CONFIG[country]?.currency || 'XAF';
       
-      console.log('Montant:', amount, 'Pays:', country, 'Tel:', phone);
+      const amountInXAF = convertToXAF(amountLocal, country);
+      const minAmountLocal = convertFromXAF(500, country);
+      const maxAmountLocal = convertFromXAF(1000000, country);
       
-      if (!amount || amount < 500) {
-        showAlert('Le montant minimum est de 500 FCFA', 'error');
+      console.log('Montant local:', amountLocal, currencySymbol, '= XAF:', amountInXAF, 'Pays:', country, 'Tel:', phone);
+      
+      if (!amountLocal || amountLocal < minAmountLocal) {
+        showAlert(`Le montant minimum est de ${minAmountLocal.toLocaleString('fr-FR')} ${currencySymbol}`, 'error');
         return;
       }
 
-      if (amount > 1000000) {
-        showAlert('Le montant maximum est de 1 000 000 FCFA', 'error');
+      if (amountLocal > maxAmountLocal) {
+        showAlert(`Le montant maximum est de ${maxAmountLocal.toLocaleString('fr-FR')} ${currencySymbol}`, 'error');
         return;
       }
 
@@ -750,11 +840,13 @@
         username: userData?.username || currentUser.email.split('@')[0],
         country: country,
         phone: phone,
-        amount: amount
+        amount: amountLocal,
+        amountXAF: amountInXAF,
+        currency: currencyCode
       };
       
       console.log('Envoi requête:', JSON.stringify(requestBody));
-      showAlert('Envoi en cours... Email: ' + currentUser.email + ', Montant: ' + amount, 'success');
+      showAlert(`Envoi en cours... ${amountLocal.toLocaleString('fr-FR')} ${currencySymbol}`, 'success');
 
       try {
         const apiUrl = BACKEND_URL + '/create-payment';
@@ -774,7 +866,9 @@
         if (data.success && data.checkoutUrl) {
           localStorage.setItem('pendingPayment', JSON.stringify({
             transactionId: data.transactionId,
-            amount: amount,
+            amount: amountLocal,
+            amountXAF: amountInXAF,
+            currency: currencyCode,
             timestamp: Date.now()
           }));
           
