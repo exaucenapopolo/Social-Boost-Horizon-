@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Paiement réussi - Social Boost Horizon</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@600;700;800&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+  <style>
+    :root {
+      --sbh-dark-blue: #0A162B;
+      --sbh-gradient-start: #1e3c72;
+      --sbh-gradient-end: #6a0dad;
+      --sbh-btn-color: #1E90FF;
+      --sbh-text-white: #FFFFFF;
+      --sbh-text-green: #4CAF50;
+      --sbh-text-light: rgba(255, 255, 255, 0.9);
+      --sbh-light-blue: #4DA6FF;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Roboto', sans-serif;
+      color: var(--sbh-text-white);
+      background: var(--sbh-dark-blue);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .success-container {
+      text-align: center;
+      padding: 40px;
+      max-width: 500px;
+    }
+
+    .success-icon {
+      width: 120px;
+      height: 120px;
+      background: linear-gradient(135deg, rgba(76, 175, 80, 0.2), rgba(76, 175, 80, 0.4));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 30px;
+      animation: pulse 2s infinite;
+    }
+    .success-icon i {
+      font-size: 60px;
+      color: var(--sbh-text-green);
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    h1 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 2rem;
+      margin-bottom: 15px;
+      color: var(--sbh-text-green);
+    }
+
+    p {
+      font-size: 1.1rem;
+      color: var(--sbh-text-light);
+      margin-bottom: 10px;
+      line-height: 1.6;
+    }
+
+    .status-box {
+      background: rgba(20, 35, 60, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 15px;
+      padding: 25px;
+      margin: 30px 0;
+    }
+    .status-box .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-top-color: var(--sbh-light-blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .status-text {
+      font-size: 1rem;
+      color: var(--sbh-text-light);
+    }
+    .status-text.confirmed {
+      color: var(--sbh-text-green);
+      font-weight: 600;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      color: #fff;
+      padding: 15px 30px;
+      border: none;
+      border-radius: 50px;
+      text-decoration: none;
+      font-weight: 600;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      margin-top: 20px;
+    }
+    .btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 25px rgba(30, 144, 255, 0.4);
+    }
+
+    .amount-display {
+      font-size: 2.5rem;
+      font-weight: 700;
+      font-family: 'Montserrat', sans-serif;
+      color: var(--sbh-text-white);
+      margin: 20px 0;
+    }
+    .amount-display span {
+      font-size: 1.2rem;
+      color: var(--sbh-text-light);
+    }
+  </style>
+</head>
+<body>
+  <div class="success-container">
+    <div class="success-icon">
+      <i class="fas fa-check"></i>
+    </div>
+    
+    <h1>Paiement en cours de traitement</h1>
+    <p>Merci pour votre paiement!</p>
+    
+    <div class="amount-display" id="amountDisplay"></div>
+    
+    <div class="status-box" id="statusBox">
+      <div class="spinner" id="spinner"></div>
+      <p class="status-text" id="statusText">Vérification du paiement...</p>
+    </div>
+    
+    <a href="wallet.html" class="btn">
+      <i class="fas fa-wallet"></i>
+      Retour au portefeuille
+    </a>
+  </div>
+
+  <script>
+    const pendingPayment = localStorage.getItem('pendingPayment');
+    
+    if (pendingPayment) {
+      const paymentData = JSON.parse(pendingPayment);
+      
+      document.getElementById('amountDisplay').innerHTML = 
+        `${paymentData.amount.toLocaleString('fr-FR')} <span>FCFA</span>`;
+      
+      checkPaymentStatus(paymentData.transactionId);
+    } else {
+      document.getElementById('statusText').textContent = 'Aucun paiement en attente';
+      document.getElementById('spinner').style.display = 'none';
+    }
+
+    async function checkPaymentStatus(transactionId) {
+      let attempts = 0;
+      const maxAttempts = 30;
+      
+      const check = async () => {
+        try {
+          const response = await fetch(`/confirm/${transactionId}`);
+          const data = await response.json();
+          
+          if (data.isPaid) {
+            localStorage.removeItem('pendingPayment');
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('statusText').textContent = 'Paiement confirmé! Solde mis à jour.';
+            document.getElementById('statusText').classList.add('confirmed');
+            document.querySelector('.success-icon i').className = 'fas fa-check-double';
+            document.querySelector('h1').textContent = 'Paiement confirmé!';
+            return;
+          }
+          
+          attempts++;
+          if (attempts < maxAttempts) {
+            setTimeout(check, 3000);
+          } else {
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('statusText').textContent = 
+              'Le paiement peut prendre quelques minutes. Votre solde sera mis à jour automatiquement.';
+          }
+        } catch (error) {
+          console.error('Erreur:', error);
+          attempts++;
+          if (attempts < maxAttempts) {
+            setTimeout(check, 5000);
+          }
+        }
+      };
+      
+      check();
+    }
+  </script>
+</body>
+</html>
