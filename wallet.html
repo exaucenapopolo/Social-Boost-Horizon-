@@ -1295,34 +1295,21 @@
           confirmTransferBtn.disabled = true;
           confirmTransferBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
           try {
-            const userRef = db.collection('users').doc(currentUid);
-            await db.runTransaction(async tx => {
-              const doc = await tx.get(userRef);
-              const data = doc.data();
-              const refBal = data.referralBalance || 0;
-              if (refBal <= 0) throw new Error('Aucun solde à transférer');
-              if (selectedTransferTarget === 'main') {
-                tx.update(userRef, {
-                  balance: (data.balance || 0) + refBal,
-                  referralBalance: 0
-                });
-              } else {
-                tx.update(userRef, {
-                  withdrawalBalance: (data.withdrawalBalance || 0) + refBal,
-                  referralBalance: 0
-                });
-              }
-              const txColRef = db.collection('fapshiTransactions').doc();
-              tx.set(txColRef, {
-                userId: currentUid,
-                date: firebase.firestore.FieldValue.serverTimestamp(),
-                type: "Transfert",
-                label: selectedTransferTarget === 'main' ? "Transfert vers solde principal" : "Transfert vers solde de retrait",
-                amount: refBal
-              });
+            const idToken = await auth.currentUser.getIdToken();
+            const response = await fetch(`/users/${currentUid}/transfer-referral`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`
+              },
+              body: JSON.stringify({ target: selectedTransferTarget })
             });
+            const result = await response.json();
+            if (!result.success) {
+              throw new Error(result.error || 'Erreur lors du transfert');
+            }
             transferModal.classList.remove('active');
-            showWalletNotification('Transfert réussi!', 'success');
+            showWalletNotification(result.message || 'Transfert réussi!', 'success');
             loadActivities();
           } catch (err) {
             showWalletNotification('Erreur: ' + err.message, 'error');
