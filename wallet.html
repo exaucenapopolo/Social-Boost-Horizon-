@@ -1295,7 +1295,12 @@
           confirmTransferBtn.disabled = true;
           confirmTransferBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
           try {
-            const idToken = await auth.currentUser.getIdToken();
+            if (!auth.currentUser) {
+              throw new Error('Vous devez être connecté');
+            }
+            const idToken = await auth.currentUser.getIdToken(true);
+            console.log('Appel API transfer-referral pour', currentUid, 'vers', selectedTransferTarget);
+            
             const response = await fetch(`/users/${currentUid}/transfer-referral`, {
               method: 'POST',
               headers: {
@@ -1304,7 +1309,17 @@
               },
               body: JSON.stringify({ target: selectedTransferTarget })
             });
+            
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+              const text = await response.text();
+              console.error('Réponse non-JSON:', text.substring(0, 500));
+              throw new Error('Erreur serveur. Veuillez réessayer.');
+            }
+            
             const result = await response.json();
+            console.log('Résultat:', result);
+            
             if (!result.success) {
               throw new Error(result.error || 'Erreur lors du transfert');
             }
@@ -1312,6 +1327,7 @@
             showWalletNotification(result.message || 'Transfert réussi!', 'success');
             loadActivities();
           } catch (err) {
+            console.error('Erreur transfert:', err);
             showWalletNotification('Erreur: ' + err.message, 'error');
           }
           confirmTransferBtn.disabled = false;
