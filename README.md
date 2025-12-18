@@ -5,3 +5,4 @@
 >  - S’inscrire et se connecter
 >  - Gérer un portefeuille interne (dépôt et consultation de solde)
 >  - Acheter des services  de marketing 
+Force redeploy: commit pour Vercel - mise à jour PWA 2025-12-18
