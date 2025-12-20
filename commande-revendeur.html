@@ -461,6 +461,82 @@
     @keyframes spin {
       to { transform: translate(-50%, -50%) rotate(360deg); }
     }
+
+    /* Mode Vitesse Styles */
+    .speed-mode-container {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 15px;
+      margin: 15px 0;
+      border: 1px solid rgba(255, 165, 0, 0.3);
+      transition: all 0.3s ease;
+    }
+    .speed-mode-container.speed-mode-active {
+      background: rgba(255, 165, 0, 0.15);
+      border-color: rgba(255, 165, 0, 0.6);
+      box-shadow: 0 0 15px rgba(255, 165, 0, 0.2);
+    }
+    .speed-mode-toggle {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .speed-mode-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      color: var(--sbh-text-white);
+    }
+    .speed-mode-icon {
+      color: #FFA500;
+      font-size: 1.2rem;
+    }
+    .speed-mode-description {
+      font-size: 0.85rem;
+      color: var(--sbh-text-light);
+      margin-top: 8px;
+      opacity: 0.8;
+    }
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 26px;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.2);
+      transition: .4s;
+      border-radius: 26px;
+    }
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    .toggle-switch input:checked + .toggle-slider {
+      background: linear-gradient(45deg, #FFA500, #FF6B00);
+    }
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(24px);
+    }
     
     .btn-tutorial {
       width: 100%;
@@ -799,7 +875,25 @@
         <p id="commentsCount" style="display:none;">0 commentaire(s) (minimum 10)</p>
       </div>
 
-      <div class="form-group">
+      
+      <!-- Mode Vitesse - Traitement prioritaire -->
+      <div class="speed-mode-container" id="speedModeContainer">
+        <div class="speed-mode-toggle">
+          <div class="speed-mode-label">
+            <i class="fas fa-bolt speed-mode-icon"></i>
+            <span>Mode Vitesse</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="speedModeToggle">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="speed-mode-description">
+          Activez cette option pour accélérer le traitement de votre commande (+10% du prix après réduction)
+        </div>
+      </div>
+
+<div class="form-group">
         <label for="contactType">Mode de contact</label>
         <select id="contactType" name="contactType" required>
           <option value="">Choisir</option>
@@ -885,6 +979,1974 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     const auth = firebase.auth();
+    // =======================================================
+    // SYSTÈME DE CONVERSION DE DEVISES
+    // =======================================================
+    const CURRENCY_CONFIG = {
+      'cm': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇲' },
+      'ga': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇬🇦' },
+      'cg': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇬' },
+      'td': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇹🇩' },
+      'cf': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇫' },
+      'gq': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇬🇶' },
+      'sn': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇸🇳' },
+      'ci': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇨🇮' },
+      'ml': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇲🇱' },
+      'bf': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇫' },
+      'bj': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇯' },
+      'tg': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇹🇬' },
+      'ne': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇳🇪' },
+      'gw': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇬🇼' },
+      'cd': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+      'gh': { code: 'GHS', symbol: 'GH₵', rate: 0.024, flag: '🇬🇭' },
+      'ng': { code: 'NGN', symbol: '₦', rate: 2.44, flag: '🇳🇬' },
+      'ke': { code: 'KES', symbol: 'KSh', rate: 0.20, flag: '🇰🇪' },
+      'ug': { code: 'UGX', symbol: 'USh', rate: 5.64, flag: '🇺🇬' },
+      'tz': { code: 'TZS', symbol: 'TSh', rate: 3.81, flag: '🇹🇿' },
+      'rw': { code: 'RWF', symbol: 'FRw', rate: 1.98, flag: '🇷🇼' },
+      'zm': { code: 'ZMW', symbol: 'ZK', rate: 0.041, flag: '🇿🇲' },
+      'mw': { code: 'MWK', symbol: 'MK', rate: 2.67, flag: '🇲🇼' },
+      'ca': { code: 'CAD', symbol: 'C DES NOMS DE SERVICES (résout le problème d'apostrophes) ===
+    const serviceMapping = {
+      facebook: {
+        "J'aime (page)": "jaime_page",
+        "J'aime (publication)": "jaime_publication"
+      },
+      instagram: {
+        "J'aime": "jaime"
+      },
+      youtube: {
+        "J'aime": "jaime"
+      },
+      tiktok: {
+        "J'aime": "jaime",
+        "J'aime pour direct": "jaime_direct"
+      },
+      twitter: {
+        "Likes (J'aime)": "likes_jaime"
+      }
+    };
+
+    // Fonction pour convertir nom d'affichage → clé technique
+    function getServiceKey(displayName, platform) {
+      if (serviceMapping[platform] && serviceMapping[platform][displayName]) {
+        return serviceMapping[platform][displayName];
+      }
+      return displayName; // Si pas de mapping, retourner tel quel
+    }
+
+    // === Données des services (tous vos services) ===
+    const servicesData = {
+      facebook: {
+        "Followers (page)": {
+          medium: { price: 1444, time: "2 h" },
+          high:   { price: 1900, time: "1 h" },
+          remark: "VOTRE COMMANDE PEUT PRENDRE UN PEU PLUS DE TEMPS QUE D'HABITUDE EN CAS DE MISE A JOUR DE FACEBOOK (min: 100)"
+        },
+        "Followers (profil)": {
+          medium: { price: 1694, time: "3 h" },
+          high:   { price: 1950, time: "2 h" },
+          remark: "ASSUREZ-VOUS QUE LE PROFIL FACEBOOK EST EN MODE PROFESSIONNEL.SI VOUS NE SAVEZ PAS COMMENT FAIRE, REGARDEZ LE TUTORIEL SUR NOTRE CHAINE YOUTUBE (min: 100)"
+        },
+        "J’aime (page)": {
+          medium: { price: 1900, time: "3 h" },
+          high:   { price: 2300, time: "2 h" },
+          remark: "Vous obtiendrez des followers en bonus. C'EST L'AVANTAGE DE CE SERVICE.Assurez vous que vous envoyez les j'aime à une page et non à un profil ! (min: 100)"
+        },
+        "J’aime (publication)": {
+          medium: { price: 598, time: "2 h" },
+          high:   { price: 900, time: "1 h" },
+          remark: "Si la publication provient d'un compte facebook, Assurez-vous que ces publication sont publiques (min: 100)"
+        },
+        "Partages": {
+          medium: { price: 930, time: "3 h" },
+          high:   { price: 1330, time: "2 h" },
+          remark: "Assurez-vous que la publication est publique.Si la publication provient d'un compte Facebook, assurez vous que les publications du compte sont publiques ! (min: 1000)"
+        },
+        "Membres de groupe": {
+          medium: { price: 1445, time: "3 h" },
+          high:   { price: 1980, time: "2 h" },
+          remark: "Le groupe doit être public, sinon votre commande sera annulée. (min: 100)"
+        },
+        "Vues de vidéo": {
+          medium: { price: 210, time: "4 h" },
+          high:   { price: 460, time: "3 h" },
+          remark: "Lien direct de la vidéo publique requis. Elle doit être publique (min: 500)"
+        },
+        "Commentaires personnalisés": {
+          medium: { price: 989, time: "24 h" },
+          high:   { price: 1157, time: "18 h" },
+          remark: "Ce sont des comptes masculins américains qui commenteront. (min: 10)"
+        },
+        "Réaction Emoji": {
+          subOptionLabel: "Emoji à choisir",
+          options: {
+            "Reaction 🥰": { medium: { price: 677, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+            "Reaction ❤️": { medium: { price: 700, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+            "Reaction 😂": { medium: { price: 677, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+            "Reaction 😮": { medium: { price: 677, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+            "Reaction 😢": { medium: { price: 800, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+            "Reaction 😡": { medium: { price: 900, time: "3 h" }, high: { price: 1100, time: "2 h" } }
+          },
+          remark: "Choisissez l’emoji à appliquer aux publications.Si la publication provient d'un compte Facebook, assurez vous que les publications du compte sont publiques ! (min: 100)"
+        }
+      },
+      instagram: {
+        "Followers": {
+          medium: { price: 2100, time: "1h" },
+          high:   { price: 3650, time: "30 min" },
+          remark: "Ne changez pas votre nom d’utilisateur.NB: En raison d'une récente mise à jour d'instagram, vous devez maintenant désactiver l'option « À VÉRIFIER » sur votre compte instagram avant d'acheter des followers, cette option est automatiquement activée pour TOUS les comptes instagram et c'est à vous de la désactiver.VOUS N'OBTIENDREZ AUCUN FOLLOWER ET PERDREZ VOTRE ARGENT SI VOUS NE LE DÉSACTIVEZ PAS AVANT D'ACHETER, N'APPUYEZ PAS SUR ACHETER SI VOUS N'ÊTES PAS SÛR À 100% QU'IL EST DÉSACTIVÉ. (min: 100)"
+        },
+        "J’aime": {
+          medium: { price: 296, time: "30 min" },
+          high:   { price: 520, time: "25 min" },
+          remark: "Baisse de 3–5 % des likes. video publique obligatoire (min: 100)"
+        },
+        "Vues de vidéos": {
+          medium: { price: 99, time: "30 min" },
+          high:   { price: 210, time: "10 min" },
+          remark: "Assurez vous que la vidéo provient d'un compte instagram qui n'est pas privé ! (min: 1000)"
+        },
+        "Commentaires personnalisés": {
+          medium: { price: 217, time: "4 h" },
+          high:   { price: 339, time: "2 h" },
+          remark: "Veuillez ne pas insérer de “@” ni “#” dans vos commentaires. (min: 10)"
+        },
+        "Vues de story": {
+          medium: { price: 323, time: "30 min" },
+          high:   { price: 557, time: "15 min" },
+          remark: "Ce sont des spectateurs asiatiques qui regarderont votre story. (min: 100)"
+        }
+      },
+      youtube: {
+        "Abonnés": {
+          medium: { price: 19315, time: "24 h" },
+          high:   { price: 23060, time: "15 h" },
+          remark: "Il faut vous attendre à une baisse de 1–5 % d'abonnés après quelques semaines suivant la livraison pour la qualité moyenne uniquement. (min: 50)"
+        },
+        "Vues": {
+          medium: { price: 1350, time: "9 h" },
+          high:   { price: 1980, time: "8 h" },
+          remark: "Presque aucune baisse de vues. Ce sont des vues de haute qualité : ils regarderont toute votre vidéo jusqu'à la fin (min: 500)"
+        },
+        "J’aime": {
+          medium: { price: 994, time: "2 h" },
+          high:   { price: 1750, time: "1 h" },
+          remark: "Presque aucune baisse de j'aimes. (min: 500)"
+        },
+        "Commentaires personnalisés": {
+          medium: { price: 219, time: "24 h" },
+          high:   { price: 489, time: "18 h" },
+          remark: "Veuillez ne pas insérer de “@” ni “#” dans vos commentaires. (min: 10)"
+        }
+      },
+      tiktok: {
+        "Followers": {
+          medium: { price: 1997, time: "2 h" },
+          high:   { price: 2567, time: "1 h" },
+          remark: "Assurez-vous que le compte Tiktok n'est pas privé, et ne changez pas le nom d'utilisateur du compte pendant que des followers sont ajoutés !. Il faut s'attendre à une légère baisse de 1–2 % après quelques semaines pour la qualité moyenne. (min: 100)"
+        },
+        "J’aime": {
+          medium: { price: 99, time: "30 min" },
+          high:   { price: 278, time: "10 min" },
+          remark: "Lien direct de la vidéo. (min: 50)"
+        },
+        "Vues": {
+          medium: { price: 78, time: "30 min" },
+          high:   { price: 190, time: "15 min" },
+          remark: "Vidéo publique. Aucune baisse.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ IS LE LIEN D'UNE VIDÉO DE VOTRE COMPTE TIKTOK, ET NON LE LIEN DE VOTRE COMPTE TIKTOK ! !!! (min: 500)"
+        },
+        "Sauvegarde de vidéos": {
+          medium: { price: 90, time: "20 min" },
+          high:   { price: 198, time: "10 min" },
+          remark: "Vidéo publique requise.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ IS LE LIEN D'UNE VIDÉO DE VOTRE COMPTE TIKTOK, ET NON LE LIEN DE VOTRE COMPTE TIKTOK ! !!! (min: 100)"
+        },
+        "Partages de vidéos": {
+          medium: { price: 159, time: "30 min" },
+          high:   { price: 380, time: "15 min" },
+          remark: "Vidéo publique.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ IS LE LIEN D'UNE VIDÉO DE VOTRE COMPTE TIKTOK, ET NON LE LIEN DE VOTRE COMPTE TIKTOK ! !!! (min: 100)"
+        },
+        "Commentaires personnalisés": {
+          medium: { price: 397, time: "1 h" },
+          high:   { price: 569, time: "30 min" },
+          remark: "Assurez-vous de ne pas insérer de “@” ni “#” dans vos commentaires. (min: 10)"
+        },
+        "J’aime pour direct": {
+          medium: { price: 198, time: "15 min" },
+          high:   { price: 356, time: "10 min" },
+          remark: "Les likes viendront 15 ou 10 minutes après votre achat. (min : 100)"
+        },
+        "Téléspectateur en direct": {
+          subOptionLabel: "Durée",
+          options: {
+            "20 min": { medium: { price: 2750, time: "20 min" }, high: { price: 3010, time: "20 min" } },
+            "1 h":     { medium: { price: 3800, time: "1 h" },    high: { price: 4010, time: "1 h" } },
+            "1 h 30":  { medium: { price: 5850, time: "1 h 30" }, high: { price: 6500, time: "1 h 30" } }
+          },
+          remark: "Spectateurs en live sur votre direct TikTok.ceux de haute Qualité, commenteront, et vont beaucoup intereagir (min: 50)"
+        }
+      },
+      telegram: {
+        "Membres groupe/canal": {
+          medium: { price: 1090, time: "3 h" },
+          high:   { price: 1950, time: "1 h" },
+          remark: "Lien d’invitation public requis. (min: 500)"
+        },
+        "Vues publication spécifique": {
+          subOptionLabel: "Qualité des vues",
+          options: {
+            "Qualité moyenne": { medium: { price: 150, time: "Instantané" }, high: { price: 150, time: "Instantané" } },
+            "Haute qualité":   { medium: { price: 299, time: "Instantané" }, high: { price: 299, time: "Instantané" } }
+          },
+          remark: "Vues sur la publication spécifique."
+        },
+        "Vues des publications précédentes": {
+          subOptionLabel: "Nombre de vues",
+          options: {
+            "20 vues":  { medium: { price: 880, time: "Instantané" }, high: { price: 1000, time: "Instantané" } },
+            "50 vues":  { medium: { price: 1356, time: "Instantané" }, high: { price: 1771, time: "Instantané" } },
+            "100 vues": { medium: { price: 2357, time: "Instantané" }, high: { price: 2887, time: "Instantané" } }
+          },
+          remark: "Choisissez le nombre de vues."
+        },
+        "Vues futures publications": {
+          subOptionLabel: "Nombre de vues futures",
+          options: {
+            "20 futures vues":  { medium: { price: 970,  time: "Instantané" }, high: { price: 1277, time: "Instantané" } },
+            "50 futures vues":  { medium: { price: 1995, time: "Instantané" }, high: { price: 2357, time: "Instantané" } },
+            "100 futures vues": { medium: { price: 3999, time: "Instantané" }, high: { price: 4599, time: "Instantané" } }
+          },
+          remark: "Vues programmées pour futures publications."
+        },
+        "Réactions publication spécifique": {
+          medium: { price: 210, time: "Instantané" },
+          high:   { price: 455, time: "Instantané" },
+          remark: "Réaction (👍😏😅🔥🤩😭) sur la publication spécifique. (min: 10)"
+        },
+        "Réactions précédentes": {
+          subOptionLabel: "Nombre de réactions",
+          options: {
+            "20 réactions":  { medium: { price: 1250, time: "Instantané" }, high: { price: 1250, time: "Instantané" } },
+            "50 réactions":  { medium: { price: 3000, time: "Instantané" }, high: { price: 3000, time: "Instantané" } },
+            "100 réactions": { medium: { price: 5000, time: "Instantané" }, high: { price: 5000, time: "Instantané" } }
+          },
+          remark: "Réactions (🤩🥳💚🥰😎👍) sur publications précédentes selon votre nombre sélectionné."
+        },
+        "Réactions futures": {
+          subOptionLabel: "Nombre de réactions futures",
+          options: {
+            "20 réactions":  { medium: { price: 1250, time: "Instantané" }, high: { price: 1250, time: "Instantané" } },
+            "50 réactions":  { medium: { price: 3000, time: "Instantané" }, high: { price: 3000, time: "Instantané" } },
+            "100 réactions": { medium: { price: 5000, time: "Instantané" }, high: { price: 5000, time: "Instantané" } }
+          },
+          remark: "Réactions (😹🥰🤩💚😏👍) sur vos futures publications."
+        }
+      },
+      twitter: {
+        "Followers": {
+          medium: { price: 6580, time: "4 h" },
+          high:   { price: 7321, time: "3 h" },
+          remark: "Profil public requis. (min: 100)"
+        },
+        "Likes (J'aime)": {
+          medium: { price: 1970, time: "2 h" },
+          high:   { price: 2480, time: "1 h" },
+          remark: "Lien direct du tweet public. (min: 50)"
+        },
+        "Retweets": {
+          medium: { price: 5400, time: "3 h" },
+          high:   { price: 7010, time: "2 h" },
+          remark: "Tweet public requis. (min: 50)"
+        },
+        "Vues de vidéo (Twitter)": {
+          medium: { price: 5000, time: "5 h" },
+          high:   { price: 7000, time: "4 h" },
+          remark: "Lien de la vidéo Twitter. (min: 500)"
+        },
+        "Commentaires personnalisés": {
+          medium: { price: 5660, time: "20 h" },
+          high:   { price: 7600, time: "18 h" },
+          remark: "Un commentaire par ligne. (min: 10)"
+        }
+      },
+      whatsapp: {
+        "Abonnés internationaux": {
+          medium: { price: 4030, time: "3 h" },
+          high:   { price: 7010, time: "2 h" },
+          remark: "Abonnés de pays aléatoires. (min: 100)"
+        },
+        "Abonnés américains": {
+          medium: { price: 4430, time: "3 h" },
+          high:   { price: 5500, time: "3 h" },
+          remark: "Abonnés ciblés uniquement USA. (min: 100)"
+        },
+        "Abonnés indiens": {
+          medium: { price: 4430, time: "3 h" },
+          high:   { price: 5500, time: "3 h" },
+          remark: "Abonnés ciblés uniquement de l'Inde. (min: 100)"
+        },
+        "Réaction Emoji": {
+          subOptionLabel: "Emoji à choisir",
+          options: {
+            "Reaction 👍":        { medium: { price: 1040, time: "5h" }, high: { price: 2780, time: "Instantané" } },
+            "Reaction ❤️":        { medium: { price: 1040, time: "5h" }, high: { price: 2780, time: "Instantané" } },
+            "Reaction 😂":        { medium: { price: 1040, time: "5h" }, high: { price: 2780, time: "Instantané" } },
+            "Reaction aléatoires": { medium: { price: 1900, time: "30 min" }, high: { price: 3500, time: "15 min" } }
+          },
+          remark: "Emoji react sur vos messages. (min: 100)"
+        }
+      },
+      spotify: {
+        "Followers": {
+          medium: { price: 3950, time: "3 h" },
+          high:   { price: 4510, time: "2 h" },
+          remark: "Profil public requis. Ne touchez à rien pendant le travail. (min: 500)"
+        },
+        "Abonnés à la playlist": {
+          medium: { price: 3500, time: "2 h" },
+          high:   { price: 4150, time: "1 h" },
+          remark: "Lien de la playlist requis. (min: 500)"
+        }
+      },
+      linkedin: {
+        "Abonnés pour votre page": {
+          medium: { price: 7500, time: "5 h" },
+          high:   { price: 8000, time: "4 h" },
+          remark: "Page publique requise. (min: 500)"
+        },
+        "Abonnés pour votre profil": {
+          medium: { price: 7700, time: "5 h" },
+          high:   { price: 8700, time: "4 h" },
+          remark: "Profil professionnel requis. (min: 500)"
+        },
+        "Likes postes": {
+          medium: { price: 35000, time: "7 h" },
+          high:   { price: 40000, time: "6 h" },
+          remark: "Posts publics requis. (min: 100)"
+        }
+      }
+    };
+// ----------------- Script principal -----------------
+    document.addEventListener("DOMContentLoaded", function () {
+      if (typeof AOS !== 'undefined') AOS.init({ duration: 800, once: true, offset: 100 });
+
+      const header = document.querySelector("header");
+      const hamburger = document.querySelector(".icon-hamburger");
+      if (hamburger) hamburger.addEventListener("click", () => header.classList.toggle("open"));
+      document.addEventListener("click", (e) => {
+        const isMenuOpen = header.classList.contains("open");
+        const isClickInsideMenu = header.contains(e.target);
+        const isHamburgerButton = e.target.closest('#hamburgerBtn');
+        if (isMenuOpen && !isClickInsideMenu && !isHamburgerButton) header.classList.remove("open");
+      });
+
+      const notificationClose = document.getElementById('notificationClose');
+      if (notificationClose) notificationClose.addEventListener('click', () => { document.getElementById('orderNotification').style.display = 'none'; });
+
+      let currentUser = null;
+      // userData: isReseller, discountRate (from FreeRestore or firestore), balance, resellerLevel
+      let userData = { isReseller: false, discountRate: 0, balance: 0, resellerLevel: '' };
+
+      // ---- Récupération du taux de réduction depuis Firestore ----
+      // Plus besoin de FreeRestore, on utilise directement les données Firestore
+
+      // --- DOM refs ---
+      let selectedPlatform = null;
+      const icons            = document.querySelectorAll('.platforms img');
+      const orderForm        = document.getElementById('orderForm');
+      const serviceSelect    = document.getElementById('serviceSelect');
+      const qualitySelect    = document.getElementById('qualitySelect');
+      const subOptionSection = document.getElementById('subOptionSection');
+      const subOptionLabel   = document.getElementById('subOptionLabel');
+      const subOptionSelect  = document.getElementById('subOptionSelect');
+      const linkInput        = document.getElementById('linkInput');
+      let   quantityInput    = document.getElementById('quantityInput');
+      const quantLabel       = document.getElementById('quantLabel');
+      const quantitySection  = document.getElementById('quantitySection');
+      const quantityError    = document.getElementById('quantityError');
+      const commentsCount    = document.getElementById('commentsCount');
+      const contactType      = document.getElementById('contactType');
+      const whatsappField    = document.getElementById('whatsappField');
+      const emailField       = document.getElementById('emailField');
+      const contactInput     = document.getElementById('contactInput');
+      const emailInput       = document.getElementById('emailInput');
+      const whatsappRemark   = document.getElementById('whatsappRemark');
+      const emailRemark      = document.getElementById('emailRemark');
+      const timeEstimate     = document.getElementById('timeEstimate');
+      const remarkBox        = document.getElementById('remarkBox');
+      const orderErrorBox    = document.getElementById('orderErrorBox');
+      const savingsAmount    = document.getElementById('savingsAmount');
+      const submitButton     = document.querySelector('.btn');
+
+      // events
+      icons.forEach(i => i.addEventListener('click', () => selectPlatform(i.dataset.platform)));
+      if (serviceSelect) serviceSelect.addEventListener('change', onServiceChange);
+      if (qualitySelect) qualitySelect.addEventListener('change', updateDetails);
+      if (subOptionSelect) subOptionSelect.addEventListener('change', updateDetails);
+      if (contactType) contactType.addEventListener('change', toggleContactField);
+      if (orderForm) orderForm.addEventListener('submit', onSubmit);
+      
+      // Écouteur pour le mode vitesse
+      const speedModeToggle = document.getElementById('speedModeToggle');
+      const speedModeContainer = document.getElementById('speedModeContainer');
+      if (speedModeToggle) {
+        speedModeToggle.addEventListener('change', function() {
+          isSpeedModeActive = this.checked;
+          if (speedModeContainer) {
+            speedModeContainer.classList.toggle('speed-mode-active', isSpeedModeActive);
+          }
+          updateDetails();
+        });
+      }
+
+      selectPlatform('facebook');
+
+      function attachQuantityInputListener() {
+        if (quantityInput) {
+          quantityInput.removeEventListener('input', updateDetails);
+          quantityInput.addEventListener('input', updateDetails);
+        }
+      }
+      attachQuantityInputListener();
+
+      function selectPlatform(p) {
+        icons.forEach(i => i.classList.remove('active'));
+        const el = document.querySelector(`.platforms img[data-platform="${p}"]`);
+        if (el) el.classList.add('active');
+        selectedPlatform = p;
+        loadServices();
+      }
+
+      function loadServices() {
+        if (!serviceSelect || !selectedPlatform || !servicesData) return;
+        if (!servicesData[selectedPlatform]) {
+          console.error("Aucun service trouvé pour la plateforme: ", selectedPlatform);
+          return;
+        }
+        serviceSelect.innerHTML = '<option value=""> Choisir un service </option>';
+        Object.keys(servicesData[selectedPlatform]).forEach(s => {
+          const o = document.createElement('option');
+          o.value = s; o.textContent = s;
+          serviceSelect.appendChild(o);
+        });
+        resetUI();
+      }
+
+      function resetUI() {
+        if (!subOptionSection || !subOptionSelect) return;
+        subOptionSection.style.display = 'none';
+        subOptionSelect.innerHTML = '';
+        if (qualitySelect) qualitySelect.value = 'medium';
+
+        if (quantityInput && quantityInput.tagName === 'TEXTAREA') {
+          const newInput = document.createElement('input');
+          newInput.id = 'quantityInput';
+          newInput.name = 'quantity';
+          newInput.type = 'number';
+          newInput.min = '1';
+          newInput.placeholder = 'Ex : 1000';
+          quantitySection.replaceChild(newInput, quantityInput);
+          quantityInput = newInput;
+          attachQuantityInputListener();
+        }
+
+        if (quantLabel) quantLabel.textContent = 'Quantité';
+        if (quantityInput) { quantityInput.value = ''; quantityInput.disabled = false; }
+        if (quantityError) { quantityError.style.display = 'none'; quantityError.textContent = ''; }
+        if (commentsCount) commentsCount.style.display = 'none';
+
+        const normalPriceEl = document.querySelector('.normal-price');
+        const resellerPriceEl = document.querySelector('.reseller-price');
+        if (normalPriceEl) normalPriceEl.textContent = 'Prix normal : ' + formatPrice(0);
+        if (resellerPriceEl) resellerPriceEl.textContent = 'Votre prix : ' + formatPrice(0);
+        if (savingsAmount) savingsAmount.textContent = 'Économisez ' + formatPrice(0);
+        const speedModeChargeEl = document.getElementById('speedModeCharge');
+        if (speedModeChargeEl) speedModeChargeEl.style.display = 'none';
+        const priceDetailsEl = document.getElementById('priceDetails');
+        if (priceDetailsEl) priceDetailsEl.textContent = '';
+        if (timeEstimate) timeEstimate.textContent  = 'Temps de réalisation : 2 h';
+        if (remarkBox) remarkBox.textContent      = 'Sélectionnez un service pour voir la remarque.';
+
+        if (contactType) contactType.value = '';
+        toggleContactField();
+        if (orderErrorBox) orderErrorBox.style.display = 'none';
+        
+        // Réinitialiser le mode vitesse
+        isSpeedModeActive = false;
+        const speedModeToggle = document.getElementById('speedModeToggle');
+        const speedModeContainer = document.getElementById('speedModeContainer');
+        if (speedModeToggle) speedModeToggle.checked = false;
+        if (speedModeContainer) speedModeContainer.classList.remove('speed-mode-active');
+      }
+
+      function onServiceChange() {
+        resetUI();
+        const selectedServiceKey = serviceSelect.value;
+        if (!selectedServiceKey) return;
+
+        const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
+        const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
+
+        if (isCommentService) {
+          if (quantityInput.tagName !== 'TEXTAREA') {
+            const newTextarea = document.createElement('textarea');
+            newTextarea.id = 'quantityInput';
+            newTextarea.name = 'comments';
+            newTextarea.rows = '5';
+            newTextarea.placeholder = 'Un commentaire par ligne...';
+            quantitySection.replaceChild(newTextarea, quantityInput);
+            quantityInput = newTextarea;
+            attachQuantityInputListener();
+          }
+          if (quantLabel) quantLabel.textContent = 'Vos commentaires (un par ligne)';
+          if (commentsCount) commentsCount.style.display = 'block';
+          quantityInput.disabled = false;
+        } else {
+          if (quantityInput.tagName === 'TEXTAREA') {
+            const newInput = document.createElement('input');
+            newInput.id = 'quantityInput';
+            newInput.name = 'quantity';
+            newInput.type = 'number';
+            newInput.min = '1';
+            newInput.placeholder = 'Ex : 1000';
+            quantitySection.replaceChild(newInput, quantityInput);
+            quantityInput = newInput;
+            attachQuantityInputListener();
+          }
+          if (quantLabel) quantLabel.textContent = 'Quantité';
+          if (commentsCount) commentsCount.style.display = 'none';
+          quantityInput.disabled = false;
+        }
+
+        if (serviceDef.options) {
+          subOptionSection.style.display = 'block';
+          subOptionSelect.innerHTML = '';
+          const defaultSubOption = document.createElement('option');
+          defaultSubOption.value = "";
+          defaultSubOption.textContent = " Choisir une option ";
+          subOptionSelect.appendChild(defaultSubOption);
+
+          Object.keys(serviceDef.options).forEach(opt => {
+            const optionElement = document.createElement('option');
+            optionElement.value = opt;
+            optionElement.textContent = opt;
+            subOptionSelect.appendChild(optionElement);
+          });
+          subOptionLabel.textContent = serviceDef.subOptionLabel || 'Option';
+
+          const servicesWithFixedQuantityInOptions = [
+            "Vues publication spécifique", "Vues des publications précédentes",
+            "Vues futures publications", "Réactions précédentes", "Réactions futures"
+          ];
+          const isQuantityFixedByOption =
+            servicesWithFixedQuantityInOptions.includes(selectedServiceKey)
+            && selectedPlatform === 'telegram';
+
+          quantityInput.disabled = isQuantityFixedByOption;
+          if (isQuantityFixedByOption) { quantityInput.value = ''; quantityError.style.display = 'none'; }
+        } else {
+          subOptionSection.style.display = 'none';
+          quantityInput.disabled = false;
+        }
+
+        updateDetails();
+      }
+
+      function updateDetails() {
+        const selectedServiceKey = serviceSelect.value;
+        if (!selectedServiceKey) { resetPriceDisplay(); return; }
+
+        const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
+        let currentConfig = null;
+        let normalPrice = 0;
+        let discountedPrice = 0;
+        let pricePerThousand = 0;
+        let estimatedTime = 'N/A';
+        let minQuantity = 1;
+
+        const remarkMatch = serviceDef.remark && serviceDef.remark.match(/\(min:\s*(\d+)\)/);
+        if (remarkMatch && remarkMatch[1]) minQuantity = parseInt(remarkMatch[1], 10);
+
+        const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
+        // Récupérer discountRate depuis le champ caché et userData -> appliquer minimum 5% si revendeur
+        const discountRateRaw = parseInt(document.getElementById('discountRate').value) || 0;
+        const effectiveDiscountRate = userData.isReseller ? Math.max(discountRateRaw, 5) : 0;
+
+        if (serviceDef.options) {
+          const selectedSubOption = subOptionSelect.value;
+          if (!selectedSubOption) {
+            resetPriceDisplay(serviceDef.remark);
+            return;
+          }
+          const optionData = serviceDef.options[selectedSubOption];
+          currentConfig = optionData[qualitySelect.value] || optionData.medium;
+
+          const servicesWithFixedQuantityInOptions = [
+            "Vues publication spécifique", "Vues des publications précédentes",
+            "Vues futures publications", "Réactions précédentes", "Réactions futures"
+          ];
+          const isQuantityFixedByOption =
+            servicesWithFixedQuantityInOptions.includes(selectedServiceKey)
+            && selectedPlatform === 'telegram';
+
+          if (isQuantityFixedByOption) {
+            normalPrice = Number(currentConfig.price) || 0;
+            pricePerThousand = normalPrice;
+            estimatedTime = currentConfig.time;
+            discountedPrice = Math.round(normalPrice * (1 - effectiveDiscountRate/100));
+          } else {
+            const quantity = parseInt(quantityInput.value) || 0;
+            if (isCommentService) {
+              pricePerThousand = Number(currentConfig.price) * 100;
+              normalPrice = (Number(currentConfig.price) / 10) * quantity;
+            } else {
+              pricePerThousand = Number(currentConfig.price);
+              normalPrice = (Number(currentConfig.price) / 1000) * quantity;
+            }
+            discountedPrice = Math.round(normalPrice * (1 - effectiveDiscountRate/100));
+            estimatedTime = currentConfig.time;
+
+            if (quantity > 0 && quantity < minQuantity) {
+              quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
+              quantityError.style.display = 'block';
+            } else quantityError.style.display = 'none';
+          }
+        } else {
+          currentConfig = serviceDef[qualitySelect.value];
+          if (isCommentService) {
+            pricePerThousand = Number(currentConfig.price) * 100;
+            const lines = (quantityInput.value || '').split('\n').filter(l => l.trim());
+            const count = lines.length;
+            normalPrice = (Number(currentConfig.price) / 10) * count;
+            discountedPrice = Math.round(normalPrice * (1 - effectiveDiscountRate/100));
+            estimatedTime = currentConfig.time;
+
+            if (commentsCount) {
+              commentsCount.textContent = count < minQuantity ? `${count} commentaire(s) (minimum ${minQuantity})` : `${count} commentaire(s)`;
+            }
+
+            if (count > 0 && count < minQuantity) {
+              quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`;
+              quantityError.style.display = 'block';
+            } else quantityError.style.display = 'none';
+          } else {
+            pricePerThousand = Number(currentConfig.price);
+            const quantity = parseInt(quantityInput.value) || 0;
+            normalPrice = (Number(currentConfig.price) / 1000) * quantity;
+            discountedPrice = Math.round(normalPrice * (1 - effectiveDiscountRate/100));
+            estimatedTime = currentConfig.time;
+
+            if (quantity > 0 && quantity < minQuantity) {
+              quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
+              quantityError.style.display = 'block';
+            } else quantityError.style.display = 'none';
+          }
+        }
+
+        // Sauvegarde du prix avant mode vitesse
+        basePrice = discountedPrice;
+        
+        // Application du mode vitesse si activé (+10% après réduction)
+        let speedModeCharge = 0;
+        if (isSpeedModeActive) {
+          speedModeCharge = Math.round(discountedPrice * 0.1);
+          discountedPrice = Math.round(discountedPrice * 1.1);
+        }
+        
+        const normalPriceEl = document.querySelector('.normal-price');
+        const resellerPriceEl = document.querySelector('.reseller-price');
+        const speedModeChargeEl = document.getElementById('speedModeCharge');
+        
+        if (normalPriceEl) normalPriceEl.textContent = 'Prix normal : ' + formatPrice(Math.round(normalPrice));
+        if (resellerPriceEl) resellerPriceEl.textContent = 'Votre prix : ' + formatPrice(Math.round(discountedPrice));
+        if (savingsAmount) savingsAmount.textContent = 'Économisez ' + formatPrice(Math.round(normalPrice - basePrice));
+        
+        // Afficher les frais du mode vitesse
+        if (speedModeChargeEl) {
+          if (isSpeedModeActive && speedModeCharge > 0) {
+            speedModeChargeEl.textContent = 'Mode Vitesse: +' + formatPrice(speedModeCharge);
+            speedModeChargeEl.style.display = 'block';
+          } else {
+            speedModeChargeEl.style.display = 'none';
+          }
+        }
+
+        const priceDetailsEl = document.getElementById('priceDetails');
+        if (serviceDef.options && typeof isQuantityFixedByOption !== 'undefined' && !isQuantityFixedByOption) {
+          if (priceDetailsEl) priceDetailsEl.textContent = `(Prix pour 1000 : ${formatPrice(pricePerThousand)})`;
+        } else if (!serviceDef.options && !isCommentService) {
+          if (priceDetailsEl) priceDetailsEl.textContent = `(Prix pour 1 : ${formatPrice(pricePerThousand/1000)}, Prix pour 1000 : ${formatPrice(pricePerThousand)})`;
+        } else if (isCommentService) {
+          if (priceDetailsEl) priceDetailsEl.textContent = `(Prix par commentaire : ${formatPrice(pricePerThousand/1000)})`;
+        } else if (priceDetailsEl) priceDetailsEl.textContent = '';
+
+        if (timeEstimate) timeEstimate.textContent = `Temps de réalisation : ${estimatedTime}`;
+        if (remarkBox) remarkBox.textContent = serviceDef.remark;
+      }
+
+      function resetPriceDisplay(remark) {
+        const normalPriceEl = document.querySelector('.normal-price');
+        const resellerPriceEl = document.querySelector('.reseller-price');
+        if (normalPriceEl) normalPriceEl.textContent = 'Prix normal : ' + formatPrice(0);
+        if (resellerPriceEl) resellerPriceEl.textContent = 'Votre prix : ' + formatPrice(0);
+        if (savingsAmount) savingsAmount.textContent = 'Économisez ' + formatPrice(0);
+        const speedModeChargeEl = document.getElementById('speedModeCharge');
+        if (speedModeChargeEl) speedModeChargeEl.style.display = 'none';
+        const priceDetailsEl = document.getElementById('priceDetails');
+        if (priceDetailsEl) priceDetailsEl.textContent = '';
+        if (timeEstimate) timeEstimate.textContent  = 'Temps de réalisation : 2 h';
+        if (remarkBox) remarkBox.textContent = remark || 'Sélectionnez un service pour voir la remarque.';
+      }
+
+      function toggleContactField() {
+        if (whatsappField) whatsappField.style.display = 'none';
+        if (emailField) emailField.style.display    = 'none';
+        if (contactInput) { contactInput.required = false; contactInput.value = ''; }
+        if (emailInput) { emailInput.required = false; emailInput.value = ''; }
+        if (whatsappRemark) whatsappRemark.style.display = 'none';
+        if (emailRemark) emailRemark.style.display    = 'none';
+
+        if (contactType.value === 'whatsapp') {
+          if (whatsappField) whatsappField.style.display = 'block';
+          if (contactInput) contactInput.required = true;
+          if (whatsappRemark) whatsappRemark.style.display = 'block';
+        } else if (contactType.value === 'email') {
+          if (emailField) emailField.style.display = 'block';
+          if (emailInput) emailInput.required = true;
+          if (emailRemark) emailRemark.style.display = 'block';
+        }
+      }
+
+      function showNotification(icon, message, type) {
+        const notificationIcon = document.getElementById('notificationIcon');
+        const notificationMessage = document.getElementById('notificationMessage');
+        const notification = document.getElementById('orderNotification');
+
+        if (notificationIcon) notificationIcon.innerHTML = icon;
+        if (notificationMessage) notificationMessage.innerHTML = message;
+        if (notification) {
+          notification.className = 'order-notification notification-' + type;
+          notification.style.display = 'block';
+        }
+      }
+
+      function setLoadingState(isLoading) {
+        if (isLoading) {
+          if (submitButton) submitButton.classList.add('loading');
+          if (submitButton) submitButton.disabled = true;
+        } else {
+          if (submitButton) submitButton.classList.remove('loading');
+          if (submitButton) submitButton.disabled = false;
+        }
+      }
+
+      // ---- Auth et chargement user ----
+      auth.onAuthStateChanged(async user => {
+        if (!user) { window.location.href = 'login.html'; return; }
+        currentUser = user;
+        const userIdInput = document.getElementById('userId');
+        if (userIdInput) userIdInput.value = user.uid;
+
+        try {
+          const doc = await db.collection("users").doc(user.uid).get();
+          if (doc.exists) {
+            const data = doc.data() || {};
+            
+            // Récupérer le pays pour la conversion de devises
+            const country = data.country || data.pays || 'cm';
+            if (CURRENCY_CONFIG[country]) {
+              userCountry = country;
+              userCurrency = CURRENCY_CONFIG[country];
+            }
+            console.log('Pays utilisateur:', userCountry, '- Devise:', userCurrency.symbol);
+            
+            userData = {
+              isReseller: !!data.isReseller,
+              discountRate: Number(data.discountRate || 0),
+              balance: Number(data.balance || 0),
+              resellerLevel: data.resellerLevel || ''
+            };
+
+            if (!userData.isReseller) {
+              alert("Cette page est réservée aux revendeurs. Vous allez être redirigé.");
+              window.location.href = "commander.html";
+              return;
+            }
+
+            // Utiliser directement les données de Firestore - pas besoin de FreeRestore
+            // Le taux de réduction est stocké directement dans le profil utilisateur
+            
+            // Forcer un minimum de 5% pour les revendeurs
+            if (userData.isReseller) {
+              userData.discountRate = Math.max(Number(userData.discountRate || 0), 5);
+            }
+
+            // mettre à jour le champ caché et l'affichage
+            const discountRateInput = document.getElementById('discountRate');
+            if (discountRateInput) discountRateInput.value = userData.discountRate;
+
+            const resellerLevelInfo = document.getElementById('resellerLevelInfo');
+            const resellerLevelText = document.getElementById('resellerLevelText');
+            const discountRateText = document.getElementById('discountRateText');
+            if (resellerLevelInfo && resellerLevelText && discountRateText) {
+              resellerLevelInfo.style.display = 'block';
+              resellerLevelText.textContent = `Niveau de revendeur: ${userData.resellerLevel || 'N/A'}`;
+              discountRateText.textContent = `Réduction: ${userData.discountRate}% (min 5%)`;
+            }
+
+            updateDetails();
+          } else {
+            console.warn("Utilisateur introuvable en base.");
+          }
+        } catch (err) {
+          console.error("Erreur lors du chargement des données utilisateur:", err);
+        }
+      });
+
+      // ---- onSubmit: validation + envoi au serveur ----
+      async function onSubmit(e) {
+        e.preventDefault();
+        setLoadingState(true);
+        if (orderErrorBox) { orderErrorBox.style.display = 'none'; orderErrorBox.textContent = ''; }
+        if (quantityError) quantityError.style.display = 'none';
+
+        const selectedServiceKey = serviceSelect.value;
+        if (!selectedServiceKey) { if (orderErrorBox) { orderErrorBox.textContent = 'Veuillez sélectionner un service.'; orderErrorBox.style.display = 'block'; } setLoadingState(false); return; }
+        const selectedQuality = qualitySelect.value;
+        if (!selectedQuality) { if (orderErrorBox) { orderErrorBox.textContent = 'Veuillez sélectionner une qualité.'; orderErrorBox.style.display = 'block'; } setLoadingState(false); return; }
+
+        const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
+        let minQuantity = 1;
+        const remarkMatch = serviceDef.remark && serviceDef.remark.match(/\(min:\s*(\d+)\)/);
+        if (remarkMatch && remarkMatch[1]) minQuantity = parseInt(remarkMatch[1], 10);
+
+        const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
+        let quantityForValidation = 0;
+        let commentsArray = [];
+
+        if (isCommentService) {
+          commentsArray = (quantityInput.value || '').split('\n').filter(l => l.trim());
+          quantityForValidation = commentsArray.length;
+          if (quantityForValidation < minQuantity) { if (quantityError) { quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`; quantityError.style.display = 'block'; } setLoadingState(false); return; }
+        } else {
+          if (!quantityInput.disabled) {
+            quantityForValidation = parseInt(quantityInput.value) || 0;
+            if (quantityForValidation < minQuantity) { if (quantityError) { quantityError.textContent = `La quantité minimale est de ${minQuantity}.`; quantityError.style.display = 'block'; } setLoadingState(false); return; }
+          }
+        }
+
+        // discountRate (appliquer minimum 5% pour revendeurs)
+        const discountRateRaw = parseInt(document.getElementById('discountRate').value) || 0;
+        const effectiveDiscountRate = userData.isReseller ? Math.max(discountRateRaw, 5) : 0;
+
+        let normalPrice = 0;
+        let discountedPrice = 0;
+        let currentConfig = null;
+
+        if (serviceDef.options) {
+          const selectedSubOption = subOptionSelect.value;
+          if (!selectedSubOption) { showNotification('❌', "❌ Veuillez choisir une option de service.", 'error'); setLoadingState(false); return; }
+          const optionData = serviceDef.options[selectedSubOption];
+          currentConfig = optionData[qualitySelect.value] || optionData.medium;
+
+          const servicesWithFixedQuantityInOptions = [
+            "Vues publication spécifique", "Vues des publications précédentes",
+            "Vues futures publications", "Réactions précédentes", "Réactions futures"
+          ];
+          const isQuantityFixedByOption =
+            servicesWithFixedQuantityInOptions.includes(selectedServiceKey)
+            && selectedPlatform === 'telegram';
+
+          if (isQuantityFixedByOption) {
+            normalPrice = Number(currentConfig.price) || 0;
+          } else {
+            if (isCommentService) normalPrice = (Number(currentConfig.price) / 10) * quantityForValidation;
+            else normalPrice = (Number(currentConfig.price) / 1000) * quantityForValidation;
+          }
+        } else {
+          currentConfig = serviceDef[qualitySelect.value];
+          if (isCommentService) normalPrice = (Number(currentConfig.price) / 10) * quantityForValidation;
+          else normalPrice = (Number(currentConfig.price) / 1000) * quantityForValidation;
+        }
+
+        discountedPrice = Math.round(normalPrice * (1 - effectiveDiscountRate/100));
+        
+        // Appliquer le mode vitesse si activé (+10% après réduction)
+        let speedModeCharge = 0;
+        if (isSpeedModeActive) {
+          speedModeCharge = Math.round(discountedPrice * 0.1);
+          discountedPrice = Math.round(discountedPrice * 1.1);
+        }
+        
+        const finalCharge = Math.round(discountedPrice); // integer FCFA
+
+        // protection: finalCharge doit être un nombre finite
+        if (!Number.isFinite(finalCharge) || isNaN(finalCharge)) {
+          showNotification('❌', `❌ Erreur interne: montant invalide (${String(finalCharge)}). Contactez l'administrateur.`, 'error');
+          setLoadingState(false);
+          return;
+        }
+
+        if (finalCharge > (userData.balance || 0)) {
+          showNotification('❌', `❌ Solde insuffisant. Il vous manque ${formatPrice(finalCharge - (userData.balance || 0))}. Veuillez recharger votre compte.`, 'error');
+          setLoadingState(false);
+          return;
+        }
+
+        const serverPayload = {
+          userId: document.getElementById('userId').value,
+          platform: selectedPlatform,
+          service: getServiceKey(selectedServiceKey, selectedPlatform), // ✅ Convertit nom français → clé technique
+          quality: qualitySelect.value,
+          subOption: subOptionSection.style.display === 'block' ? subOptionSelect.value : undefined,
+          link: linkInput.value,
+          quantity: isCommentService ? undefined : Number(quantityForValidation),
+          comments: isCommentService ? commentsArray : undefined,
+          contactType: contactType.value,
+          contact: contactType.value === 'whatsapp' ? contactInput.value : emailInput.value,
+          isResellerOrder: true,
+          normalPrice: Math.round(Number(normalPrice)),
+          discountedPrice: Math.round(Number(discountedPrice)),
+          finalCost: Number(finalCharge),           // <-- champ explicite, numérique
+          discountRate: Number(effectiveDiscountRate),
+          resellerLevel: userData.resellerLevel || '',
+          speedMode: isSpeedModeActive,
+          speedModeCharge: speedModeCharge
+        };
+
+        if (!serverPayload.userId) { showNotification('❌', "❌ Erreur d'authentification. Veuillez vous reconnecter.", 'error'); setLoadingState(false); return; }
+        if (serverPayload.subOption === "" && subOptionSection.style.display !== 'none') { showNotification('❌', "❌ Veuillez choisir une option de service.", 'error'); setLoadingState(false); return; }
+        if (!serverPayload.contactType) { showNotification('❌', "❌ Veuillez choisir un mode de contact.", 'error'); setLoadingState(false); return; }
+        if (serverPayload.contactType === 'whatsapp' && !serverPayload.contact) { showNotification('❌', "❌ Veuillez saisir votre numéro WhatsApp.", 'error'); setLoadingState(false); return; }
+        if (serverPayload.contactType === 'email' && !serverPayload.contact) { showNotification('❌', "❌ Veuillez saisir votre adresse Email.", 'error'); setLoadingState(false); return; }
+
+        // debug log avant envoi
+        console.log('[ORDER PAYLOAD] ', serverPayload);
+
+        try {
+          // NOUVEAU LIEN DU SERVEUR
+          const SERVER_URL = 'https://social-boost-exaucenapopolo2.replit.app';
+          const resp = await fetch(`${SERVER_URL}/order`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(serverPayload)
+          });
+
+          const result = await resp.json().catch(() => ({}));
+
+          if (!resp.ok || !result.success) {
+            const errMsg = result.error || 'Erreur lors de l’envoi au serveur.';
+            showNotification('❌', `<strong>❌ Échec :</strong><br>${errMsg}`, 'error');
+            setLoadingState(false);
+            return;
+          }
+
+          // Serveur peut renvoyer finalCost/newBalance, sinon on prend ce qu'on a calculé localement
+          const serverFinal = (result.finalCost !== undefined && result.finalCost !== null) ? Number(result.finalCost) : finalCharge;
+          const newBalance = (typeof result.newBalance === 'number') ? result.newBalance : ((userData.balance || 0) - serverFinal);
+
+          userData.balance = newBalance;
+
+          showNotification('✅', `✅ Commande envoyée !<br>Montant débité : ${formatPrice(serverFinal)}<br>Nouveau solde : ${formatPrice(newBalance)}`, 'success');
+
+          orderForm.reset();
+          resetUI();
+          icons.forEach(i => i.classList.remove('active'));
+        } catch (err) {
+          console.error('Erreur fetch /order :', err);
+          const detailedError = `
+            <strong>❌ Désolé, quelque chose a mal tourné !</strong><br>
+            Votre commande n'a pas été envoyée.<br><br>
+            <u>les commandes sont disponibles a :</u><br>
+            • 10 h GMT (11 h heure du Cameroun)<br>
+            • 15 h GMT (16 h heure du Cameroun)<br>
+            • 20 h GMT (21 h heure du Cameroun)<br><br>
+            Si le problème persiste à ces horaires, contactez l’administrateur ou l’assistance via WhatsApp :<br>
+            <a href="https://wa.me/237699853665" target="_blank">+237 699 85 36 65</a><br>
+            et joignez une capture d’écran pour une solution directe.
+          `;
+          showNotification('❌', detailedError, 'error');
+        } finally {
+          setLoadingState(false);
+        }
+      }
+    }); // DOMContentLoaded fin
+  </script>
+</body>
+</html> , rate: 0.0021, flag: '🇨🇦' },
+      'Cameroun': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇲' },
+      'Cameroon': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇲' },
+      'Gabon': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇬🇦' },
+      'Congo': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇬' },
+      'Tchad': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇹🇩' },
+      'Centrafrique': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇫' },
+      'Sénégal': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇸🇳' },
+      'Senegal': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇸🇳' },
+      "Côte d'Ivoire": { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇨🇮' },
+      'Mali': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇲🇱' },
+      'Burkina Faso': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇫' },
+      'Bénin': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇯' },
+      'Benin': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇯' },
+      'Togo': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇹🇬' },
+      'Niger': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇳🇪' },
+      'RD Congo': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+      'RDC': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+      'Congo-Kinshasa': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+      'Ghana': { code: 'GHS', symbol: 'GH₵', rate: 0.024, flag: '🇬🇭' },
+      'Nigeria': { code: 'NGN', symbol: '₦', rate: 2.44, flag: '🇳🇬' },
+      'Nigéria': { code: 'NGN', symbol: '₦', rate: 2.44, flag: '🇳🇬' },
+      'Kenya': { code: 'KES', symbol: 'KSh', rate: 0.20, flag: '🇰🇪' },
+      'Ouganda': { code: 'UGX', symbol: 'USh', rate: 5.64, flag: '🇺🇬' },
+      'Uganda': { code: 'UGX', symbol: 'USh', rate: 5.64, flag: '🇺🇬' },
+      'Tanzanie': { code: 'TZS', symbol: 'TSh', rate: 3.81, flag: '🇹🇿' },
+      'Tanzania': { code: 'TZS', symbol: 'TSh', rate: 3.81, flag: '🇹🇿' },
+      'Rwanda': { code: 'RWF', symbol: 'FRw', rate: 1.98, flag: '🇷🇼' },
+      'Zambie': { code: 'ZMW', symbol: 'ZK', rate: 0.041, flag: '🇿🇲' },
+      'Zambia': { code: 'ZMW', symbol: 'ZK', rate: 0.041, flag: '🇿🇲' },
+      'Malawi': { code: 'MWK', symbol: 'MK', rate: 2.67, flag: '🇲🇼' },
+      'Canada': { code: 'CAD', symbol: 'C DES NOMS DE SERVICES (résout le problème d'apostrophes) ===
+    const serviceMapping = {
+      facebook: {
+        "J'aime (page)": "jaime_page",
+        "J'aime (publication)": "jaime_publication"
+      },
+      instagram: {
+        "J'aime": "jaime"
+      },
+      youtube: {
+        "J'aime": "jaime"
+      },
+      tiktok: {
+        "J'aime": "jaime",
+        "J'aime pour direct": "jaime_direct"
+      },
+      twitter: {
+        "Likes (J'aime)": "likes_jaime"
+      }
+    };
+
+    // Fonction pour convertir nom d'affichage → clé technique
+    function getServiceKey(displayName, platform) {
+      if (serviceMapping[platform] && serviceMapping[platform][displayName]) {
+        return serviceMapping[platform][displayName];
+      }
+      return displayName; // Si pas de mapping, retourner tel quel
+    }
+
+    // === Données des services (tous vos services) ===
+    const servicesData = {
+      facebook: {
+        "Followers (page)": {
+          medium: { price: 1444, time: "2 h" },
+          high:   { price: 1900, time: "1 h" },
+          remark: "VOTRE COMMANDE PEUT PRENDRE UN PEU PLUS DE TEMPS QUE D'HABITUDE EN CAS DE MISE A JOUR DE FACEBOOK (min: 100)"
+        },
+        "Followers (profil)": {
+          medium: { price: 1694, time: "3 h" },
+          high:   { price: 1950, time: "2 h" },
+          remark: "ASSUREZ-VOUS QUE LE PROFIL FACEBOOK EST EN MODE PROFESSIONNEL.SI VOUS NE SAVEZ PAS COMMENT FAIRE, REGARDEZ LE TUTORIEL SUR NOTRE CHAINE YOUTUBE (min: 100)"
+        },
+        "J’aime (page)": {
+          medium: { price: 1900, time: "3 h" },
+          high:   { price: 2300, time: "2 h" },
+          remark: "Vous obtiendrez des followers en bonus. C'EST L'AVANTAGE DE CE SERVICE.Assurez vous que vous envoyez les j'aime à une page et non à un profil ! (min: 100)"
+        },
+        "J’aime (publication)": {
+          medium: { price: 598, time: "2 h" },
+          high:   { price: 900, time: "1 h" },
+          remark: "Si la publication provient d'un compte facebook, Assurez-vous que ces publication sont publiques (min: 100)"
+        },
+        "Partages": {
+          medium: { price: 930, time: "3 h" },
+          high:   { price: 1330, time: "2 h" },
+          remark: "Assurez-vous que la publication est publique.Si la publication provient d'un compte Facebook, assurez vous que les publications du compte sont publiques ! (min: 1000)"
+        },
+        "Membres de groupe": {
+          medium: { price: 1445, time: "3 h" },
+          high:   { price: 1980, time: "2 h" },
+          remark: "Le groupe doit être public, sinon votre commande sera annulée. (min: 100)"
+        },
+        "Vues de vidéo": {
+          medium: { price: 210, time: "4 h" },
+          high:   { price: 460, time: "3 h" },
+          remark: "Lien direct de la vidéo publique requis. Elle doit être publique (min: 500)"
+        },
+        "Commentaires personnalisés": {
+          medium: { price: 989, time: "24 h" },
+          high:   { price: 1157, time: "18 h" },
+          remark: "Ce sont des comptes masculins américains qui commenteront. (min: 10)"
+        },
+        "Réaction Emoji": {
+          subOptionLabel: "Emoji à choisir",
+          options: {
+            "Reaction 🥰": { medium: { price: 677, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+            "Reaction ❤️": { medium: { price: 700, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+            "Reaction 😂": { medium: { price: 677, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+            "Reaction 😮": { medium: { price: 677, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+            "Reaction 😢": { medium: { price: 800, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+            "Reaction 😡": { medium: { price: 900, time: "3 h" }, high: { price: 1100, time: "2 h" } }
+          },
+          remark: "Choisissez l’emoji à appliquer aux publications.Si la publication provient d'un compte Facebook, assurez vous que les publications du compte sont publiques ! (min: 100)"
+        }
+      },
+      instagram: {
+        "Followers": {
+          medium: { price: 2100, time: "1h" },
+          high:   { price: 3650, time: "30 min" },
+          remark: "Ne changez pas votre nom d’utilisateur.NB: En raison d'une récente mise à jour d'instagram, vous devez maintenant désactiver l'option « À VÉRIFIER » sur votre compte instagram avant d'acheter des followers, cette option est automatiquement activée pour TOUS les comptes instagram et c'est à vous de la désactiver.VOUS N'OBTIENDREZ AUCUN FOLLOWER ET PERDREZ VOTRE ARGENT SI VOUS NE LE DÉSACTIVEZ PAS AVANT D'ACHETER, N'APPUYEZ PAS SUR ACHETER SI VOUS N'ÊTES PAS SÛR À 100% QU'IL EST DÉSACTIVÉ. (min: 100)"
+        },
+        "J’aime": {
+          medium: { price: 296, time: "30 min" },
+          high:   { price: 520, time: "25 min" },
+          remark: "Baisse de 3–5 % des likes. video publique obligatoire (min: 100)"
+        },
+        "Vues de vidéos": {
+          medium: { price: 99, time: "30 min" },
+          high:   { price: 210, time: "10 min" },
+          remark: "Assurez vous que la vidéo provient d'un compte instagram qui n'est pas privé ! (min: 1000)"
+        },
+        "Commentaires personnalisés": {
+          medium: { price: 217, time: "4 h" },
+          high:   { price: 339, time: "2 h" },
+          remark: "Veuillez ne pas insérer de “@” ni “#” dans vos commentaires. (min: 10)"
+        },
+        "Vues de story": {
+          medium: { price: 323, time: "30 min" },
+          high:   { price: 557, time: "15 min" },
+          remark: "Ce sont des spectateurs asiatiques qui regarderont votre story. (min: 100)"
+        }
+      },
+      youtube: {
+        "Abonnés": {
+          medium: { price: 19315, time: "24 h" },
+          high:   { price: 23060, time: "15 h" },
+          remark: "Il faut vous attendre à une baisse de 1–5 % d'abonnés après quelques semaines suivant la livraison pour la qualité moyenne uniquement. (min: 50)"
+        },
+        "Vues": {
+          medium: { price: 1350, time: "9 h" },
+          high:   { price: 1980, time: "8 h" },
+          remark: "Presque aucune baisse de vues. Ce sont des vues de haute qualité : ils regarderont toute votre vidéo jusqu'à la fin (min: 500)"
+        },
+        "J’aime": {
+          medium: { price: 994, time: "2 h" },
+          high:   { price: 1750, time: "1 h" },
+          remark: "Presque aucune baisse de j'aimes. (min: 500)"
+        },
+        "Commentaires personnalisés": {
+          medium: { price: 219, time: "24 h" },
+          high:   { price: 489, time: "18 h" },
+          remark: "Veuillez ne pas insérer de “@” ni “#” dans vos commentaires. (min: 10)"
+        }
+      },
+      tiktok: {
+        "Followers": {
+          medium: { price: 1997, time: "2 h" },
+          high:   { price: 2567, time: "1 h" },
+          remark: "Assurez-vous que le compte Tiktok n'est pas privé, et ne changez pas le nom d'utilisateur du compte pendant que des followers sont ajoutés !. Il faut s'attendre à une légère baisse de 1–2 % après quelques semaines pour la qualité moyenne. (min: 100)"
+        },
+        "J’aime": {
+          medium: { price: 99, time: "30 min" },
+          high:   { price: 278, time: "10 min" },
+          remark: "Lien direct de la vidéo. (min: 50)"
+        },
+        "Vues": {
+          medium: { price: 78, time: "30 min" },
+          high:   { price: 190, time: "15 min" },
+          remark: "Vidéo publique. Aucune baisse.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ IS LE LIEN D'UNE VIDÉO DE VOTRE COMPTE TIKTOK, ET NON LE LIEN DE VOTRE COMPTE TIKTOK ! !!! (min: 500)"
+        },
+        "Sauvegarde de vidéos": {
+          medium: { price: 90, time: "20 min" },
+          high:   { price: 198, time: "10 min" },
+          remark: "Vidéo publique requise.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ IS LE LIEN D'UNE VIDÉO DE VOTRE COMPTE TIKTOK, ET NON LE LIEN DE VOTRE COMPTE TIKTOK ! !!! (min: 100)"
+        },
+        "Partages de vidéos": {
+          medium: { price: 159, time: "30 min" },
+          high:   { price: 380, time: "15 min" },
+          remark: "Vidéo publique.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ IS LE LIEN D'UNE VIDÉO DE VOTRE COMPTE TIKTOK, ET NON LE LIEN DE VOTRE COMPTE TIKTOK ! !!! (min: 100)"
+        },
+        "Commentaires personnalisés": {
+          medium: { price: 397, time: "1 h" },
+          high:   { price: 569, time: "30 min" },
+          remark: "Assurez-vous de ne pas insérer de “@” ni “#” dans vos commentaires. (min: 10)"
+        },
+        "J’aime pour direct": {
+          medium: { price: 198, time: "15 min" },
+          high:   { price: 356, time: "10 min" },
+          remark: "Les likes viendront 15 ou 10 minutes après votre achat. (min : 100)"
+        },
+        "Téléspectateur en direct": {
+          subOptionLabel: "Durée",
+          options: {
+            "20 min": { medium: { price: 2750, time: "20 min" }, high: { price: 3010, time: "20 min" } },
+            "1 h":     { medium: { price: 3800, time: "1 h" },    high: { price: 4010, time: "1 h" } },
+            "1 h 30":  { medium: { price: 5850, time: "1 h 30" }, high: { price: 6500, time: "1 h 30" } }
+          },
+          remark: "Spectateurs en live sur votre direct TikTok.ceux de haute Qualité, commenteront, et vont beaucoup intereagir (min: 50)"
+        }
+      },
+      telegram: {
+        "Membres groupe/canal": {
+          medium: { price: 1090, time: "3 h" },
+          high:   { price: 1950, time: "1 h" },
+          remark: "Lien d’invitation public requis. (min: 500)"
+        },
+        "Vues publication spécifique": {
+          subOptionLabel: "Qualité des vues",
+          options: {
+            "Qualité moyenne": { medium: { price: 150, time: "Instantané" }, high: { price: 150, time: "Instantané" } },
+            "Haute qualité":   { medium: { price: 299, time: "Instantané" }, high: { price: 299, time: "Instantané" } }
+          },
+          remark: "Vues sur la publication spécifique."
+        },
+        "Vues des publications précédentes": {
+          subOptionLabel: "Nombre de vues",
+          options: {
+            "20 vues":  { medium: { price: 880, time: "Instantané" }, high: { price: 1000, time: "Instantané" } },
+            "50 vues":  { medium: { price: 1356, time: "Instantané" }, high: { price: 1771, time: "Instantané" } },
+            "100 vues": { medium: { price: 2357, time: "Instantané" }, high: { price: 2887, time: "Instantané" } }
+          },
+          remark: "Choisissez le nombre de vues."
+        },
+        "Vues futures publications": {
+          subOptionLabel: "Nombre de vues futures",
+          options: {
+            "20 futures vues":  { medium: { price: 970,  time: "Instantané" }, high: { price: 1277, time: "Instantané" } },
+            "50 futures vues":  { medium: { price: 1995, time: "Instantané" }, high: { price: 2357, time: "Instantané" } },
+            "100 futures vues": { medium: { price: 3999, time: "Instantané" }, high: { price: 4599, time: "Instantané" } }
+          },
+          remark: "Vues programmées pour futures publications."
+        },
+        "Réactions publication spécifique": {
+          medium: { price: 210, time: "Instantané" },
+          high:   { price: 455, time: "Instantané" },
+          remark: "Réaction (👍😏😅🔥🤩😭) sur la publication spécifique. (min: 10)"
+        },
+        "Réactions précédentes": {
+          subOptionLabel: "Nombre de réactions",
+          options: {
+            "20 réactions":  { medium: { price: 1250, time: "Instantané" }, high: { price: 1250, time: "Instantané" } },
+            "50 réactions":  { medium: { price: 3000, time: "Instantané" }, high: { price: 3000, time: "Instantané" } },
+            "100 réactions": { medium: { price: 5000, time: "Instantané" }, high: { price: 5000, time: "Instantané" } }
+          },
+          remark: "Réactions (🤩🥳💚🥰😎👍) sur publications précédentes selon votre nombre sélectionné."
+        },
+        "Réactions futures": {
+          subOptionLabel: "Nombre de réactions futures",
+          options: {
+            "20 réactions":  { medium: { price: 1250, time: "Instantané" }, high: { price: 1250, time: "Instantané" } },
+            "50 réactions":  { medium: { price: 3000, time: "Instantané" }, high: { price: 3000, time: "Instantané" } },
+            "100 réactions": { medium: { price: 5000, time: "Instantané" }, high: { price: 5000, time: "Instantané" } }
+          },
+          remark: "Réactions (😹🥰🤩💚😏👍) sur vos futures publications."
+        }
+      },
+      twitter: {
+        "Followers": {
+          medium: { price: 6580, time: "4 h" },
+          high:   { price: 7321, time: "3 h" },
+          remark: "Profil public requis. (min: 100)"
+        },
+        "Likes (J'aime)": {
+          medium: { price: 1970, time: "2 h" },
+          high:   { price: 2480, time: "1 h" },
+          remark: "Lien direct du tweet public. (min: 50)"
+        },
+        "Retweets": {
+          medium: { price: 5400, time: "3 h" },
+          high:   { price: 7010, time: "2 h" },
+          remark: "Tweet public requis. (min: 50)"
+        },
+        "Vues de vidéo (Twitter)": {
+          medium: { price: 5000, time: "5 h" },
+          high:   { price: 7000, time: "4 h" },
+          remark: "Lien de la vidéo Twitter. (min: 500)"
+        },
+        "Commentaires personnalisés": {
+          medium: { price: 5660, time: "20 h" },
+          high:   { price: 7600, time: "18 h" },
+          remark: "Un commentaire par ligne. (min: 10)"
+        }
+      },
+      whatsapp: {
+        "Abonnés internationaux": {
+          medium: { price: 4030, time: "3 h" },
+          high:   { price: 7010, time: "2 h" },
+          remark: "Abonnés de pays aléatoires. (min: 100)"
+        },
+        "Abonnés américains": {
+          medium: { price: 4430, time: "3 h" },
+          high:   { price: 5500, time: "3 h" },
+          remark: "Abonnés ciblés uniquement USA. (min: 100)"
+        },
+        "Abonnés indiens": {
+          medium: { price: 4430, time: "3 h" },
+          high:   { price: 5500, time: "3 h" },
+          remark: "Abonnés ciblés uniquement de l'Inde. (min: 100)"
+        },
+        "Réaction Emoji": {
+          subOptionLabel: "Emoji à choisir",
+          options: {
+            "Reaction 👍":        { medium: { price: 1040, time: "5h" }, high: { price: 2780, time: "Instantané" } },
+            "Reaction ❤️":        { medium: { price: 1040, time: "5h" }, high: { price: 2780, time: "Instantané" } },
+            "Reaction 😂":        { medium: { price: 1040, time: "5h" }, high: { price: 2780, time: "Instantané" } },
+            "Reaction aléatoires": { medium: { price: 1900, time: "30 min" }, high: { price: 3500, time: "15 min" } }
+          },
+          remark: "Emoji react sur vos messages. (min: 100)"
+        }
+      },
+      spotify: {
+        "Followers": {
+          medium: { price: 3950, time: "3 h" },
+          high:   { price: 4510, time: "2 h" },
+          remark: "Profil public requis. Ne touchez à rien pendant le travail. (min: 500)"
+        },
+        "Abonnés à la playlist": {
+          medium: { price: 3500, time: "2 h" },
+          high:   { price: 4150, time: "1 h" },
+          remark: "Lien de la playlist requis. (min: 500)"
+        }
+      },
+      linkedin: {
+        "Abonnés pour votre page": {
+          medium: { price: 7500, time: "5 h" },
+          high:   { price: 8000, time: "4 h" },
+          remark: "Page publique requise. (min: 500)"
+        },
+        "Abonnés pour votre profil": {
+          medium: { price: 7700, time: "5 h" },
+          high:   { price: 8700, time: "4 h" },
+          remark: "Profil professionnel requis. (min: 500)"
+        },
+        "Likes postes": {
+          medium: { price: 35000, time: "7 h" },
+          high:   { price: 40000, time: "6 h" },
+          remark: "Posts publics requis. (min: 100)"
+        }
+      }
+    };
+// ----------------- Script principal -----------------
+    document.addEventListener("DOMContentLoaded", function () {
+      if (typeof AOS !== 'undefined') AOS.init({ duration: 800, once: true, offset: 100 });
+
+      const header = document.querySelector("header");
+      const hamburger = document.querySelector(".icon-hamburger");
+      if (hamburger) hamburger.addEventListener("click", () => header.classList.toggle("open"));
+      document.addEventListener("click", (e) => {
+        const isMenuOpen = header.classList.contains("open");
+        const isClickInsideMenu = header.contains(e.target);
+        const isHamburgerButton = e.target.closest('#hamburgerBtn');
+        if (isMenuOpen && !isClickInsideMenu && !isHamburgerButton) header.classList.remove("open");
+      });
+
+      const notificationClose = document.getElementById('notificationClose');
+      if (notificationClose) notificationClose.addEventListener('click', () => { document.getElementById('orderNotification').style.display = 'none'; });
+
+      let currentUser = null;
+      // userData: isReseller, discountRate (from FreeRestore or firestore), balance, resellerLevel
+      let userData = { isReseller: false, discountRate: 0, balance: 0, resellerLevel: '' };
+
+      // ---- Fonction qui interroge ton service FreeRestore (exemple) ----
+      async function fetchResellerLevel(uid) {
+        try {
+          // Si tu n'as pas un endpoint réel, cette fonction peut retourner par défaut.
+          // En prod, remplace l'URL et logique par ton endpoint réel.
+          const response = await fetch('https://votre-api-freerestore.com/reseller-level', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: uid })
+          });
+          if (!response.ok) throw new Error('Erreur récupération niveau revendeur');
+          const data = await response.json();
+          return data; // { level: 'débutant', discountRate: 5 } attendu
+        } catch (err) {
+          console.warn('fetchResellerLevel failed, fallback to defaults:', err);
+          return { level: 'débutant', discountRate: 5 };
+        }
+      }
+
+      // --- DOM refs ---
+      let selectedPlatform = null;
+      const icons            = document.querySelectorAll('.platforms img');
+      const orderForm        = document.getElementById('orderForm');
+      const serviceSelect    = document.getElementById('serviceSelect');
+      const qualitySelect    = document.getElementById('qualitySelect');
+      const subOptionSection = document.getElementById('subOptionSection');
+      const subOptionLabel   = document.getElementById('subOptionLabel');
+      const subOptionSelect  = document.getElementById('subOptionSelect');
+      const linkInput        = document.getElementById('linkInput');
+      let   quantityInput    = document.getElementById('quantityInput');
+      const quantLabel       = document.getElementById('quantLabel');
+      const quantitySection  = document.getElementById('quantitySection');
+      const quantityError    = document.getElementById('quantityError');
+      const commentsCount    = document.getElementById('commentsCount');
+      const contactType      = document.getElementById('contactType');
+      const whatsappField    = document.getElementById('whatsappField');
+      const emailField       = document.getElementById('emailField');
+      const contactInput     = document.getElementById('contactInput');
+      const emailInput       = document.getElementById('emailInput');
+      const whatsappRemark   = document.getElementById('whatsappRemark');
+      const emailRemark      = document.getElementById('emailRemark');
+      const timeEstimate     = document.getElementById('timeEstimate');
+      const remarkBox        = document.getElementById('remarkBox');
+      const orderErrorBox    = document.getElementById('orderErrorBox');
+      const savingsAmount    = document.getElementById('savingsAmount');
+      const submitButton     = document.querySelector('.btn');
+
+      // events
+      icons.forEach(i => i.addEventListener('click', () => selectPlatform(i.dataset.platform)));
+      if (serviceSelect) serviceSelect.addEventListener('change', onServiceChange);
+      if (qualitySelect) qualitySelect.addEventListener('change', updateDetails);
+      if (subOptionSelect) subOptionSelect.addEventListener('change', updateDetails);
+      if (contactType) contactType.addEventListener('change', toggleContactField);
+      if (orderForm) orderForm.addEventListener('submit', onSubmit);
+
+      selectPlatform('facebook');
+
+      function attachQuantityInputListener() {
+        if (quantityInput) {
+          quantityInput.removeEventListener('input', updateDetails);
+          quantityInput.addEventListener('input', updateDetails);
+        }
+      }
+      attachQuantityInputListener();
+
+      function selectPlatform(p) {
+        icons.forEach(i => i.classList.remove('active'));
+        const el = document.querySelector(`.platforms img[data-platform="${p}"]`);
+        if (el) el.classList.add('active');
+        selectedPlatform = p;
+        loadServices();
+      }
+
+      function loadServices() {
+        if (!serviceSelect || !selectedPlatform || !servicesData) return;
+        if (!servicesData[selectedPlatform]) {
+          console.error("Aucun service trouvé pour la plateforme: ", selectedPlatform);
+          return;
+        }
+        serviceSelect.innerHTML = '<option value=""> Choisir un service </option>';
+        Object.keys(servicesData[selectedPlatform]).forEach(s => {
+          const o = document.createElement('option');
+          o.value = s; o.textContent = s;
+          serviceSelect.appendChild(o);
+        });
+        resetUI();
+      }
+
+      function resetUI() {
+        if (!subOptionSection || !subOptionSelect) return;
+        subOptionSection.style.display = 'none';
+        subOptionSelect.innerHTML = '';
+        if (qualitySelect) qualitySelect.value = 'medium';
+
+        if (quantityInput && quantityInput.tagName === 'TEXTAREA') {
+          const newInput = document.createElement('input');
+          newInput.id = 'quantityInput';
+          newInput.name = 'quantity';
+          newInput.type = 'number';
+          newInput.min = '1';
+          newInput.placeholder = 'Ex : 1000';
+          quantitySection.replaceChild(newInput, quantityInput);
+          quantityInput = newInput;
+          attachQuantityInputListener();
+        }
+
+        if (quantLabel) quantLabel.textContent = 'Quantité';
+        if (quantityInput) { quantityInput.value = ''; quantityInput.disabled = false; }
+        if (quantityError) { quantityError.style.display = 'none'; quantityError.textContent = ''; }
+        if (commentsCount) commentsCount.style.display = 'none';
+
+        const normalPriceEl = document.querySelector('.normal-price');
+        const resellerPriceEl = document.querySelector('.reseller-price');
+        if (normalPriceEl) normalPriceEl.textContent = 'Prix normal : ' + formatPrice(0);
+        if (resellerPriceEl) resellerPriceEl.textContent = 'Votre prix : ' + formatPrice(0);
+        if (savingsAmount) savingsAmount.textContent = 'Économisez ' + formatPrice(0);
+        const speedModeChargeEl = document.getElementById('speedModeCharge');
+        if (speedModeChargeEl) speedModeChargeEl.style.display = 'none';
+        const priceDetailsEl = document.getElementById('priceDetails');
+        if (priceDetailsEl) priceDetailsEl.textContent = '';
+        if (timeEstimate) timeEstimate.textContent  = 'Temps de réalisation : 2 h';
+        if (remarkBox) remarkBox.textContent      = 'Sélectionnez un service pour voir la remarque.';
+
+        if (contactType) contactType.value = '';
+        toggleContactField();
+        if (orderErrorBox) orderErrorBox.style.display = 'none';
+      }
+
+      function onServiceChange() {
+        resetUI();
+        const selectedServiceKey = serviceSelect.value;
+        if (!selectedServiceKey) return;
+
+        const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
+        const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
+
+        if (isCommentService) {
+          if (quantityInput.tagName !== 'TEXTAREA') {
+            const newTextarea = document.createElement('textarea');
+            newTextarea.id = 'quantityInput';
+            newTextarea.name = 'comments';
+            newTextarea.rows = '5';
+            newTextarea.placeholder = 'Un commentaire par ligne...';
+            quantitySection.replaceChild(newTextarea, quantityInput);
+            quantityInput = newTextarea;
+            attachQuantityInputListener();
+          }
+          if (quantLabel) quantLabel.textContent = 'Vos commentaires (un par ligne)';
+          if (commentsCount) commentsCount.style.display = 'block';
+          quantityInput.disabled = false;
+        } else {
+          if (quantityInput.tagName === 'TEXTAREA') {
+            const newInput = document.createElement('input');
+            newInput.id = 'quantityInput';
+            newInput.name = 'quantity';
+            newInput.type = 'number';
+            newInput.min = '1';
+            newInput.placeholder = 'Ex : 1000';
+            quantitySection.replaceChild(newInput, quantityInput);
+            quantityInput = newInput;
+            attachQuantityInputListener();
+          }
+          if (quantLabel) quantLabel.textContent = 'Quantité';
+          if (commentsCount) commentsCount.style.display = 'none';
+          quantityInput.disabled = false;
+        }
+
+        if (serviceDef.options) {
+          subOptionSection.style.display = 'block';
+          subOptionSelect.innerHTML = '';
+          const defaultSubOption = document.createElement('option');
+          defaultSubOption.value = "";
+          defaultSubOption.textContent = " Choisir une option ";
+          subOptionSelect.appendChild(defaultSubOption);
+
+          Object.keys(serviceDef.options).forEach(opt => {
+            const optionElement = document.createElement('option');
+            optionElement.value = opt;
+            optionElement.textContent = opt;
+            subOptionSelect.appendChild(optionElement);
+          });
+          subOptionLabel.textContent = serviceDef.subOptionLabel || 'Option';
+
+          const servicesWithFixedQuantityInOptions = [
+            "Vues publication spécifique", "Vues des publications précédentes",
+            "Vues futures publications", "Réactions précédentes", "Réactions futures"
+          ];
+          const isQuantityFixedByOption =
+            servicesWithFixedQuantityInOptions.includes(selectedServiceKey)
+            && selectedPlatform === 'telegram';
+
+          quantityInput.disabled = isQuantityFixedByOption;
+          if (isQuantityFixedByOption) { quantityInput.value = ''; quantityError.style.display = 'none'; }
+        } else {
+          subOptionSection.style.display = 'none';
+          quantityInput.disabled = false;
+        }
+
+        updateDetails();
+      }
+
+      function updateDetails() {
+        const selectedServiceKey = serviceSelect.value;
+        if (!selectedServiceKey) { resetPriceDisplay(); return; }
+
+        const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
+        let currentConfig = null;
+        let normalPrice = 0;
+        let discountedPrice = 0;
+        let pricePerThousand = 0;
+        let estimatedTime = 'N/A';
+        let minQuantity = 1;
+
+        const remarkMatch = serviceDef.remark && serviceDef.remark.match(/\(min:\s*(\d+)\)/);
+        if (remarkMatch && remarkMatch[1]) minQuantity = parseInt(remarkMatch[1], 10);
+
+        const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
+        // Récupérer discountRate depuis le champ caché et userData -> appliquer minimum 5% si revendeur
+        const discountRateRaw = parseInt(document.getElementById('discountRate').value) || 0;
+        const effectiveDiscountRate = userData.isReseller ? Math.max(discountRateRaw, 5) : 0;
+
+        if (serviceDef.options) {
+          const selectedSubOption = subOptionSelect.value;
+          if (!selectedSubOption) {
+            resetPriceDisplay(serviceDef.remark);
+            return;
+          }
+          const optionData = serviceDef.options[selectedSubOption];
+          currentConfig = optionData[qualitySelect.value] || optionData.medium;
+
+          const servicesWithFixedQuantityInOptions = [
+            "Vues publication spécifique", "Vues des publications précédentes",
+            "Vues futures publications", "Réactions précédentes", "Réactions futures"
+          ];
+          const isQuantityFixedByOption =
+            servicesWithFixedQuantityInOptions.includes(selectedServiceKey)
+            && selectedPlatform === 'telegram';
+
+          if (isQuantityFixedByOption) {
+            normalPrice = Number(currentConfig.price) || 0;
+            pricePerThousand = normalPrice;
+            estimatedTime = currentConfig.time;
+            discountedPrice = Math.round(normalPrice * (1 - effectiveDiscountRate/100));
+          } else {
+            const quantity = parseInt(quantityInput.value) || 0;
+            if (isCommentService) {
+              pricePerThousand = Number(currentConfig.price) * 100;
+              normalPrice = (Number(currentConfig.price) / 10) * quantity;
+            } else {
+              pricePerThousand = Number(currentConfig.price);
+              normalPrice = (Number(currentConfig.price) / 1000) * quantity;
+            }
+            discountedPrice = Math.round(normalPrice * (1 - effectiveDiscountRate/100));
+            estimatedTime = currentConfig.time;
+
+            if (quantity > 0 && quantity < minQuantity) {
+              quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
+              quantityError.style.display = 'block';
+            } else quantityError.style.display = 'none';
+          }
+        } else {
+          currentConfig = serviceDef[qualitySelect.value];
+          if (isCommentService) {
+            pricePerThousand = Number(currentConfig.price) * 100;
+            const lines = (quantityInput.value || '').split('\n').filter(l => l.trim());
+            const count = lines.length;
+            normalPrice = (Number(currentConfig.price) / 10) * count;
+            discountedPrice = Math.round(normalPrice * (1 - effectiveDiscountRate/100));
+            estimatedTime = currentConfig.time;
+
+            if (commentsCount) {
+              commentsCount.textContent = count < minQuantity ? `${count} commentaire(s) (minimum ${minQuantity})` : `${count} commentaire(s)`;
+            }
+
+            if (count > 0 && count < minQuantity) {
+              quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`;
+              quantityError.style.display = 'block';
+            } else quantityError.style.display = 'none';
+          } else {
+            pricePerThousand = Number(currentConfig.price);
+            const quantity = parseInt(quantityInput.value) || 0;
+            normalPrice = (Number(currentConfig.price) / 1000) * quantity;
+            discountedPrice = Math.round(normalPrice * (1 - effectiveDiscountRate/100));
+            estimatedTime = currentConfig.time;
+
+            if (quantity > 0 && quantity < minQuantity) {
+              quantityError.textContent = `La quantité minimale est de ${minQuantity}.`;
+              quantityError.style.display = 'block';
+            } else quantityError.style.display = 'none';
+          }
+        }
+
+        const normalPriceEl = document.querySelector('.normal-price');
+        const resellerPriceEl = document.querySelector('.reseller-price');
+        if (normalPriceEl) normalPriceEl.textContent = `Prix normal : ${Math.round(normalPrice).toLocaleString('fr-FR')} FCFA`;
+        if (resellerPriceEl) resellerPriceEl.textContent = `Votre prix : ${Math.round(discountedPrice).toLocaleString('fr-FR')} FCFA`;
+        if (savingsAmount) savingsAmount.textContent = `Économisez ${Math.round(normalPrice - discountedPrice).toLocaleString('fr-FR')} FCFA`;
+
+        const priceDetailsEl = document.getElementById('priceDetails');
+        if (serviceDef.options && typeof isQuantityFixedByOption !== 'undefined' && !isQuantityFixedByOption) {
+          if (priceDetailsEl) priceDetailsEl.textContent = `(Prix pour 1000 : ${formatPrice(pricePerThousand)})`;
+        } else if (!serviceDef.options && !isCommentService) {
+          if (priceDetailsEl) priceDetailsEl.textContent = `(Prix pour 1 : ${formatPrice(pricePerThousand/1000)}, Prix pour 1000 : ${formatPrice(pricePerThousand)})`;
+        } else if (isCommentService) {
+          if (priceDetailsEl) priceDetailsEl.textContent = `(Prix par commentaire : ${formatPrice(pricePerThousand/1000)})`;
+        } else if (priceDetailsEl) priceDetailsEl.textContent = '';
+
+        if (timeEstimate) timeEstimate.textContent = `Temps de réalisation : ${estimatedTime}`;
+        if (remarkBox) remarkBox.textContent = serviceDef.remark;
+      }
+
+      function resetPriceDisplay(remark) {
+        const normalPriceEl = document.querySelector('.normal-price');
+        const resellerPriceEl = document.querySelector('.reseller-price');
+        if (normalPriceEl) normalPriceEl.textContent = 'Prix normal : ' + formatPrice(0);
+        if (resellerPriceEl) resellerPriceEl.textContent = 'Votre prix : ' + formatPrice(0);
+        if (savingsAmount) savingsAmount.textContent = 'Économisez ' + formatPrice(0);
+        const speedModeChargeEl = document.getElementById('speedModeCharge');
+        if (speedModeChargeEl) speedModeChargeEl.style.display = 'none';
+        const priceDetailsEl = document.getElementById('priceDetails');
+        if (priceDetailsEl) priceDetailsEl.textContent = '';
+        if (timeEstimate) timeEstimate.textContent  = 'Temps de réalisation : 2 h';
+        if (remarkBox) remarkBox.textContent = remark || 'Sélectionnez un service pour voir la remarque.';
+      }
+
+      function toggleContactField() {
+        if (whatsappField) whatsappField.style.display = 'none';
+        if (emailField) emailField.style.display    = 'none';
+        if (contactInput) { contactInput.required = false; contactInput.value = ''; }
+        if (emailInput) { emailInput.required = false; emailInput.value = ''; }
+        if (whatsappRemark) whatsappRemark.style.display = 'none';
+        if (emailRemark) emailRemark.style.display    = 'none';
+
+        if (contactType.value === 'whatsapp') {
+          if (whatsappField) whatsappField.style.display = 'block';
+          if (contactInput) contactInput.required = true;
+          if (whatsappRemark) whatsappRemark.style.display = 'block';
+        } else if (contactType.value === 'email') {
+          if (emailField) emailField.style.display = 'block';
+          if (emailInput) emailInput.required = true;
+          if (emailRemark) emailRemark.style.display = 'block';
+        }
+      }
+
+      function showNotification(icon, message, type) {
+        const notificationIcon = document.getElementById('notificationIcon');
+        const notificationMessage = document.getElementById('notificationMessage');
+        const notification = document.getElementById('orderNotification');
+
+        if (notificationIcon) notificationIcon.innerHTML = icon;
+        if (notificationMessage) notificationMessage.innerHTML = message;
+        if (notification) {
+          notification.className = 'order-notification notification-' + type;
+          notification.style.display = 'block';
+        }
+      }
+
+      function setLoadingState(isLoading) {
+        if (isLoading) {
+          if (submitButton) submitButton.classList.add('loading');
+          if (submitButton) submitButton.disabled = true;
+        } else {
+          if (submitButton) submitButton.classList.remove('loading');
+          if (submitButton) submitButton.disabled = false;
+        }
+      }
+
+      // ---- Auth et chargement user ----
+      auth.onAuthStateChanged(async user => {
+        if (!user) { window.location.href = 'login.html'; return; }
+        currentUser = user;
+        const userIdInput = document.getElementById('userId');
+        if (userIdInput) userIdInput.value = user.uid;
+
+        try {
+          const doc = await db.collection("users").doc(user.uid).get();
+          if (doc.exists) {
+            const data = doc.data() || {};
+            userData = {
+              isReseller: !!data.isReseller,
+              discountRate: Number(data.discountRate || 0),
+              balance: Number(data.balance || 0),
+              resellerLevel: data.resellerLevel || ''
+            };
+
+            if (!userData.isReseller) {
+              alert("Cette page est réservée aux revendeurs. Vous allez être redirigé.");
+              window.location.href = "commande.html";
+              return;
+            }
+
+            // Interroger FreeRestore pour le niveau actuel (fallback si erreur)
+            const resellerInfo = await fetchResellerLevel(user.uid);
+            // use returned value if ok, otherwise keep firestore value
+            userData.discountRate = (resellerInfo && typeof resellerInfo.discountRate === 'number') ? resellerInfo.discountRate : userData.discountRate;
+            userData.resellerLevel = resellerInfo && resellerInfo.level ? resellerInfo.level : userData.resellerLevel;
+
+            // Forcer un minimum de 5% pour les revendeurs
+            if (userData.isReseller) {
+              userData.discountRate = Math.max(Number(userData.discountRate || 0), 5);
+            }
+
+            // mettre à jour le champ caché et l'affichage
+            const discountRateInput = document.getElementById('discountRate');
+            if (discountRateInput) discountRateInput.value = userData.discountRate;
+
+            const resellerLevelInfo = document.getElementById('resellerLevelInfo');
+            const resellerLevelText = document.getElementById('resellerLevelText');
+            const discountRateText = document.getElementById('discountRateText');
+            if (resellerLevelInfo && resellerLevelText && discountRateText) {
+              resellerLevelInfo.style.display = 'block';
+              resellerLevelText.textContent = `Niveau de revendeur: ${userData.resellerLevel || 'N/A'}`;
+              discountRateText.textContent = `Réduction: ${userData.discountRate}% (min 5%)`;
+            }
+
+            updateDetails();
+          } else {
+            console.warn("Utilisateur introuvable en base.");
+          }
+        } catch (err) {
+          console.error("Erreur lors du chargement des données utilisateur:", err);
+        }
+      });
+
+      // ---- onSubmit: validation + envoi au serveur ----
+      async function onSubmit(e) {
+        e.preventDefault();
+        setLoadingState(true);
+        if (orderErrorBox) { orderErrorBox.style.display = 'none'; orderErrorBox.textContent = ''; }
+        if (quantityError) quantityError.style.display = 'none';
+
+        const selectedServiceKey = serviceSelect.value;
+        if (!selectedServiceKey) { if (orderErrorBox) { orderErrorBox.textContent = 'Veuillez sélectionner un service.'; orderErrorBox.style.display = 'block'; } setLoadingState(false); return; }
+        const selectedQuality = qualitySelect.value;
+        if (!selectedQuality) { if (orderErrorBox) { orderErrorBox.textContent = 'Veuillez sélectionner une qualité.'; orderErrorBox.style.display = 'block'; } setLoadingState(false); return; }
+
+        const serviceDef = servicesData[selectedPlatform][selectedServiceKey];
+        let minQuantity = 1;
+        const remarkMatch = serviceDef.remark && serviceDef.remark.match(/\(min:\s*(\d+)\)/);
+        if (remarkMatch && remarkMatch[1]) minQuantity = parseInt(remarkMatch[1], 10);
+
+        const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalisés');
+        let quantityForValidation = 0;
+        let commentsArray = [];
+
+        if (isCommentService) {
+          commentsArray = (quantityInput.value || '').split('\n').filter(l => l.trim());
+          quantityForValidation = commentsArray.length;
+          if (quantityForValidation < minQuantity) { if (quantityError) { quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`; quantityError.style.display = 'block'; } setLoadingState(false); return; }
+        } else {
+          if (!quantityInput.disabled) {
+            quantityForValidation = parseInt(quantityInput.value) || 0;
+            if (quantityForValidation < minQuantity) { if (quantityError) { quantityError.textContent = `La quantité minimale est de ${minQuantity}.`; quantityError.style.display = 'block'; } setLoadingState(false); return; }
+          }
+        }
+
+        // discountRate (appliquer minimum 5% pour revendeurs)
+        const discountRateRaw = parseInt(document.getElementById('discountRate').value) || 0;
+        const effectiveDiscountRate = userData.isReseller ? Math.max(discountRateRaw, 5) : 0;
+
+        let normalPrice = 0;
+        let discountedPrice = 0;
+        let currentConfig = null;
+
+        if (serviceDef.options) {
+          const selectedSubOption = subOptionSelect.value;
+          if (!selectedSubOption) { showNotification('❌', "❌ Veuillez choisir une option de service.", 'error'); setLoadingState(false); return; }
+          const optionData = serviceDef.options[selectedSubOption];
+          currentConfig = optionData[qualitySelect.value] || optionData.medium;
+
+          const servicesWithFixedQuantityInOptions = [
+            "Vues publication spécifique", "Vues des publications précédentes",
+            "Vues futures publications", "Réactions précédentes", "Réactions futures"
+          ];
+          const isQuantityFixedByOption =
+            servicesWithFixedQuantityInOptions.includes(selectedServiceKey)
+            && selectedPlatform === 'telegram';
+
+          if (isQuantityFixedByOption) {
+            normalPrice = Number(currentConfig.price) || 0;
+          } else {
+            if (isCommentService) normalPrice = (Number(currentConfig.price) / 10) * quantityForValidation;
+            else normalPrice = (Number(currentConfig.price) / 1000) * quantityForValidation;
+          }
+        } else {
+          currentConfig = serviceDef[qualitySelect.value];
+          if (isCommentService) normalPrice = (Number(currentConfig.price) / 10) * quantityForValidation;
+          else normalPrice = (Number(currentConfig.price) / 1000) * quantityForValidation;
+        }
+
+        discountedPrice = Math.round(normalPrice * (1 - effectiveDiscountRate/100));
+        const finalCharge = Math.round(discountedPrice); // integer FCFA
+
+        // protection: finalCharge doit être un nombre finite
+        if (!Number.isFinite(finalCharge) || isNaN(finalCharge)) {
+          showNotification('❌', `❌ Erreur interne: montant invalide (${String(finalCharge)}). Contactez l'administrateur.`, 'error');
+          setLoadingState(false);
+          return;
+        }
+
+        if (finalCharge > (userData.balance || 0)) {
+          showNotification('❌', `❌ Solde insuffisant. Il vous manque ${(finalCharge - (userData.balance || 0)).toLocaleString('fr-FR')} FCFA. Veuillez recharger votre compte.`, 'error');
+          setLoadingState(false);
+          return;
+        }
+
+        const serverPayload = {
+          userId: document.getElementById('userId').value,
+          platform: selectedPlatform,
+          service: getServiceKey(selectedServiceKey, selectedPlatform), // ✅ Convertit nom français → clé technique
+          quality: qualitySelect.value,
+          subOption: subOptionSection.style.display === 'block' ? subOptionSelect.value : undefined,
+          link: linkInput.value,
+          quantity: isCommentService ? undefined : Number(quantityForValidation),
+          comments: isCommentService ? commentsArray : undefined,
+          contactType: contactType.value,
+          contact: contactType.value === 'whatsapp' ? contactInput.value : emailInput.value,
+          isResellerOrder: true,
+          normalPrice: Math.round(Number(normalPrice)),
+          discountedPrice: Math.round(Number(discountedPrice)),
+          finalCost: Number(finalCharge),           // <-- champ explicite, numérique
+          discountRate: Number(effectiveDiscountRate),
+          resellerLevel: userData.resellerLevel || ''
+        };
+
+        if (!serverPayload.userId) { showNotification('❌', "❌ Erreur d'authentification. Veuillez vous reconnecter.", 'error'); setLoadingState(false); return; }
+        if (serverPayload.subOption === "" && subOptionSection.style.display !== 'none') { showNotification('❌', "❌ Veuillez choisir une option de service.", 'error'); setLoadingState(false); return; }
+        if (!serverPayload.contactType) { showNotification('❌', "❌ Veuillez choisir un mode de contact.", 'error'); setLoadingState(false); return; }
+        if (serverPayload.contactType === 'whatsapp' && !serverPayload.contact) { showNotification('❌', "❌ Veuillez saisir votre numéro WhatsApp.", 'error'); setLoadingState(false); return; }
+        if (serverPayload.contactType === 'email' && !serverPayload.contact) { showNotification('❌', "❌ Veuillez saisir votre adresse Email.", 'error'); setLoadingState(false); return; }
+
+        // debug log avant envoi
+        console.log('[ORDER PAYLOAD] ', serverPayload);
+
+        try {
+          // NOUVEAU LIEN DU SERVEUR
+          const SERVER_URL = 'https://social-boost-exaucenapopolo2.replit.app';
+          const resp = await fetch(`${SERVER_URL}/order`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(serverPayload)
+          });
+
+          const result = await resp.json().catch(() => ({}));
+
+          if (!resp.ok || !result.success) {
+            const errMsg = result.error || 'Erreur lors de l’envoi au serveur.';
+            showNotification('❌', `<strong>❌ Échec :</strong><br>${errMsg}`, 'error');
+            setLoadingState(false);
+            return;
+          }
+
+          // Serveur peut renvoyer finalCost/newBalance, sinon on prend ce qu'on a calculé localement
+          const serverFinal = (result.finalCost !== undefined && result.finalCost !== null) ? Number(result.finalCost) : finalCharge;
+          const newBalance = (typeof result.newBalance === 'number') ? result.newBalance : ((userData.balance || 0) - serverFinal);
+
+          userData.balance = newBalance;
+
+          showNotification('✅', `✅ Commande envoyée !<br>Montant débité : ${serverFinal.toLocaleString('fr-FR')} FCFA<br>Nouveau solde : ${newBalance.toLocaleString('fr-FR')} FCFA`, 'success');
+
+          orderForm.reset();
+          resetUI();
+          icons.forEach(i => i.classList.remove('active'));
+        } catch (err) {
+          console.error('Erreur fetch /order :', err);
+          const detailedError = `
+            <strong>❌ Désolé, quelque chose a mal tourné !</strong><br>
+            Votre commande n'a pas été envoyée.<br><br>
+            <u>les commandes sont disponibles a :</u><br>
+            • 10 h GMT (11 h heure du Cameroun)<br>
+            • 15 h GMT (16 h heure du Cameroun)<br>
+            • 20 h GMT (21 h heure du Cameroun)<br><br>
+            Si le problème persiste à ces horaires, contactez l’administrateur ou l’assistance via WhatsApp :<br>
+            <a href="https://wa.me/237699853665" target="_blank">+237 699 85 36 65</a><br>
+            et joignez une capture d’écran pour une solution directe.
+          `;
+          showNotification('❌', detailedError, 'error');
+        } finally {
+          setLoadingState(false);
+        }
+      }
+    }); // DOMContentLoaded fin
+  </script>
+</body>
+</html> , rate: 0.0021, flag: '🇨🇦' }
+    };
+
+    let userCountry = 'cm';
+    let userCurrency = CURRENCY_CONFIG['cm'];
+
+    function convertFromXAF(amountXAF) {
+      return Math.round(amountXAF * userCurrency.rate);
+    }
+
+    function formatPrice(amountXAF) {
+      const localAmount = convertFromXAF(amountXAF);
+      return localAmount.toLocaleString('fr-FR') + ' ' + userCurrency.symbol;
+    }
+
+    // Variables pour le mode vitesse
+    let isSpeedModeActive = false;
+    let basePrice = 0;
+
 
     // === MAPPING DES NOMS DE SERVICES (résout le problème d'apostrophes) ===
     const serviceMapping = {
@@ -1339,9 +3401,11 @@
 
         const normalPriceEl = document.querySelector('.normal-price');
         const resellerPriceEl = document.querySelector('.reseller-price');
-        if (normalPriceEl) normalPriceEl.textContent = 'Prix normal : 0 FCFA';
-        if (resellerPriceEl) resellerPriceEl.textContent = 'Votre prix : 0 FCFA';
-        if (savingsAmount) savingsAmount.textContent = 'Économisez 0 FCFA';
+        if (normalPriceEl) normalPriceEl.textContent = 'Prix normal : ' + formatPrice(0);
+        if (resellerPriceEl) resellerPriceEl.textContent = 'Votre prix : ' + formatPrice(0);
+        if (savingsAmount) savingsAmount.textContent = 'Économisez ' + formatPrice(0);
+        const speedModeChargeEl = document.getElementById('speedModeCharge');
+        if (speedModeChargeEl) speedModeChargeEl.style.display = 'none';
         const priceDetailsEl = document.getElementById('priceDetails');
         if (priceDetailsEl) priceDetailsEl.textContent = '';
         if (timeEstimate) timeEstimate.textContent  = 'Temps de réalisation : 2 h';
@@ -1524,11 +3588,11 @@
 
         const priceDetailsEl = document.getElementById('priceDetails');
         if (serviceDef.options && typeof isQuantityFixedByOption !== 'undefined' && !isQuantityFixedByOption) {
-          if (priceDetailsEl) priceDetailsEl.textContent = `(Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
+          if (priceDetailsEl) priceDetailsEl.textContent = `(Prix pour 1000 : ${formatPrice(pricePerThousand)})`;
         } else if (!serviceDef.options && !isCommentService) {
-          if (priceDetailsEl) priceDetailsEl.textContent = `(Prix pour 1 : ${(pricePerThousand/1000).toLocaleString('fr-FR')} FCFA, Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
+          if (priceDetailsEl) priceDetailsEl.textContent = `(Prix pour 1 : ${formatPrice(pricePerThousand/1000)}, Prix pour 1000 : ${formatPrice(pricePerThousand)})`;
         } else if (isCommentService) {
-          if (priceDetailsEl) priceDetailsEl.textContent = `(Prix par commentaire : ${(pricePerThousand/1000).toLocaleString('fr-FR')} FCFA)`;
+          if (priceDetailsEl) priceDetailsEl.textContent = `(Prix par commentaire : ${formatPrice(pricePerThousand/1000)})`;
         } else if (priceDetailsEl) priceDetailsEl.textContent = '';
 
         if (timeEstimate) timeEstimate.textContent = `Temps de réalisation : ${estimatedTime}`;
@@ -1538,9 +3602,11 @@
       function resetPriceDisplay(remark) {
         const normalPriceEl = document.querySelector('.normal-price');
         const resellerPriceEl = document.querySelector('.reseller-price');
-        if (normalPriceEl) normalPriceEl.textContent = 'Prix normal : 0 FCFA';
-        if (resellerPriceEl) resellerPriceEl.textContent = 'Votre prix : 0 FCFA';
-        if (savingsAmount) savingsAmount.textContent = 'Économisez 0 FCFA';
+        if (normalPriceEl) normalPriceEl.textContent = 'Prix normal : ' + formatPrice(0);
+        if (resellerPriceEl) resellerPriceEl.textContent = 'Votre prix : ' + formatPrice(0);
+        if (savingsAmount) savingsAmount.textContent = 'Économisez ' + formatPrice(0);
+        const speedModeChargeEl = document.getElementById('speedModeCharge');
+        if (speedModeChargeEl) speedModeChargeEl.style.display = 'none';
         const priceDetailsEl = document.getElementById('priceDetails');
         if (priceDetailsEl) priceDetailsEl.textContent = '';
         if (timeEstimate) timeEstimate.textContent  = 'Temps de réalisation : 2 h';
