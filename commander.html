@@ -951,6 +951,79 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
+    // =======================================================
+    // SYSTÈME DE CONVERSION DE DEVISES
+    // =======================================================
+    const CURRENCY_CONFIG = {
+      'cm': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇲' },
+      'ga': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇬🇦' },
+      'cg': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇬' },
+      'td': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇹🇩' },
+      'cf': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇫' },
+      'gq': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇬🇶' },
+      'sn': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇸🇳' },
+      'ci': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇨🇮' },
+      'ml': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇲🇱' },
+      'bf': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇫' },
+      'bj': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇯' },
+      'tg': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇹🇬' },
+      'ne': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇳🇪' },
+      'gw': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇬🇼' },
+      'cd': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+      'gh': { code: 'GHS', symbol: 'GH₵', rate: 0.024, flag: '🇬🇭' },
+      'ng': { code: 'NGN', symbol: '₦', rate: 2.44, flag: '🇳🇬' },
+      'ke': { code: 'KES', symbol: 'KSh', rate: 0.20, flag: '🇰🇪' },
+      'ug': { code: 'UGX', symbol: 'USh', rate: 5.64, flag: '🇺🇬' },
+      'tz': { code: 'TZS', symbol: 'TSh', rate: 3.81, flag: '🇹🇿' },
+      'rw': { code: 'RWF', symbol: 'FRw', rate: 1.98, flag: '🇷🇼' },
+      'zm': { code: 'ZMW', symbol: 'ZK', rate: 0.041, flag: '🇿🇲' },
+      'mw': { code: 'MWK', symbol: 'MK', rate: 2.67, flag: '🇲🇼' },
+      'ca': { code: 'CAD', symbol: 'C$', rate: 0.0021, flag: '🇨🇦' },
+      'Cameroun': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇲' },
+      'Cameroon': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇲' },
+      'Gabon': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇬🇦' },
+      'Congo': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇬' },
+      'Tchad': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇹🇩' },
+      'Centrafrique': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇫' },
+      'Sénégal': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇸🇳' },
+      'Senegal': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇸🇳' },
+      'Côte d\'Ivoire': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇨🇮' },
+      'Mali': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇲🇱' },
+      'Burkina Faso': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇫' },
+      'Bénin': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇯' },
+      'Benin': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇯' },
+      'Togo': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇹🇬' },
+      'Niger': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇳🇪' },
+      'RD Congo': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+      'RDC': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+      'Congo-Kinshasa': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+      'Ghana': { code: 'GHS', symbol: 'GH₵', rate: 0.024, flag: '🇬🇭' },
+      'Nigeria': { code: 'NGN', symbol: '₦', rate: 2.44, flag: '🇳🇬' },
+      'Nigéria': { code: 'NGN', symbol: '₦', rate: 2.44, flag: '🇳🇬' },
+      'Kenya': { code: 'KES', symbol: 'KSh', rate: 0.20, flag: '🇰🇪' },
+      'Ouganda': { code: 'UGX', symbol: 'USh', rate: 5.64, flag: '🇺🇬' },
+      'Uganda': { code: 'UGX', symbol: 'USh', rate: 5.64, flag: '🇺🇬' },
+      'Tanzanie': { code: 'TZS', symbol: 'TSh', rate: 3.81, flag: '🇹🇿' },
+      'Tanzania': { code: 'TZS', symbol: 'TSh', rate: 3.81, flag: '🇹🇿' },
+      'Rwanda': { code: 'RWF', symbol: 'FRw', rate: 1.98, flag: '🇷🇼' },
+      'Zambie': { code: 'ZMW', symbol: 'ZK', rate: 0.041, flag: '🇿🇲' },
+      'Zambia': { code: 'ZMW', symbol: 'ZK', rate: 0.041, flag: '🇿🇲' },
+      'Malawi': { code: 'MWK', symbol: 'MK', rate: 2.67, flag: '🇲🇼' },
+      'Canada': { code: 'CAD', symbol: 'C$', rate: 0.0021, flag: '🇨🇦' }
+    };
+
+    let userCountry = 'cm';
+    let userCurrency = CURRENCY_CONFIG['cm'];
+
+    function convertFromXAF(amountXAF) {
+      return Math.round(amountXAF * userCurrency.rate);
+    }
+
+    function formatPrice(amountXAF) {
+      const localAmount = convertFromXAF(amountXAF);
+      return localAmount.toLocaleString('fr-FR') + ' ' + userCurrency.symbol;
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
       AOS.init({ duration: 800, once: true });
 
@@ -977,12 +1050,34 @@
         notification.style.display = 'none';
       });
       
-      // Vérifier l'authentification
+      // Vérifier l'authentification et charger le pays de l'utilisateur
       auth.onAuthStateChanged(user => {
         if (!user) {
           window.location.href = 'login.html';
         } else {
           document.getElementById('userId').value = user.uid;
+          
+          // Récupérer le pays de l'utilisateur pour la conversion de devise
+          db.collection('users').doc(user.uid).get().then(doc => {
+            if (doc.exists) {
+              const userData = doc.data();
+              const country = userData.country || userData.pays || 'cm';
+              if (CURRENCY_CONFIG[country]) {
+                userCountry = country;
+                userCurrency = CURRENCY_CONFIG[country];
+              } else {
+                userCountry = 'cm';
+                userCurrency = CURRENCY_CONFIG['cm'];
+              }
+              console.log('Pays utilisateur:', userCountry, '- Devise:', userCurrency.symbol);
+              // Mettre à jour l'affichage des prix après le chargement de la devise
+              if (typeof updateDetails === 'function') {
+                updateDetails();
+              }
+            }
+          }).catch(err => {
+            console.warn('Erreur récupération pays utilisateur:', err);
+          });
         }
       });
     });
@@ -1391,7 +1486,7 @@
       isSpeedModeActive = false;
       speedModeContainer.classList.remove('speed-mode-active');
 
-      priceEstimate.textContent = 'Prix estimé : 0 FCFA';
+      priceEstimate.textContent = 'Prix estimé : ' + formatPrice(0);
       priceDetails.textContent  = '';
       timeEstimate.textContent  = 'Temps de réalisation : 2 h';
       remarkBox.textContent      = 'Sélectionnez un service pour voir la remarque.';
@@ -1492,7 +1587,7 @@
     function updateDetails() {
       const selectedServiceKey = serviceSelect.value;
       if (!selectedServiceKey) {
-        priceEstimate.textContent = 'Prix estimé : 0 FCFA';
+        priceEstimate.textContent = 'Prix estimé : ' + formatPrice(0);
         priceDetails.textContent  = '';
         timeEstimate.textContent  = 'Temps de réalisation : 2 h';
         remarkBox.textContent      = 'Sélectionnez un service pour voir la remarque.';
@@ -1518,7 +1613,7 @@
       if (serviceDef.options) {
         const selectedSubOption = subOptionSelect.value;
         if (!selectedSubOption) {
-          priceEstimate.textContent = 'Prix estimé : 0 FCFA';
+          priceEstimate.textContent = 'Prix estimé : ' + formatPrice(0);
           priceDetails.textContent  = '';
           timeEstimate.textContent  = 'Temps de réalisation : N/A';
           remarkBox.textContent      = serviceDef.remark;
@@ -1607,16 +1702,16 @@
         calculatedPrice = Math.round(calculatedPrice * 1.1);
       }
 
-      priceEstimate.textContent = `Prix estimé : ${calculatedPrice.toLocaleString('fr-FR')} FCFA`;
+      priceEstimate.textContent = `Prix estimé : ${formatPrice(calculatedPrice)}`;
       
       // Affichage des détails de prix
       let detailsText = '';
       if (serviceDef.options && !isQuantityFixedByOption) {
-        detailsText = `(Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
+        detailsText = `(Prix pour 1000 : ${formatPrice(pricePerThousand)})`;
       } else if (!serviceDef.options && !isCommentService) {
-        detailsText = `(Prix pour 1 : ${unitPrice.toLocaleString('fr-FR')} FCFA, Prix pour 1000 : ${pricePerThousand.toLocaleString('fr-FR')} FCFA)`;
+        detailsText = `(Prix pour 1 : ${formatPrice(unitPrice)}, Prix pour 1000 : ${formatPrice(pricePerThousand)})`;
       } else if (isCommentService) {
-        detailsText = `(Prix par commentaire : ${unitPrice.toLocaleString('fr-FR')} FCFA)`;
+        detailsText = `(Prix par commentaire : ${formatPrice(unitPrice)})`;
       }
       
       // Ajout de l'info sur le mode vitesse si activé
