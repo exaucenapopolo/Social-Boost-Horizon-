@@ -778,6 +778,9 @@
       console.log("Backend URL =", BACKEND_URL);
     });
 
+    // ✅ FLAG POUR ÉVITER LES APPELS MULTIPLES
+    let isProcessingGoogleAuth = false;
+
     // onAuthStateChanged : détecte toute connexion Firebase (popup ou redirect).
     firebase.auth().onAuthStateChanged(async (user) => {
       console.log("onAuthStateChanged appelé, user =", user);
@@ -788,9 +791,21 @@
         return;
       }
       
+      // ✅ IGNORER SI DÉJÀ EN COURS DE TRAITEMENT
+      if (isProcessingGoogleAuth) {
+        console.log("⏸️ onAuthStateChanged ignoré : traitement Google déjà en cours");
+        return;
+      }
+      
       if (user) {
+        // Marquer comme en cours de traitement
+        isProcessingGoogleAuth = true;
+        console.log("🔄 Traitement utilisateur Google:", user.uid);
+        
         // Si on arrive ici, Firebase nous dit que l'utilisateur est connecté.
         const userId = user.uid;
+        let shouldRedirect = true;
+        
         try {
           const userDoc = await firebase.firestore().collection('users').doc(userId).get();
           if (!userDoc.exists) {
@@ -828,14 +843,18 @@
           }
         } catch (err) {
           console.error("onAuthStateChanged : erreur Firestore lors de la vérification/creation :", err);
+          // ✅ ON REDIRIGE QUAND MÊME - l'utilisateur est authentifié
+          console.log("⚠️ Erreur Firestore mais redirection quand même...");
         }
         
-        // Redirection après connexion
-        console.log("onAuthStateChanged : redirection vers dashboard.html");
-        showNotification('✅ Authentifié via Google, redirection...', 'success');
-        setTimeout(() => {
-          window.location.href = 'dashboard.html';
-        }, 1500);
+        // ✅ TOUJOURS REDIRIGER SI UTILISATEUR CONNECTÉ
+        if (shouldRedirect) {
+          console.log("onAuthStateChanged : redirection vers dashboard.html");
+          showNotification('✅ Authentifié via Google, redirection...', 'success');
+          setTimeout(() => {
+            window.location.href = 'dashboard.html';
+          }, 1500);
+        }
       } else {
         console.log("onAuthStateChanged : pas d'utilisateur connecté.");
       }
@@ -864,6 +883,7 @@
       e.preventDefault();
       const btn = document.getElementById('googleSignup');
       const loader = document.getElementById('googleLoader');
+      
       try {
         console.log("googleSignup click : début du flux Google Sign-In");
         btn.classList.add('btn-loading');
@@ -874,25 +894,49 @@
         console.log("Tentative signInWithPopup...");
         const result = await firebase.auth().signInWithPopup(provider);
         console.log("signInWithPopup résultat :", result);
+        
+        // ✅ TRAITEMENT DIRECT DU RÉSULTAT
+        if (result && result.user) {
+          console.log("✅ Connexion Google réussie via popup:", result.user.uid);
+          showNotification('✅ Connexion Google réussie ! Traitement en cours...', 'success');
+          
+          // Le onAuthStateChanged va gérer la création du document et la redirection
+          // Mais on laisse le loader visible pour montrer que ça travaille
+        }
+        
       } catch (error) {
         console.error("Erreur signInWithPopup Google :", error);
-        showNotification(`❌ Erreur Google popup: ${error.code || ''} — ${error.message}`, 'error');
         
-        // Fallback redirect si popup bloquée
-        if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request' 
+        // ✅ GESTION SPÉCIFIQUE DES ERREURS
+        if (error.code === 'auth/popup-closed-by-user') {
+          console.log("Popup fermée par l'utilisateur");
+          showNotification('⚠️ Inscription annulée', 'error');
+        } else if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request' 
             || error.code === 'auth/operation-not-supported-in-this-environment') {
+          // Fallback redirect si popup bloquée
           console.log("Popup Google bloquée ou non supportée, on passe à signInWithRedirect...");
+          showNotification('🔄 Redirection vers Google...', 'success');
           try {
             await firebase.auth().signInWithRedirect(provider);
+            return; // Ne pas cacher le loader car on va rediriger
           } catch (err2) {
             console.error("Erreur signInWithRedirect fallback :", err2);
-            showNotification(`❌ Erreur Google redirect fallback: ${err2.code || ''} — ${err2.message}`, 'error');
+            showNotification(`❌ Erreur Google redirect: ${err2.message}`, 'error');
           }
+        } else if (error.code === 'auth/network-request-failed') {
+          showNotification('❌ Erreur réseau. Vérifiez votre connexion internet.', 'error');
+        } else if (error.code === 'auth/account-exists-with-different-credential') {
+          showNotification('❌ Un compte existe déjà avec cet email.', 'error');
+        } else {
+          showNotification(`❌ Erreur: ${error.message}`, 'error');
         }
-      } finally {
+        
+        // Cacher le loader en cas d'erreur
         if (btn) btn.classList.remove('btn-loading');
         if (loader) loader.style.display = 'none';
       }
+      // ✅ NE PAS cacher le loader dans finally si la connexion a réussi
+      // car onAuthStateChanged va rediriger
     });
 
     // Au chargement de la page
