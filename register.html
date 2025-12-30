@@ -781,7 +781,82 @@
     // ✅ FLAG POUR ÉVITER LES APPELS MULTIPLES
     let isProcessingGoogleAuth = false;
 
-    // onAuthStateChanged : détecte toute connexion Firebase (popup ou redirect).
+    // ✅ FONCTION POUR GÉRER L'UTILISATEUR GOOGLE (création ou connexion)
+    async function handleGoogleUser(user) {
+      if (!user) return false;
+      
+      const userId = user.uid;
+      const email = user.email || '';
+      
+      try {
+        // 1. Vérifier si un document existe avec cet userId
+        const userDoc = await firebase.firestore().collection('users').doc(userId).get();
+        
+        if (userDoc.exists) {
+          // ✅ COMPTE EXISTANT - Juste connecter
+          console.log("✅ Compte existant trouvé, connexion...");
+          return true;
+        }
+        
+        // 2. Vérifier si un compte existe avec cet email (créé par une autre méthode)
+        const emailQuery = await firebase.firestore().collection('users')
+          .where('email', '==', email)
+          .limit(1)
+          .get();
+        
+        if (!emailQuery.empty) {
+          // ✅ Un compte existe avec cet email mais un autre userId
+          // Mettre à jour le document existant avec le nouveau userId Google
+          const existingDoc = emailQuery.docs[0];
+          console.log("⚠️ Compte existant avec cet email, mise à jour du provider...");
+          
+          await firebase.firestore().collection('users').doc(existingDoc.id).update({
+            googleUid: userId,
+            provider: existingDoc.data().provider === 'email' ? 'email+google' : existingDoc.data().provider
+          });
+          
+          return true;
+        }
+        
+        // 3. Nouveau compte - Créer le document
+        console.log("🆕 Nouveau compte Google, création...");
+        const displayName = user.displayName || '';
+        const username = displayName
+          ? displayName.replace(/\s+/g, '_').toLowerCase()
+          : (email.split('@')[0] || userId);
+        const referralCode = Math.random().toString(36).substring(2,10).toUpperCase();
+        const urlParams = new URLSearchParams(window.location.search);
+        const referralCodeUsed = urlParams.get('ref') || null;
+        
+        await firebase.firestore().collection('users').doc(userId).set({
+          userId,
+          username,
+          email,
+          phone: '',
+          country: '',
+          referralCode: referralCode,
+          referredBy: referralCodeUsed,
+          balance: 0,
+          referralBalance: 0,
+          discountUsesLeft: 10,
+          referralsCount: 0,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          provider: 'google',
+          isFirstAccess: true,
+          openedChests: []
+        });
+        
+        console.log("✅ Document créé pour nouvel utilisateur Google");
+        return true;
+        
+      } catch (err) {
+        console.error("Erreur handleGoogleUser:", err);
+        // Retourner true quand même pour permettre la redirection
+        return true;
+      }
+    }
+
+    // onAuthStateChanged : détecte toute connexion Firebase
     firebase.auth().onAuthStateChanged(async (user) => {
       console.log("onAuthStateChanged appelé, user =", user);
       
@@ -800,57 +875,14 @@
       if (user) {
         // Marquer comme en cours de traitement
         isProcessingGoogleAuth = true;
-        console.log("🔄 Traitement utilisateur Google:", user.uid);
+        console.log("🔄 Traitement utilisateur:", user.uid, user.email);
         
-        // Si on arrive ici, Firebase nous dit que l'utilisateur est connecté.
-        const userId = user.uid;
-        let shouldRedirect = true;
+        // Gérer l'utilisateur (création ou connexion)
+        const success = await handleGoogleUser(user);
         
-        try {
-          const userDoc = await firebase.firestore().collection('users').doc(userId).get();
-          if (!userDoc.exists) {
-            console.log("onAuthStateChanged : document Firestore absent, création pour nouvel utilisateur Google.");
-            const email = user.email || '';
-            const displayName = user.displayName || '';
-            const username = displayName
-              ? displayName.replace(/\s+/g, '_').toLowerCase()
-              : (email.split('@')[0] || userId);
-            const referralCode = Math.random().toString(36).substring(2,10).toUpperCase();
-            const urlParams = new URLSearchParams(window.location.search);
-            const referralCodeUsed = urlParams.get('ref') || null;
-            
-            // Créer le document avec les champs nécessaires
-            await firebase.firestore().collection('users').doc(userId).set({
-              userId,
-              username,
-              email,
-              phone: '',
-              country: '',
-              referralCode: referralCode,
-              referredBy: referralCodeUsed,
-              balance: 0,
-              referralBalance: 0,
-              discountUsesLeft: 10,
-              referralsCount: 0,
-              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-              provider: 'google',
-              isFirstAccess: true,
-              openedChests: []
-            });
-            console.log("onAuthStateChanged : document créé.");
-          } else {
-            console.log("onAuthStateChanged : document Firestore existant, pas de création.");
-          }
-        } catch (err) {
-          console.error("onAuthStateChanged : erreur Firestore lors de la vérification/creation :", err);
-          // ✅ ON REDIRIGE QUAND MÊME - l'utilisateur est authentifié
-          console.log("⚠️ Erreur Firestore mais redirection quand même...");
-        }
-        
-        // ✅ TOUJOURS REDIRIGER SI UTILISATEUR CONNECTÉ
-        if (shouldRedirect) {
-          console.log("onAuthStateChanged : redirection vers dashboard.html");
-          showNotification('✅ Authentifié via Google, redirection...', 'success');
+        if (success) {
+          console.log("✅ Redirection vers dashboard.html");
+          showNotification('✅ Authentifié, redirection...', 'success');
           setTimeout(() => {
             window.location.href = 'dashboard.html';
           }, 1500);
@@ -859,24 +891,6 @@
         console.log("onAuthStateChanged : pas d'utilisateur connecté.");
       }
     });
-
-    // Fonction qui traite getRedirectResult au chargement
-    async function handleGoogleRedirectDebug() {
-      try {
-        console.log("handleGoogleRedirectDebug : appel getRedirectResult()");
-        const result = await firebase.auth().getRedirectResult();
-        console.log("handleGoogleRedirectDebug : résultat getRedirectResult() =", result);
-        if (result && result.user) {
-          console.log("handleGoogleRedirectDebug : result.user détecté :", result.user);
-          showNotification('✅ Retour Google détecté, traitement en cours...', 'success');
-        } else {
-          console.log("handleGoogleRedirectDebug : result.user undefined. Pas de redirection Google à traiter.");
-        }
-      } catch (error) {
-        console.error("handleGoogleRedirectDebug : erreur dans getRedirectResult() :", error);
-        showNotification(`❌ Erreur Google redirect: ${error.code || ''} — ${error.message}`, 'error');
-      }
-    }
 
     // Listener pour le clic "S'inscrire avec Google"
     document.getElementById('googleSignup').addEventListener('click', async (e) => {
@@ -890,18 +904,15 @@
         if (loader) loader.style.display = 'block';
         await firebase.auth().useDeviceLanguage();
 
-        // Premier essai : popup
+        // ✅ UNIQUEMENT POPUP (pas de redirect qui cause des problèmes de session)
         console.log("Tentative signInWithPopup...");
         const result = await firebase.auth().signInWithPopup(provider);
         console.log("signInWithPopup résultat :", result);
         
-        // ✅ TRAITEMENT DIRECT DU RÉSULTAT
         if (result && result.user) {
           console.log("✅ Connexion Google réussie via popup:", result.user.uid);
           showNotification('✅ Connexion Google réussie ! Traitement en cours...', 'success');
-          
-          // Le onAuthStateChanged va gérer la création du document et la redirection
-          // Mais on laisse le loader visible pour montrer que ça travaille
+          // Le onAuthStateChanged va gérer la suite
         }
         
       } catch (error) {
@@ -909,41 +920,31 @@
         
         // ✅ GESTION SPÉCIFIQUE DES ERREURS
         if (error.code === 'auth/popup-closed-by-user') {
-          console.log("Popup fermée par l'utilisateur");
           showNotification('⚠️ Inscription annulée', 'error');
-        } else if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request' 
-            || error.code === 'auth/operation-not-supported-in-this-environment') {
-          // Fallback redirect si popup bloquée
-          console.log("Popup Google bloquée ou non supportée, on passe à signInWithRedirect...");
-          showNotification('🔄 Redirection vers Google...', 'success');
-          try {
-            await firebase.auth().signInWithRedirect(provider);
-            return; // Ne pas cacher le loader car on va rediriger
-          } catch (err2) {
-            console.error("Erreur signInWithRedirect fallback :", err2);
-            showNotification(`❌ Erreur Google redirect: ${err2.message}`, 'error');
-          }
+        } else if (error.code === 'auth/popup-blocked') {
+          showNotification('❌ Popup bloquée. Autorisez les popups pour ce site.', 'error');
+        } else if (error.code === 'auth/cancelled-popup-request') {
+          showNotification('⚠️ Demande annulée. Réessayez.', 'error');
         } else if (error.code === 'auth/network-request-failed') {
           showNotification('❌ Erreur réseau. Vérifiez votre connexion internet.', 'error');
         } else if (error.code === 'auth/account-exists-with-different-credential') {
-          showNotification('❌ Un compte existe déjà avec cet email.', 'error');
+          // ✅ GÉRER LE CAS OÙ L'EMAIL EXISTE DÉJÀ
+          showNotification('ℹ️ Ce compte existe déjà. Essayez de vous connecter.', 'error');
+        } else if (error.code === 'auth/unauthorized-domain') {
+          showNotification('❌ Domaine non autorisé. Contactez l\'administrateur.', 'error');
         } else {
           showNotification(`❌ Erreur: ${error.message}`, 'error');
         }
         
         // Cacher le loader en cas d'erreur
-        if (btn) btn.classList.remove('btn-loading');
+        btn.classList.remove('btn-loading');
         if (loader) loader.style.display = 'none';
       }
-      // ✅ NE PAS cacher le loader dans finally si la connexion a réussi
-      // car onAuthStateChanged va rediriger
     });
 
     // Au chargement de la page
     document.addEventListener("DOMContentLoaded", function () {
       AOS.init({ duration: 800, once: true, offset: 100 });
-      console.log("DOMContentLoaded: appel handleGoogleRedirectDebug()");
-      handleGoogleRedirectDebug();
       
       // Animation clouds
       const backgroundAnimation = document.querySelector(".background-animation");
