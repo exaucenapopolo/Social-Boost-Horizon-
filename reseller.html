@@ -231,10 +231,10 @@
       </div>
     </section>
 
-    <!-- Section : Classement des meilleurs vendeurs -->
+    <!-- Section 1 : Classement des meilleurs vendeurs (par commandes hebdomadaires) -->
     <section class="card fade-in">
       <h2><i class="fas fa-trophy"></i> Classement des Meilleurs Vendeurs</h2>
-      <p class="small">Top des revendeurs de la semaine selon le nombre de commandes (minimum 5 commandes)</p>
+      <p class="small">Top des revendeurs de la semaine selon le nombre de commandes (minimum 5 commandes) - Réinitialisé chaque dimanche à 1h</p>
       <div id="leaderboardContainer" class="leaderboard">
         <div class="leaderboard-empty">
           <i class="fas fa-spinner fa-spin"></i> Chargement du classement...
@@ -242,10 +242,21 @@
       </div>
     </section>
 
-    <!-- Nouvelle section : Classement des meilleurs vendeurs par chiffre d'affaires -->
+    <!-- Section 2 : Classement des meilleurs vendeurs de la semaine (par CA hebdomadaire) -->
     <section class="card fade-in">
-      <h2><i class="fas fa-money-bill-wave"></i> Classement des Meilleurs Vendeurs par CA</h2>
-      <p class="small">Top des revendeurs avec le plus gros chiffre d'affaires total (minimum 1 000 FCFA de ventes)</p>
+      <h2><i class="fas fa-fire" style="color:#FF9800"></i> Meilleurs Vendeurs de la Semaine</h2>
+      <p class="small">Top des revendeurs par chiffre d'affaires hebdomadaire (minimum 1 000 FCFA) - Réinitialisé chaque dimanche à 1h</p>
+      <div id="weeklyRevenueLeaderboardContainer" class="leaderboard">
+        <div class="leaderboard-empty">
+          <i class="fas fa-spinner fa-spin"></i> Chargement du classement...
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3 : Classement des meilleurs vendeurs Social Boost Horizon (par CA total) -->
+    <section class="card fade-in">
+      <h2><i class="fas fa-crown" style="color:var(--gold)"></i> Meilleurs Vendeurs Social Boost Horizon</h2>
+      <p class="small">Top des revendeurs avec le plus gros chiffre d'affaires total (jamais réinitialisé)</p>
       <div id="spendersLeaderboardContainer" class="leaderboard">
         <div class="leaderboard-empty">
           <i class="fas fa-spinner fa-spin"></i> Chargement du classement...
@@ -308,6 +319,7 @@
   const refreshStatsBtn = document.getElementById('refreshStatsBtn');
   const explanationSection = document.getElementById('explanationSection');
   const leaderboardContainer = document.getElementById('leaderboardContainer');
+  const weeklyRevenueLeaderboardContainer = document.getElementById('weeklyRevenueLeaderboardContainer');
   const spendersLeaderboardContainer = document.getElementById('spendersLeaderboardContainer');
 
   const currentLevelEl = document.getElementById('currentLevel');
@@ -484,7 +496,73 @@
     }
   }
 
-  // CORRECTION : Charger le classement des meilleurs dépensiers (par total de vente)
+  // NOUVEAU : Charger le classement des meilleurs vendeurs de la semaine (par CA hebdomadaire)
+  async function loadWeeklyRevenueLeaderboard() {
+    try {
+      weeklyRevenueLeaderboardContainer.innerHTML = '<div class="leaderboard-empty"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
+      
+      // Récupérer UNIQUEMENT les revendeurs
+      const usersSnapshot = await db.collection('users')
+        .where('isReseller', '==', true)
+        .get();
+
+      if (usersSnapshot.empty) {
+        weeklyRevenueLeaderboardContainer.innerHTML = '<div class="leaderboard-empty">Aucun revendeur pour le moment</div>';
+        return;
+      }
+
+      // Filtrer et trier côté client
+      const resellers = [];
+      usersSnapshot.forEach(doc => {
+        const data = doc.data();
+        const weeklyRevenue = data.resellerWeeklyRevenue || 0;
+        
+        // Filtre : CA hebdomadaire >= 1000 FCFA
+        if (weeklyRevenue >= 1000) {
+          resellers.push({
+            username: data.username || data.email || 'Utilisateur anonyme',
+            weeklyRevenue: weeklyRevenue
+          });
+        }
+      });
+
+      // Tri par CA hebdomadaire (décroissant)
+      resellers.sort((a, b) => b.weeklyRevenue - a.weeklyRevenue);
+
+      // Limiter aux 10 premiers
+      const top10 = resellers.slice(0, 10);
+
+      if (top10.length === 0) {
+        weeklyRevenueLeaderboardContainer.innerHTML = '<div class="leaderboard-empty">Aucun revendeur n\'a atteint 1 000 FCFA de ventes cette semaine</div>';
+        return;
+      }
+
+      let leaderboardHTML = '';
+      top10.forEach((reseller, index) => {
+        const rank = index + 1;
+        let rankClass = '';
+        if (rank === 1) rankClass = 'leaderboard-rank-1';
+        else if (rank === 2) rankClass = 'leaderboard-rank-2';
+        else if (rank === 3) rankClass = 'leaderboard-rank-3';
+        
+        leaderboardHTML += `
+          <div class="leaderboard-item">
+            <div class="leaderboard-rank ${rankClass}">#${rank}</div>
+            <div class="leaderboard-user">${reseller.username}</div>
+            <div class="leaderboard-amount" style="color:#FF9800">${reseller.weeklyRevenue.toLocaleString('fr-FR')} FCFA</div>
+          </div>
+        `;
+      });
+      
+      weeklyRevenueLeaderboardContainer.innerHTML = leaderboardHTML;
+      
+    } catch (error) {
+      console.error('Erreur classement CA hebdo:', error);
+      weeklyRevenueLeaderboardContainer.innerHTML = `<div class="leaderboard-empty">Erreur: ${error.message}</div>`;
+    }
+  }
+
+  // Charger le classement des meilleurs vendeurs Social Boost Horizon (par CA total)
   async function loadSpendersLeaderboard() {
     try {
       spendersLeaderboardContainer.innerHTML = '<div class="leaderboard-empty"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
@@ -591,6 +669,7 @@
     updateLevelIndicators();
     
     loadLeaderboard();
+    loadWeeklyRevenueLeaderboard();
     loadSpendersLeaderboard();
   }
 
