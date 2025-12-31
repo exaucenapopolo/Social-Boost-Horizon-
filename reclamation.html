@@ -560,15 +560,39 @@
       appId: "1:961338625653:web:19dcaeef20a468de73ca8e",
       measurementId: "G-9XJFN7FCGT"
     };
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-    }
-    const auth = firebase.auth();
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
+    const auth = firebase.auth();
 
     const BACKEND_URL = window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')
       ? 'http://localhost:5000'
       : 'https://social-boost-exaucenapopolo2.replit.app';
+
+    let currentUserId = null;
+    let userData = null;
+    let verifiedOrder = null;
+
+    function fetchUserData() {
+      auth.onAuthStateChanged((user) => {
+        if (user) {
+          currentUserId = user.uid;
+          listenToUserData(currentUserId);
+        } else {
+          window.location.href = "login.html";
+        }
+      });
+    }
+
+    function listenToUserData(userId) {
+      db.collection('users').doc(userId).get().then((doc) => {
+        if (doc.exists) {
+          userData = doc.data();
+          console.log('Données utilisateur chargées:', userData.username);
+        }
+      }).catch((err) => {
+        console.error('Erreur chargement données:', err);
+      });
+    }
 
     const hamburgerBtn = document.getElementById('hamburgerBtn');
     const header = document.querySelector('header');
@@ -587,38 +611,6 @@
       
       setTimeout(() => notif.remove(), 5000);
     }
-
-    let currentUser = null;
-    let userData = null;
-    let verifiedOrder = null;
-    let authChecked = false;
-
-    auth.onAuthStateChanged(async (user) => {
-      authChecked = true;
-      if (user) {
-        currentUser = user;
-        console.log('Utilisateur connecté:', user.uid);
-        try {
-          const userDoc = await db.collection('users').doc(user.uid).get();
-          if (userDoc.exists) {
-            userData = userDoc.data();
-            console.log('Données utilisateur chargées');
-          }
-        } catch (err) {
-          console.error('Erreur chargement données:', err);
-        }
-      } else {
-        console.log('Utilisateur non connecté, redirection...');
-        window.location.href = 'login.html';
-      }
-    });
-
-    setTimeout(() => {
-      if (!authChecked) {
-        console.log('Auth timeout, redirection...');
-        window.location.href = 'login.html';
-      }
-    }, 5000);
 
     document.getElementById('verifyBtn').addEventListener('click', async () => {
       const orderId = document.getElementById('orderNumber').value.trim();
@@ -641,7 +633,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             orderId: orderId,
-            userId: currentUser?.uid 
+            userId: currentUserId 
           })
         });
 
@@ -722,9 +714,9 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             orderId: verifiedOrder.orderId,
-            userId: currentUser?.uid,
-            userEmail: currentUser?.email || userData?.email,
-            userName: userData?.username || currentUser?.displayName,
+            userId: currentUserId,
+            userEmail: userData?.email || '',
+            userName: userData?.username || '',
             quantityLost: quantityLost,
             description: description
           })
@@ -750,6 +742,8 @@
       submitBtn.disabled = false;
       submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Envoyer ma réclamation';
     });
+
+    fetchUserData();
   </script>
 </body>
 </html>
