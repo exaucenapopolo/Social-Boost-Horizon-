@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Historique des Réclamations – Social Boost Horizon</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@600;700;800&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+
+  <style>
+    :root {
+      --sbh-dark-blue: #0A162B;
+      --sbh-gradient-start: #1e3c72;
+      --sbh-gradient-end: #6a0dad;
+      --sbh-btn-color: #1E90FF;
+      --sbh-btn-hover: #187bcd;
+      --sbh-icon-color: #4CAF50;
+      --sbh-text-white: #FFFFFF;
+      --sbh-text-green: #4CAF50;
+      --sbh-card-bg: rgba(17, 32, 58, 0.6);
+      --sbh-card-border: rgba(255, 255, 255, 0.1);
+      --sbh-text-light: rgba(255, 255, 255, 0.9);
+      --sbh-accent: #FF6B6B;
+      --sbh-light-blue: #4DA6FF;
+      --font: 'Roboto', sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: var(--font);
+      color: var(--sbh-text-white);
+      background: var(--sbh-dark-blue);
+      position: relative;
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .background-animation {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      background-color: var(--sbh-dark-blue);
+      overflow: hidden;
+    }
+    .background-animation::before,
+    .background-animation::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.4);
+      animation: twinkle 5s infinite alternate;
+    }
+    .background-animation::before {
+      width: 2px;
+      height: 2px;
+      box-shadow:
+        100px  50px  0 0 white, 200px 150px  0 0 white, 300px 250px  0 0 white,
+        400px  70px  0 0 white,  50px 300px  0 0 white, 350px 100px  0 0 white,
+        500px 400px  0 0 white, 600px 120px  0 0 white, 700px 350px  0 0 white;
+      animation-delay: 0s;
+    }
+    .background-animation::after {
+      width: 3px;
+      height: 3px;
+      box-shadow:
+        150px 200px  0 0 white, 250px 300px  0 0 white,  50px 100px  0 0 white,
+        300px  10px  0 0 white, 450px 200px  0 0 white,  10px 250px  0 0 white;
+      animation-delay: 2s;
+    }
+    @keyframes twinkle {
+      0%   { opacity: 0.3; transform: scale(1); }
+      50%  { opacity: 0.7; transform: scale(1.1); }
+      100% { opacity: 0.3; transform: scale(1); }
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    h1, h2, h3 {
+      font-family: 'Montserrat', sans-serif;
+      color: var(--sbh-text-white);
+      text-align: center;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    .logo-text {
+      display: flex;
+      flex-direction: column;
+      font-family: 'Poppins', sans-serif;
+      text-decoration: none;
+      line-height: 1.2;
+    }
+    .logo-text .text-social,
+    .logo-text .text-horizon {
+      color: var(--sbh-text-white);
+      font-size: 1.3rem;
+      font-weight: 600;
+    }
+    .logo-text .boost-line {
+      display: flex;
+      align-items: center;
+      color: var(--sbh-text-green);
+      font-size: 1.8rem;
+      font-weight: 800;
+    }
+    .logo-text .boost-line img {
+      height: 1.8rem;
+      margin-right: 0.4rem;
+    }
+    .icon-hamburger {
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: white;
+      display: none;
+    }
+    @media (max-width: 768px) {
+      .icon-hamburger { display: block; }
+    }
+
+    .mobile-menu {
+      display: none;
+      flex-direction: column;
+      background: rgba(30, 60, 114, 0.95);
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      padding: 1rem;
+      gap: 1rem;
+    }
+    header.open .mobile-menu { display: flex; }
+    .mobile-menu a {
+      color: white;
+      text-decoration: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      transition: background 0.3s;
+    }
+    .mobile-menu a:hover { background: rgba(255,255,255,0.1); }
+
+    .main-container {
+      flex: 1;
+      padding: 2rem;
+      max-width: 1000px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .page-title {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .page-title i {
+      font-size: 3rem;
+      color: var(--sbh-icon-color);
+      margin-bottom: 1rem;
+      display: block;
+    }
+    .page-title h1 {
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+    }
+    .page-title p {
+      color: var(--sbh-text-light);
+      font-size: 1rem;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--sbh-light-blue);
+      text-decoration: none;
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+      transition: color 0.3s;
+    }
+    .back-link:hover { color: var(--sbh-text-white); }
+
+    .claims-container {
+      background: var(--sbh-card-bg);
+      border: 1px solid var(--sbh-card-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      backdrop-filter: blur(10px);
+    }
+
+    .claim-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--sbh-card-border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .claim-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    }
+    .claim-card:last-child {
+      margin-bottom: 0;
+    }
+
+    .claim-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .claim-id {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--sbh-light-blue);
+    }
+    .claim-status {
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+    .claim-status.pending {
+      background: rgba(255, 193, 7, 0.2);
+      color: #ffc107;
+    }
+    .claim-status.processing {
+      background: rgba(33, 150, 243, 0.2);
+      color: #2196f3;
+    }
+    .claim-status.completed {
+      background: rgba(76, 175, 80, 0.2);
+      color: #4caf50;
+    }
+    .claim-status.rejected {
+      background: rgba(244, 67, 54, 0.2);
+      color: #f44336;
+    }
+
+    .claim-details {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .claim-detail {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .claim-detail-label {
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+    .claim-detail-value {
+      font-size: 0.95rem;
+      color: var(--sbh-text-white);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--sbh-text-light);
+    }
+    .empty-state i {
+      font-size: 4rem;
+      color: rgba(255, 255, 255, 0.3);
+      margin-bottom: 1rem;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: var(--sbh-text-light);
+    }
+    .loading i {
+      font-size: 2rem;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.3s ease;
+      background: linear-gradient(45deg, var(--sbh-btn-color), var(--sbh-btn-hover));
+      color: white;
+      text-decoration: none;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(30, 144, 255, 0.4);
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    footer {
+      background: linear-gradient(to right, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      padding: 1.5rem;
+      text-align: center;
+      margin-top: auto;
+    }
+    footer p {
+      color: rgba(255,255,255,0.8);
+      font-size: 0.9rem;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="background-animation"></div>
+
+  <header>
+    <a href="dashboard.html" class="logo-text">
+      <span class="text-social">SOCIAL</span>
+      <div class="boost-line">
+        <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo">
+        <span class="text-boost">BOOST</span>
+      </div>
+      <span class="text-horizon">HORIZON</span>
+    </a>
+    <i class="fa-solid fa-bars icon-hamburger" id="hamburgerBtn"></i>
+    <div class="mobile-menu">
+      <a href="dashboard.html"><i class="fa-solid fa-house"></i> Accueil</a>
+      <a href="commandes.html"><i class="fa-solid fa-shopping-cart"></i> Mes commandes</a>
+      <a href="wallet.html"><i class="fa-solid fa-wallet"></i> Mon portefeuille</a>
+      <a href="assistant.html"><i class="fa-solid fa-headset"></i> Assistance</a>
+    </div>
+  </header>
+
+  <main class="main-container" data-aos="fade-up">
+    <a href="reclamation.html" class="back-link">
+      <i class="fas fa-arrow-left"></i> Retour aux réclamations
+    </a>
+
+    <div class="page-title">
+      <i class="fas fa-history"></i>
+      <h1>Historique des Réclamations</h1>
+      <p>Consultez l'historique de toutes vos demandes de remplissage</p>
+    </div>
+
+    <div class="action-buttons">
+      <a href="reclamation.html" class="btn" style="flex: 1; min-width: 200px;">
+        <i class="fas fa-plus"></i> Nouvelle réclamation
+      </a>
+    </div>
+
+    <div class="claims-container" id="claimsContainer">
+      <div class="loading">
+        <i class="fas fa-spinner"></i>
+        <p>Chargement des réclamations...</p>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 Social Boost Horizon. Tous droits réservés.</p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  <script>
+    AOS.init({ duration: 800, once: true });
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCohqscbDIAZ7euM7QzfNMG6b-5kD3gL8Q",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.appspot.com",
+      messagingSenderId: "888375798638",
+      appId: "1:888375798638:web:58dc41f67f66d0d2e6e8ef"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    const API_BASE = 'https://social-boost-exaucenapopolo2.replit.app';
+
+    const hamburgerBtn = document.getElementById('hamburgerBtn');
+    const header = document.querySelector('header');
+    hamburgerBtn.addEventListener('click', () => {
+      header.classList.toggle('open');
+    });
+
+    function formatDate(dateString) {
+      if (!dateString) return '-';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function getStatusClass(status) {
+      switch (status?.toLowerCase()) {
+        case 'en attente':
+        case 'pending':
+          return 'pending';
+        case 'en cours':
+        case 'processing':
+          return 'processing';
+        case 'terminé':
+        case 'completed':
+        case 'succès':
+          return 'completed';
+        case 'rejeté':
+        case 'rejected':
+        case 'annulé':
+          return 'rejected';
+        default:
+          return 'pending';
+      }
+    }
+
+    function getStatusLabel(status) {
+      switch (status?.toLowerCase()) {
+        case 'en attente':
+        case 'pending':
+          return 'En attente';
+        case 'en cours':
+        case 'processing':
+          return 'En cours';
+        case 'terminé':
+        case 'completed':
+        case 'succès':
+          return 'Terminé';
+        case 'rejeté':
+        case 'rejected':
+        case 'annulé':
+          return 'Rejeté';
+        default:
+          return status || 'En attente';
+      }
+    }
+
+    async function loadClaimsHistory() {
+      const container = document.getElementById('claimsContainer');
+      
+      try {
+        const user = auth.currentUser;
+        let url = `${API_BASE}/claims-history`;
+        if (user) {
+          url += `?userId=${user.uid}`;
+        }
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Erreur lors du chargement');
+        }
+
+        if (!data.claims || data.claims.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-inbox"></i>
+              <h3>Aucune réclamation</h3>
+              <p>Vous n'avez pas encore fait de réclamation.</p>
+              <a href="reclamation.html" class="btn" style="margin-top: 1rem;">
+                <i class="fas fa-plus"></i> Faire une réclamation
+              </a>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = data.claims.map(claim => `
+          <div class="claim-card">
+            <div class="claim-header">
+              <span class="claim-id">${claim.reclamationId || 'N/A'}</span>
+              <span class="claim-status ${getStatusClass(claim.status)}">${getStatusLabel(claim.status)}</span>
+            </div>
+            <div class="claim-details">
+              <div class="claim-detail">
+                <span class="claim-detail-label">Commande originale</span>
+                <span class="claim-detail-value">#${claim.orderId || 'N/A'}</span>
+              </div>
+              <div class="claim-detail">
+                <span class="claim-detail-label">Plateforme</span>
+                <span class="claim-detail-value">${claim.platform || '-'}</span>
+              </div>
+              <div class="claim-detail">
+                <span class="claim-detail-label">Service</span>
+                <span class="claim-detail-value">${claim.service || '-'}</span>
+              </div>
+              <div class="claim-detail">
+                <span class="claim-detail-label">Qualité</span>
+                <span class="claim-detail-value">${claim.quality || '-'}</span>
+              </div>
+              <div class="claim-detail">
+                <span class="claim-detail-label">Quantité perdue</span>
+                <span class="claim-detail-value">${claim.quantityLost?.toLocaleString() || '-'}</span>
+              </div>
+              <div class="claim-detail">
+                <span class="claim-detail-label">À remplir</span>
+                <span class="claim-detail-value">${claim.quantityToRefill?.toLocaleString() || '-'}</span>
+              </div>
+              <div class="claim-detail">
+                <span class="claim-detail-label">Date</span>
+                <span class="claim-detail-value">${formatDate(claim.createdAt)}</span>
+              </div>
+            </div>
+          </div>
+        `).join('');
+
+      } catch (error) {
+        console.error('Erreur:', error);
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-exclamation-triangle" style="color: var(--sbh-accent);"></i>
+            <h3>Erreur de chargement</h3>
+            <p>${error.message}</p>
+            <button class="btn" onclick="loadClaimsHistory()" style="margin-top: 1rem;">
+              <i class="fas fa-redo"></i> Réessayer
+            </button>
+          </div>
+        `;
+      }
+    }
+
+    auth.onAuthStateChanged(user => {
+      loadClaimsHistory();
+    });
+
+    setTimeout(() => {
+      if (!auth.currentUser) {
+        loadClaimsHistory();
+      }
+    }, 2000);
+  </script>
+</body>
+</html>
