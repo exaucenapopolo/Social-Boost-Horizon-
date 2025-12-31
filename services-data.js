@@ -1,0 +1,327 @@
+// === Données des services (tous vos services) ===
+const servicesData = {
+  facebook: {
+    "Followers (page)": {
+      medium: { price: 1444, time: "2 h" },
+      high:   { price: 1900, time: "1 h" },
+      remark: "VOTRE COMMANDE PEUT PRENDRE UN PEU PLUS DE TEMPS QUE D'HABITUDE EN CAS DE MISE A JOUR DE FACEBOOK (min: 100)"
+    },
+    "Followers (profil)": {
+      medium: { price: 1694, time: "3 h" },
+      high:   { price: 1950, time: "2 h" },
+      remark: "ASSUREZ-VOUS QUE LE PROFIL FACEBOOK EST EN MODE PROFESSIONNEL.SI VOUS NE SAVEZ PAS COMMENT FAIRE, REGARDEZ LE TUTORIEL SUR NOTRE CHAINE YOUTUBE (min: 100)"
+    },
+    "J'aime (page)": {
+      medium: { price: 1900, time: "3 h" },
+      high:   { price: 2300, time: "2 h" },
+      remark: "Vous obtiendrez des followers en bonus. C'EST L'AVANTAGE DE CE SERVICE.Assurez vous que vous envoyez les j'aime a une page et non a un profil ! (min: 100)"
+    },
+    "J'aime (publication)": {
+      medium: { price: 598, time: "2 h" },
+      high:   { price: 900, time: "1 h" },
+      remark: "Si la publication provient d'un compte facebook, Assurez-vous que ces publication sont publiques (min: 100)"
+    },
+    "Partages": {
+      medium: { price: 930, time: "3 h" },
+      high:   { price: 1330, time: "2 h" },
+      remark: "Assurez-vous que la publication est publique.Si la publication provient d'un compte Facebook, assurez vous que les publications du compte sont publiques ! (min: 1000)"
+    },
+    "Membres de groupe": {
+      medium: { price: 1445, time: "3 h" },
+      high:   { price: 1980, time: "2 h" },
+      remark: "Le groupe doit etre public, sinon votre commande sera annulee. (min: 100)"
+    },
+    "Vues de video": {
+      medium: { price: 210, time: "4 h" },
+      high:   { price: 460, time: "3 h" },
+      remark: "Lien direct de la video publique requis. Elle doit etre publique (min: 500)"
+    },
+    "Commentaires personnalises": {
+      medium: { price: 989, time: "24 h" },
+      high:   { price: 1157, time: "18 h" },
+      remark: "Ce sont des comptes masculins americains qui commenteront. (min: 10)"
+    },
+    "Reaction Emoji": {
+      subOptionLabel: "Emoji a choisir",
+      options: {
+        "Reaction Love": { medium: { price: 677, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+        "Reaction Coeur": { medium: { price: 700, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+        "Reaction Rire": { medium: { price: 677, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+        "Reaction Wow": { medium: { price: 677, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+        "Reaction Triste": { medium: { price: 800, time: "3 h" }, high: { price: 1100, time: "2 h" } },
+        "Reaction Colere": { medium: { price: 900, time: "3 h" }, high: { price: 1100, time: "2 h" } }
+      },
+      remark: "Choisissez l'emoji a appliquer aux publications. (min: 100)"
+    },
+    "Nigeria Service": {
+      subOptionLabel: "Type de service Nigeria",
+      options: {
+        "Vues video Facebook Nigeria": { medium: { price: 12000, time: "4 h" }, high: { price: 15000, time: "3 h" } },
+        "J'aime photo/post Nigeria": { medium: { price: 55400, time: "4 h" }, high: { price: 60000, time: "3 h" } },
+        "Commentaires personnalises Nigeria": { medium: { price: 6100, time: "24 h" }, high: { price: 7500, time: "18 h" } },
+        "Abonnes page Facebook Nigeria": { medium: { price: 66826, time: "6 h" }, high: { price: 75000, time: "4 h" } },
+        "J'aime page Facebook Nigeria": { medium: { price: 66826, time: "6 h" }, high: { price: 75000, time: "4 h" } },
+        "Partage publication/video Nigeria": { medium: { price: 8956, time: "4 h" }, high: { price: 12000, time: "3 h" } }
+      },
+      remark: "Services cibles pour le Nigeria. Compte/page publique requis. (min: 100) Pour les commentaires personnalises, le prix est pour 10 commentaires."
+    }
+  },
+  instagram: {
+    "Followers": {
+      medium: { price: 2100, time: "1h" },
+      high:   { price: 3650, time: "30 min" },
+      remark: "Ne changez pas votre nom d'utilisateur. Desactivez l'option A VERIFIER sur votre compte instagram avant d'acheter des followers. (min: 100)"
+    },
+    "J'aime": {
+      medium: { price: 296, time: "30 min" },
+      high:   { price: 520, time: "25 min" },
+      remark: "Baisse de 3-5 % des likes. video publique obligatoire (min: 100)"
+    },
+    "Vues de videos": {
+      medium: { price: 99, time: "30 min" },
+      high:   { price: 210, time: "10 min" },
+      remark: "Assurez vous que la video provient d'un compte instagram qui n'est pas prive ! (min: 1000)"
+    },
+    "Commentaires personnalises": {
+      medium: { price: 217, time: "4 h" },
+      high:   { price: 339, time: "2 h" },
+      remark: "Veuillez ne pas inserer de @ ni # dans vos commentaires. (min: 10)"
+    },
+    "Vues de story": {
+      subOptionLabel: "Type de vues story",
+      options: {
+        "Vues story (asiatiques)": { medium: { price: 323, time: "30 min" }, high: { price: 557, time: "15 min" } },
+        "Vues et impression de story": { medium: { price: 704, time: "30 min" }, high: { price: 900, time: "20 min" } },
+        "Vues story + impression + visite profil": { medium: { price: 1414, time: "45 min" }, high: { price: 1800, time: "30 min" } },
+        "J'aime sur story Instagram": { medium: { price: 1414, time: "45 min" }, high: { price: 1800, time: "30 min" } },
+        "Vues story Instagram femme": { medium: { price: 1200, time: "45 min" }, high: { price: 1500, time: "30 min" } },
+        "Vues story Instagram homme": { medium: { price: 1200, time: "45 min" }, high: { price: 1500, time: "30 min" } }
+      },
+      remark: "Differentes options de vues pour vos stories Instagram. (min: 100)"
+    },
+    "Afrique Service": {
+      subOptionLabel: "Type de service Afrique",
+      options: {
+        "J'aime Instagram mixte africain": { medium: { price: 15842, time: "2 h" }, high: { price: 18000, time: "1 h" } },
+        "Abonne reel Instagram mixte africain": { medium: { price: 18300, time: "3 h" }, high: { price: 22000, time: "2 h" } },
+        "J'aime Instagram Afrique du Sud": { medium: { price: 52400, time: "3 h" }, high: { price: 58000, time: "2 h" } }
+      },
+      remark: "Services cibles pour l'Afrique. Compte public requis. (min: 100)"
+    },
+    "France Service": {
+      subOptionLabel: "Type de service France",
+      options: {
+        "Commentaires personnalises Instagram France": { medium: { price: 11530, time: "24 h" }, high: { price: 14000, time: "18 h" } },
+        "Abonne Instagram France": { medium: { price: 53000, time: "4 h" }, high: { price: 60000, time: "3 h" } },
+        "J'aime Instagram France": { medium: { price: 36000, time: "2 h" }, high: { price: 42000, time: "1 h" } }
+      },
+      remark: "Services cibles pour la France. Compte public requis. (min: 100) Pour les commentaires personnalises, le prix est pour 10 commentaires."
+    },
+    "J'aime pour commentaires": {
+      medium: { price: 14188, time: "2 h" },
+      high:   { price: 16000, time: "1 h" },
+      remark: "J'aime sur un commentaire Instagram specifique. Fournissez le lien du post et precisez le commentaire. (min: 100)"
+    }
+  },
+  youtube: {
+    "Abonnes": {
+      subOptionLabel: "Pays cible",
+      options: {
+        "Abonnes (Mondial)": { medium: { price: 19315, time: "24 h" }, high: { price: 23060, time: "15 h" } },
+        "Abonnes Nigeria": { medium: { price: 95556, time: "48 h" }, high: { price: 110000, time: "36 h" } }
+      },
+      remark: "Il faut vous attendre a une baisse de 1-5 % d'abonnes apres quelques semaines suivant la livraison pour la qualite moyenne uniquement. (min: 50)"
+    },
+    "Vues": {
+      subOptionLabel: "Pays cible",
+      options: {
+        "Vues (Mondial)": { medium: { price: 1350, time: "9 h" }, high: { price: 1980, time: "8 h" } },
+        "Vues Ghana": { medium: { price: 7350, time: "12 h" }, high: { price: 9000, time: "10 h" } },
+        "Vues Nigeria": { medium: { price: 7350, time: "12 h" }, high: { price: 9000, time: "10 h" } }
+      },
+      remark: "Presque aucune baisse de vues. Ce sont des vues de haute qualite : ils regarderont toute votre video jusqu'a la fin (min: 500)"
+    },
+    "J'aime": {
+      subOptionLabel: "Pays cible",
+      options: {
+        "J'aime (Mondial)": { medium: { price: 994, time: "2 h" }, high: { price: 1750, time: "1 h" } },
+        "J'aime Nigeria": { medium: { price: 32730, time: "4 h" }, high: { price: 38000, time: "3 h" } }
+      },
+      remark: "Presque aucune baisse de j'aimes. (min: 500)"
+    },
+    "Commentaires personnalises": {
+      subOptionLabel: "Pays cible",
+      options: {
+        "Commentaires (Mondial)": { medium: { price: 219, time: "24 h" }, high: { price: 489, time: "18 h" } },
+        "Commentaires Nigeria": { medium: { price: 6900, time: "48 h" }, high: { price: 8500, time: "36 h" } }
+      },
+      remark: "Veuillez ne pas inserer de @ ni # dans vos commentaires. Prix pour 10 commentaires. (min: 10)"
+    },
+    "Partages sociaux": {
+      subOptionLabel: "Pays cible",
+      options: {
+        "Partages Afrique du Sud": { medium: { price: 5300, time: "6 h" }, high: { price: 7000, time: "4 h" } },
+        "Partages Ghana": { medium: { price: 5300, time: "6 h" }, high: { price: 7000, time: "4 h" } },
+        "Partages Nigeria": { medium: { price: 5300, time: "6 h" }, high: { price: 7000, time: "4 h" } }
+      },
+      remark: "Partages de votre video sur les reseaux sociaux. Video publique requise. (min: 100)"
+    },
+    "Monetisation": {
+      subOptionLabel: "Type de vues monetisation",
+      options: {
+        "Vues actives reelles sur YouTube": { medium: { price: 7565, time: "24 h" }, high: { price: 9000, time: "18 h" } },
+        "Vues YouTube revenu monetisable": { medium: { price: 3961, time: "24 h" }, high: { price: 5000, time: "18 h" } },
+        "Vues YouTube 100% reel avec engagement complet et revenu": { medium: { price: 3722, time: "24 h" }, high: { price: 4500, time: "18 h" } }
+      },
+      remark: "Vues speciales pour la monetisation YouTube. Ces vues comptent pour vos revenus. (min: 1000)"
+    }
+  },
+  tiktok: {
+    "Followers": {
+      subOptionLabel: "Pays cible",
+      options: {
+        "Followers (Mondial)": { medium: { price: 1997, time: "2 h" }, high: { price: 2567, time: "1 h" } },
+        "Followers Allemagne": { medium: { price: 5657, time: "4 h" }, high: { price: 7000, time: "3 h" } },
+        "Followers Nigeria": { medium: { price: 78000, time: "6 h" }, high: { price: 90000, time: "4 h" } }
+      },
+      remark: "Assurez-vous que le compte Tiktok n'est pas prive, et ne changez pas le nom d'utilisateur du compte pendant que des followers sont ajoutes ! (min: 100)"
+    },
+    "J'aime": {
+      subOptionLabel: "Pays cible",
+      options: {
+        "J'aime (Mondial)": { medium: { price: 99, time: "30 min" }, high: { price: 278, time: "10 min" } },
+        "J'aime Etats-Unis": { medium: { price: 1000, time: "1 h" }, high: { price: 1500, time: "45 min" } },
+        "J'aime Royaume-Uni": { medium: { price: 1563, time: "1 h" }, high: { price: 2000, time: "45 min" } },
+        "J'aime Italie": { medium: { price: 900, time: "1 h" }, high: { price: 1200, time: "45 min" } },
+        "J'aime UE et Etats-Unis": { medium: { price: 20900, time: "2 h" }, high: { price: 25000, time: "1 h 30" } },
+        "J'aime Bresil": { medium: { price: 700, time: "1 h" }, high: { price: 1000, time: "45 min" } },
+        "J'aime Nigeria": { medium: { price: 55067, time: "4 h" }, high: { price: 65000, time: "3 h" } }
+      },
+      remark: "Lien direct de la video. (min: 50)"
+    },
+    "Vues": {
+      subOptionLabel: "Type de vues",
+      options: {
+        "Vues (Mondial)": { medium: { price: 78, time: "30 min" }, high: { price: 190, time: "15 min" } },
+        "Vues Monetisation": { medium: { price: 1000, time: "2 h" }, high: { price: 1500, time: "1 h" } }
+      },
+      remark: "Video publique. Aucune baisse. ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ EST LE LIEN D'UNE VIDEO DE VOTRE COMPTE TIKTOK ! (min: 500)"
+    },
+    "Vues pays cibles": {
+      subOptionLabel: "Pays cible",
+      options: {
+        "Vues Algerie": { medium: { price: 250, time: "1 h" }, high: { price: 400, time: "45 min" } },
+        "Vues Guyane": { medium: { price: 250, time: "1 h" }, high: { price: 400, time: "45 min" } },
+        "Vues Belgique": { medium: { price: 260, time: "1 h" }, high: { price: 420, time: "45 min" } },
+        "Vues Tchad": { medium: { price: 260, time: "1 h" }, high: { price: 420, time: "45 min" } },
+        "Vues Canada": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Cameroun": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Burkina Faso": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Bulgarie": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Botswana": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Benin": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Angola": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Zambie": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Soudan": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Maroc": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Martinique": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Mali": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Madagascar": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Guadeloupe": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Ghana": { medium: { price: 3200, time: "1 h 30" }, high: { price: 4000, time: "1 h" } },
+        "Vues Allemagne": { medium: { price: 3200, time: "1 h 30" }, high: { price: 4000, time: "1 h" } },
+        "Vues Gabon": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Egypte": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Republique Dominicaine": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Paraguay": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Guinee equatoriale": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues Salvador": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Vues France": { medium: { price: 3200, time: "1 h 30" }, high: { price: 4000, time: "1 h" } },
+        "Vues Nigeria": { medium: { price: 10976, time: "2 h" }, high: { price: 14000, time: "1 h 30" } }
+      },
+      remark: "Vues ciblees par pays. Video publique requise. (min: 500)"
+    },
+    "Sauvegarde de videos": {
+      medium: { price: 90, time: "20 min" },
+      high:   { price: 198, time: "10 min" },
+      remark: "Video publique requise.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ EST LE LIEN D'UNE VIDEO DE VOTRE COMPTE TIKTOK ! (min: 100)"
+    },
+    "Partages de videos": {
+      medium: { price: 159, time: "30 min" },
+      high:   { price: 380, time: "15 min" },
+      remark: "Video publique.ASSUREZ-VOUS QUE LE LIEN QUE VOUS SOUMETTEZ EST LE LIEN D'UNE VIDEO DE VOTRE COMPTE TIKTOK ! (min: 100)"
+    },
+    "Commentaires personnalises": {
+      subOptionLabel: "Type de commentaires",
+      options: {
+        "Commentaires (Mondial)": { medium: { price: 397, time: "1 h" }, high: { price: 569, time: "30 min" } },
+        "Commentaires aleatoires": { medium: { price: 1700, time: "1 h" }, high: { price: 2200, time: "45 min" } },
+        "Commentaires auto Nigeria": { medium: { price: 6683, time: "2 h" }, high: { price: 8000, time: "1 h 30" } }
+      },
+      remark: "Assurez-vous de ne pas inserer de @ ni # dans vos commentaires. Prix pour 10 commentaires. (min: 10)"
+    },
+    "Live/Direct TikTok": {
+      subOptionLabel: "Type de service Live",
+      options: {
+        "J'aime pour le Live": { medium: { price: 750, time: "15 min" }, high: { price: 1000, time: "10 min" } },
+        "Vues en direct (20 min)": { medium: { price: 2750, time: "20 min" }, high: { price: 3010, time: "20 min" } },
+        "Vues en direct (1 h)": { medium: { price: 3800, time: "1 h" }, high: { price: 4010, time: "1 h" } },
+        "Vues en direct (1 h 30)": { medium: { price: 5850, time: "1 h 30" }, high: { price: 6500, time: "1 h 30" } },
+        "Commentaires en direct personnalises": { medium: { price: 1500, time: "30 min" }, high: { price: 2000, time: "20 min" } }
+      },
+      remark: "Services pour votre Live TikTok. J'aime et commentaires arriveront pendant votre direct. (min: 50 pour j'aime, min: 10 pour commentaires)"
+    }
+  },
+  telegram: {
+    "Membres groupe/canal": {
+      medium: { price: 1090, time: "3 h" },
+      high:   { price: 1950, time: "1 h" },
+      remark: "Lien d'invitation public requis. (min: 500)"
+    },
+    "Vues publication specifique": {
+      subOptionLabel: "Qualite des vues",
+      options: {
+        "Qualite moyenne": { medium: { price: 150, time: "Instantane" }, high: { price: 150, time: "Instantane" } },
+        "Haute qualite":   { medium: { price: 299, time: "Instantane" }, high: { price: 299, time: "Instantane" } }
+      },
+      remark: "Vues sur la publication specifique."
+    },
+    "Vues des publications precedentes": {
+      subOptionLabel: "Nombre de vues",
+      options: {
+        "20 vues":  { medium: { price: 880, time: "Instantane" }, high: { price: 1000, time: "Instantane" } },
+        "50 vues":  { medium: { price: 1356, time: "Instantane" }, high: { price: 1771, time: "Instantane" } },
+        "100 vues": { medium: { price: 2357, time: "Instantane" }, high: { price: 2887, time: "Instantane" } }
+      },
+      remark: "Choisissez le nombre de vues."
+    },
+    "Vues futures publications": {
+      subOptionLabel: "Nombre de vues futures",
+      options: {
+        "20 futures vues":  { medium: { price: 970,  time: "Instantane" }, high: { price: 1277, time: "Instantane" } },
+        "50 futures vues":  { medium: { price: 1995, time: "Instantane" }, high: { price: 2357, time: "Instantane" } },
+        "100 futures vues": { medium: { price: 3999, time: "Instantane" }, high: { price: 4599, time: "Instantane" } }
+      },
+      remark: "Vues programmees pour futures publications."
+    },
+    "Reactions publication specifique": {
+      medium: { price: 210, time: "Instantane" },
+      high:   { price: 455, time: "Instantane" },
+      remark: "Reaction sur la publication specifique. (min: 10)"
+    },
+    "Reactions precedentes": {
+      subOptionLabel: "Nombre de reactions",
+      options: {
+        "20 reactions":  { medium: { price: 1250, time: "Instantane" }, high: { price: 1250, time: "Instantane" } },
+        "50 reactions":  { medium: { price: 3000, time: "Instantane" }, high: { price: 3000, time: "Instantane" } },
+        "100 reactions": { medium: { price: 5000, time: "Instantane" }, high: { price: 5000, time: "Instantane" } }
+      },
+      remark: "Reactions sur publications precedentes selon votre nombre selectionne."
+    },
+    "Reactions futures": {
+      subOptionLabel: "Nombre de reactions futures",
+      options: {
+        "20 reactions":  { medium: { price: 1250, time: "Instantane" }, high: { price: 1250, time: "Instantane" } },
+        "50 reactions":  { medium: { price: 3000, time: "Instantane" }, high: { price: 3000, time: "Instantane" } },
+        "100 reactions": { medium: { price: 5000, time: "Instantane" }, high: { price: 5000, time: "Instantane" } }
+      },
