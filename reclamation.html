@@ -566,11 +566,9 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    const BACKEND_URL = window.location.hostname.includes('localhost') 
+    const BACKEND_URL = window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')
       ? 'http://localhost:5000'
-      : window.location.hostname.includes('replit') 
-        ? 'https://social-boost-exaucenapopolo2.replit.app'
-        : '';
+      : 'https://social-boost-exaucenapopolo2.replit.app';
 
     const hamburgerBtn = document.getElementById('hamburgerBtn');
     const header = document.querySelector('header');
@@ -593,8 +591,10 @@
     let currentUser = null;
     let userData = null;
     let verifiedOrder = null;
+    let authChecked = false;
 
     auth.onAuthStateChanged(async (user) => {
+      authChecked = true;
       if (user) {
         currentUser = user;
         console.log('Utilisateur connecté:', user.uid);
@@ -609,9 +609,16 @@
         }
       } else {
         console.log('Utilisateur non connecté, redirection...');
-        window.location.href = 'register.html';
+        window.location.href = 'login.html';
       }
     });
+
+    setTimeout(() => {
+      if (!authChecked) {
+        console.log('Auth timeout, redirection...');
+        window.location.href = 'login.html';
+      }
+    }, 5000);
 
     document.getElementById('verifyBtn').addEventListener('click', async () => {
       const orderId = document.getElementById('orderNumber').value.trim();
