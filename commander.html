@@ -1647,7 +1647,7 @@
     icons.forEach(i => i.addEventListener('click', () => selectPlatform(i.dataset.platform)));
     if (serviceSelect) serviceSelect.addEventListener('change', onServiceChange);
     if (qualitySelect) qualitySelect.addEventListener('change', updateDetails);
-    if (subOptionSelect) subOptionSelect.addEventListener('change', updateDetails);
+    if (subOptionSelect) subOptionSelect.addEventListener('change', onSubOptionChange);
     if (contactType) contactType.addEventListener('change', toggleContactField);
     if (orderForm) orderForm.addEventListener('submit', onSubmit);
     if (speedModeToggle) speedModeToggle.addEventListener('change', toggleSpeedMode);
@@ -1804,6 +1804,56 @@
       updateDetails();
     }
 
+    function onSubOptionChange() {
+      const selectedServiceKey = serviceSelect.value;
+      const selectedSubOption = subOptionSelect.value;
+      
+      if (!selectedServiceKey || !selectedSubOption) {
+        updateDetails();
+        return;
+      }
+      
+      // Verifier si la sous-option est un service de commentaires personnalises
+      const isSubOptionCommentService = selectedSubOption.toLowerCase().includes('commentaires personnalises') 
+        || selectedSubOption.toLowerCase().includes('commentaires (mondial)')
+        || selectedSubOption.toLowerCase().includes('commentaires nigeria')
+        || selectedSubOption.toLowerCase().includes('commentaires en direct personnalises');
+      
+      if (isSubOptionCommentService) {
+        // Transformer en textarea si ce n'est pas deja le cas
+        if (quantityInput.tagName !== 'TEXTAREA') {
+          const newTextarea = document.createElement('textarea');
+          newTextarea.id = 'quantityInput';
+          newTextarea.name = 'comments';
+          newTextarea.rows = '5';
+          newTextarea.placeholder = 'Un commentaire par ligne...';
+          quantitySection.replaceChild(newTextarea, quantityInput);
+          quantityInput = newTextarea;
+          attachQuantityInputListener();
+        }
+        quantLabel.textContent = 'Vos commentaires (un par ligne)';
+        commentsCount.style.display = 'block';
+        quantityInput.disabled = false;
+      } else {
+        // Retour au champ quantite normal si necessaire
+        if (quantityInput.tagName === 'TEXTAREA') {
+          const newInput = document.createElement('input');
+          newInput.id = 'quantityInput';
+          newInput.name = 'quantity';
+          newInput.type = 'number';
+          newInput.min = '1';
+          newInput.placeholder = 'Ex : 1000';
+          quantitySection.replaceChild(newInput, quantityInput);
+          quantityInput = newInput;
+          attachQuantityInputListener();
+        }
+        quantLabel.textContent = 'Quantité';
+        commentsCount.style.display = 'none';
+      }
+      
+      updateDetails();
+    }
+
     function toggleSpeedMode() {
       isSpeedModeActive = speedModeToggle.checked;
       
@@ -1840,10 +1890,16 @@
         minQuantity = parseInt(remarkMatch[1], 10);
       }
 
+      // Verifier si c'est un service de commentaires personnalises (service principal ou sous-option)
+      const selectedSubOption = subOptionSelect.value || '';
       const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalises');
+      const isSubOptionCommentService = selectedSubOption.toLowerCase().includes('commentaires personnalises') 
+        || selectedSubOption.toLowerCase().includes('commentaires (mondial)')
+        || selectedSubOption.toLowerCase().includes('commentaires nigeria')
+        || selectedSubOption.toLowerCase().includes('commentaires en direct personnalises');
+      const isAnyCommentService = isCommentService || isSubOptionCommentService;
 
       if (serviceDef.options) {
-        const selectedSubOption = subOptionSelect.value;
         if (!selectedSubOption) {
           priceEstimate.textContent = 'Prix estimé : ' + formatPrice(0);
           priceDetails.textContent  = '';
@@ -1867,6 +1923,25 @@
           calculatedPrice = currentConfig.price;
           estimatedTime = currentConfig.time;
           pricePerThousand = calculatedPrice;
+        } else if (isSubOptionCommentService) {
+          // Gestion des commentaires personnalises dans les sous-options
+          unitPrice = currentConfig.price / 10;  // Prix pour 10 commentaires
+          pricePerThousand = currentConfig.price;
+          
+          const lines = quantityInput.value.split('\n').filter(l => l.trim());
+          const count = lines.length;
+          commentsCount.textContent = count < minQuantity
+            ? `${count} commentaire(s) (minimum ${minQuantity})`
+            : `${count} commentaire(s)`;
+
+          if (count > 0 && count < minQuantity) {
+            quantityError.textContent = `Vous devez saisir au moins ${minQuantity} commentaires.`;
+            quantityError.style.display = 'block';
+          } else {
+            quantityError.style.display = 'none';
+          }
+          calculatedPrice = Math.round(count * unitPrice);
+          estimatedTime = currentConfig.time;
         } else {
           const quantity = parseInt(quantityInput.value) || 0;
           // Modification pour les commentaires personnalisés
@@ -2049,11 +2124,19 @@
         minQuantity = parseInt(remarkMatch[1], 10);
       }
 
+      // Verifier si c'est un service de commentaires personnalises (service principal ou sous-option)
+      const selectedSubOption = subOptionSelect.value || '';
       const isCommentService = selectedServiceKey.toLowerCase().includes('commentaires personnalises');
+      const isSubOptionCommentService = selectedSubOption.toLowerCase().includes('commentaires personnalises') 
+        || selectedSubOption.toLowerCase().includes('commentaires (mondial)')
+        || selectedSubOption.toLowerCase().includes('commentaires nigeria')
+        || selectedSubOption.toLowerCase().includes('commentaires en direct personnalises');
+      const isAnyCommentService = isCommentService || isSubOptionCommentService;
+      
       let quantityForValidation = 0;
       let commentsArray = [];
 
-      if (isCommentService) {
+      if (isAnyCommentService) {
         commentsArray = quantityInput.value.split('\n').filter(l => l.trim());
         quantityForValidation = commentsArray.length;
         if (quantityForValidation < minQuantity) {
@@ -2081,8 +2164,8 @@
         quality:     qualitySelect.value,
         subOption:   subOptionSection.style.display === 'block' ? subOptionSelect.value : undefined,
         link:        linkInput.value,
-        quantity:    isCommentService || quantityInput.disabled ? undefined : Number(quantityInput.value),
-        comments:    isCommentService ? commentsArray : undefined,
+        quantity:    isAnyCommentService || quantityInput.disabled ? undefined : Number(quantityInput.value),
+        comments:    isAnyCommentService ? commentsArray : undefined,
         contactType: contactType.value,
         contact:     contactType.value === 'whatsapp' ? contactInput.value : emailInput.value,
         isResellerOrder: false,  // Commande normale (pas revendeur)
