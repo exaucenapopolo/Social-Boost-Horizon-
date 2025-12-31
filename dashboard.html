@@ -1415,6 +1415,14 @@
       <p>Gerez votre statut de revendeur sur SOCIAL BOOST HORIZON.</p>
       <a href="reseller.html" class="btn">Acceder</a>
     </div>
+    
+    <!-- 7. Réclamation -->
+    <div class="dashboard-card" data-aos="fade-up">
+      <i class="fas fa-sync-alt"></i>
+      <h2>Réclamation</h2>
+      <p>Vous avez commandé en haute qualité et subi des chutes ? Demandez un remplissage gratuit.</p>
+      <a href="reclamation.html" class="btn">Faire une réclamation</a>
+    </div>
   </div>
 
   <!-- Footer -->
@@ -1810,15 +1818,40 @@
               showWelcomeModal();
             }
           } else {
-            console.log("Aucun document utilisateur trouvé! Création...");
-            db.collection("users").doc(userId).set({
-              balance: 0,
-              country: 'Cameroun'
-            });
-            updateBalanceDisplay(0);
+            console.log("Aucun document utilisateur trouvé! Récupération des infos...");
             
-            if (isNewUser(userId)) {
-              showWelcomeModal();
+            // Récupérer les infos depuis Firebase Auth
+            const authUser = auth.currentUser;
+            if (authUser) {
+              const displayName = authUser.displayName || '';
+              const email = authUser.email || '';
+              const username = displayName 
+                ? displayName.replace(/\s+/g, '_').toLowerCase() 
+                : email.split('@')[0] || 'utilisateur';
+              
+              // Créer un document complet
+              db.collection("users").doc(userId).set({
+                userId: userId,
+                username: username,
+                email: email,
+                phone: '',
+                country: 'Cameroun',
+                balance: 0,
+                referralBalance: 0,
+                withdrawalBalance: 0,
+                referralCode: Math.random().toString(36).substring(2,10).toUpperCase(),
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                provider: authUser.providerData[0]?.providerId || 'unknown'
+              }).then(() => {
+                console.log("✅ Document utilisateur créé avec succès");
+                userNameSpan.textContent = username;
+                updateBalanceDisplay(0);
+              }).catch(err => {
+                console.error("Erreur création document:", err);
+              });
+            } else {
+              // Pas d'utilisateur authentifié, rediriger
+              window.location.href = "login.html";
             }
           }
         }, (error) => {

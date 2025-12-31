@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Réclamation – Social Boost Horizon</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@600;700;800&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+  <style>
+    :root {
+      --sbh-dark-blue: #0A162B;
+      --sbh-gradient-start: #1e3c72;
+      --sbh-gradient-end: #6a0dad;
+      --sbh-btn-color: #1E90FF;
+      --sbh-btn-hover: #187bcd;
+      --sbh-icon-color: #4CAF50;
+      --sbh-text-white: #FFFFFF;
+      --sbh-text-green: #4CAF50;
+      --sbh-card-bg: rgba(17, 32, 58, 0.6);
+      --sbh-card-border: rgba(255, 255, 255, 0.1);
+      --sbh-text-light: rgba(255, 255, 255, 0.9);
+      --sbh-accent: #FF6B6B;
+      --sbh-light-blue: #4DA6FF;
+      --font: 'Roboto', sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: var(--font);
+      color: var(--sbh-text-white);
+      background: var(--sbh-dark-blue);
+      position: relative;
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .background-animation {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      background-color: var(--sbh-dark-blue);
+      overflow: hidden;
+    }
+    .background-animation::before,
+    .background-animation::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.4);
+      animation: twinkle 5s infinite alternate;
+    }
+    .background-animation::before {
+      width: 2px;
+      height: 2px;
+      box-shadow:
+        100px  50px  0 0 white, 200px 150px  0 0 white, 300px 250px  0 0 white,
+        400px  70px  0 0 white,  50px 300px  0 0 white, 350px 100px  0 0 white,
+        500px 400px  0 0 white, 600px 120px  0 0 white, 700px 350px  0 0 white;
+      animation-delay: 0s;
+    }
+    .background-animation::after {
+      width: 3px;
+      height: 3px;
+      box-shadow:
+        150px 200px  0 0 white, 250px 300px  0 0 white,  50px 100px  0 0 white,
+        300px  10px  0 0 white, 450px 200px  0 0 white,  10px 250px  0 0 white;
+      animation-delay: 2s;
+    }
+    @keyframes twinkle {
+      0%   { opacity: 0.3; transform: scale(1); }
+      50%  { opacity: 0.7; transform: scale(1.1); }
+      100% { opacity: 0.3; transform: scale(1); }
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    h1, h2, h3 {
+      font-family: 'Montserrat', sans-serif;
+      color: var(--sbh-text-white);
+      text-align: center;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    .logo-text {
+      display: flex;
+      flex-direction: column;
+      font-family: 'Poppins', sans-serif;
+      text-decoration: none;
+      line-height: 1.2;
+    }
+    .logo-text .text-social,
+    .logo-text .text-horizon {
+      color: var(--sbh-text-white);
+      font-size: 1.3rem;
+      font-weight: 600;
+    }
+    .logo-text .boost-line {
+      display: flex;
+      align-items: center;
+      color: var(--sbh-text-green);
+      font-size: 1.8rem;
+      font-weight: 800;
+    }
+    .logo-text .boost-line img {
+      height: 1.8rem;
+      margin-right: 0.4rem;
+    }
+    .icon-hamburger {
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: white;
+      display: none;
+    }
+    @media (max-width: 768px) {
+      .icon-hamburger { display: block; }
+    }
+
+    .mobile-menu {
+      display: none;
+      flex-direction: column;
+      background: rgba(30, 60, 114, 0.95);
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      padding: 1rem;
+      gap: 1rem;
+    }
+    header.open .mobile-menu {
+      display: flex;
+    }
+    .mobile-menu a {
+      color: white;
+      text-decoration: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      transition: background 0.3s;
+    }
+    .mobile-menu a:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    .main-container {
+      flex: 1;
+      padding: 2rem;
+      max-width: 800px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .page-title {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    .page-title i {
+      font-size: 3rem;
+      color: var(--sbh-text-green);
+      margin-bottom: 1rem;
+    }
+    .page-title h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+    .page-title p {
+      color: var(--sbh-text-light);
+      font-size: 1rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .info-box {
+      background: rgba(76, 175, 80, 0.15);
+      border: 1px solid var(--sbh-text-green);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 2rem 0;
+    }
+    .info-box h3 {
+      color: var(--sbh-text-green);
+      margin-bottom: 1rem;
+      font-size: 1.2rem;
+    }
+    .info-box ul {
+      list-style: none;
+      padding: 0;
+    }
+    .info-box li {
+      padding: 0.5rem 0;
+      padding-left: 1.5rem;
+      position: relative;
+      color: var(--sbh-text-light);
+    }
+    .info-box li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: var(--sbh-text-green);
+      font-weight: bold;
+    }
+
+    .form-container {
+      background: var(--sbh-card-bg);
+      border: 1px solid var(--sbh-card-border);
+      border-radius: 16px;
+      padding: 2rem;
+      backdrop-filter: blur(10px);
+    }
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: var(--sbh-text-light);
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 1rem;
+      border: 1px solid var(--sbh-card-border);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--sbh-text-white);
+      font-size: 1rem;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--sbh-btn-color);
+      box-shadow: 0 0 10px rgba(30, 144, 255, 0.3);
+    }
+    .form-group textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+    .form-group select option {
+      background: var(--sbh-dark-blue);
+      color: var(--sbh-text-white);
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 1rem 2rem;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(30, 144, 255, 0.4);
+    }
+    .submit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--sbh-light-blue);
+      text-decoration: none;
+      margin-bottom: 2rem;
+      transition: color 0.3s;
+    }
+    .back-link:hover {
+      color: var(--sbh-text-white);
+    }
+
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 1rem 1.5rem;
+      border-radius: 10px;
+      color: white;
+      font-weight: 500;
+      z-index: 1000;
+      animation: slideIn 0.3s ease;
+      max-width: 350px;
+    }
+    .notification.success {
+      background: linear-gradient(45deg, #4CAF50, #45a049);
+    }
+    .notification.error {
+      background: linear-gradient(45deg, #f44336, #d32f2f);
+    }
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(100px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    footer {
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      padding: 1.5rem;
+      text-align: center;
+      margin-top: auto;
+    }
+    footer p {
+      color: rgba(255,255,255,0.8);
+      font-size: 0.9rem;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="background-animation"></div>
+
+  <header>
+    <a href="dashboard.html" class="logo-text">
+      <span class="text-social">SOCIAL</span>
+      <div class="boost-line">
+        <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo">
+        <span class="text-boost">BOOST</span>
+      </div>
+      <span class="text-horizon">HORIZON</span>
+    </a>
+    <i class="fa-solid fa-bars icon-hamburger" id="hamburgerBtn"></i>
+    <div class="mobile-menu">
+      <a href="dashboard.html"><i class="fa-solid fa-house"></i> Accueil</a>
+      <a href="commandes.html"><i class="fa-solid fa-shopping-cart"></i> Mes commandes</a>
+      <a href="wallet.html"><i class="fa-solid fa-wallet"></i> Mon portefeuille</a>
+      <a href="assistant.html"><i class="fa-solid fa-headset"></i> Assistance</a>
+    </div>
+  </header>
+
+  <main class="main-container" data-aos="fade-up">
+    <a href="dashboard.html" class="back-link">
+      <i class="fas fa-arrow-left"></i> Retour au tableau de bord
+    </a>
+
+    <div class="page-title">
+      <i class="fas fa-sync-alt"></i>
+      <h1>Réclamation - Remplissage Gratuit</h1>
+      <p>Vous avez commandé en haute qualité et vous avez subi des chutes ? Remplissez ce formulaire pour demander un remplissage gratuit.</p>
+    </div>
+
+    <div class="info-box">
+      <h3><i class="fas fa-info-circle"></i> Conditions pour une réclamation</h3>
+      <ul>
+        <li>Votre commande doit être en <strong>haute qualité</strong></li>
+        <li>Les chutes doivent être survenues dans les 30 jours suivant la livraison</li>
+        <li>Vous devez fournir le numéro de commande original</li>
+        <li>Le lien de votre profil/publication doit être le même que la commande initiale</li>
+        <li>Le remplissage sera effectué dans un délai de 24 à 72 heures</li>
+      </ul>
+    </div>
+
+    <div class="form-container">
+      <form id="reclamationForm">
+        <div class="form-group">
+          <label for="orderNumber"><i class="fas fa-hashtag"></i> Numéro de commande</label>
+          <input type="text" id="orderNumber" placeholder="Ex: SBH_1234567890_abc123" required>
+        </div>
+
+        <div class="form-group">
+          <label for="platform"><i class="fas fa-share-alt"></i> Plateforme</label>
+          <select id="platform" required>
+            <option value="">Sélectionnez la plateforme</option>
+            <option value="Instagram">Instagram</option>
+            <option value="TikTok">TikTok</option>
+            <option value="Facebook">Facebook</option>
+            <option value="YouTube">YouTube</option>
+            <option value="Twitter">Twitter (X)</option>
+            <option value="Telegram">Telegram</option>
+            <option value="LinkedIn">LinkedIn</option>
+            <option value="Spotify">Spotify</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="serviceType"><i class="fas fa-tags"></i> Type de service</label>
+          <select id="serviceType" required>
+            <option value="">Sélectionnez le type</option>
+            <option value="Followers">Followers / Abonnés</option>
+            <option value="Likes">Likes / J'aime</option>
+            <option value="Vues">Vues</option>
+            <option value="Commentaires">Commentaires</option>
+            <option value="Partages">Partages</option>
+            <option value="Membres">Membres (Telegram)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="link"><i class="fas fa-link"></i> Lien du profil ou de la publication</label>
+          <input type="url" id="link" placeholder="https://..." required>
+        </div>
+
+        <div class="form-group">
+          <label for="quantityLost"><i class="fas fa-chart-line"></i> Nombre approximatif de chutes</label>
+          <input type="number" id="quantityLost" placeholder="Ex: 500" min="1" required>
+        </div>
+
+        <div class="form-group">
+          <label for="description"><i class="fas fa-comment-alt"></i> Description (optionnel)</label>
+          <textarea id="description" placeholder="Décrivez votre problème si nécessaire..."></textarea>
+        </div>
+
+        <button type="submit" class="submit-btn" id="submitBtn">
+          <i class="fas fa-paper-plane"></i> Envoyer ma réclamation
+        </button>
+      </form>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 Social Boost Horizon. Tous droits réservés.</p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  <script>
+    AOS.init({ duration: 800, once: true });
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA5bPcJOF5M_sAqd-7bXgv1s8UACYPulp4",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.firebasestorage.app",
+      messagingSenderId: "961aborated38625653",
+      appId: "1:961338625653:web:19dcaeef20a468de73ca8e",
+      measurementId: "G-9XJFN7FCGT"
+    };
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const hamburgerBtn = document.getElementById('hamburgerBtn');
+    const header = document.querySelector('header');
+    hamburgerBtn.addEventListener('click', () => {
+      header.classList.toggle('open');
+    });
+
+    function showNotification(message, type) {
+      const existing = document.querySelector('.notification');
+      if (existing) existing.remove();
+      
+      const notif = document.createElement('div');
+      notif.className = `notification ${type}`;
+      notif.innerHTML = message;
+      document.body.appendChild(notif);
+      
+      setTimeout(() => notif.remove(), 5000);
+    }
+
+    let currentUser = null;
+    let userData = null;
+
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        currentUser = user;
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        if (userDoc.exists) {
+          userData = userDoc.data();
+        }
+      } else {
+        window.location.href = 'login.html';
+      }
+    });
+
+    document.getElementById('reclamationForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Envoi en cours...';
+
+      const orderNumber = document.getElementById('orderNumber').value.trim();
+      const platform = document.getElementById('platform').value;
+      const serviceType = document.getElementById('serviceType').value;
+      const link = document.getElementById('link').value.trim();
+      const quantityLost = parseInt(document.getElementById('quantityLost').value);
+      const description = document.getElementById('description').value.trim();
+
+      try {
+        const orderQuery = await db.collection('commandes')
+          .where('orderId', '==', orderNumber)
+          .limit(1)
+          .get();
+
+        let originalOrder = null;
+        if (!orderQuery.empty) {
+          originalOrder = orderQuery.docs[0].data();
+          
+          if (originalOrder.qualite !== 'haute' && originalOrder.quality !== 'haute') {
+            showNotification('Cette commande n\'est pas en haute qualité. Le remplissage gratuit est réservé aux commandes haute qualité.', 'error');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Envoyer ma réclamation';
+            return;
+          }
+        }
+
+        const reclamationId = 'REC_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+
+        await db.collection('reclamations').doc(reclamationId).set({
+          reclamationId: reclamationId,
+          userId: currentUser.uid,
+          userEmail: currentUser.email || userData?.email || '',
+          userName: userData?.username || currentUser.displayName || '',
+          orderNumber: orderNumber,
+          platform: platform,
+          serviceType: serviceType,
+          link: link,
+          quantityLost: quantityLost,
+          description: description,
+          status: 'pending',
+          originalOrderFound: !orderQuery.empty,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        const adminPhone = '+237699853665';
+        const message = encodeURIComponent(
+          `🔄 *NOUVELLE RÉCLAMATION*\n\n` +
+          `📋 ID: ${reclamationId}\n` +
+          `👤 Client: ${userData?.username || currentUser.email}\n` +
+          `📧 Email: ${currentUser.email}\n\n` +
+          `📦 Commande: ${orderNumber}\n` +
+          `📱 Plateforme: ${platform}\n` +
+          `🏷️ Service: ${serviceType}\n` +
+          `🔗 Lien: ${link}\n` +
+          `📉 Chutes: ${quantityLost}\n\n` +
+          `💬 Description: ${description || 'Aucune'}\n\n` +
+          `⏰ Date: ${new Date().toLocaleString('fr-FR')}`
+        );
+
+        showNotification('✅ Réclamation envoyée avec succès ! Nous allons traiter votre demande sous 24-72h.', 'success');
+
+        setTimeout(() => {
+          window.open(`https://wa.me/${adminPhone}?text=${message}`, '_blank');
+        }, 1500);
+
+        document.getElementById('reclamationForm').reset();
+
+      } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('❌ Erreur lors de l\'envoi. Veuillez réessayer.', 'error');
+      }
+
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Envoyer ma réclamation';
+    });
+  </script>
+</body>
+</html>
