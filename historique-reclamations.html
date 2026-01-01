@@ -400,16 +400,20 @@
     AOS.init({ duration: 800, once: true });
 
     const firebaseConfig = {
-      apiKey: "AIzaSyCohqscbDIAZ7euM7QzfNMG6b-5kD3gL8Q",
+      apiKey: "AIzaSyA5bPcJOF5M_sAqd-7bXgv1s8UACYPulp4",
       authDomain: "social-boost-horizon.firebaseapp.com",
       projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.appspot.com",
-      messagingSenderId: "888375798638",
-      appId: "1:888375798638:web:58dc41f67f66d0d2e6e8ef"
+      storageBucket: "social-boost-horizon.firebasestorage.app",
+      messagingSenderId: "961338625653",
+      appId: "1:961338625653:web:19dcaeef20a468de73ca8e",
+      measurementId: "G-9XJFN7FCGT"
     };
 
-    firebase.initializeApp(firebaseConfig);
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
     const auth = firebase.auth();
+    const db = firebase.firestore();
 
     const API_BASE = window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')
       ? 'http://localhost:5000'
@@ -560,12 +564,15 @@
       }
     }
 
+    let currentUserId = null;
+
     auth.onAuthStateChanged(user => {
-      if (!user) {
+      if (user) {
+        currentUserId = user.uid;
+        loadClaimsHistory();
+      } else {
         window.location.href = 'login.html';
-        return;
       }
-      loadClaimsHistory();
     });
   </script>
 </body>
