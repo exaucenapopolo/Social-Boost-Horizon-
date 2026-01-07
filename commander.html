@@ -2209,57 +2209,93 @@
       }
 
       try {
-        // Simulation d'envoi de commande (remplacer par votre vrai endpoint)
-        // Ajout d'un délai pour simuler le chargement
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // CHANGEMENT 1: Utilisation du nouveau serveur Replit
         const res = await fetch('https://social-boost-exaucenapopolo2.replit.app/order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
         
-        if (!res.ok) {
-          const errorData = await res.json();
+        const responseData = await res.json().catch(() => ({}));
+        
+        if (!res.ok || !responseData.success) {
+          const errorCode = responseData.errorCode || 'UNKNOWN_ERROR';
+          const errorMsg = responseData.error || 'Erreur inattendue';
           
-          // Vérification spécifique pour les erreurs de solde insuffisant
-          if (errorData.error && errorData.error.toLowerCase().includes("solde")) {
-            throw new Error("SOLDE_INSUFFISANT");
+          let errorHtml = '';
+          let errorOptions = {};
+          
+          switch (errorCode) {
+            case 'INSUFFICIENT_BALANCE':
+              errorHtml = `
+                <strong>❌ Solde insuffisant !</strong><br>
+                Votre solde est insuffisant pour effectuer cette commande.<br><br>
+                Veuillez recharger votre solde pour continuer.
+              `;
+              errorOptions = { isBalanceError: true };
+              break;
+              
+            case 'SERVER_ERROR':
+              errorHtml = `
+                <strong>❌ Erreur serveur</strong><br>
+                Une erreur s'est produite lors du traitement de votre commande.<br>
+                <strong>Votre commande a été annulée et remboursée automatiquement.</strong><br><br>
+                Si le problème persiste, contactez le support :<br>
+                <a href="https://wa.me/237699853665" target="_blank" style="color: #4CAF50; font-weight: bold;">📱 +237 699 85 36 65</a><br>
+                <small>Faites une capture d'écran et envoyez-la au support.</small>
+              `;
+              break;
+              
+            case 'USER_NOT_FOUND':
+              errorHtml = `
+                <strong>❌ Session expirée</strong><br>
+                Votre session a expiré ou votre compte est introuvable.<br>
+                Veuillez vous déconnecter et vous reconnecter.<br><br>
+                Si le problème persiste, contactez le support :<br>
+                <a href="https://wa.me/237699853665" target="_blank" style="color: #4CAF50; font-weight: bold;">📱 +237 699 85 36 65</a>
+              `;
+              break;
+              
+            case 'VALIDATION_ERROR':
+            case 'SERVICE_ERROR':
+              errorHtml = `
+                <strong>❌ Erreur de validation</strong><br>
+                ${errorMsg}<br><br>
+                Vérifiez les informations saisies et réessayez.<br>
+                Si le problème persiste, contactez le support :<br>
+                <a href="https://wa.me/237699853665" target="_blank" style="color: #4CAF50; font-weight: bold;">📱 +237 699 85 36 65</a>
+              `;
+              break;
+              
+            default:
+              errorHtml = `
+                <strong>❌ Erreur inattendue</strong><br>
+                Une erreur s'est produite lors du lancement de votre commande.<br>
+                Veuillez réessayer plus tard.<br><br>
+                Si le problème persiste, contactez le support :<br>
+                <a href="https://wa.me/237699853665" target="_blank" style="color: #4CAF50; font-weight: bold;">📱 +237 699 85 36 65</a><br>
+                <small>Faites une capture d'écran et envoyez-la au support.</small>
+              `;
           }
           
-          throw new Error(errorData.error || 'Erreur inattendue. Veuillez réessayer.');
+          showNotification('❌', errorHtml, 'error', errorOptions);
+          setLoadingState(false);
+          return;
         }
         
-        // CHANGEMENT 2: Ajout du bouton "Voir mes commandes" dans la notification de succès
-        showNotification('✅', '✅ Commande envoyée avec succès !', 'success', { showViewOrdersButton: true });
+        showNotification('✅', '✅ Commande envoyée avec succès !', 'success', { showViewOrdersButton: true });
         orderForm.reset();
         resetUI();
         icons.forEach(i => i.classList.remove('active'));
       } catch (err) {
-        // Gestion spécifique des erreurs de solde insuffisant
-        if (err.message === "SOLDE_INSUFFISANT") {
-          const balanceError = `
-            <strong>❌ Solde insuffisant !</strong><br>
-            Votre solde est insuffisant pour effectuer cette commande.<br><br>
-            Veuillez recharger votre solde pour continuer.
-          `;
-          showNotification('❌', balanceError, 'error', { isBalanceError: true });
-        } else {
-          // Message d'erreur détaillé avec les créneaux et contact WhatsApp
-          const detailedError = `
-            <strong>❌ Désolé, quelque chose a mal tourné !</strong><br>
-            Votre commande n'a pas été envoyée.<br><br>
-            <u>les commandes sont disponibles a :</u><br>
-            • 10 h GMT (11 h heure du Cameroun)<br>
-            • 15 h GMT (16 h heure du Cameroun)<br>
-            • 20 h GMT (21 h heure du Cameroun)<br><br>
-            Si le problème persiste à ces horaires, contactez l'administrateur ou l'assistance via WhatsApp :<br>
-            <a href="https://wa.me/237699853665" target="_blank">+237 699 85 36 65</a><br>
-            et joignez une capture d'écran pour une solution directe.
-          `;
-          showNotification('❌', detailedError, 'error', {});
-        }
+        console.error('Erreur fetch /order:', err);
+        const networkError = `
+          <strong>❌ Problème de connexion</strong><br>
+          La requête a échoué. Veuillez vérifier votre connexion internet et réessayer.<br><br>
+          Si le problème persiste, contactez le support :<br>
+          <a href="https://wa.me/237699853665" target="_blank" style="color: #4CAF50; font-weight: bold;">📱 +237 699 85 36 65</a><br>
+          <small>Faites une capture d'écran et envoyez-la au support.</small>
+        `;
+        showNotification('❌', networkError, 'error', {});
       } finally {
         setLoadingState(false);
       }
