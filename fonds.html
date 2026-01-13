@@ -69,7 +69,7 @@
     .payment-container {
       max-width:380px; margin:40px auto; background:#fff; border:2px solid var(--card-border);
       border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.1); padding:20px;
-      position: relative; /* Pour le spinner */
+      position: relative;
     }
     .payment-container h2 { text-align:center; color:var(--blue); margin-bottom:16px; font-size:1.3rem; }
     .payment-container p { font-size:.95rem; color:#555; margin-bottom:20px; text-align:center; }
@@ -96,7 +96,6 @@
     .payment-container .error { color:var(--red); font-size:.9rem; margin-top:10px; text-align:center; white-space:pre-wrap; }
     .footer-small { text-align:center; margin-top:auto; margin-bottom:20px; font-size:.85rem; color:#777; }
     
-    /* Loader */
     .loader {
       display: none;
       width: 20px;
@@ -112,7 +111,6 @@
       to { transform: rotate(360deg); }
     }
     
-    /* Overlay pour désactiver le formulaire pendant le chargement */
     .form-overlay {
       position: absolute;
       top: 0;
@@ -156,31 +154,29 @@
     <ul>
       <li><a href="dashboard.html">Accueil</a></li>
       <li><a href="wallet.html">Mon portefeuille</a></li>
-      <li><a href="resources.html">Ressources & aide</a></li>
-      <li><a href="community.html">Communauté & feedback</a></li>
-      <li><a href="payment.html">Autre moyen de paiement</a></li>
+      <li><a href="commander.html">Commander</a></li>
+      <li><a href="paid.html">Autre moyen de paiement</a></li>
       <li><a href="parrainage.html">Programme de parrainage</a></li>
-      <li><a href="privacy.html">Politiques de confidentialité</a></li>
-      <li><a href="assistance.html">Assistance</a></li>
+      <li><a href="assistant.html">Assistance</a></li>
     </ul>
   </nav>
 
   <div class="payment-container" data-aos="fade-up" data-aos-delay="200">
-    <h2>Déposer des fonds</h2>
-    <p>Entrez le montant à ajouter (minimum 100 FCFA).</p>
+    <h2>Deposer des fonds (Cameroun)</h2>
+    <p>Entrez le montant a ajouter (minimum 100 FCFA).</p>
     <form id="payment-form">
       <div class="form-overlay" id="formOverlay">
         <div class="spinner"></div>
       </div>
       
-      <label for="amount">Montant (en XAF) :</label>
+      <label for="amount">Montant (en XAF) :</label>
       <input type="number" id="amount" name="amount" value="1000" min="100" required 
              aria-required="true" aria-describedby="amount-help" />
       <p id="amount-help" style="font-size: 0.8rem; color: #666; margin-top: -10px; margin-bottom: 15px;">
         Montant minimum: 100 FCFA
       </p>
 
-      <label for="description">Description :</label>
+      <label for="description">Description :</label>
       <input type="text" id="description" name="description" value="Ajout de fonds pour SBH" required 
              aria-required="true" />
 
@@ -193,7 +189,7 @@
 
     <div style="text-align:center; margin-top:20px;">
       <p style="font-size:.95rem; color:#555; margin-bottom:8px;">
-        Vous n’êtes pas au Cameroun ? Si vous souhaitez payer par un autre mode de paiement, cliquez ci-dessous :
+        Vous n'etes pas au Cameroun ? Utilisez un autre mode de paiement :
       </p>
       <button type="button" onclick="window.location.href='paid.html'"
         style="background: var(--blue); color:#fff; border:none; padding:10px 20px; font-size:1rem; border-radius:6px; cursor:pointer;">
@@ -203,7 +199,7 @@
   </div>
 
   <div class="footer-small" data-aos="fade-up" data-aos-delay="400">
-    Social Boost Horizon – Mč Exau – Tous droits réservés © 2025
+    Social Boost Horizon - Tous droits reserves 2025
   </div>
 
   <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
@@ -213,26 +209,23 @@
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
   <script>
-    // NE JAMAIS exposer les clés Firebase comme ça en production !
-    // Utilisez plutôt Firebase App Check ou servez cette configuration depuis votre backend
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
       projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.firebasestorage.app",
+      storageBucket: "social-boost-horizon.appspot.com",
       messagingSenderId: "43658165639",
       appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
     };
     
-    // Initialiser Firebase
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    // Variables globales
     let currentUser = null;
+    
+    const BACKEND_URL = 'https://social-boost-exaucenapopolo2.replit.app';
 
-    // Fonction pour afficher/masquer le loader
     function toggleLoader(show) {
       const loader = document.getElementById('submitLoader');
       const submitText = document.getElementById('submitText');
@@ -252,39 +245,28 @@
       }
     }
 
-    // FONCTION handleApiResponse CORRIGÉE
     async function handleApiResponse(response) {
-      // Lire le corps de la réponse UNE SEULE FOIS, quel que soit le type
-      const rawText = await response.text(); // Lire en texte brut d'abord
+      const rawText = await response.text();
 
       if (!response.ok) {
         let errorData;
         try {
-          // Tenter de parser comme JSON
           errorData = JSON.parse(rawText);
         } catch (e) {
-          // Si ce n'est pas du JSON, utiliser le texte brut comme message
           throw new Error(`Erreur ${response.status}: ${rawText || response.statusText}`);
         }
         
-        // Si nous avons des données JSON, les utiliser pour le message d'erreur
-        const errorMessage = errorData.error || 
-                             errorData.message || 
-                             JSON.stringify(errorData);
-        
+        const errorMessage = errorData.error || errorData.message || JSON.stringify(errorData);
         throw new Error(`Erreur ${response.status}: ${errorMessage}`);
       }
       
-      // Si la réponse est OK, elle devrait être du JSON valide
       try {
         return JSON.parse(rawText);
       } catch (e) {
-        // Si ce n'est pas un JSON valide alors qu'on attend un succès, c'est une erreur inattendue
-        throw new Error(`Erreur: Réponse du serveur inattendue (non-JSON valide): ${rawText}`);
+        throw new Error(`Erreur: Reponse du serveur inattendue: ${rawText}`);
       }
     }
 
-    // Vérifier l'authentification
     auth.onAuthStateChanged(user => {
       if (!user) {
         window.location.href = 'login.html';
@@ -293,7 +275,6 @@
       
       currentUser = user;
       
-      // Configurer le menu hamburger
       const btn = document.getElementById('hamburgerBtn');
       const menu = document.getElementById('hamburgerMenu');
       const back = document.getElementById('menuBackdrop');
@@ -307,7 +288,6 @@
       btn.addEventListener('click', toggleMenu);
       back.addEventListener('click', toggleMenu);
 
-      // Gérer le formulaire de paiement
       document.getElementById('payment-form').addEventListener('submit', async e => {
         e.preventDefault();
         
@@ -318,7 +298,6 @@
         toggleLoader(true);
         
         try {
-          // Récupération et validation du montant
           const amountInput = document.getElementById('amount').value;
           const amountValue = parseFloat(amountInput);
           
@@ -329,84 +308,55 @@
           const amount = Math.round(amountValue);
           
           if (amount < 100) {
-            throw new Error('Le montant doit être au moins 100 FCFA.');
+            throw new Error('Le montant doit etre au moins 100 FCFA.');
           }
           
           const description = document.getElementById('description').value.trim();
           
-          // --- MODIFICATION ICI : URL de redirection pour Fapshi ---
-          // C'est l'URL où Fapshi redirigera l'utilisateur après le paiement.
-          // Assure-toi que cette URL est correctement configurée DANS TON TABLEAU DE BORD FAPSHI
-          // pour correspondre à ta page de succès.
-          const fapshiRedirectUrl = `${window.location.origin}/success.html`; 
+          const fapshiRedirectUrl = 'https://socialboosthorizon.com/payment-success.html';
           
-          // Ajouts pour le débogage (maintenus)
-          console.log("--- Début de l'appel Fapshi ---");
-          console.log("Préparation de l'appel API Fapshi avec les données suivantes:");
-          console.log("  Montant:", amount);
-          console.log("  Devise:", 'XAF'); 
-          console.log("  Description:", description);
-          console.log("  URL de redirection (pour Fapshi):", fapshiRedirectUrl);
-          console.log("  UID de l'utilisateur (externalId):", currentUser.uid); // Ajouté ici
-          console.log("  Endpoint de l'API:", 'https://social-boost-horizon-new-sbh.vercel.app/api/create-fapshi-checkout');
+          console.log("--- Debut de l'appel Fapshi ---");
+          console.log("Montant:", amount);
+          console.log("UID utilisateur:", currentUser.uid);
+          console.log("Backend:", BACKEND_URL);
 
-
-          // Appeler l'API backend
           const response = await fetch(
-            'https://social-boost-horizon-new-sbh.vercel.app/api/create-fapshi-checkout',
+            BACKEND_URL + '/api/create-fapshi-checkout',
             {
               method: 'POST',
               headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${await currentUser.getIdToken()}`
+                'Content-Type': 'application/json'
               },
               body: JSON.stringify({ 
                 amount, 
                 currency: 'XAF', 
                 description, 
-                redirectUrl: fapshiRedirectUrl, // *** MODIFIÉ ICI : Utilise la nouvelle variable ***
-                externalId: currentUser.uid // *** AJOUTÉ ICI : C'est le champ clé ! ***
+                redirectUrl: fapshiRedirectUrl,
+                externalId: currentUser.uid
               })
             }
           );
           
-          // Log la réponse brute avant de la traiter
-          console.log("Réponse HTTP reçue de l'API (status, headers):", response.status, response.headers);
+          console.log("Reponse HTTP:", response.status);
 
-          // Gérer la réponse de l'API de manière robuste avec la fonction corrigée
           const data = await handleApiResponse(response);
           
-          // Log les données parsées
-          console.log("Données de réponse de l'API (parsées):", data);
+          console.log("Donnees reponse:", data);
 
           if (data.checkoutUrl) {
-            console.log("URL de paiement Fapshi reçue. Redirection vers:", data.checkoutUrl);
-            window.location.href = data.checkoutUrl; // Redirige l'utilisateur vers la page de paiement Fapshi
+            console.log("Redirection vers:", data.checkoutUrl);
+            window.location.href = data.checkoutUrl;
           } else {
-            console.error("Erreur: Aucune URL de paiement ('checkoutUrl') trouvée dans la réponse de l'API.");
-            throw new Error('URL de paiement non reçue. Veuillez réessayer.');
+            throw new Error('URL de paiement non recue. Veuillez reessayer.');
           }
           
         } catch (err) {
-          console.error('Erreur attrapée pendant le paiement:', err);
-          msg.textContent = 'Erreur: ' + (err.message || 'Une erreur est survenue lors du traitement de votre paiement. Veuillez vérifier votre connexion et réessayer.');
+          console.error('Erreur paiement:', err);
+          msg.textContent = 'Erreur: ' + (err.message || 'Une erreur est survenue.');
           msg.classList.add('error');
           toggleLoader(false);
-          console.log("--- Fin de l'appel Fapshi avec erreur ---");
         }
       });
-    });
-
-    // Initialiser Tawk.to après le chargement de la page
-    window.addEventListener('load', () => {
-      // Tawk.to Script
-      var Tawk_API=Tawk_API||{},Tawk_LoadStart=new Date();
-      (function(){
-        var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
-        s1.async=true; s1.src='https://embed.tawk.to/6820b4dbbca8a11909dc7b3e/default';
-        s1.charset='UTF-8'; s1.setAttribute('crossorigin','*');
-        s0.parentNode.insertBefore(s1,s0);
-      })();
     });
   </script>
 </body>
