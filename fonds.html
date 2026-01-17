@@ -96,6 +96,107 @@
     .payment-container .error { color:var(--red); font-size:.9rem; margin-top:10px; text-align:center; white-space:pre-wrap; }
     .footer-small { text-align:center; margin-top:auto; margin-bottom:20px; font-size:.85rem; color:#777; }
     
+    /* Section Activités récentes */
+    .recent-activities {
+      max-width: 380px;
+      margin: 20px auto;
+      background: #fff;
+      border: 2px solid var(--card-border);
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      padding: 20px;
+    }
+    .recent-activities h3 {
+      color: var(--blue);
+      font-size: 1.1rem;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .recent-activities h3 i {
+      color: var(--sbh-icon-color);
+    }
+    .activity-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .activity-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+      transition: background 0.2s;
+    }
+    .activity-item:last-child {
+      border-bottom: none;
+    }
+    .activity-item:hover {
+      background: #f9f9f9;
+    }
+    .activity-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .activity-amount {
+      font-weight: 700;
+      color: var(--text-dark);
+      font-size: 1rem;
+    }
+    .activity-date {
+      font-size: 0.8rem;
+      color: #888;
+    }
+    .activity-status {
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .status-pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+    .status-confirmed {
+      background: #d4edda;
+      color: #155724;
+    }
+    .status-failed {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .no-activities {
+      text-align: center;
+      color: #888;
+      padding: 20px;
+      font-size: 0.9rem;
+    }
+    .refresh-btn {
+      background: transparent;
+      border: none;
+      color: var(--blue);
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    .refresh-btn:hover {
+      background: rgba(0, 64, 128, 0.1);
+    }
+    .loading-activities {
+      text-align: center;
+      padding: 20px;
+      color: #888;
+    }
+    .loading-activities i {
+      animation: spin 1s linear infinite;
+    }
+    
     .loader {
       display: none;
       width: 20px;
@@ -198,6 +299,25 @@
     </div>
   </div>
 
+  <!-- Section Activités récentes -->
+  <div class="recent-activities" data-aos="fade-up" data-aos-delay="300">
+    <h3>
+      <i class="fas fa-history"></i>
+      Activites recentes
+      <button class="refresh-btn" id="refreshActivities" title="Actualiser">
+        <i class="fas fa-sync-alt"></i>
+      </button>
+    </h3>
+    <div id="activitiesLoading" class="loading-activities">
+      <i class="fas fa-spinner"></i> Chargement...
+    </div>
+    <ul class="activity-list" id="activityList" style="display: none;"></ul>
+    <div id="noActivities" class="no-activities" style="display: none;">
+      <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 10px; display: block; opacity: 0.5;"></i>
+      Aucune transaction recente
+    </div>
+  </div>
+
   <div class="footer-small" data-aos="fade-up" data-aos-delay="400">
     Social Boost Horizon - Tous droits reserves 2025
   </div>
@@ -267,6 +387,118 @@
       }
     }
 
+    // Fonction pour formater la date
+    function formatDate(timestamp) {
+      if (!timestamp) return 'Date inconnue';
+      
+      let date;
+      if (timestamp.toDate) {
+        date = timestamp.toDate();
+      } else if (timestamp.seconds) {
+        date = new Date(timestamp.seconds * 1000);
+      } else {
+        date = new Date(timestamp);
+      }
+      
+      const now = new Date();
+      const diff = now - date;
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+      
+      if (minutes < 1) return 'A l\'instant';
+      if (minutes < 60) return `Il y a ${minutes} min`;
+      if (hours < 24) return `Il y a ${hours}h`;
+      if (days < 7) return `Il y a ${days} jour${days > 1 ? 's' : ''}`;
+      
+      return date.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    // Fonction pour obtenir la classe et le texte du statut
+    function getStatusInfo(status) {
+      const normalizedStatus = (status || '').toUpperCase();
+      switch (normalizedStatus) {
+        case 'CONFIRMED':
+          return { class: 'status-confirmed', text: 'Succes' };
+        case 'PENDING':
+          return { class: 'status-pending', text: 'En cours' };
+        case 'FAILED':
+        case 'EXPIRED':
+          return { class: 'status-failed', text: 'Echoue' };
+        default:
+          return { class: 'status-pending', text: 'En attente' };
+      }
+    }
+
+    // Fonction pour afficher les transactions
+    function renderActivities(transactions) {
+      const loadingEl = document.getElementById('activitiesLoading');
+      const listEl = document.getElementById('activityList');
+      const noActivitiesEl = document.getElementById('noActivities');
+      
+      loadingEl.style.display = 'none';
+      
+      if (!transactions || transactions.length === 0) {
+        listEl.style.display = 'none';
+        noActivitiesEl.style.display = 'block';
+        return;
+      }
+      
+      noActivitiesEl.style.display = 'none';
+      listEl.style.display = 'block';
+      
+      listEl.innerHTML = transactions.map(tx => {
+        const statusInfo = getStatusInfo(tx.status);
+        const dateStr = formatDate(tx.dateInitiated);
+        const amount = tx.amount ? tx.amount.toLocaleString('fr-FR') : '0';
+        
+        return `
+          <li class="activity-item">
+            <div class="activity-info">
+              <span class="activity-amount">+${amount} FCFA</span>
+              <span class="activity-date">${dateStr}</span>
+            </div>
+            <span class="activity-status ${statusInfo.class}">${statusInfo.text}</span>
+          </li>
+        `;
+      }).join('');
+    }
+
+    // Fonction pour charger les transactions Fapshi de l'utilisateur
+    let unsubscribeActivities = null;
+    
+    function loadRecentActivities(userId) {
+      const loadingEl = document.getElementById('activitiesLoading');
+      loadingEl.style.display = 'block';
+      
+      // Annuler l'ancien listener si existant
+      if (unsubscribeActivities) {
+        unsubscribeActivities();
+      }
+      
+      // Écouter les transactions Fapshi en temps réel
+      unsubscribeActivities = db.collection('fapshiTransactions')
+        .where('userId', '==', userId)
+        .orderBy('dateInitiated', 'desc')
+        .limit(10)
+        .onSnapshot(snapshot => {
+          const transactions = [];
+          snapshot.forEach(doc => {
+            transactions.push({ id: doc.id, ...doc.data() });
+          });
+          renderActivities(transactions);
+        }, error => {
+          console.error('Erreur chargement activites:', error);
+          renderActivities([]);
+        });
+    }
+
     auth.onAuthStateChanged(user => {
       if (!user) {
         window.location.href = 'login.html';
@@ -274,6 +506,14 @@
       }
       
       currentUser = user;
+      
+      // Charger les activités récentes
+      loadRecentActivities(user.uid);
+      
+      // Bouton de rafraîchissement
+      document.getElementById('refreshActivities').addEventListener('click', () => {
+        loadRecentActivities(user.uid);
+      });
       
       const btn = document.getElementById('hamburgerBtn');
       const menu = document.getElementById('hamburgerMenu');
