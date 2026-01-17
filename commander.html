@@ -372,6 +372,64 @@
       font-size: 0.9rem;
     }
     
+    /* Style pour les champs Quantité actuelle/estimée */
+    .quantity-estimation-container {
+      margin: 15px 0;
+      padding: 15px;
+      background: rgba(76, 175, 80, 0.08);
+      border: 1px solid rgba(76, 175, 80, 0.3);
+      border-radius: 10px;
+    }
+    .quantity-estimation-container .form-group {
+      margin-bottom: 12px;
+    }
+    .quantity-estimation-container .form-group:last-child {
+      margin-bottom: 0;
+    }
+    .quantity-estimation-container label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+      color: var(--sbh-text-white);
+    }
+    .quantity-estimation-container label i {
+      color: #4CAF50;
+    }
+    .quantity-estimation-container input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--sbh-text-white);
+      font-size: 0.95rem;
+    }
+    .quantity-estimation-container input::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    .quantity-estimation-container .input-hint {
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.6);
+      margin-top: 5px;
+      margin-bottom: 0;
+      text-align: left;
+    }
+    .estimated-quantity-group input {
+      background: rgba(76, 175, 80, 0.2) !important;
+      border-color: #4CAF50 !important;
+      color: #4CAF50 !important;
+      font-weight: 600;
+      cursor: not-allowed;
+    }
+    .estimated-quantity-group input::placeholder {
+      color: rgba(76, 175, 80, 0.7) !important;
+    }
+    .estimated-hint {
+      color: #4CAF50 !important;
+    }
+
     /* Style pour le Mode Vitesse */
     .speed-mode-container {
       margin: 15px 0;
@@ -840,6 +898,24 @@
         <input id="quantityInput" name="quantity" type="number" min="1" placeholder="Ex : 1000">
         <div id="quantityError" class="error-message" style="display:none;"></div>
         <p id="commentsCount" style="display:none;">0 commentaire(s) (minimum 10)</p>
+      </div>
+
+      <!-- Quantité actuelle et estimée (optionnel) -->
+      <div class="quantity-estimation-container" id="quantityEstimationContainer">
+        <div class="form-group">
+          <label for="currentQuantityInput">
+            <i class="fas fa-chart-line"></i> Quantité actuelle (optionnel)
+          </label>
+          <input id="currentQuantityInput" name="currentQuantity" type="number" min="0" placeholder="Ex: Nombre actuel d'abonnés/vues/likes">
+          <p class="input-hint">Entrez le nombre actuel sur votre compte avant cette commande</p>
+        </div>
+        <div class="form-group estimated-quantity-group">
+          <label for="estimatedQuantityInput">
+            <i class="fas fa-arrow-trend-up"></i> Quantité estimée après commande
+          </label>
+          <input id="estimatedQuantityInput" name="estimatedQuantity" type="text" readonly disabled placeholder="Sera calculé automatiquement">
+          <p class="input-hint estimated-hint">Ce nombre sera atteint après la livraison de votre commande</p>
+        </div>
       </div>
 
       <!-- Mode Vitesse - Nouvelle section ajoutée -->
@@ -1639,6 +1715,10 @@
     const speedModeContainer = document.getElementById('speedModeContainer');
     const speedModeToggle = document.getElementById('speedModeToggle');
 
+    // Nouveaux éléments pour quantité actuelle/estimée
+    const currentQuantityInput = document.getElementById('currentQuantityInput');
+    const estimatedQuantityInput = document.getElementById('estimatedQuantityInput');
+
     // Variables pour le mode vitesse
     let isSpeedModeActive = false;
     let basePrice = 0;
@@ -1651,6 +1731,25 @@
     if (contactType) contactType.addEventListener('change', toggleContactField);
     if (orderForm) orderForm.addEventListener('submit', onSubmit);
     if (speedModeToggle) speedModeToggle.addEventListener('change', toggleSpeedMode);
+    if (currentQuantityInput) currentQuantityInput.addEventListener('input', updateEstimatedQuantity);
+    if (quantityInput) quantityInput.addEventListener('input', updateEstimatedQuantity);
+    
+    // Fonction pour calculer et afficher la quantité estimée
+    function updateEstimatedQuantity() {
+      const currentQtyStr = currentQuantityInput?.value?.trim();
+      const orderedQty = parseInt(quantityInput?.value) || 0;
+      
+      // Si l'utilisateur a entré une valeur (même 0), calculer l'estimé
+      if (currentQtyStr !== '' && currentQtyStr !== undefined) {
+        const currentQty = parseInt(currentQtyStr) || 0;
+        const estimatedQty = currentQty + orderedQty;
+        estimatedQuantityInput.value = estimatedQty.toLocaleString('fr-FR');
+      } else {
+        // Champ vide = optionnel, ne pas calculer
+        estimatedQuantityInput.value = '';
+        estimatedQuantityInput.placeholder = 'Sera calculé automatiquement';
+      }
+    }
     
     // Charger la plateforme par defaut
     selectPlatform('facebook');
@@ -2165,6 +2264,13 @@
         }
       }
 
+      // Récupérer les quantités actuelles et estimées (optionnel)
+      const currentQtyStr = currentQuantityInput?.value?.trim();
+      const orderedQty = parseInt(quantityInput?.value) || 0;
+      // Si l'utilisateur a entré une valeur (même 0), envoyer les données
+      const currentQty = (currentQtyStr !== '' && currentQtyStr !== undefined) ? parseInt(currentQtyStr) || 0 : null;
+      const estimatedQty = currentQty !== null ? currentQty + orderedQty : null;
+
       const payload = {
         userId:      document.getElementById('userId').value,
         platform:    selectedPlatform,
@@ -2177,7 +2283,9 @@
         contactType: contactType.value,
         contact:     contactType.value === 'whatsapp' ? contactInput.value : emailInput.value,
         isResellerOrder: false,  // Commande normale (pas revendeur)
-        speedMode:   isSpeedModeActive  // Nouveau champ pour le mode vitesse
+        speedMode:   isSpeedModeActive,  // Champ pour le mode vitesse
+        currentQuantity: currentQty,     // Quantité actuelle (optionnel)
+        estimatedQuantity: estimatedQty  // Quantité estimée après commande (optionnel)
       };
 
       if (!payload.userId) {
