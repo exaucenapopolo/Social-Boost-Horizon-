@@ -607,6 +607,7 @@
     const auth = firebase.auth();
 
     const FRONTEND_DOMAIN = 'https://socialboosthorizon.com';
+    const BACKEND_URL = 'https://social-boost-exaucenapopolo2.replit.app';
 
     let currentUser = null;
     let userData = null;
@@ -649,35 +650,44 @@
 
     async function loadReferralStats() {
       try {
-        const referralsSnap = await db.collection('users').doc(currentUser.uid)
-          .collection('referrals').get();
+        const response = await fetch(`${BACKEND_URL}/api/referrals/${currentUser.uid}`);
+        const data = await response.json();
         
-        let totalReferrals = referralsSnap.size;
-        let totalEarnings = 0;
-        
-        referralsSnap.forEach(doc => {
-          const data = doc.data();
-          totalEarnings += data.bonus || 0;
-        });
-        
-        document.getElementById('totalReferrals').textContent = totalReferrals;
-        document.getElementById('totalEarnings').textContent = totalEarnings.toLocaleString('fr-FR');
+        if (data.success) {
+          document.getElementById('totalReferrals').textContent = data.totalReferrals;
+          document.getElementById('totalEarnings').textContent = data.totalEarnings.toLocaleString('fr-FR');
+          
+          // Stocker les données pour l'historique
+          window.referralsData = data.referrals;
+        } else {
+          document.getElementById('totalReferrals').textContent = '0';
+          document.getElementById('totalEarnings').textContent = '0';
+        }
       } catch (error) {
         console.error('Erreur stats:', error);
+        document.getElementById('totalReferrals').textContent = '0';
+        document.getElementById('totalEarnings').textContent = '0';
       }
     }
 
     async function loadReferralHistory() {
       try {
-        const referralsSnap = await db.collection('users').doc(currentUser.uid)
-          .collection('referrals')
-          .orderBy('date', 'desc')
-          .limit(20)
-          .get();
-        
         const listEl = document.getElementById('referralList');
         
-        if (referralsSnap.empty) {
+        // Utiliser les données déjà chargées ou les récupérer
+        let referrals = window.referralsData;
+        
+        if (!referrals) {
+          const response = await fetch(`${BACKEND_URL}/api/referrals/${currentUser.uid}`);
+          const data = await response.json();
+          if (data.success) {
+            referrals = data.referrals;
+          } else {
+            referrals = [];
+          }
+        }
+        
+        if (!referrals || referrals.length === 0) {
           listEl.innerHTML = `
             <div class="empty-state">
               <i class="fas fa-user-friends"></i>
@@ -688,31 +698,19 @@
         }
         
         let html = '';
-        for (const doc of referralsSnap.docs) {
-          const data = doc.data();
-          const refereeUid = data.refereeUid;
-          let username = 'Utilisateur';
-          
-          if (refereeUid) {
-            try {
-              const userDoc = await db.collection('users').doc(refereeUid).get();
-              if (userDoc.exists) {
-                username = userDoc.data().username || 'Utilisateur';
-              }
-            } catch (e) {}
-          }
-          
-          const bonus = data.bonus || 0;
-          const date = data.date ? data.date.toDate().toLocaleDateString('fr-FR') : '';
+        for (const referral of referrals) {
+          const username = referral.username || 'Utilisateur';
+          const bonus = referral.bonus || 0;
+          const country = referral.country || '';
           
           html += `
             <div class="referral-item">
               <div class="referral-user">
                 <i class="fas fa-user-check"></i>
                 <span>${username}</span>
-                <small style="opacity:0.7">${date}</small>
+                ${country ? `<small style="opacity:0.7">${country}</small>` : ''}
               </div>
-              <span class="referral-bonus">+${bonus.toLocaleString('fr-FR')} FCFA</span>
+              <span class="referral-bonus">${bonus > 0 ? '+' + bonus.toLocaleString('fr-FR') + ' FCFA' : 'Inscrit'}</span>
             </div>
           `;
         }
