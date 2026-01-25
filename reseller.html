@@ -381,11 +381,39 @@
 
   // Calcul du niveau en fonction des commandes
   function calculateResellerLevel(weeklyOrders) {
-    if (weeklyOrders >= 20) return { level: 'Professionnel', discount: 20, class: 'level-professional' };
-    if (weeklyOrders >= 10) return { level: 'Intermédiaire', discount: 15, class: 'level-intermediate' };
-    if (weeklyOrders >= 7) return { level: 'Amateur', discount: 10, class: 'level-amateur' };
-    if (weeklyOrders >= 5) return { level: 'Débutant', discount: 5, class: 'level-beginner' };
-    return { level: 'Débutant', discount: 5, class: 'level-beginner' };
+    if (weeklyOrders >= 20) return { level: 'professional', levelName: 'Professionnel', discount: 20, class: 'level-professional' };
+    if (weeklyOrders >= 10) return { level: 'intermediate', levelName: 'Intermédiaire', discount: 15, class: 'level-intermediate' };
+    if (weeklyOrders >= 7) return { level: 'amateur', levelName: 'Amateur', discount: 10, class: 'level-amateur' };
+    if (weeklyOrders >= 5) return { level: 'beginner', levelName: 'Débutant', discount: 5, class: 'level-beginner' };
+    return { level: 'beginner', levelName: 'Débutant', discount: 5, class: 'level-beginner' };
+  }
+
+  function getLevelDisplayName(level) {
+    const levelMap = {
+      'beginner': 'Débutant',
+      'amateur': 'Amateur', 
+      'intermediate': 'Intermédiaire',
+      'professional': 'Professionnel',
+      'Débutant': 'Débutant',
+      'Amateur': 'Amateur',
+      'Intermédiaire': 'Intermédiaire',
+      'Professionnel': 'Professionnel'
+    };
+    return levelMap[level] || level || 'Non défini';
+  }
+
+  function getLevelClass(level) {
+    const classMap = {
+      'beginner': 'level-beginner',
+      'amateur': 'level-amateur',
+      'intermediate': 'level-intermediate',
+      'professional': 'level-professional',
+      'Débutant': 'level-beginner',
+      'Amateur': 'level-amateur',
+      'Intermédiaire': 'level-intermediate',
+      'Professionnel': 'level-professional'
+    };
+    return classMap[level] || 'level-beginner';
   }
 
   // Mise à jour des indicateurs de niveau
@@ -633,10 +661,12 @@
     if (userData.isReseller) {
       if (explanationSection) explanationSection.style.display = 'none';
       
-      const levelInfo = calculateResellerLevel(userData.resellerWeeklyOrders);
-      setStat(currentLevelEl, userData.resellerLevel);
-      currentLevelEl.innerHTML = `${userData.resellerLevel} <span class="level-badge ${levelInfo.class}">${levelInfo.discount}%</span>`;
-      setStat(discountRateEl, userData.discountRate + '%');
+      const levelDisplayName = getLevelDisplayName(userData.resellerLevel);
+      const levelClass = getLevelClass(userData.resellerLevel);
+      const discount = userData.discountRate || 5;
+      
+      currentLevelEl.innerHTML = `${levelDisplayName} <span class="level-badge ${levelClass}">${discount}%</span>`;
+      setStat(discountRateEl, discount + '%');
       setStat(weeklyOrdersEl, userData.resellerWeeklyOrders);
       setStat(totalOrdersEl, userData.resellerTotalOrders);
       setStat(totalSavingsEl, userData.totalSavings.toLocaleString('fr-FR') + ' FCFA');
@@ -689,13 +719,14 @@
 
       await db.collection('users').doc(userId).update({
         isReseller: true,
-        resellerLevel: 'Débutant',
+        resellerLevel: 'beginner',
         discountRate: 5,
         resellerSince: new Date(),
         resellerWeeklyOrders: 0,
         resellerTotalOrders: 0,
         totalSavings: 0,
         resellerRevenue: 0,
+        resellerWeeklyRevenue: 0,
         resellerOrdersByDay: {}
       });
 
@@ -789,12 +820,6 @@
               balance: data.balance || 0,
               totalSavings: data.totalSavings || 0
             };
-            
-            if (userData.isReseller) {
-              const newLevel = calculateResellerLevel(userData.resellerWeeklyOrders);
-              userData.resellerLevel = newLevel.level;
-              userData.discountRate = newLevel.discount;
-            }
             
             updateUI();
           }

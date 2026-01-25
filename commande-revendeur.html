@@ -922,6 +922,7 @@
     let userCountry = 'cm';
     let userCurrency = CURRENCY_CONFIG['cm'];
     let resellerDiscount = 0;
+    let userResellerLevel = null;
 
     function convertFromXAF(amountXAF) {
       return Math.round(amountXAF * userCurrency.rate);
@@ -964,15 +965,14 @@
                 userCurrency = CURRENCY_CONFIG[country];
               }
               
-              if (userData.isReseller && userData.resellerDiscount !== undefined) {
-                resellerDiscount = userData.resellerDiscount || 0;
-                document.getElementById('discountDisplay').textContent = 'Reduction : ' + resellerDiscount + '%';
-                document.getElementById('resellerBadge').style.display = 'inline-flex';
-              } else if (userData.isReseller) {
-                resellerDiscount = 0;
-                document.getElementById('discountDisplay').textContent = 'Reduction : 0%';
+              if (userData.isReseller) {
+                resellerDiscount = userData.discountRate || 5;
+                userResellerLevel = userData.resellerLevel || 'Débutant';
+                document.getElementById('discountDisplay').textContent = 'Reduction : ' + resellerDiscount + '% (' + userResellerLevel + ')';
                 document.getElementById('resellerBadge').style.display = 'inline-flex';
               } else {
+                resellerDiscount = 0;
+                userResellerLevel = null;
                 document.getElementById('resellerBadge').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Non revendeur';
                 document.getElementById('resellerBadge').style.background = 'linear-gradient(135deg, #FF6B6B, #FF8E53)';
               }
