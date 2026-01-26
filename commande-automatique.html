@@ -1393,13 +1393,30 @@
       return 'basic';
     }
 
-    function isCustomCommentsService(serviceName) {
-      const nameLower = serviceName.toLowerCase();
-      return nameLower.includes('custom comment') || 
-             nameLower.includes('commentaires personnalisés') ||
-             nameLower.includes('commentaire personnalisé') ||
-             nameLower.includes('your comments') ||
-             nameLower.includes('vos commentaires');
+    function isCustomCommentsService(service) {
+      const nameLower = service.name.toLowerCase();
+      const typeLower = (service.type || '').toLowerCase();
+      
+      // Détecter "| Custom |" dans le nom (mais PAS "| Random |")
+      const hasCustomInName = nameLower.includes('| custom |') || 
+                              nameLower.includes('| custom|') ||
+                              nameLower.includes('|custom |') ||
+                              nameLower.includes('custom comment') ||
+                              nameLower.includes('commentaires personnalisés') ||
+                              nameLower.includes('commentaire personnalisé') ||
+                              nameLower.includes('your comments') ||
+                              nameLower.includes('vos commentaires');
+      
+      // Détecter le type "Custom Comments"
+      const hasCustomType = typeLower === 'custom comments';
+      
+      // Exclure les services "Random"
+      const isRandom = nameLower.includes('| random |') || 
+                       nameLower.includes('| random|') ||
+                       nameLower.includes('|random |') ||
+                       nameLower.includes('random comment');
+      
+      return (hasCustomInName || hasCustomType) && !isRandom;
     }
 
     function renderServices(services) {
@@ -1498,7 +1515,7 @@
         serviceRemarks.style.display = 'none';
       }
 
-      isCustomComments = isCustomCommentsService(selectedService.name);
+      isCustomComments = isCustomCommentsService(selectedService);
       if (isCustomComments) {
         commentsGroup.classList.add('active');
         quantityGroup.style.display = 'none';
