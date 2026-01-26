@@ -882,6 +882,156 @@
       color: var(--auto-accent);
     }
 
+    /* Modal de succès */
+    .success-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 9999;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .success-modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .success-modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.8);
+      background: linear-gradient(135deg, var(--auto-card-bg), rgba(139, 92, 246, 0.1));
+      border: 1px solid var(--auto-card-border);
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 420px;
+      width: 90%;
+      z-index: 10000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-align: center;
+    }
+
+    .success-modal.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .success-modal-icon {
+      font-size: 4rem;
+      color: #22c55e;
+      margin-bottom: 15px;
+      animation: bounceIn 0.6s ease;
+    }
+
+    @keyframes bounceIn {
+      0% { transform: scale(0); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+
+    .success-modal-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--auto-text-white);
+      margin-bottom: 5px;
+    }
+
+    .success-modal-subtitle {
+      color: var(--auto-text-muted);
+      margin-bottom: 25px;
+      font-size: 0.95rem;
+    }
+
+    .success-modal-details {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 25px;
+    }
+
+    .success-detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .success-detail-row:last-child {
+      border-bottom: none;
+    }
+
+    .detail-label {
+      color: var(--auto-text-muted);
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .detail-label i {
+      color: var(--auto-primary);
+    }
+
+    .detail-value {
+      color: var(--auto-text-white);
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .detail-value.highlight {
+      color: var(--auto-accent);
+    }
+
+    .success-modal-buttons {
+      display: flex;
+      gap: 12px;
+    }
+
+    .success-btn-history, .success-btn-close {
+      flex: 1;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .success-btn-history {
+      background: linear-gradient(135deg, var(--auto-primary), var(--auto-secondary));
+      color: white;
+    }
+
+    .success-btn-history:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+    }
+
+    .success-btn-close {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--auto-text-white);
+      border: 1px solid var(--auto-card-border);
+    }
+
+    .success-btn-close:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
     @media (max-width: 768px) {
       header {
         padding: 10px 15px;
@@ -1078,6 +1228,44 @@
 
   <div class="notification" id="notification"></div>
 
+  <!-- Modal de succès -->
+  <div class="success-modal-overlay" id="successModalOverlay"></div>
+  <div class="success-modal" id="successModal">
+    <div class="success-modal-icon">
+      <i class="fas fa-check-circle"></i>
+    </div>
+    <h2 class="success-modal-title">Félicitations ! 🎉</h2>
+    <p class="success-modal-subtitle">Votre commande a été passée avec succès</p>
+    
+    <div class="success-modal-details">
+      <div class="success-detail-row">
+        <span class="detail-label"><i class="fas fa-hashtag"></i> Numéro de commande</span>
+        <span class="detail-value" id="successOrderId">-</span>
+      </div>
+      <div class="success-detail-row">
+        <span class="detail-label"><i class="fas fa-sort-numeric-up"></i> Quantité</span>
+        <span class="detail-value" id="successQuantity">-</span>
+      </div>
+      <div class="success-detail-row">
+        <span class="detail-label"><i class="fas fa-money-bill-wave"></i> Montant dépensé</span>
+        <span class="detail-value highlight" id="successAmount">-</span>
+      </div>
+      <div class="success-detail-row">
+        <span class="detail-label"><i class="fas fa-wallet"></i> Solde restant</span>
+        <span class="detail-value" id="successBalance">-</span>
+      </div>
+    </div>
+    
+    <div class="success-modal-buttons">
+      <button class="success-btn-history" onclick="window.location.href='mes-commandes-auto.html'">
+        <i class="fas fa-history"></i> Voir l'historique
+      </button>
+      <button class="success-btn-close" onclick="closeSuccessModal()">
+        <i class="fas fa-plus"></i> Nouvelle commande
+      </button>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   <script>
     AOS.init({ duration: 600, once: true });
@@ -1170,6 +1358,33 @@
     const panelServiceMin = document.getElementById('panelServiceMin');
     const panelServiceMax = document.getElementById('panelServiceMax');
     const notification = document.getElementById('notification');
+
+    // Modal de succès
+    const successModal = document.getElementById('successModal');
+    const successModalOverlay = document.getElementById('successModalOverlay');
+    const successOrderId = document.getElementById('successOrderId');
+    const successQuantity = document.getElementById('successQuantity');
+    const successAmount = document.getElementById('successAmount');
+    const successBalance = document.getElementById('successBalance');
+
+    function showSuccessModal(orderId, quantity, amount, newBalance) {
+      successOrderId.textContent = orderId;
+      successQuantity.textContent = quantity.toLocaleString('fr-FR');
+      successAmount.textContent = formatPrice(amount);
+      successBalance.textContent = formatPrice(newBalance);
+      
+      successModal.classList.add('active');
+      successModalOverlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeSuccessModal() {
+      successModal.classList.remove('active');
+      successModalOverlay.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    successModalOverlay.addEventListener('click', closeSuccessModal);
 
     function formatPrice(amount) {
       return formatPriceLocal(amount);
@@ -1592,11 +1807,14 @@
         return;
       }
 
-      const totalPrice = Math.round((selectedService.priceXAF / 1000) * quantity);
-      if (totalPrice > userBalance) {
-        const manquant = totalPrice - userBalance;
+      // Calculer le prix total en arrondissant (éviter les virgules)
+      const calculatedPrice = (selectedService.priceXAF / 1000) * quantity;
+      const orderTotalPrice = Math.round(calculatedPrice);
+      
+      if (orderTotalPrice > userBalance) {
+        const manquant = orderTotalPrice - userBalance;
         notify(
-          `Solde insuffisant ! Requis: ${formatPrice(totalPrice)} | Votre solde: ${formatPrice(userBalance)} | Il vous manque: ${formatPrice(manquant)}`,
+          `Solde insuffisant ! Requis: ${formatPrice(orderTotalPrice)} | Votre solde: ${formatPrice(userBalance)} | Il vous manque: ${formatPrice(manquant)}`,
           'error',
           true,
           '💳 Recharger',
@@ -1614,7 +1832,7 @@
         const orderPayload = {
           serviceId: selectedService.id,
           link: link,
-          quantity: quantity
+          quantity: Math.round(quantity) // S'assurer que la quantité est un entier
         };
         if (comments) {
           orderPayload.comments = comments;
@@ -1635,13 +1853,18 @@
           throw new Error(data.error || 'Erreur lors de la commande');
         }
 
-        notify(`Commande #${data.orderId} passée avec succès ! Prix: ${formatPrice(totalPrice)}`, 'success');
+        // Mettre à jour le solde
         userBalance = data.newBalance;
         userBalanceEl.textContent = formatPrice(userBalance);
+        
+        // Fermer le panneau de commande
         closeOrderPanel();
         orderForm.reset();
         customComments.value = '';
         commentsCountValue.textContent = '0';
+        
+        // Afficher le modal de succès
+        showSuccessModal(data.orderId, quantity, orderTotalPrice, data.newBalance);
 
       } catch (error) {
         console.error('Erreur commande:', error);
