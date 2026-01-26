@@ -1330,12 +1330,16 @@
     let userId = null;
 
     function convertFromXAF(amountXAF) {
-      return Math.round(amountXAF * userCurrency.rate);
+      return amountXAF * userCurrency.rate;
     }
 
     function formatPriceLocal(amountXAF) {
       const localAmount = convertFromXAF(amountXAF);
-      return new Intl.NumberFormat('fr-FR').format(localAmount) + ' ' + userCurrency.symbol;
+      // Afficher avec 2 décimales comme chez le fournisseur
+      return new Intl.NumberFormat('fr-FR', { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
+      }).format(localAmount) + ' ' + userCurrency.symbol;
     }
 
     const platformFilter = document.getElementById('platformFilter');
@@ -1710,7 +1714,7 @@
       if (isCustomComments && selectedService) {
         orderQuantity.value = count;
         displayQuantity.textContent = count.toLocaleString();
-        const total = Math.round((selectedService.priceXAF / 1000) * count);
+        const total = (selectedService.priceXAF / 1000) * count;
         totalPrice.textContent = formatPrice(total);
       }
     });
@@ -1768,7 +1772,7 @@
       const qty = parseInt(orderQuantity.value) || 0;
       displayQuantity.textContent = qty.toLocaleString();
       if (selectedService) {
-        const total = Math.round((selectedService.priceXAF / 1000) * qty);
+        const total = (selectedService.priceXAF / 1000) * qty;
         totalPrice.textContent = formatPrice(total);
       }
     });
@@ -1807,9 +1811,8 @@
         return;
       }
 
-      // Calculer le prix total en arrondissant (éviter les virgules)
-      const calculatedPrice = (selectedService.priceXAF / 1000) * quantity;
-      const orderTotalPrice = Math.round(calculatedPrice);
+      // Calculer le prix total (avec décimales comme chez le fournisseur)
+      const orderTotalPrice = (selectedService.priceXAF / 1000) * quantity;
       
       if (orderTotalPrice > userBalance) {
         const manquant = orderTotalPrice - userBalance;
