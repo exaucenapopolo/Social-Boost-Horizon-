@@ -618,7 +618,7 @@
     <div class="header-right">
       <div class="balance-display">
         <i class="fas fa-wallet"></i>
-        <span id="userBalance">0</span> <small>FCFA</small>
+        <span id="userBalance">0</span>
       </div>
 
       <div class="nav-buttons">
@@ -706,8 +706,34 @@
       ? ''
       : 'https://social-boost-exaucenapopolo2.replit.app';
 
+    const CURRENCY_CONFIG = {
+      'Cameroun': { currency: 'XAF', rate: 1, symbol: 'FCFA' },
+      'Gabon': { currency: 'XAF', rate: 1, symbol: 'FCFA' },
+      'Congo': { currency: 'XAF', rate: 1, symbol: 'FCFA' },
+      'Tchad': { currency: 'XAF', rate: 1, symbol: 'FCFA' },
+      'Centrafrique': { currency: 'XAF', rate: 1, symbol: 'FCFA' },
+      'Guinée Équatoriale': { currency: 'XAF', rate: 1, symbol: 'FCFA' },
+      'Sénégal': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
+      'Côte d\'Ivoire': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
+      'Burkina Faso': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
+      'Mali': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
+      'Bénin': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
+      'Togo': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
+      'Niger': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
+      'Guinée-Bissau': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
+      'RD Congo': { currency: 'CDF', rate: 0.22, symbol: 'FC' },
+      'Ghana': { currency: 'GHS', rate: 38, symbol: 'GH₵' },
+      'Nigeria': { currency: 'NGN', rate: 0.38, symbol: '₦' },
+      'Kenya': { currency: 'KES', rate: 4.6, symbol: 'KSh' },
+      'Ouganda': { currency: 'UGX', rate: 0.16, symbol: 'USh' },
+      'Tanzanie': { currency: 'TZS', rate: 0.23, symbol: 'TSh' },
+      'Rwanda': { currency: 'RWF', rate: 0.46, symbol: 'FRw' },
+      'Zambie': { currency: 'ZMW', rate: 22, symbol: 'ZK' }
+    };
+
     let userId = null;
     let orders = [];
+    let userCurrency = { currency: 'XAF', rate: 1, symbol: 'FCFA' };
 
     const ordersList = document.getElementById('ordersList');
     const refreshBtn = document.getElementById('refreshBtn');
@@ -727,7 +753,16 @@
       setTimeout(() => notification.remove(), 5000);
     }
 
-    function formatPrice(amount) {
+    function formatPrice(amountXAF) {
+      const formatted = Math.round(amountXAF).toLocaleString('fr-FR');
+      if (userCurrency.rate === 1) {
+        return `${formatted} ${userCurrency.symbol}`;
+      }
+      const localAmount = Math.round(amountXAF / userCurrency.rate);
+      return `${localAmount.toLocaleString('fr-FR')} ${userCurrency.symbol}`;
+    }
+
+    function formatPriceSimple(amount) {
       return Math.round(amount).toLocaleString('fr-FR');
     }
 
@@ -878,7 +913,7 @@
 
           <div class="order-footer">
             <div>
-              <span class="order-price">${formatPrice(order.priceXAF || 0)} FCFA</span>
+              <span class="order-price">${formatPrice(order.priceXAF || 0)}</span>
               ${getStatusBadge(status)}
             </div>
             <div class="action-btns">
@@ -970,7 +1005,7 @@
           throw new Error(data.error || 'Erreur');
         }
 
-        notify(`Commande annulée. Remboursement: ${formatPrice(data.refundAmount || 0)} FCFA`, 'success');
+        notify(`Commande annulée. Remboursement: ${formatPrice(data.refundAmount || 0)}`, 'success');
         loadOrders();
 
       } catch (error) {
@@ -987,7 +1022,16 @@
 
         db.collection('users').doc(userId).onSnapshot((doc) => {
           if (doc.exists) {
-            const balance = doc.data().balance || 0;
+            const userData = doc.data();
+            const balance = userData.balance || 0;
+
+            const country = userData.country || 'Cameroun';
+            if (CURRENCY_CONFIG[country]) {
+              userCurrency = CURRENCY_CONFIG[country];
+            } else if (CURRENCY_CONFIG[country.toLowerCase()]) {
+              userCurrency = CURRENCY_CONFIG[country.toLowerCase()];
+            }
+
             userBalanceEl.textContent = formatPrice(balance);
           }
         });
