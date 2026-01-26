@@ -375,6 +375,62 @@
       color: var(--auto-secondary);
     }
 
+    .platform-filter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding: 15px;
+      background: var(--auto-card-bg);
+      border: 1px solid var(--auto-card-border);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 80px;
+      z-index: 50;
+    }
+    .platform-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 1.4rem;
+    }
+    .platform-btn:hover {
+      transform: translateY(-3px);
+      border-color: var(--auto-primary);
+    }
+    .platform-btn.active {
+      border-color: var(--auto-primary);
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(6, 182, 212, 0.2));
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+    }
+    .platform-btn.all-btn {
+      width: auto;
+      padding: 0 15px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--auto-text-light);
+    }
+    .platform-btn i.fa-facebook { color: #1877F2; }
+    .platform-btn i.fa-instagram { color: #E4405F; }
+    .platform-btn i.fa-tiktok { color: #fff; }
+    .platform-btn i.fa-youtube { color: #FF0000; }
+    .platform-btn i.fa-twitter { color: #1DA1F2; }
+    .platform-btn i.fa-telegram { color: #0088CC; }
+    .platform-btn i.fa-linkedin { color: #0A66C2; }
+    .platform-btn i.fa-spotify { color: #1DB954; }
+    .platform-btn i.fa-snapchat { color: #FFFC00; }
+    .platform-btn i.fa-threads { color: #fff; }
+    .platform-btn i.fa-twitch { color: #9146FF; }
+    .platform-btn i.fa-discord { color: #5865F2; }
+
     .services-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -1030,6 +1086,42 @@
       </aside>
 
       <main>
+        <div class="platform-filter" id="platformFilter" data-aos="fade-down">
+          <div class="platform-btn all-btn active" data-platform="" title="Tous les services">
+            <i class="fas fa-globe"></i>&nbsp;Tous
+          </div>
+          <div class="platform-btn" data-platform="facebook" title="Facebook">
+            <i class="fab fa-facebook"></i>
+          </div>
+          <div class="platform-btn" data-platform="instagram" title="Instagram">
+            <i class="fab fa-instagram"></i>
+          </div>
+          <div class="platform-btn" data-platform="tiktok" title="TikTok">
+            <i class="fab fa-tiktok"></i>
+          </div>
+          <div class="platform-btn" data-platform="youtube" title="YouTube">
+            <i class="fab fa-youtube"></i>
+          </div>
+          <div class="platform-btn" data-platform="twitter" title="Twitter / X">
+            <i class="fab fa-twitter"></i>
+          </div>
+          <div class="platform-btn" data-platform="telegram" title="Telegram">
+            <i class="fab fa-telegram"></i>
+          </div>
+          <div class="platform-btn" data-platform="linkedin" title="LinkedIn">
+            <i class="fab fa-linkedin"></i>
+          </div>
+          <div class="platform-btn" data-platform="spotify" title="Spotify">
+            <i class="fab fa-spotify"></i>
+          </div>
+          <div class="platform-btn" data-platform="twitch" title="Twitch">
+            <i class="fab fa-twitch"></i>
+          </div>
+          <div class="platform-btn" data-platform="discord" title="Discord">
+            <i class="fab fa-discord"></i>
+          </div>
+        </div>
+
         <div class="card" style="margin-bottom: 20px;">
           <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
             <div class="search-box" style="flex: 1; min-width: 250px; margin-bottom: 0;">
@@ -1149,6 +1241,7 @@
     let allServices = [];
     let categories = {};
     let selectedCategory = null;
+    let selectedPlatform = null;
     let selectedService = null;
     let userBalance = 0;
     let userId = null;
@@ -1158,6 +1251,7 @@
     const searchCategories = document.getElementById('searchCategories');
     const searchServices = document.getElementById('searchServices');
     const servicesCount = document.getElementById('servicesCount');
+    const platformFilter = document.getElementById('platformFilter');
     const userBalanceEl = document.getElementById('userBalance');
     const orderPanel = document.getElementById('orderPanel');
     const orderPanelOverlay = document.getElementById('orderPanelOverlay');
@@ -1234,17 +1328,36 @@
     }
 
     function renderCategories() {
-      const sortedCategories = Object.keys(categories).sort();
+      let filteredServices = allServices;
+      
+      if (selectedPlatform) {
+        filteredServices = allServices.filter(s => {
+          const name = s.name.toLowerCase();
+          const category = (s.category || '').toLowerCase();
+          return name.includes(selectedPlatform) || category.includes(selectedPlatform);
+        });
+      }
+      
+      const filteredCategories = {};
+      filteredServices.forEach(service => {
+        const cat = service.category || 'Autres';
+        if (!filteredCategories[cat]) {
+          filteredCategories[cat] = [];
+        }
+        filteredCategories[cat].push(service);
+      });
+      
+      const sortedCategories = Object.keys(filteredCategories).sort();
       
       categoryList.innerHTML = `
         <div class="category-item ${!selectedCategory ? 'active' : ''}" data-category="">
           <span class="category-name">Tous les services</span>
-          <span class="category-count">${allServices.length}</span>
+          <span class="category-count">${filteredServices.length}</span>
         </div>
         ${sortedCategories.map(cat => `
           <div class="category-item ${selectedCategory === cat ? 'active' : ''}" data-category="${cat}">
             <span class="category-name">${cat}</span>
-            <span class="category-count">${categories[cat].length}</span>
+            <span class="category-count">${filteredCategories[cat].length}</span>
           </div>
         `).join('')}
       `;
@@ -1313,8 +1426,16 @@
       const searchTerm = searchServices.value.toLowerCase();
       let filtered = allServices;
 
+      if (selectedPlatform) {
+        filtered = filtered.filter(s => {
+          const name = s.name.toLowerCase();
+          const category = (s.category || '').toLowerCase();
+          return name.includes(selectedPlatform) || category.includes(selectedPlatform);
+        });
+      }
+
       if (selectedCategory) {
-        filtered = categories[selectedCategory] || [];
+        filtered = filtered.filter(s => s.category === selectedCategory);
       }
 
       if (searchTerm) {
@@ -1328,6 +1449,17 @@
       renderServices(filtered);
       servicesCount.textContent = `${filtered.length} services affichés`;
     }
+
+    platformFilter.querySelectorAll('.platform-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        platformFilter.querySelectorAll('.platform-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedPlatform = btn.dataset.platform || null;
+        selectedCategory = null;
+        renderCategories();
+        filterAndRenderServices();
+      });
+    });
 
     function openOrderPanel() {
       if (!selectedService) return;
