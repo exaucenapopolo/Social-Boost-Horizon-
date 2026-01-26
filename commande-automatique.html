@@ -911,12 +911,57 @@
       ? ''
       : 'https://social-boost-exaucenapopolo2.replit.app';
 
+    // Système de conversion de devises
+    const CURRENCY_CONFIG = {
+      'cm': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇲' },
+      'ga': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇬🇦' },
+      'cg': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇬' },
+      'td': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇹🇩' },
+      'cf': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇫' },
+      'gq': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇬🇶' },
+      'sn': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇸🇳' },
+      'ci': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇨🇮' },
+      'ml': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇲🇱' },
+      'bf': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇫' },
+      'bj': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇯' },
+      'tg': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇹🇬' },
+      'ne': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇳🇪' },
+      'gw': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇬🇼' },
+      'cd': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+      'gh': { code: 'GHS', symbol: 'GH₵', rate: 0.024, flag: '🇬🇭' },
+      'ng': { code: 'NGN', symbol: '₦', rate: 2.44, flag: '🇳🇬' },
+      'ke': { code: 'KES', symbol: 'KSh', rate: 0.20, flag: '🇰🇪' },
+      'ug': { code: 'UGX', symbol: 'USh', rate: 5.64, flag: '🇺🇬' },
+      'tz': { code: 'TZS', symbol: 'TSh', rate: 3.81, flag: '🇹🇿' },
+      'rw': { code: 'RWF', symbol: 'FRw', rate: 1.98, flag: '🇷🇼' },
+      'zm': { code: 'ZMW', symbol: 'ZK', rate: 0.041, flag: '🇿🇲' },
+      'mw': { code: 'MWK', symbol: 'MK', rate: 2.67, flag: '🇲🇼' },
+      'Cameroun': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇲' },
+      'RDC': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+      'RD Congo': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+      'Sénégal': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇸🇳' },
+      'Côte d\'Ivoire': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇨🇮' },
+      'Ghana': { code: 'GHS', symbol: 'GH₵', rate: 0.024, flag: '🇬🇭' },
+      'Nigeria': { code: 'NGN', symbol: '₦', rate: 2.44, flag: '🇳🇬' }
+    };
+
+    let userCurrency = CURRENCY_CONFIG['Cameroun'];
     let allServices = [];
     let selectedPlatform = null;
     let selectedCategory = null;
     let selectedService = null;
     let userBalance = 0;
+    let userBalanceXAF = 0;
     let userId = null;
+
+    function convertFromXAF(amountXAF) {
+      return Math.round(amountXAF * userCurrency.rate);
+    }
+
+    function formatPriceLocal(amountXAF) {
+      const localAmount = convertFromXAF(amountXAF);
+      return new Intl.NumberFormat('fr-FR').format(localAmount) + ' ' + userCurrency.symbol;
+    }
 
     const platformFilter = document.getElementById('platformFilter');
     const categoryTabs = document.getElementById('categoryTabs');
@@ -940,13 +985,35 @@
     const notification = document.getElementById('notification');
 
     function formatPrice(amount) {
-      return new Intl.NumberFormat('fr-FR').format(Math.round(amount)) + ' FCFA';
+      return formatPriceLocal(amount);
     }
 
-    function notify(message, type = 'success') {
-      notification.textContent = message;
-      notification.className = `notification ${type} show`;
-      setTimeout(() => notification.classList.remove('show'), 4000);
+    function notify(message, type = 'success', showButton = false, buttonText = '', buttonHref = '') {
+      const existingNotif = document.querySelector('.notification');
+      if (existingNotif) existingNotif.remove();
+
+      const notifDiv = document.createElement('div');
+      notifDiv.className = `notification ${type} show`;
+      
+      let html = `<span>${message}</span>`;
+      if (showButton && buttonText) {
+        html += `<a href="${buttonHref}" style="
+          display: inline-block;
+          margin-left: 15px;
+          padding: 8px 16px;
+          background: rgba(255,255,255,0.2);
+          border: 1px solid rgba(255,255,255,0.4);
+          border-radius: 8px;
+          color: white;
+          text-decoration: none;
+          font-weight: 600;
+          transition: all 0.3s ease;
+        " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">${buttonText}</a>`;
+      }
+      notifDiv.innerHTML = html;
+      document.body.appendChild(notifDiv);
+      
+      setTimeout(() => notifDiv.remove(), showButton ? 8000 : 4000);
     }
 
     function translateServiceName(name) {
@@ -1243,7 +1310,14 @@
 
       const totalPrice = Math.round((selectedService.priceXAF / 1000) * quantity);
       if (totalPrice > userBalance) {
-        notify(`Solde insuffisant. Requis: ${formatPrice(totalPrice)}`, 'error');
+        const manquant = totalPrice - userBalance;
+        notify(
+          `Solde insuffisant ! Requis: ${formatPrice(totalPrice)} | Votre solde: ${formatPrice(userBalance)} | Il vous manque: ${formatPrice(manquant)}`,
+          'error',
+          true,
+          '💳 Recharger',
+          'wallet.html'
+        );
         return;
       }
 
@@ -1294,8 +1368,19 @@
 
         db.collection('users').doc(userId).onSnapshot((doc) => {
           if (doc.exists) {
-            userBalance = doc.data().balance || 0;
-            userBalanceEl.textContent = formatPrice(userBalance);
+            const userData = doc.data();
+            userBalanceXAF = userData.balance || 0;
+            userBalance = userBalanceXAF;
+
+            // Récupérer la devise de l'utilisateur selon son pays
+            const country = userData.country || 'Cameroun';
+            if (CURRENCY_CONFIG[country]) {
+              userCurrency = CURRENCY_CONFIG[country];
+            } else if (CURRENCY_CONFIG[country.toLowerCase()]) {
+              userCurrency = CURRENCY_CONFIG[country.toLowerCase()];
+            }
+
+            userBalanceEl.textContent = formatPrice(userBalanceXAF);
           }
         });
 
