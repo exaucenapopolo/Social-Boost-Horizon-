@@ -1,2507 +1,1457 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tableau de Bord - Likéo Boost</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@800;900&display=swap" rel="stylesheet">
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <style>
-        :root {
-            --primary-yellow: #FFD700;
-            --primary-blue: #2A5EE8;
-            --primary-orange: #FF7A00;
-            --dark-blue: #1A1F3C;
-            --light-blue: #F0F5FF;
-            --light-gray: #F8F9FA;
-            --text-dark: #333333;
-            --text-light: #777777;
-            --white: #FFFFFF;
-            --success-green: #4CAF50;
-            --error-red: #f44336;
-            --warning-orange: #ff9800;
-            --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-            --transition: all 0.3s ease;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        html {
-            scroll-behavior: smooth;
-        }
-
-        body {
-            font-family: 'Poppins', sans-serif;
-            line-height: 1.6;
-            color: var(--text-dark);
-            background-color: #f5f7ff;
-            min-height: 100vh;
-        }
-
-        h1, h2, h3, h4 {
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 800;
-            line-height: 1.2;
-            margin-bottom: 1rem;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 100%;
-            margin: 0 auto;
-            padding: 0 15px;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 12px 24px;
-            border-radius: 50px;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 0.95rem;
-            transition: var(--transition);
-            cursor: pointer;
-            border: none;
-            text-align: center;
-            white-space: nowrap;
-        }
-
-        .btn-primary {
-            background-color: var(--primary-blue);
-            color: var(--white);
-        }
-
-        .btn-primary:hover {
-            background-color: var(--primary-orange);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 15px rgba(255, 122, 0, 0.2);
-        }
-
-        .btn-secondary {
-            background-color: transparent;
-            color: var(--primary-blue);
-            border: 2px solid var(--primary-blue);
-        }
-
-        .btn-secondary:hover {
-            background-color: var(--primary-blue);
-            color: var(--white);
-            transform: translateY(-2px);
-        }
-
-        .btn-success {
-            background-color: var(--success-green);
-            color: var(--white);
-        }
-
-        .btn-success:hover {
-            background-color: #3d8b40;
-            transform: translateY(-2px);
-        }
-
-        /* Header Mobile */
-        .mobile-header {
-            background-color: var(--white);
-            padding: 15px 0;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            width: 100%;
-        }
-
-        .mobile-header-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 900;
-            font-size: 1.5rem;
-            color: var(--dark-blue);
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-        }
-
-        .logo span {
-            color: var(--primary-blue);
-        }
-
-        .logo .dot {
-            color: var(--primary-orange);
-            font-size: 1.8rem;
-            line-height: 1;
-        }
-
-        .logo .yellow {
-            color: var(--primary-yellow);
-        }
-
-        .menu-btn {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            color: var(--primary-blue);
-            cursor: pointer;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            transition: var(--transition);
-        }
-
-        .menu-btn:hover {
-            background-color: rgba(42, 94, 232, 0.1);
-        }
-
-        /* Mobile Menu */
-        .mobile-menu {
-            position: fixed;
-            top: 0;
-            right: -100%;
-            width: 280px;
-            height: 100%;
-            background-color: var(--white);
-            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1);
-            z-index: 1000;
-            transition: var(--transition);
-            overflow-y: auto;
-        }
-
-        .mobile-menu.active {
-            right: 0;
-        }
-
-        .menu-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 999;
-            opacity: 0;
-            visibility: hidden;
-            transition: var(--transition);
-        }
-
-        .menu-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .menu-header {
-            padding: 25px 20px;
-            background-color: var(--dark-blue);
-            color: var(--white);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .menu-header .logo {
-            color: var(--white);
-            font-size: 1.3rem;
-        }
-
-        .menu-close {
-            background: none;
-            border: none;
-            color: var(--white);
-            font-size: 1.5rem;
-            cursor: pointer;
-        }
-
-        .user-info {
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        .user-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--primary-blue), var(--primary-orange));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.3rem;
-            font-weight: bold;
-            margin-right: 15px;
-            color: var(--white);
-        }
-
-        .user-details h3 {
-            font-size: 1.1rem;
-            margin-bottom: 5px;
-        }
-
-        .user-details p {
-            font-size: 0.9rem;
-            color: var(--text-light);
-        }
-
-        .balance-display {
-            padding: 20px;
-            background-color: var(--light-blue);
-            margin: 15px;
-            border-radius: 15px;
-            text-align: center;
-        }
-
-        .balance-amount {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--primary-blue);
-            margin-bottom: 10px;
-        }
-
-        .balance-label {
-            font-size: 0.9rem;
-            color: var(--text-light);
-        }
-
-        .menu-nav {
-            padding: 20px 0;
-        }
-
-        .menu-item {
-            display: flex;
-            align-items: center;
-            padding: 15px 20px;
-            color: var(--text-dark);
-            text-decoration: none;
-            transition: var(--transition);
-            border-left: 3px solid transparent;
-        }
-
-        .menu-item:hover {
-            background-color: rgba(42, 94, 232, 0.05);
-            border-left-color: var(--primary-orange);
-            color: var(--primary-blue);
-        }
-
-        .menu-item.active {
-            background-color: rgba(42, 94, 232, 0.1);
-            border-left-color: var(--primary-blue);
-            color: var(--primary-blue);
-        }
-
-        .menu-item i {
-            margin-right: 15px;
-            font-size: 1.2rem;
-            width: 20px;
-            text-align: center;
-        }
-
-        .menu-footer {
-            padding: 20px;
-            border-top: 1px solid #f0f0f0;
-            margin-top: auto;
-        }
-
-        /* Main Content */
-        .main-content {
-            padding: 15px 0 80px;
-            min-height: calc(100vh - 70px);
-        }
-
-        /* Welcome Section */
-        .welcome-section {
-            background: linear-gradient(135deg, var(--primary-blue) 0%, #1A1F3C 100%);
-            color: var(--white);
-            padding: 25px 20px;
-            border-radius: 20px;
-            margin-bottom: 20px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .welcome-section::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -50%;
-            width: 200px;
-            height: 200px;
-            background-color: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-        }
-
-        .welcome-section::after {
-            content: '';
-            position: absolute;
-            bottom: -30%;
-            left: -30%;
-            width: 150px;
-            height: 150px;
-            background-color: rgba(255, 255, 255, 0.05);
-            border-radius: 50%;
-        }
-
-        .welcome-text h1 {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .welcome-text p {
-            opacity: 0.9;
-            position: relative;
-            z-index: 1;
-        }
-
-        /* Stats Section */
-        .stats-section {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
-        .stat-card {
-            background-color: var(--white);
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: var(--shadow);
-            text-align: center;
-        }
-
-        .stat-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 15px;
-            font-size: 1.5rem;
-            color: var(--white);
-        }
-
-        .stat-value {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--dark-blue);
-            margin-bottom: 5px;
-        }
-
-        .stat-label {
-            font-size: 0.85rem;
-            color: var(--text-light);
-        }
-
-        /* Service Selection Flow */
-        .service-flow {
-            background-color: var(--white);
-            border-radius: 20px;
-            padding: 25px 20px;
-            box-shadow: var(--shadow);
-            margin-bottom: 25px;
-        }
-
-        .flow-header {
-            text-align: center;
-            margin-bottom: 25px;
-        }
-
-        .flow-header h2 {
-            font-size: 1.5rem;
-            color: var(--dark-blue);
-            margin-bottom: 10px;
-        }
-
-        .flow-steps {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 30px;
-            position: relative;
-        }
-
-        .flow-steps::before {
-            content: '';
-            position: absolute;
-            top: 20px;
-            left: 10%;
-            width: 80%;
-            height: 3px;
-            background-color: #e0e0e0;
-            z-index: 0;
-        }
-
-        .step {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-            z-index: 1;
-        }
-
-        .step-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background-color: #e0e0e0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            color: var(--text-light);
-            margin-bottom: 10px;
-            transition: var(--transition);
-        }
-
-        .step.active .step-icon {
-            background-color: var(--primary-blue);
-            color: var(--white);
-        }
-
-        .step.completed .step-icon {
-            background-color: var(--success-green);
-            color: var(--white);
-        }
-
-        .step-label {
-            font-size: 0.8rem;
-            color: var(--text-light);
-            text-align: center;
-        }
-
-        .step.active .step-label {
-            color: var(--primary-blue);
-            font-weight: 600;
-        }
-
-        /* Platform Selection */
-        .platforms-container {
-            display: flex;
-            overflow-x: auto;
-            gap: 15px;
-            padding: 10px 0 20px;
-            margin-bottom: 20px;
-            scrollbar-width: none;
-        }
-
-        .platforms-container::-webkit-scrollbar {
-            display: none;
-        }
-
-        .platform-card {
-            flex: 0 0 auto;
-            width: 120px;
-            background-color: var(--white);
-            border: 2px solid #e0e0e0;
-            border-radius: 15px;
-            padding: 20px 15px;
-            text-align: center;
-            cursor: pointer;
-            transition: var(--transition);
-        }
-
-        .platform-card:hover {
-            border-color: var(--primary-blue);
-            transform: translateY(-5px);
-        }
-
-        .platform-card.selected {
-            border-color: var(--primary-blue);
-            background-color: rgba(42, 94, 232, 0.05);
-            box-shadow: 0 10px 20px rgba(42, 94, 232, 0.1);
-        }
-
-        .platform-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 15px;
-            font-size: 1.8rem;
-            color: var(--white);
-        }
-
-        .platform-name {
-            font-weight: 600;
-            color: var(--text-dark);
-            font-size: 0.9rem;
-        }
-
-        /* Services Selection */
-        .services-container {
-            max-height: 300px;
-            overflow-y: auto;
-            margin-bottom: 20px;
-        }
-
-        .service-item {
-            background-color: #f9f9f9;
-            border-radius: 12px;
-            padding: 18px;
-            margin-bottom: 15px;
-            cursor: pointer;
-            transition: var(--transition);
-            border: 2px solid transparent;
-        }
-
-        .service-item:hover {
-            background-color: #f0f5ff;
-            border-color: rgba(42, 94, 232, 0.3);
-        }
-
-        .service-item.selected {
-            background-color: rgba(42, 94, 232, 0.1);
-            border-color: var(--primary-blue);
-        }
-
-        .service-name {
-            font-weight: 600;
-            font-size: 1rem;
-            margin-bottom: 8px;
-            color: var(--text-dark);
-        }
-
-        .service-desc {
-            font-size: 0.85rem;
-            color: var(--text-light);
-            margin-bottom: 10px;
-        }
-
-        .service-prices {
-            display: flex;
-            gap: 15px;
-            margin-top: 10px;
-        }
-
-        .price-option {
-            flex: 1;
-            padding: 8px 12px;
-            border-radius: 8px;
-            background-color: var(--white);
-            border: 2px solid #e0e0e0;
-            text-align: center;
-            cursor: pointer;
-            transition: var(--transition);
-        }
-
-        .price-option:hover {
-            border-color: var(--primary-blue);
-        }
-
-        .price-option.selected {
-            border-color: var(--primary-blue);
-            background-color: rgba(42, 94, 232, 0.05);
-        }
-
-        .price-label {
-            font-size: 0.8rem;
-            color: var(--text-light);
-            margin-bottom: 5px;
-        }
-
-        .price-amount {
-            font-weight: 700;
-            color: var(--primary-blue);
-            font-size: 1rem;
-        }
-
-        /* Quantity Selection */
-        .quantity-container {
-            background-color: #f9f9f9;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .quantity-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .quantity-header h3 {
-            font-size: 1.1rem;
-            color: var(--text-dark);
-        }
-
-        .quantity-input {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-
-        .quantity-btn {
-            width: 50px;
-            height: 50px;
-            background-color: var(--white);
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
-            font-size: 1.5rem;
-            color: var(--text-dark);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: var(--transition);
-        }
-
-        .quantity-btn:hover {
-            border-color: var(--primary-blue);
-            color: var(--primary-blue);
-        }
-
-        .quantity-display {
-            width: 100px;
-            height: 50px;
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
-            margin: 0 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--text-dark);
-        }
-
-        .quantity-unit {
-            text-align: center;
-            font-size: 0.9rem;
-            color: var(--text-light);
-            margin-bottom: 20px;
-        }
-
-        /* Order Summary */
-        .order-summary {
-            background-color: var(--white);
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: var(--shadow);
-            margin-bottom: 20px;
-            border: 2px solid var(--primary-blue);
-        }
-
-        .summary-header {
-            text-align: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        .summary-header h3 {
-            color: var(--dark-blue);
-            font-size: 1.3rem;
-        }
-
-        .summary-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            padding-bottom: 15px;
-            border-bottom: 1px dashed #f0f0f0;
-        }
-
-        .summary-item:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-        }
-
-        .summary-label {
-            color: var(--text-light);
-        }
-
-        .summary-value {
-            font-weight: 600;
-            color: var(--text-dark);
-        }
-
-        .summary-total {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: var(--primary-orange);
-        }
-
-        /* Order Form */
-        .order-form {
-            background-color: var(--white);
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: var(--shadow);
-            margin-bottom: 30px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: var(--text-dark);
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
-            font-size: 1rem;
-            font-family: 'Poppins', sans-serif;
-            transition: var(--transition);
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: var(--primary-blue);
-        }
-
-        textarea.form-control {
-            min-height: 100px;
-            resize: vertical;
-        }
-
-        /* Flow Navigation */
-        .flow-navigation {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 30px;
-        }
-
-        .flow-navigation .btn {
-            min-width: 120px;
-        }
-
-        /* Footer */
-        footer {
-            background-color: var(--dark-blue);
-            color: var(--white);
-            padding: 40px 0 20px;
-            position: relative;
-            width: 100%;
-        }
-
-        .footer-content {
-            display: flex;
-            flex-direction: column;
-            gap: 30px;
-            margin-bottom: 30px;
-        }
-
-        .footer-logo {
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 900;
-            font-size: 1.8rem;
-            color: var(--white);
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .footer-logo span {
-            color: var(--primary-blue);
-        }
-
-        .footer-logo .dot {
-            color: var(--primary-orange);
-            font-size: 2.2rem;
-            line-height: 1;
-        }
-
-        .footer-logo .yellow {
-            color: var(--primary-yellow);
-        }
-
-        .footer-about p {
-            opacity: 0.8;
-            margin-bottom: 20px;
-            font-size: 0.95rem;
-        }
-
-        .footer-links h3, .footer-contact h3 {
-            font-size: 1.2rem;
-            margin-bottom: 20px;
-            position: relative;
-            padding-bottom: 10px;
-        }
-
-        .footer-links h3:after, .footer-contact h3:after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 40px;
-            height: 3px;
-            background-color: var(--primary-orange);
-        }
-
-        .footer-links ul {
-            list-style: none;
-        }
-
-        .footer-links li {
-            margin-bottom: 12px;
-        }
-
-        .footer-links a {
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
-            transition: var(--transition);
-            font-size: 0.95rem;
-        }
-
-        .footer-links a:hover {
-            color: var(--primary-yellow);
-            padding-left: 5px;
-        }
-
-        .footer-contact p {
-            display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-            opacity: 0.8;
-            font-size: 0.95rem;
-        }
-
-        .footer-contact i {
-            margin-right: 15px;
-            color: var(--primary-yellow);
-            width: 20px;
-        }
-
-        .footer-bottom {
-            text-align: center;
-            padding-top: 30px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 0.9rem;
-            opacity: 0.7;
-        }
-
-        .footer-bottom a {
-            color: var(--primary-yellow);
-            text-decoration: none;
-        }
-
-        /* Notification System */
-        .notification-container {
-            position: fixed;
-            top: 100px;
-            right: 15px;
-            z-index: 9999;
-            max-width: 350px;
-            width: calc(100% - 30px);
-        }
-
-        .notification {
-            background-color: var(--white);
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-            border-left: 5px solid var(--success-green);
-            transform: translateX(400px);
-            opacity: 0;
-            transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55), opacity 0.5s ease;
-            display: flex;
-            align-items: flex-start;
-        }
-
-        .notification.show {
-            transform: translateX(0);
-            opacity: 1;
-        }
-
-        .notification.error {
-            border-left-color: var(--error-red);
-        }
-
-        .notification.warning {
-            border-left-color: var(--warning-orange);
-        }
-
-        .notification-icon {
-            font-size: 1.5rem;
-            margin-right: 15px;
-            margin-top: 2px;
-        }
-
-        .notification.success .notification-icon {
-            color: var(--success-green);
-        }
-
-        .notification.error .notification-icon {
-            color: var(--error-red);
-        }
-
-        .notification.warning .notification-icon {
-            color: var(--warning-orange);
-        }
-
-        .notification-content h4 {
-            font-size: 1.1rem;
-            margin-bottom: 5px;
-        }
-
-        .notification-content p {
-            font-size: 0.9rem;
-            color: var(--text-light);
-        }
-
-        .notification-close {
-            background: none;
-            border: none;
-            color: var(--text-light);
-            cursor: pointer;
-            margin-left: auto;
-            font-size: 1.2rem;
-            padding: 0;
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Responsive */
-        @media (min-width: 768px) {
-            .container {
-                max-width: 720px;
-                padding: 0 20px;
-            }
-            
-            .stats-section {
-                grid-template-columns: repeat(4, 1fr);
-            }
-            
-            .platforms-container {
-                justify-content: center;
-                flex-wrap: wrap;
-                overflow-x: visible;
-            }
-            
-            .platform-card {
-                width: 140px;
-            }
-            
-            .footer-content {
-                flex-direction: row;
-                justify-content: space-between;
-            }
-            
-            .footer-about {
-                flex: 2;
-            }
-            
-            .footer-links, .footer-contact {
-                flex: 1;
-            }
-        }
-
-        @media (min-width: 992px) {
-            .container {
-                max-width: 960px;
-            }
-            
-            .main-content {
-                padding: 30px 0 100px;
-            }
-            
-            .service-flow {
-                padding: 30px;
-            }
-        }
-
-        @media (min-width: 1200px) {
-            .container {
-                max-width: 1140px;
-            }
-        }
-
-        /* Hidden Sections */
-        .flow-section {
-            display: none;
-            animation: fadeIn 0.5s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .flow-section.active {
-            display: block;
-        }
-
-        /* Order Success */
-        .order-success {
-            background-color: var(--white);
-            border-radius: 15px;
-            padding: 40px 30px;
-            text-align: center;
-            box-shadow: var(--shadow);
-            margin-bottom: 30px;
-        }
-
-        .success-icon {
-            width: 80px;
-            height: 80px;
-            background-color: rgba(76, 175, 80, 0.1);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 25px;
-            font-size: 2.5rem;
-            color: var(--success-green);
-        }
-
-        .success-message h3 {
-            font-size: 1.5rem;
-            color: var(--success-green);
-            margin-bottom: 15px;
-        }
-
-        .success-message p {
-            color: var(--text-light);
-            margin-bottom: 25px;
-        }
-
-        /* Deposit Button */
-        .deposit-btn-container {
-            text-align: center;
-            margin: 30px 0;
-        }
-
-        .deposit-btn {
-            padding: 15px 30px;
-            font-size: 1.1rem;
-            min-width: 200px;
-        }
-
-        /* New: Link Input Section */
-        .link-container {
-            background-color: #f9f9f9;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .link-input {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .link-example {
-            font-size: 0.85rem;
-            color: var(--text-light);
-            font-style: italic;
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sites web sur mesure - Social Boost Horizon</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@600;700;800&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --sbh-dark-blue: #0A162B;
+      --sbh-gradient-start: #1e3c72;
+      --sbh-gradient-end: #6a0dad;
+      --sbh-btn-color: #1E90FF;
+      --sbh-btn-hover: #187bcd;
+      --sbh-icon-color: #4CAF50;
+      --sbh-text-white: #FFFFFF;
+      --sbh-text-green: #4CAF50;
+      --sbh-card-bg: rgba(17, 32, 58, 0.6);
+      --sbh-card-border: rgba(255, 255, 255, 0.15);
+      --sbh-text-light: rgba(255, 255, 255, 0.9);
+      --sbh-accent: #FF6B6B;
+      --sbh-light-blue: #4DA6FF;
+      --sbh-purple: #9D4EDD;
+      --sbh-orange: #FF9E00;
+      --sbh-teal: #00B4D8;
+    }
+    
+    * { 
+      margin:0; 
+      padding:0; 
+      box-sizing:border-box; 
+    }
+    
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: var(--sbh-dark-blue);
+      color: var(--sbh-text-white);
+      line-height:1.6;
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    /* Animation étoiles améliorée */
+    .background-animation {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -2;
+      background: linear-gradient(135deg, #0A162B 0%, #1a2d4e 100%);
+      overflow: hidden;
+    }
+    
+    .star {
+      position: absolute;
+      background-color: white;
+      border-radius: 50%;
+      animation: twinkle var(--duration) infinite alternate;
+    }
+    
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 0.8; transform: scale(1.2); }
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.7; }
+      50% { transform: scale(1.05); opacity: 1; }
+    }
+    
+    /* Illustration principale */
+    .main-illustration {
+      width: 100%;
+      max-width: 800px;
+      margin: 2rem auto;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      position: relative;
+      animation: fadeInUp 1s ease;
+    }
+    
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .main-illustration img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    
+    .illustration-caption {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 1rem;
+      text-align: center;
+      font-style: italic;
+      color: var(--sbh-text-light);
+    }
+    
+    /* Navigation catégories */
+    .categories-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(10, 22, 43, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 1rem;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    
+    .category-btn {
+      padding: 0.6rem 1.2rem;
+      background: rgba(77, 166, 255, 0.1);
+      border: 1px solid rgba(77, 166, 255, 0.3);
+      border-radius: 30px;
+      color: var(--sbh-light-blue);
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .category-btn:hover, .category-btn.active {
+      background: var(--sbh-light-blue);
+      color: var(--sbh-text-white);
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(77, 166, 255, 0.3);
+    }
+    
+    header {
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      color: var(--sbh-text-white);
+      text-align: center;
+      padding: 2.5rem 1.5rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    header::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('https://images.unsplash.com/photo-1558655146-364adaf1fcc9?q=80&w=2070&auto=format&fit=crop') center/cover;
+      opacity: 0.1;
+      z-index: -1;
+    }
+    
+    .hero-content {
+      max-width: 800px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+    
+    header h1 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+    
+    header p {
+      font-size: 1.2rem;
+      opacity: 0.9;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    
+    /* Introduction */
+    .intro-section {
+      text-align: center;
+      max-width: 900px;
+      margin: 2rem auto 3rem;
+      padding: 2rem;
+      background: rgba(17, 32, 58, 0.4);
+      border-radius: 15px;
+      border: 1px solid rgba(77, 166, 255, 0.2);
+    }
+    
+    .intro-section h2 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.8rem;
+      color: var(--sbh-light-blue);
+      margin-bottom: 1.5rem;
+    }
+    
+    .intro-section p {
+      color: var(--sbh-text-light);
+      margin-bottom: 1.5rem;
+      line-height: 1.7;
+      font-size: 1.1rem;
+    }
+    
+    .highlight {
+      color: var(--sbh-text-green);
+      font-weight: 600;
+    }
+    
+    /* Catégories */
+    .category-section {
+      margin-bottom: 3rem;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.6s ease;
+    }
+    
+    .category-section.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .category-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid rgba(77, 166, 255, 0.3);
+    }
+    
+    .category-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 1rem;
+      font-size: 1.8rem;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+    }
+    
+    .category-title {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.8rem;
+      color: var(--sbh-text-white);
+    }
+    
+    .category-description {
+      color: var(--sbh-text-light);
+      margin-bottom: 1.5rem;
+      padding-left: 70px;
+      font-size: 1.1rem;
+    }
+    
+    .realisations-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.8rem;
+      margin-top: 1rem;
+    }
+    
+    .realisation-card {
+      background: var(--sbh-card-bg);
+      border: 1px solid var(--sbh-card-border);
+      border-radius: 15px;
+      overflow: hidden;
+      transition: all 0.4s ease;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(5px);
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .realisation-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+      border-color: rgba(77, 166, 255, 0.5);
+    }
+    
+    .realisation-illustration {
+      height: 200px;
+      background-size: cover;
+      background-position: center;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    
+    .realisation-illustration::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.7));
+    }
+    
+    .realisation-badge {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      z-index: 2;
+    }
+    
+    .realisation-content {
+      padding: 1.5rem;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .realisation-title {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.4rem;
+      color: var(--sbh-text-white);
+      margin-bottom: 0.5rem;
+    }
+    
+    .realisation-country {
+      display: inline-block;
+      background: rgba(77, 166, 255, 0.1);
+      color: var(--sbh-light-blue);
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+    }
+    
+    .realisation-description {
+      color: var(--sbh-text-light);
+      margin-bottom: 1.5rem;
+      flex-grow: 1;
+      line-height: 1.6;
+    }
+    
+    .realisation-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      color: var(--sbh-text-white);
+      border: none;
+      border-radius: 30px;
+      padding: 0.8rem 1.5rem;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3);
+      gap: 0.5rem;
+    }
+    
+    .realisation-link:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 7px 20px rgba(30, 144, 255, 0.4);
+      background: linear-gradient(45deg, var(--sbh-gradient-start), #2a7fff);
+    }
+    
+    /* Note finale */
+    .selection-note {
+      text-align: center;
+      padding: 2rem;
+      margin: 3rem 0;
+      background: rgba(17, 32, 58, 0.5);
+      border-radius: 15px;
+      border: 1px solid rgba(77, 166, 255, 0.2);
+    }
+    
+    .selection-note h3 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.5rem;
+      color: var(--sbh-light-blue);
+      margin-bottom: 1rem;
+    }
+    
+    .selection-note p {
+      color: var(--sbh-text-light);
+      margin-bottom: 1.5rem;
+      font-size: 1.1rem;
+    }
+    
+    .whatsapp-contact {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(45deg, #25D366, #128C7E);
+      color: white;
+      border: none;
+      border-radius: 30px;
+      padding: 0.8rem 1.8rem;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 1.1rem;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    
+    .whatsapp-contact:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 7px 20px rgba(37, 211, 102, 0.4);
+      background: linear-gradient(45deg, #1da851, #0d7d5f);
+    }
+    
+    /* Section formulaire */
+    .form-section {
+      background: var(--sbh-card-bg);
+      border: 1px solid var(--sbh-card-border);
+      border-radius: 15px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(5px);
+      margin-top: 3rem;
+    }
+    
+    .form-section::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+    }
+    
+    .section {
+      padding: 2rem;
+    }
+    
+    .section h2 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.8rem;
+      color: var(--sbh-light-blue);
+      margin-bottom: 1.5rem;
+      position: relative;
+    }
+    
+    .section h2::after {
+      content: "";
+      position: absolute;
+      bottom: -8px;
+      left: 0;
+      width: 60px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      border-radius: 2px;
+    }
+    
+    .section p {
+      color: var(--sbh-text-light);
+      margin-bottom: 1.5rem;
+      line-height: 1.7;
+    }
+    
+    .btn-order {
+      display: block;
+      width: 90%;
+      max-width: 400px;
+      margin: 2rem auto;
+      padding: 1rem 2rem;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      color: var(--sbh-text-white);
+      border: none;
+      border-radius: 50px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 20px rgba(30, 144, 255, 0.3);
+      text-align: center;
+    }
+    
+    .btn-order:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 25px rgba(30, 144, 255, 0.4);
+      background: linear-gradient(45deg, var(--sbh-gradient-start), #2a7fff);
+    }
+    
+    form {
+      display: none;
+    }
+    
+    form.active {
+      display: block;
+      animation: fadeIn 0.5s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    @media (max-width: 768px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    form label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      font-size: 0.95rem;
+      color: var(--sbh-text-light);
+    }
+    
+    form input, form select, form textarea {
+      width: 100%;
+      padding: 0.9rem;
+      font-size: 1rem;
+      background: rgba(20, 35, 60, 0.7);
+      border: 1px solid var(--sbh-card-border);
+      border-radius: 10px;
+      color: var(--sbh-text-white);
+      transition: all 0.3s ease;
+    }
+    
+    form textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+    
+    form input:focus, form select:focus, form textarea:focus {
+      outline: none;
+      border-color: var(--sbh-light-blue);
+      box-shadow: 0 0 15px rgba(77, 166, 255, 0.3);
+      background: rgba(20, 35, 60, 0.9);
+    }
+    
+    form input::placeholder, form textarea::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    form button[type="submit"] {
+      display: block;
+      width: 100%;
+      padding: 1rem;
+      margin-top: 2rem;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      color: var(--sbh-text-white);
+      border: none;
+      border-radius: 50px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3);
+    }
+    
+    form button[type="submit"]:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 7px 20px rgba(30, 144, 255, 0.4);
+      background: linear-gradient(45deg, var(--sbh-gradient-start), #2a7fff);
+    }
+    
+    #prixTotal {
+      text-align: center;
+      margin: 1.5rem 0;
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--sbh-text-green);
+      padding: 1rem;
+      background: rgba(76, 175, 80, 0.1);
+      border-radius: 10px;
+      border: 1px solid rgba(76, 175, 80, 0.3);
+    }
+    
+    .toggle-info {
+      display: block;
+      width: 90%;
+      max-width: 400px;
+      margin: 1.5rem auto;
+      padding: 0.8rem;
+      background: none;
+      border: 1px solid var(--sbh-light-blue);
+      color: var(--sbh-light-blue);
+      text-decoration: none;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      border-radius: 30px;
+      transition: all 0.3s ease;
+    }
+    
+    .toggle-info:hover {
+      background: rgba(77, 166, 255, 0.1);
+      transform: translateY(-2px);
+    }
+    
+    .more-info {
+      display: none;
+      padding: 2rem;
+      border-top: 1px solid var(--sbh-card-border);
+      background: rgba(20, 35, 60, 0.4);
+      font-size: 1rem;
+      border-radius: 0 0 15px 15px;
+    }
+    
+    .more-info.active {
+      display: block;
+      animation: fadeIn 0.5s ease;
+    }
+    
+    .price-item {
+      margin-bottom: 1.2rem;
+      padding-left: 1rem;
+      border-left: 3px solid var(--sbh-icon-color);
+    }
+    
+    .price-item strong {
+      color: var(--sbh-light-blue);
+      display: block;
+      margin-bottom: 0.3rem;
+      font-size: 1.1rem;
+    }
+    
+    footer {
+      background: linear-gradient(to right, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      color: var(--sbh-text-white);
+      text-align: center;
+      padding: 2rem;
+      font-size: 1rem;
+      margin-top: auto;
+      font-weight: 500;
+    }
+    
+    .back-to-top {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      cursor: pointer;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3);
+      z-index: 999;
+    }
+    
+    .back-to-top.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .back-to-top:hover {
+      transform: translateY(-5px) scale(1.1);
+      box-shadow: 0 7px 20px rgba(30, 144, 255, 0.4);
+    }
+    
+    /* Section statistiques */
+    .stats-section {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin: 3rem 0;
+    }
+    
+    .stat-card {
+      background: rgba(17, 32, 58, 0.6);
+      border: 1px solid rgba(77, 166, 255, 0.2);
+      border-radius: 15px;
+      padding: 1.5rem;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-5px);
+      border-color: var(--sbh-light-blue);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+    
+    .stat-number {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--sbh-light-blue);
+      margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+      color: var(--sbh-text-light);
+      font-size: 1rem;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      header h1 {
+        font-size: 1.8rem;
+      }
+      
+      header p {
+        font-size: 1rem;
+      }
+      
+      .main-illustration {
+        margin: 1rem auto;
+        border-radius: 10px;
+      }
+      
+      .categories-nav {
+        padding: 0.8rem;
+        gap: 0.5rem;
+      }
+      
+      .category-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+      }
+      
+      .category-title {
+        font-size: 1.5rem;
+      }
+      
+      .category-description {
+        padding-left: 0;
+      }
+      
+      .realisations-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .form-section, .container {
+        margin: 1rem;
+      }
+      
+      .section {
+        padding: 1.5rem;
+      }
+      
+      .section h2 {
+        font-size: 1.5rem;
+      }
+      
+      .stat-card {
+        padding: 1rem;
+      }
+      
+      .stat-number {
+        font-size: 2rem;
+      }
+      
+      .intro-section {
+        padding: 1.5rem;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .category-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .category-icon {
+        margin-bottom: 1rem;
+      }
+    }
+  </style>
 </head>
 <body>
-    <!-- Mobile Header -->
-    <header class="mobile-header">
-        <div class="container">
-            <div class="mobile-header-content">
-                <a href="index.html" class="logo">
-                    Lik<span class="yellow">é</span>o<span class="dot">.</span>Boost
-                </a>
-                <button class="menu-btn" id="menuBtn">
-                    <i class="fas fa-bars"></i>
-                </button>
-            </div>
-        </div>
-    </header>
+  <!-- Fond animé amélioré -->
+  <div class="background-animation" id="starField"></div>
 
-    <!-- Mobile Menu -->
-    <div class="menu-overlay" id="menuOverlay"></div>
-    <div class="mobile-menu" id="mobileMenu">
-        <div class="menu-header">
-            <a href="index.html" class="logo">
-                Lik<span class="yellow">é</span>o<span class="dot">.</span>Boost
-            </a>
-            <button class="menu-close" id="menuClose">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        
-        <div class="user-info">
-            <div class="user-avatar" id="userAvatar">
-                U
-            </div>
-            <div class="user-details">
-                <h3 id="userName">Utilisateur</h3>
-                <p id="userEmail">email@exemple.com</p>
-            </div>
-        </div>
-        
-        <div class="balance-display">
-            <div class="balance-amount" id="userBalance">0 XAF</div>
-            <div class="balance-label">Solde actuel</div>
-        </div>
-        
-        <div class="menu-nav">
-            <a href="dashboard.html" class="menu-item active">
-                <i class="fas fa-home"></i>
-                Tableau de Bord
-            </a>
-            <a href="commandes.html" class="menu-item">
-                <i class="fas fa-clipboard-list"></i>
-                Mes Commandes
-            </a>
-            <a href="transactions.html" class="menu-item">
-                <i class="fas fa-exchange-alt"></i>
-                Transactions
-            </a>
-            <a href="profil.html" class="menu-item">
-                <i class="fas fa-user"></i>
-                Mon Profil
-            </a>
-            <a href="https://wa.me/237654494684" target="_blank" class="menu-item">
-                <i class="fas fa-headset"></i>
-                Support
-            </a>
-        </div>
-        
-        <div class="menu-footer">
-            <a href="depot.html" class="btn btn-secondary" style="width: 100%; margin-bottom: 15px; text-decoration: none;">
-                <i class="fas fa-money-bill-wave"></i> Déposer des fonds
-            </a>
-            <button class="btn btn-primary" id="logoutBtn" style="width: 100%;">
-                <i class="fas fa-sign-out-alt"></i> Déconnexion
-            </button>
-        </div>
+  <header>
+    <div class="hero-content">
+      <h1>Création de Sites Web Sur Mesure</h1>
+      <p>Des solutions web innovantes et professionnelles pour propulser votre présence en ligne</p>
+    </div>
+  </header>
+
+  <!-- Image d'illustration principale -->
+  <div class="main-illustration">
+    <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Site%20web.jpg"
+         alt="Sites web sur mesure">
+    <div class="illustration-caption">Exemple de site web professionnel créé par Social Boost Horizon</div>
+  </div>
+
+  <!-- Introduction -->
+  <div class="container">
+    <div class="intro-section">
+      <h2>Notre Expertise en Création de Sites Web</h2>
+      <p>Vous pensez à un site web pour développer votre présence en ligne ? C'est une démarche essentielle ! Le coût de création d'un site web varie en fonction de vos besoins et de la complexité du projet. Nous pouvons vous aider à concevoir un site web qui correspond à vos attentes et à votre budget.</p>
+      <p>Depuis 2021, nous avons réalisé <span class="highlight">plus de 50 sites web</span> pour des clients dans <span class="highlight">15 pays différents</span>. Chaque projet est unique et adapté aux besoins spécifiques de nos clients.</p>
+      <p>Voici une sélection de nos réalisations récentes, classées par catégorie. Ces exemples vous donneront un aperçu de la qualité de notre travail et de notre capacité à créer des solutions web adaptées à divers secteurs d'activité.</p>
     </div>
 
-    <!-- Main Content -->
-    <main class="main-content">
-        <div class="container">
-            <!-- Welcome Section -->
-            <section class="welcome-section">
-                <div class="welcome-text">
-                    <h1 id="welcomeMessage">Bienvenue sur Likéo Boost!</h1>
-                    <p>Boostez votre présence en ligne avec nos services professionnels</p>
-                </div>
-            </section>
+    <!-- Navigation des catégories -->
+    <nav class="categories-nav">
+      <button class="category-btn active" data-category="all">Toutes les réalisations</button>
+      <button class="category-btn" data-category="visibilite">Visibilité en ligne</button>
+      <button class="category-btn" data-category="musique">Musique</button>
+      <button class="category-btn" data-category="marketing">Marketing d'affiliation</button>
+      <button class="category-btn" data-category="autres">Autres projets</button>
+    </nav>
 
-            <!-- Stats Section -->
-            <section class="stats-section">
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #2A5EE8, #1A1F3C);">
-                        <i class="fas fa-wallet"></i>
-                    </div>
-                    <div class="stat-value" id="currentBalance">0 XAF</div>
-                    <div class="stat-label">Solde actuel</div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #4CAF50, #2E7D32);">
-                        <i class="fas fa-clipboard-check"></i>
-                    </div>
-                    <div class="stat-value" id="activeOrders">0</div>
-                    <div class="stat-label">Commandes actives</div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #FF7A00, #E65100);">
-                        <i class="fas fa-history"></i>
-                    </div>
-                    <div class="stat-value" id="totalOrders">0</div>
-                    <div class="stat-label">Commandes totales</div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #9C27B0, #6A1B9A);">
-                        <i class="fas fa-money-bill-wave"></i>
-                    </div>
-                    <div class="stat-value" id="totalSpent">0 XAF</div>
-                    <div class="stat-label">Total dépensé</div>
-                </div>
-            </section>
+    <!-- Section statistiques -->
+    <div class="stats-section">
+      <div class="stat-card">
+        <div class="stat-number">50+</div>
+        <div class="stat-label">Sites web réalisés</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">15</div>
+        <div class="stat-label">Pays desservis</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">98%</div>
+        <div class="stat-label">Clients satisfaits</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">24h</div>
+        <div class="stat-label">Support réactif</div>
+      </div>
+    </div>
 
-            <!-- Service Selection Flow -->
-            <section class="service-flow">
-                <div class="flow-header">
-                    <h2>Commander un service</h2>
-                    <p>Sélectionnez votre plateforme, service, qualité, quantité et lien</p>
-                </div>
-                
-                <div class="flow-steps">
-                    <div class="step active" data-step="1">
-                        <div class="step-icon">1</div>
-                        <div class="step-label">Plateforme</div>
-                    </div>
-                    <div class="step" data-step="2">
-                        <div class="step-icon">2</div>
-                        <div class="step-label">Service</div>
-                    </div>
-                    <div class="step" data-step="3">
-                        <div class="step-icon">3</div>
-                        <div class="step-label">Qualité & Quantité</div>
-                    </div>
-                    <div class="step" data-step="4">
-                        <div class="step-icon">4</div>
-                        <div class="step-label">Lien</div>
-                    </div>
-                    <div class="step" data-step="5">
-                        <div class="step-icon">5</div>
-                        <div class="step-label">Commander</div>
-                    </div>
-                </div>
-
-                <!-- Step 1: Platform Selection -->
-                <div class="flow-section active" id="step1">
-                    <h3 style="margin-bottom: 20px; font-size: 1.2rem;">Sélectionnez une plateforme</h3>
-                    
-                    <div class="platforms-container" id="platformsContainer">
-                        <!-- Plateformes chargées dynamiquement -->
-                    </div>
-                    
-                    <div class="flow-navigation">
-                        <div></div> <!-- Espace vide pour aligner -->
-                        <button class="btn btn-primary" id="nextToStep2" disabled>
-                            Suivant <i class="fas fa-arrow-right"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Step 2: Service Selection -->
-                <div class="flow-section" id="step2">
-                    <h3 style="margin-bottom: 20px; font-size: 1.2rem;">Sélectionnez un service</h3>
-                    
-                    <div class="services-container" id="servicesContainer">
-                        <!-- Services chargés dynamiquement -->
-                    </div>
-                    
-                    <div class="flow-navigation">
-                        <button class="btn btn-secondary" id="backToStep1">
-                            <i class="fas fa-arrow-left"></i> Retour
-                        </button>
-                        <button class="btn btn-primary" id="nextToStep3" disabled>
-                            Suivant <i class="fas fa-arrow-right"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Step 3: Quality & Quantity -->
-                <div class="flow-section" id="step3">
-                    <h3 style="margin-bottom: 20px; font-size: 1.2rem;">Choisissez la qualité et la quantité</h3>
-                    
-                    <!-- Quality Selection -->
-                    <div id="qualitySelection" style="margin-bottom: 25px;">
-                        <!-- Options de qualité chargées dynamiquement -->
-                    </div>
-                    
-                    <!-- Quantity Selection -->
-                    <div class="quantity-container" id="quantityContainer">
-                        <div class="quantity-header">
-                            <h3>Quantité</h3>
-                            <div class="quantity-unit" id="quantityUnit">1K unités</div>
-                        </div>
-                        
-                        <div class="quantity-input">
-                            <button class="quantity-btn" id="decreaseQuantity">-</button>
-                            <div class="quantity-display" id="quantityDisplay">1</div>
-                            <button class="quantity-btn" id="increaseQuantity">+</button>
-                        </div>
-                        
-                        <div style="text-align: center; font-size: 0.9rem; color: var(--text-light);">
-                            Augmentez ou diminuez la quantité selon vos besoins
-                        </div>
-                    </div>
-                    
-                    <!-- Price Preview -->
-                    <div style="background-color: #f0f5ff; border-radius: 12px; padding: 20px; margin-bottom: 25px;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                            <div style="color: var(--text-dark); font-weight: 600;">Prix unitaire:</div>
-                            <div id="unitPrice" style="color: var(--primary-blue); font-weight: 700;">0 XAF</div>
-                        </div>
-                        <div style="display: flex; justify-content: space-between;">
-                            <div style="color: var(--text-dark); font-weight: 600;">Total:</div>
-                            <div id="totalPreview" style="color: var(--primary-orange); font-weight: 700; font-size: 1.3rem;">0 XAF</div>
-                        </div>
-                    </div>
-                    
-                    <div class="flow-navigation">
-                        <button class="btn btn-secondary" id="backToStep2">
-                            <i class="fas fa-arrow-left"></i> Retour
-                        </button>
-                        <button class="btn btn-primary" id="nextToStep4" disabled>
-                            Suivant <i class="fas fa-arrow-right"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Step 4: Link Input -->
-                <div class="flow-section" id="step4">
-                    <h3 style="margin-bottom: 20px; font-size: 1.2rem;">Entrez le lien de votre publication/profil</h3>
-                    
-                    <div class="link-container">
-                        <div class="form-group">
-                            <label for="orderLink">Lien de votre publication/profil *</label>
-                            <input type="url" id="orderLink" class="form-control" placeholder="https://facebook.com/votre-profil" required>
-                            <div class="link-example">
-                                Exemples: 
-                                <br>• Facebook: https://facebook.com/votre-profil
-                                <br>• Instagram: https://instagram.com/votre-compte
-                                <br>• TikTok: https://tiktok.com/@votre-compte
-                                <br>• YouTube: https://youtube.com/watch?v=ID_VIDEO
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="flow-navigation">
-                        <button class="btn btn-secondary" id="backToStep3">
-                            <i class="fas fa-arrow-left"></i> Retour
-                        </button>
-                        <button class="btn btn-primary" id="nextToStep5" disabled>
-                            Suivant <i class="fas fa-arrow-right"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Step 5: Order Confirmation -->
-                <div class="flow-section" id="step5">
-                    <h3 style="margin-bottom: 20px; font-size: 1.2rem;">Confirmez votre commande</h3>
-                    
-                    <!-- Order Summary -->
-                    <div class="order-summary" id="orderSummary">
-                        <!-- Récapitulatif chargé dynamiquement -->
-                    </div>
-                    
-                    <!-- Order Form -->
-                    <div class="order-form">
-                        <div class="form-group">
-                            <label for="orderNotes">Notes supplémentaires (optionnel)</label>
-                            <textarea id="orderNotes" class="form-control" placeholder="Instructions spéciales, commentaires..."></textarea>
-                        </div>
-                    </div>
-                    
-                    <div class="flow-navigation">
-                        <button class="btn btn-secondary" id="backToStep4">
-                            <i class="fas fa-arrow-left"></i> Retour
-                        </button>
-                        <button class="btn btn-success" id="confirmOrderBtn">
-                            <i class="fas fa-check-circle"></i> Confirmer la commande
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Order Success -->
-                <div class="order-success" id="orderSuccess" style="display: none;">
-                    <div class="success-icon">
-                        <i class="fas fa-check"></i>
-                    </div>
-                    <div class="success-message">
-                        <h3>Commande confirmée!</h3>
-                        <p>Votre commande a été passée avec succès. Vous pouvez suivre son avancement dans la section "Mes Commandes".</p>
-                        <button class="btn btn-primary" id="newOrderBtn">
-                            <i class="fas fa-plus"></i> Nouvelle commande
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Deposit Section -->
-            <section class="deposit-btn-container">
-                <a href="depot.html" class="btn btn-primary deposit-btn">
-                    <i class="fas fa-money-bill-wave"></i> Déposer des fonds
-                </a>
-            </section>
+    <!-- Catégorie 1: Augmentation de la visibilité en ligne -->
+    <section class="category-section visible" id="visibilite">
+      <div class="category-header">
+        <div class="category-icon">
+          <i class="fas fa-chart-line"></i>
         </div>
-    </main>
-
-    <!-- Footer -->
-    <footer>
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-about">
-                    <a href="index.html" class="footer-logo">
-                        Lik<span class="yellow">é</span>o<span class="dot">.</span>Boost
-                    </a>
-                    <p>Likéo Boost est votre partenaire de confiance pour augmenter votre visibilité sur les réseaux sociaux. Des services professionnels pour des résultats exceptionnels.</p>
-                </div>
-                
-                <div class="footer-links">
-                    <h3>Liens Rapides</h3>
-                    <ul>
-                        <li><a href="index.html">Accueil</a></li>
-                        <li><a href="#services">Services</a></li>
-                        <li><a href="#support">Support</a></li>
-                        <li><a href="#contact">Contact</a></li>
-                    </ul>
-                </div>
-                
-                <div class="footer-contact">
-                    <h3>Contactez-Nous</h3>
-                    <p><i class="fab fa-whatsapp"></i> +237 654 49 46 84</p>
-                    <p><i class="fas fa-envelope"></i> contact@likeoboost.com</p>
-                    <p><i class="fas fa-map-marker-alt"></i> Services disponibles dans le monde entier</p>
-                </div>
-            </div>
-            
-            <div class="footer-bottom">
-                <p>&copy; 2026 Likéo Boost. Tous droits réservés. | Site propulsé par <a href="https://socialboosthorizon.com" target="_blank">Social Boost Horizon</a></p>
-            </div>
+        <h2 class="category-title">Augmentation de la visibilité en ligne</h2>
+      </div>
+      <p class="category-description">Nos clients revendeurs sur Social Boost Horizon qui ont évolué pour créer leurs propres agences spécialisées dans l'augmentation de la visibilité en ligne grâce à nos services.</p>
+      
+      <div class="realisations-grid">
+        <!-- Likéo Boost -->
+        <div class="realisation-card">
+          <div class="realisation-illustration" style="background-image: url('https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=2015&auto=format&fit=crop');">
+            <div class="realisation-badge">Agence</div>
+          </div>
+          <div class="realisation-content">
+            <h3 class="realisation-title">Likéo Boost</h3>
+            <div class="realisation-country">Cameroun</div>
+            <p class="realisation-description">Agence spécialisée dans l'augmentation d'audience et d'engagement sur les réseaux sociaux. Solutions personnalisées pour les entreprises et influenceurs.</p>
+            <a href="https://likeo-boostsbh.vercel.app/" target="_blank" class="realisation-link">
+              <i class="fas fa-external-link-alt"></i> Voir le site
+            </a>
+          </div>
         </div>
-    </footer>
+        
+        <!-- Boosteph -->
+        <div class="realisation-card">
+          <div class="realisation-illustration" style="background-image: url('https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2070&auto=format&fit=crop');">
+            <div class="realisation-badge">Agence</div>
+          </div>
+          <div class="realisation-content">
+            <h3 class="realisation-title">Boosteph</h3>
+            <div class="realisation-country">Cameroun</div>
+            <p class="realisation-description">Plateforme de marketing digital offrant des services complets d'augmentation de visibilité sur les principales plateformes sociales.</p>
+            <a href="https://boosteph-sbh.vercel.app/" target="_blank" class="realisation-link">
+              <i class="fas fa-external-link-alt"></i> Voir le site
+            </a>
+          </div>
+        </div>
+        
+        <!-- Madil boost -->
+        <div class="realisation-card">
+          <div class="realisation-illustration" style="background-image: url('https://images.unsplash.com/photo-1551434678-e076c223a692?q=80&w=2070&auto=format&fit=crop');">
+            <div class="realisation-badge">Agence</div>
+          </div>
+          <div class="realisation-content">
+            <h3 class="realisation-title">Madil Boost</h3>
+            <div class="realisation-country">Cameroun</div>
+            <p class="realisation-description">Service d'optimisation de présence en ligne avec stratégies sur mesure pour augmenter la portée organique des contenus.</p>
+            <a href="https://madil-boost-sbh.netlify.app/" target="_blank" class="realisation-link">
+              <i class="fas fa-external-link-alt"></i> Voir le site
+            </a>
+          </div>
+        </div>
+        
+        <!-- Sedeck boost -->
+        <div class="realisation-card">
+          <div class="realisation-illustration" style="background-image: url('https://images.unsplash.com/photo-1553877522-43269d4ea984?q=80&w=2070&auto=format&fit=crop');">
+            <div class="realisation-badge">Agence</div>
+          </div>
+          <div class="realisation-content">
+            <h3 class="realisation-title">Sedeck Boost</h3>
+            <div class="realisation-country">République Démocratique du Congo</div>
+            <p class="realisation-description">Agence de visibilité en ligne établie en RDC, offrant des solutions adaptées au marché africain francophone.</p>
+            <a href="https://sedeck-boost-shb.netlify.app/" target="_blank" class="realisation-link">
+              <i class="fas fa-external-link-alt"></i> Voir le site
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
 
-    <!-- Notification Container -->
-    <div class="notification-container" id="notificationContainer"></div>
+    <!-- Catégorie 2: Musique -->
+    <section class="category-section visible" id="musique">
+      <div class="category-header">
+        <div class="category-icon">
+          <i class="fas fa-music"></i>
+        </div>
+        <h2 class="category-title">Musique</h2>
+      </div>
+      <p class="category-description">Plateformes innovantes pour l'industrie musicale, allant des classements en temps réel à la distribution numérique.</p>
+      
+      <div class="realisations-grid">
+        <!-- Gramcharts -->
+        <div class="realisation-card">
+          <div class="realisation-illustration" style="background-image: url('https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=2070&auto=format&fit=crop');">
+            <div class="realisation-badge">Classement</div>
+          </div>
+          <div class="realisation-content">
+            <h3 class="realisation-title">Gramcharts</h3>
+            <div class="realisation-country">France</div>
+            <p class="realisation-description">Plateforme dynamique présentant les classements musicaux en temps réel. Système de vote et mise à jour automatique des positions.</p>
+            <a href="https://gram-charts-sbh.vercel.app/" target="_blank" class="realisation-link">
+              <i class="fas fa-external-link-alt"></i> Voir le site
+            </a>
+          </div>
+        </div>
+        
+        <!-- CINEXAU PRODUCTION -->
+        <div class="realisation-card">
+          <div class="realisation-illustration" style="background-image: url('https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=2070&auto=format&fit=crop');">
+            <div class="realisation-badge">Production</div>
+          </div>
+          <div class="realisation-content">
+            <h3 class="realisation-title">CINEXAU PRODUCTION</h3>
+            <div class="realisation-country">Cameroun</div>
+            <p class="realisation-description">Solution complète pour les artistes souhaitant distribuer leur musique. Gestion de catalogues, statistiques détaillées et intégration avec les plateformes de streaming.</p>
+            <a href="https://cinexau-production-sbh.netlify.app/" target="_blank" class="realisation-link">
+              <i class="fas fa-external-link-alt"></i> Voir le site
+            </a>
+          </div>
+        </div>
+        
+        <!-- Zone muzik -->
+        <div class="realisation-card">
+          <div class="realisation-illustration" style="background-image: url('https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=2070&auto=format&fit=crop');">
+            <div class="realisation-badge">Plateforme</div>
+          </div>
+          <div class="realisation-content">
+            <h3 class="realisation-title">Zone Muzik</h3>
+            <div class="realisation-country">États-Unis</div>
+            <p class="realisation-description">Plateforme de découverte musicale internationale avec focus sur les artistes émergents et les tendances globales.</p>
+            <a href="https://zonemusik.netlify.app/" target="_blank" class="realisation-link">
+              <i class="fas fa-external-link-alt"></i> Voir le site
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
 
-    <script>
-        // Configuration Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyDAYnMPv7zDw_YTihyi5rKGtpws4BMqaWI",
-            authDomain: "likeo-boost.firebaseapp.com",
-            projectId: "likeo-boost",
-            storageBucket: "likeo-boost.firebasestorage.app",
-            messagingSenderId: "385658425556",
-            appId: "1:385658425556:web:c7d7de5713ad565d34eb41",
-            measurementId: "G-RECGZ5T342"
-        };
+    <!-- Catégorie 3: Marketing d'affiliation -->
+    <section class="category-section visible" id="marketing">
+      <div class="category-header">
+        <div class="category-icon">
+          <i class="fas fa-hand-holding-usd"></i>
+        </div>
+        <h2 class="category-title">Marketing d'affiliation</h2>
+      </div>
+      <p class="category-description">Plateformes innovantes de rémunération par parrainage et tâches en ligne, permettant aux utilisateurs de générer des revenus.</p>
+      
+      <div class="realisations-grid">
+        <!-- BLOWEARN AGENCIES -->
+        <div class="realisation-card">
+          <div class="realisation-illustration" style="background-image: url('https://images.unsplash.com/photo-1554224155-6726b3ff858f?q=80&w=2011&auto=format&fit=crop');">
+            <div class="realisation-badge">Parrainage</div>
+          </div>
+          <div class="realisation-content">
+            <h3 class="realisation-title">BLOWEARN AGENCIES</h3>
+            <div class="realisation-country">Cameroun</div>
+            <p class="realisation-description">Plateforme de parrainage permettant de gagner de l'argent en regardant des vidéos et en accomplissant des tâches en ligne.</p>
+            <a href="https://blowearn-agencies.vercel.app/" target="_blank" class="realisation-link">
+              <i class="fas fa-external-link-alt"></i> Voir le site
+            </a>
+          </div>
+        </div>
+        
+        <!-- Earnesia Group -->
+        <div class="realisation-card">
+          <div class="realisation-illustration" style="background-image: url('https://images.unsplash.com/photo-1563013544-824ae1b704d3?q=80&w=2070&auto=format&fit=crop');">
+            <div class="realisation-badge">Rémunération</div>
+          </div>
+          <div class="realisation-content">
+            <h3 class="realisation-title">Earnesia Group</h3>
+            <div class="realisation-country">Kenya / Cameroun</div>
+            <p class="realisation-description">Groupe spécialisé dans les programmes d'affiliation et de rémunération pour les marchés africains émergents.</p>
+            <a href="https://earnesia-group.vercel.app/" target="_blank" class="realisation-link">
+              <i class="fas fa-external-link-alt"></i> Voir le site
+            </a>
+          </div>
+        </div>
+        
+        <!-- Mulaflowr AGENCIES -->
+        <div class="realisation-card">
+          <div class="realisation-illustration" style="background-image: url('https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=2070&auto=format&fit=crop');">
+            <div class="realisation-badge">Affiliation</div>
+          </div>
+          <div class="realisation-content">
+            <h3 class="realisation-title">Mulaflowr AGENCIES</h3>
+            <div class="realisation-country">Bénin</div>
+            <p class="realisation-description">Plateforme d'affiliation innovante offrant des opportunités de revenus multiples à travers différents programmes partenaires.</p>
+            <a href="https://mulaflowr-agencies.vercel.app/" target="_blank" class="realisation-link">
+              <i class="fas fa-external-link-alt"></i> Voir le site
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
 
-        // Initialiser Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+    <!-- Catégorie 4: Autres projets -->
+    <section class="category-section visible" id="autres">
+      <div class="category-header">
+        <div class="category-icon">
+          <i class="fas fa-layer-group"></i>
+        </div>
+        <h2 class="category-title">Autres projets</h2>
+      </div>
+      <p class="category-description">Divers projets web réalisés pour différents secteurs d'activité, démontrant notre polyvalence et notre capacité d'adaptation.</p>
+      
+      <div class="realisations-grid">
+        <!-- maestro speed -->
+        <div class="realisation-card">
+          <div class="realisation-illustration" style="background-image: url('https://images.unsplash.com/photo-1581094794329-c8112a89af12?q=80&w=2070&auto=format&fit=crop');">
+            <div class="realisation-badge">Service</div>
+          </div>
+          <div class="realisation-content">
+            <h3 class="realisation-title">Maestro Speed</h3>
+            <div class="realisation-country">Afrique</div>
+            <p class="realisation-description">Plateforme de services de livraison rapide et efficace. Solution complète de gestion de commandes et de suivi en temps réel.</p>
+            <a href="https://maestro-speed-watsh-scavengers-sbh.netlify.app/" target="_blank" class="realisation-link">
+              <i class="fas fa-external-link-alt"></i> Voir le site
+            </a>
+          </div>
+        </div>
+        
+        <!-- maestro food -->
+        <div class="realisation-card">
+          <div class="realisation-illustration" style="background-image: url('https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=1981&auto=format&fit=crop');">
+            <div class="realisation-badge">Restauration</div>
+          </div>
+          <div class="realisation-content">
+            <h3 class="realisation-title">Maestro Food</h3>
+            <div class="realisation-country">Cameroun</div>
+            <p class="realisation-description">Plateforme de commande de nourriture en ligne avec système de livraison intégré. Menu interactif et paiements sécurisés.</p>
+            <a href="https://maestro-food.netlify.app/" target="_blank" class="realisation-link">
+              <i class="fas fa-external-link-alt"></i> Voir le site
+            </a>
+          </div>
+        </div>
+        
+        <!-- viralix -->
+        <div class="realisation-card">
+          <div class="realisation-illustration" style="background-image: url('https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=1974&auto=format&fit=crop');">
+            <div class="realisation-badge">Média</div>
+          </div>
+          <div class="realisation-content">
+            <h3 class="realisation-title">Viralix</h3>
+            <div class="realisation-country">Canada</div>
+            <p class="realisation-description">Plateforme de partage et de téléchargement de contenus vidéo viraux. Interface intuitive et fonctionnalités de gestion avancées.</p>
+            <a href="https://viralix-sbh.netlify.app/" target="_blank" class="realisation-link">
+              <i class="fas fa-external-link-alt"></i> Voir le site
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
 
-        // Variables globales
-        let currentUser = null;
-        let userData = null;
-        let currentPlatform = null;
-        let currentService = null;
-        let currentOption = null;
-        let currentQuantity = 1;
-        let currentLink = '';
+    <!-- Note de sélection -->
+    <div class="selection-note">
+      <h3>Ce n'est qu'un aperçu de notre travail !</h3>
+      <p>Nous avons réalisé <strong>plus de 50 sites web</strong> pour des clients dans 15 pays. Cette galerie présente seulement une sélection de nos réalisations récentes pour vous donner une idée de la qualité et de la diversité de notre travail.</p>
+      <p>Si vous souhaitez voir plus de réalisations ou discuter de votre projet spécifique, n'hésitez pas à nous contacter directement sur WhatsApp.</p>
+      <a href="https://wa.me/237699853665" target="_blank" class="whatsapp-contact">
+        <i class="fab fa-whatsapp"></i> Voir plus de réalisations
+      </a>
+    </div>
 
-        // Données des services (avec prix augmentés de 70%)
-        const servicesData = [
-            {
-                id: "facebook",
-                name: "Facebook",
-                icon: "fab fa-facebook-f",
-                color: "#3b5998",
-                services: [
-                    {
-                        id: "fb_views",
-                        name: "Vues Vidéo/Reel",
-                        description: "Augmentez les vues de vos vidéos Facebook",
-                        unit: "1K vues",
-                        options: [
-                            {
-                                id: "fb_views_medium",
-                                name: "Qualité moyenne",
-                                price: Math.round(122.4 * 1.7),
-                                duration: "1-2 heures"
-                            },
-                            {
-                                id: "fb_views_high",
-                                name: "Haute qualité",
-                                price: Math.round(204 * 1.7),
-                                duration: "30 min - 1 heure"
-                            }
-                        ]
-                    },
-                    {
-                        id: "fb_comments",
-                        name: "Commentaires",
-                        description: "Commentaires personnalisés pour vos publications",
-                        unit: "10 commentaires",
-                        options: [
-                            {
-                                id: "fb_comments_male",
-                                name: "Masculins (🇺🇸)",
-                                price: Math.round(1237.6 * 1.7),
-                                duration: "2-3 heures"
-                            },
-                            {
-                                id: "fb_comments_female",
-                                name: "Féminins (🇺🇸)",
-                                price: Math.round(1414.4 * 1.7),
-                                duration: "2-3 heures"
-                            }
-                        ]
-                    },
-                    {
-                        id: "fb_reactions",
-                        name: "Réactions",
-                        description: "Réactions emoji pour vos publications",
-                        unit: "1K réactions",
-                        options: [
-                            {
-                                id: "fb_reactions_all",
-                                name: "Tous types",
-                                price: Math.round(571.2 * 1.7),
-                                duration: "1-2 heures"
-                            }
-                        ]
-                    },
-                    {
-                        id: "fb_followers",
-                        name: "Abonnés Profil",
-                        description: "Abonnés pour votre profil Facebook",
-                        unit: "1K abonnés",
-                        options: [
-                            {
-                                id: "fb_followers_medium",
-                                name: "Qualité moyenne",
-                                price: Math.round(843.2 * 1.7),
-                                duration: "3-5 heures"
-                            },
-                            {
-                                id: "fb_followers_high",
-                                name: "Haute qualité",
-                                price: Math.round(1360 * 1.7),
-                                duration: "1-2 heures"
-                            }
-                        ]
-                    },
-                    {
-                        id: "fb_likes",
-                        name: "J'aime Publication",
-                        description: "J'aime pour vos publications Facebook",
-                        unit: "1K j'aime",
-                        options: [
-                            {
-                                id: "fb_likes_medium",
-                                name: "Qualité moyenne",
-                                price: Math.round(272 * 1.7),
-                                duration: "1-2 heures"
-                            },
-                            {
-                                id: "fb_likes_high",
-                                name: "Haute qualité",
-                                price: Math.round(544 * 1.7),
-                                duration: "30 min - 1 heure"
-                            }
-                        ]
-                    }
-                ]
-            },
-            {
-                id: "tiktok",
-                name: "TikTok",
-                icon: "fab fa-tiktok",
-                color: "#000000",
-                services: [
-                    {
-                        id: "tiktok_views",
-                        name: "Vues",
-                        description: "Augmentez les vues de vos vidéos TikTok",
-                        unit: "1K vues",
-                        options: [
-                            {
-                                id: "tiktok_views_medium",
-                                name: "Qualité moyenne",
-                                price: Math.round(13.6 * 1.7),
-                                duration: "30 min - 1 heure"
-                            },
-                            {
-                                id: "tiktok_views_high",
-                                name: "Haute qualité",
-                                price: Math.round(23.12 * 1.7),
-                                duration: "10-30 minutes"
-                            }
-                        ]
-                    },
-                    {
-                        id: "tiktok_likes",
-                        name: "J'aime",
-                        description: "J'aime pour vos vidéos TikTok",
-                        unit: "1K j'aime",
-                        options: [
-                            {
-                                id: "tiktok_likes_medium",
-                                name: "Qualité moyenne",
-                                price: Math.round(167.28 * 1.7),
-                                duration: "1-2 heures"
-                            },
-                            {
-                                id: "tiktok_likes_high",
-                                name: "Haute qualité",
-                                price: Math.round(326.4 * 1.7),
-                                duration: "30 min - 1 heure"
-                            }
-                        ]
-                    }
-                ]
-            },
-            {
-                id: "instagram",
-                name: "Instagram",
-                icon: "fab fa-instagram",
-                color: "#e1306c",
-                services: [
-                    {
-                        id: "instagram_comments",
-                        name: "Commentaires",
-                        description: "Commentaires personnalisés pour vos publications",
-                        unit: "10 commentaires",
-                        options: [
-                            {
-                                id: "instagram_comments_medium",
-                                name: "Qualité moyenne",
-                                price: Math.round(81.6 * 1.7),
-                                duration: "4 heures"
-                            },
-                            {
-                                id: "instagram_comments_high",
-                                name: "Haute qualité",
-                                price: Math.round(163.2 * 1.7),
-                                duration: "2 heures"
-                            }
-                        ]
-                    },
-                    {
-                        id: "instagram_likes",
-                        name: "J'aime",
-                        description: "J'aime pour vos publications Instagram",
-                        unit: "1K j'aime",
-                        options: [
-                            {
-                                id: "instagram_likes_medium",
-                                name: "Qualité moyenne",
-                                price: Math.round(367.2 * 1.7),
-                                duration: "1 heure"
-                            },
-                            {
-                                id: "instagram_likes_high",
-                                name: "Haute qualité",
-                                price: Math.round(544 * 1.7),
-                                duration: "30 minutes"
-                            }
-                        ]
-                    }
-                ]
-            },
-            {
-                id: "youtube",
-                name: "YouTube",
-                icon: "fab fa-youtube",
-                color: "#ff0000",
-                services: [
-                    {
-                        id: "youtube_views",
-                        name: "Vues",
-                        description: "Augmentez les vues de vos vidéos YouTube",
-                        unit: "1K vues",
-                        options: [
-                            {
-                                id: "youtube_views_medium",
-                                name: "Qualité moyenne",
-                                price: Math.round(1360 * 1.7),
-                                duration: "5 heures"
-                            },
-                            {
-                                id: "youtube_views_high",
-                                name: "Haute qualité",
-                                price: Math.round(1904 * 1.7),
-                                duration: "7 heures"
-                            }
-                        ]
-                    },
-                    {
-                        id: "youtube_subscribers",
-                        name: "Abonnés",
-                        description: "Abonnés pour votre chaîne YouTube",
-                        unit: "1K abonnés",
-                        options: [
-                            {
-                                id: "youtube_subs_medium",
-                                name: "Qualité moyenne",
-                                price: Math.round(31280 * 1.7),
-                                duration: "24 heures"
-                            },
-                            {
-                                id: "youtube_subs_high",
-                                name: "Haute qualité",
-                                price: Math.round(35360 * 1.7),
-                                duration: "20 heures"
-                            }
-                        ]
-                    }
-                ]
-            },
-            {
-                id: "whatsapp",
-                name: "WhatsApp",
-                icon: "fab fa-whatsapp",
-                color: "#25D366",
-                services: [
-                    {
-                        id: "whatsapp_followers",
-                        name: "Abonnés",
-                        description: "Abonnés pour votre chaîne WhatsApp",
-                        unit: "1K followers",
-                        options: [
-                            {
-                                id: "whatsapp_followers_int",
-                                name: "Internationaux",
-                                price: Math.round(3400 * 1.7),
-                                duration: "3 heures"
-                            },
-                            {
-                                id: "whatsapp_followers_us",
-                                name: "Américains",
-                                price: Math.round(6120 * 1.7),
-                                duration: "3 heures"
-                            }
-                        ]
-                    }
-                ]
-            },
-            {
-                id: "telegram",
-                name: "Telegram",
-                icon: "fab fa-telegram",
-                color: "#0088cc",
-                services: [
-                    {
-                        id: "telegram_members",
-                        name: "Membres",
-                        description: "Membres pour votre groupe/canal Telegram",
-                        unit: "1K membres",
-                        options: [
-                            {
-                                id: "telegram_members_medium",
-                                name: "Qualité moyenne",
-                                price: Math.round(1904 * 1.7),
-                                duration: "2 heures"
-                            },
-                            {
-                                id: "telegram_members_high",
-                                name: "Haute qualité",
-                                price: Math.round(2720 * 1.7),
-                                duration: "1 heure"
-                            }
-                        ]
-                    }
-                ]
+    <!-- Section formulaire -->
+    <div class="form-section">
+      <div class="section">
+        <h2>Demander un site web sur mesure</h2>
+        <p>Vous souhaitez développer votre présence en ligne avec un site web professionnel ? Remplissez le formulaire ci-dessous pour obtenir un devis personnalisé adapté à vos besoins et votre budget.</p>
+        
+        <button class="btn-order" id="orderBtn">Demander un devis personnalisé</button>
+
+        <form id="formulaire" onsubmit="redirigerWhatsApp(event)">
+          <div class="form-row">
+            <div>
+              <label for="siteName">Nom du site *</label>
+              <input id="siteName" type="text" required placeholder="Ex: MonEntrepriseWeb">
+            </div>
+            <div>
+              <label for="companyName">Nom de l'entreprise/organisation *</label>
+              <input id="companyName" type="text" required placeholder="Ex: Social Boost Horizon">
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div>
+              <label for="contactName">Votre nom complet *</label>
+              <input id="contactName" type="text" required placeholder="Ex: Jean Dupont">
+            </div>
+            <div>
+              <label for="email">Adresse email *</label>
+              <input id="email" type="email" required placeholder="exemple@email.com">
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div>
+              <label for="phone">Numéro de téléphone *</label>
+              <input id="phone" type="tel" required placeholder="Ex: +237 6XX XX XX XX">
+            </div>
+            <div>
+              <label for="country">Pays *</label>
+              <input id="country" type="text" required placeholder="Ex: Cameroun">
+            </div>
+          </div>
+          
+          <div>
+            <label for="type">Type de site souhaité *</label>
+            <select id="type" onchange="calcPrix()" required>
+              <option value="" disabled selected>Sélectionnez un type de site</option>
+              <option value="30000">Site vitrine simple - 30 000 FCFA</option>
+              <option value="50000">Site vitrine professionnel - 50 000 FCFA</option>
+              <option value="100000">Site e‑commerce basique - 100 000 FCFA</option>
+              <option value="200000">Site e‑commerce professionnel - 200 000 FCFA</option>
+              <option value="400000">Site e‑commerce avancé - 400 000 FCFA</option>
+              <option value="500000">Site sur mesure/complexe - 500 000+ FCFA</option>
+            </select>
+          </div>
+          
+          <div>
+            <label for="budget">Budget estimé (en FCFA) *</label>
+            <input id="budget" type="number" required placeholder="Ex: 100000" min="30000" step="10000">
+          </div>
+          
+          <div>
+            <label for="details">Description détaillée de votre projet *</label>
+            <textarea id="details" required placeholder="Décrivez en détail les fonctionnalités souhaitées, le public cible, les inspirations (si vous en avez), et toute autre information pertinente..."></textarea>
+          </div>
+          
+          <div>
+            <label for="deadline">Délai souhaité (en semaines)</label>
+            <select id="deadline">
+              <option value="2">2 semaines</option>
+              <option value="4" selected>4 semaines</option>
+              <option value="6">6 semaines</option>
+              <option value="8">8 semaines</option>
+              <option value="12">12 semaines ou plus</option>
+            </select>
+          </div>
+
+          <div id="prixTotal">Prix estimé : -- FCFA</div>
+          
+          <button type="submit">Envoyer la demande et discuter sur WhatsApp</button>
+        </form>
+
+        <button class="toggle-info" onclick="toggleInfo()">Détails des tarifs et options</button>
+        
+        <div class="more-info" id="moreInfo">
+          <div class="price-item">
+            <strong>1. Site Vitrine Simple – 30 000 FCFA</strong>
+            Présentation basique de votre entreprise avec page d'accueil, à propos, services et contact. Idéal pour démarrer.
+          </div>
+          <div class="price-item">
+            <strong>2. Site Vitrine Professionnel – 50 000 FCFA</strong>
+            Design personnalisé, contenu enrichi, formulaire de contact avancé, intégration réseaux sociaux, référencement basique.
+          </div>
+          <div class="price-item">
+            <strong>3. e‑commerce Basique – 100 000 FCFA</strong>
+            Boutique en ligne simple avec jusqu'à 20 produits, panier d'achat, système de paiement intégré.
+          </div>
+          <div class="price-item">
+            <strong>4. e‑commerce Professionnel – 200 000 FCFA</strong>
+            Boutique complète avec catalogue illimité, gestion des stocks, système de facturation, paiements multiples.
+          </div>
+          <div class="price-item">
+            <strong>5. e‑commerce Avancé – 400 000 FCFA</strong>
+            Marketplace ou boutique avec fonctionnalités avancées : abonnements, membres, rapports analytiques détaillés.
+          </div>
+          <div class="price-item">
+            <strong>6. Sur mesure/Complexe – À partir de 500 000 FCFA</strong>
+            Plateformes web innovantes avec développement spécifique : réservation en ligne, systèmes de gestion complexes, applications web.
+          </div>
+          <p style="margin-top: 1.5rem; color: var(--sbh-text-green); font-weight: 600;">
+            <i class="fas fa-info-circle"></i> Tous nos tarifs incluent : hébergement premium (1 an), nom de domaine (1 an), formation à l'utilisation, support technique (3 mois).
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bouton retour en haut -->
+  <div class="back-to-top" id="backToTop">
+    <i class="fas fa-arrow-up"></i>
+  </div>
+
+  <footer>
+    <p>Social Boost Horizon – Solutions web innovantes depuis 2021</p>
+    <p style="margin-top: 0.5rem; font-size: 0.9rem; opacity: 0.8;">© 2025 - Tous droits réservés</p>
+  </footer>
+
+  <script>
+    // Générer des étoiles animées
+    function createStars() {
+      const starField = document.getElementById('starField');
+      const starCount = 150;
+      
+      for (let i = 0; i < starCount; i++) {
+        const star = document.createElement('div');
+        star.classList.add('star');
+        
+        // Position aléatoire
+        const x = Math.random() * 100;
+        const y = Math.random() * 100;
+        
+        // Taille aléatoire
+        const size = Math.random() * 3 + 1;
+        
+        // Durée d'animation aléatoire
+        const duration = Math.random() * 5 + 3;
+        
+        star.style.left = `${x}%`;
+        star.style.top = `${y}%`;
+        star.style.width = `${size}px`;
+        star.style.height = `${size}px`;
+        star.style.setProperty('--duration', `${duration}s`);
+        
+        starField.appendChild(star);
+      }
+    }
+    
+    // Filtrage des catégories
+    document.querySelectorAll('.category-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        // Mettre à jour les boutons actifs
+        document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        const category = this.dataset.category;
+        const allSections = document.querySelectorAll('.category-section');
+        
+        if (category === 'all') {
+          allSections.forEach(section => {
+            section.classList.add('visible');
+          });
+        } else {
+          allSections.forEach(section => {
+            if (section.id === category) {
+              section.classList.add('visible');
+            } else {
+              section.classList.remove('visible');
             }
-        ];
-
-        // Fonction pour formater les nombres
-        function formatNumber(num) {
-            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+          });
+          
+          // Faire défiler jusqu'à la catégorie sélectionnée
+          document.getElementById(category).scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
         }
-
-        // Fonction pour afficher les notifications
-        function showNotification(type, title, message, duration = 5000) {
-            const container = document.getElementById('notificationContainer');
-            const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
-            
-            let icon = '';
-            if (type === 'success') icon = 'fas fa-check-circle';
-            else if (type === 'error') icon = 'fas fa-exclamation-circle';
-            else if (type === 'warning') icon = 'fas fa-exclamation-triangle';
-            
-            notification.innerHTML = `
-                <div class="notification-icon">
-                    <i class="${icon}"></i>
-                </div>
-                <div class="notification-content">
-                    <h4>${title}</h4>
-                    <p>${message}</p>
-                </div>
-                <button class="notification-close">
-                    <i class="fas fa-times"></i>
-                </button>
-            `;
-            
-            container.appendChild(notification);
-            
-            // Animation d'entrée
-            setTimeout(() => {
-                notification.classList.add('show');
-            }, 10);
-            
-            // Fermeture au clic
-            const closeBtn = notification.querySelector('.notification-close');
-            closeBtn.addEventListener('click', () => {
-                closeNotification(notification);
-            });
-            
-            // Fermeture automatique
-            if (duration > 0) {
-                setTimeout(() => {
-                    closeNotification(notification);
-                }, duration);
-            }
-            
-            return notification;
+      });
+    });
+    
+    // Animation au défilement pour les sections
+    function checkVisibility() {
+      const sections = document.querySelectorAll('.category-section');
+      
+      sections.forEach(section => {
+        const rect = section.getBoundingClientRect();
+        const isVisible = (rect.top <= window.innerHeight * 0.8 && rect.bottom >= 0);
+        
+        if (isVisible) {
+          section.classList.add('visible');
         }
-
-        function closeNotification(notification) {
-            notification.classList.remove('show');
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 500);
-        }
-
-        // Fonction pour mettre à jour les étapes
-        function updateSteps(stepNumber) {
-            const steps = document.querySelectorAll('.step');
-            steps.forEach(step => {
-                step.classList.remove('active', 'completed');
-                const stepNum = parseInt(step.getAttribute('data-step'));
-                if (stepNum < stepNumber) {
-                    step.classList.add('completed');
-                } else if (stepNum === stepNumber) {
-                    step.classList.add('active');
-                }
-            });
-        }
-
-        // Fonction pour afficher une étape
-        function showStep(stepNumber) {
-            // Masquer toutes les sections
-            const sections = document.querySelectorAll('.flow-section');
-            sections.forEach(section => {
-                section.classList.remove('active');
-            });
-            
-            // Afficher la section correspondante
-            const activeSection = document.getElementById(`step${stepNumber}`);
-            if (activeSection) {
-                activeSection.classList.add('active');
-            }
-            
-            // Mettre à jour les étapes
-            updateSteps(stepNumber);
-        }
-
-        // Fonction pour charger les plateformes
-        function loadPlatforms() {
-            const container = document.getElementById('platformsContainer');
-            container.innerHTML = '';
-            
-            servicesData.forEach(platform => {
-                const platformCard = document.createElement('div');
-                platformCard.className = 'platform-card';
-                platformCard.setAttribute('data-platform-id', platform.id);
-                
-                platformCard.innerHTML = `
-                    <div class="platform-icon" style="background-color: ${platform.color}">
-                        <i class="${platform.icon}"></i>
-                    </div>
-                    <div class="platform-name">${platform.name}</div>
-                `;
-                
-                platformCard.addEventListener('click', () => {
-                    // Désélectionner toutes les cartes
-                    document.querySelectorAll('.platform-card').forEach(card => {
-                        card.classList.remove('selected');
-                    });
-                    
-                    // Sélectionner cette carte
-                    platformCard.classList.add('selected');
-                    
-                    // Enregistrer la plateforme sélectionnée
-                    currentPlatform = platform;
-                    
-                    // Activer le bouton suivant
-                    document.getElementById('nextToStep2').disabled = false;
-                    
-                    // Afficher un feedback visuel
-                    showNotification('success', 'Plateforme sélectionnée', `Vous avez sélectionné ${platform.name}`);
-                });
-                
-                container.appendChild(platformCard);
-            });
-        }
-
-        // Fonction pour charger les services d'une plateforme
-        function loadServices(platformId) {
-            const container = document.getElementById('servicesContainer');
-            container.innerHTML = '';
-            
-            const platform = servicesData.find(p => p.id === platformId);
-            if (!platform) return;
-            
-            platform.services.forEach(service => {
-                const serviceItem = document.createElement('div');
-                serviceItem.className = 'service-item';
-                serviceItem.setAttribute('data-service-id', service.id);
-                
-                // Créer les options de prix
-                let priceOptionsHTML = '';
-                service.options.forEach((option, index) => {
-                    const isSelected = index === 0;
-                    priceOptionsHTML += `
-                        <div class="price-option ${isSelected ? 'selected' : ''}" 
-                             data-option-id="${option.id}"
-                             data-price="${option.price}"
-                             data-duration="${option.duration}">
-                            <div class="price-label">${option.name}</div>
-                            <div class="price-amount">${formatNumber(option.price)} XAF</div>
-                        </div>
-                    `;
-                });
-                
-                serviceItem.innerHTML = `
-                    <div class="service-name">${service.name}</div>
-                    <div class="service-desc">${service.description}</div>
-                    <div class="service-prices">
-                        ${priceOptionsHTML}
-                    </div>
-                `;
-                
-                // Gérer le clic sur le service
-                serviceItem.addEventListener('click', (e) => {
-                    // Ne pas déclencher si on clique sur une option de prix
-                    if (e.target.closest('.price-option')) return;
-                    
-                    // Désélectionner tous les services
-                    document.querySelectorAll('.service-item').forEach(item => {
-                        item.classList.remove('selected');
-                    });
-                    
-                    // Sélectionner ce service
-                    serviceItem.classList.add('selected');
-                    
-                    // Enregistrer le service sélectionné
-                    currentService = service;
-                    
-                    // Sélectionner la première option par défaut
-                    const firstOption = serviceItem.querySelector('.price-option');
-                    if (firstOption) {
-                        selectPriceOption(firstOption);
-                    }
-                    
-                    // Activer le bouton suivant
-                    document.getElementById('nextToStep3').disabled = false;
-                    
-                    // Afficher un feedback
-                    showNotification('success', 'Service sélectionné', `Vous avez sélectionné ${service.name}`);
-                });
-                
-                // Gérer le clic sur les options de prix
-                serviceItem.querySelectorAll('.price-option').forEach(optionEl => {
-                    optionEl.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        
-                        // Désélectionner toutes les options de ce service
-                        serviceItem.querySelectorAll('.price-option').forEach(opt => {
-                            opt.classList.remove('selected');
-                        });
-                        
-                        // Sélectionner cette option
-                        optionEl.classList.add('selected');
-                        
-                        // Sélectionner le service si ce n'est pas déjà fait
-                        if (!serviceItem.classList.contains('selected')) {
-                            serviceItem.classList.add('selected');
-                            currentService = service;
-                            document.getElementById('nextToStep3').disabled = false;
-                        }
-                        
-                        // Enregistrer l'option sélectionnée
-                        selectPriceOption(optionEl);
-                        
-                        // Afficher un feedback
-                        const optionName = optionEl.querySelector('.price-label').textContent;
-                        showNotification('success', 'Qualité sélectionnée', `Vous avez choisi ${optionName}`);
-                    });
-                });
-                
-                container.appendChild(serviceItem);
-            });
-        }
-
-        // Fonction pour sélectionner une option de prix
-        function selectPriceOption(optionEl) {
-            const optionId = optionEl.getAttribute('data-option-id');
-            const price = parseInt(optionEl.getAttribute('data-price'));
-            const duration = optionEl.getAttribute('data-duration');
-            
-            // Trouver l'option correspondante dans les données
-            const option = currentService.options.find(opt => opt.id === optionId);
-            if (option) {
-                currentOption = {
-                    id: optionId,
-                    name: option.name,
-                    price: price,
-                    duration: duration,
-                    unit: currentService.unit
-                };
-                
-                // Mettre à jour l'affichage
-                document.getElementById('unitPrice').textContent = `${formatNumber(price)} XAF`;
-                document.getElementById('quantityUnit').textContent = currentService.unit;
-                updateTotalPreview();
-            }
-        }
-
-        // Fonction pour mettre à jour l'aperçu du total
-        function updateTotalPreview() {
-            if (currentOption) {
-                const total = currentOption.price * currentQuantity;
-                document.getElementById('totalPreview').textContent = `${formatNumber(total)} XAF`;
-                document.getElementById('nextToStep4').disabled = false;
-            }
-        }
-
-        // Fonction pour générer le récapitulatif de commande
-        function generateOrderSummary() {
-            if (!currentPlatform || !currentService || !currentOption || !currentLink) return;
-            
-            const total = currentOption.price * currentQuantity;
-            
-            const summaryHTML = `
-                <div class="summary-header">
-                    <h3>Récapitulatif de commande</h3>
-                </div>
-                <div class="summary-item">
-                    <div class="summary-label">Plateforme:</div>
-                    <div class="summary-value">${currentPlatform.name}</div>
-                </div>
-                <div class="summary-item">
-                    <div class="summary-label">Service:</div>
-                    <div class="summary-value">${currentService.name}</div>
-                </div>
-                <div class="summary-item">
-                    <div class="summary-label">Qualité:</div>
-                    <div class="summary-value">${currentOption.name}</div>
-                </div>
-                <div class="summary-item">
-                    <div class="summary-label">Quantité:</div>
-                    <div class="summary-value">${currentQuantity} ${currentService.unit}</div>
-                </div>
-                <div class="summary-item">
-                    <div class="summary-label">Lien:</div>
-                    <div class="summary-value" style="word-break: break-word; font-size: 0.9rem;">${currentLink}</div>
-                </div>
-                <div class="summary-item">
-                    <div class="summary-label">Durée:</div>
-                    <div class="summary-value">${currentOption.duration}</div>
-                </div>
-                <div class="summary-item">
-                    <div class="summary-label">Prix unitaire:</div>
-                    <div class="summary-value">${formatNumber(currentOption.price)} XAF</div>
-                </div>
-                <div class="summary-item">
-                    <div class="summary-label">Total:</div>
-                    <div class="summary-value summary-total">${formatNumber(total)} XAF</div>
-                </div>
-            `;
-            
-            document.getElementById('orderSummary').innerHTML = summaryHTML;
-        }
-
-        // Fonction pour vérifier et créer les champs utilisateur manquants
-        async function checkAndCreateUserFields(userId, userEmail, username) {
-            try {
-                const userRef = db.collection('users').doc(userId);
-                const userDoc = await userRef.get();
-                
-                if (userDoc.exists) {
-                    // Vérifier et mettre à jour les champs manquants
-                    const userData = userDoc.data();
-                    const updates = {};
-                    
-                    // Vérifier les champs requis
-                    if (!userData.balance && userData.balance !== 0) updates.balance = 0;
-                    if (!userData.totalOrders && userData.totalOrders !== 0) updates.totalOrders = 0;
-                    if (!userData.activeOrders && userData.activeOrders !== 0) updates.activeOrders = 0;
-                    if (!userData.totalSpent && userData.totalSpent !== 0) updates.totalSpent = 0;
-                    if (!userData.username) updates.username = username;
-                    if (!userData.email) updates.email = userEmail;
-                    
-                    // Ajouter la date de mise à jour
-                    updates.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
-                    
-                    // Mettre à jour si des champs manquent
-                    if (Object.keys(updates).length > 0) {
-                        await userRef.update(updates);
-                        console.log('Champs utilisateur mis à jour:', updates);
-                    }
-                    
-                    return { ...userData, ...updates };
-                } else {
-                    // Créer un nouvel utilisateur avec tous les champs requis
-                    const newUserData = {
-                        username: username,
-                        email: userEmail,
-                        balance: 0,
-                        totalOrders: 0,
-                        activeOrders: 0,
-                        totalSpent: 0,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    };
-                    
-                    await userRef.set(newUserData);
-                    console.log('Nouvel utilisateur créé:', newUserData);
-                    return newUserData;
-                }
-            } catch (error) {
-                console.error('Erreur lors de la vérification des champs utilisateur:', error);
-                throw error;
-            }
-        }
-
-        // Fonction pour charger les statistiques utilisateur
-        async function loadUserStats() {
-            if (!currentUser || !userData) return;
-            
-            try {
-                // Récupérer les commandes de l'utilisateur
-                const ordersQuery = await db.collection('orders')
-                    .where('userId', '==', currentUser.uid)
-                    .get();
-                
-                const totalOrders = ordersQuery.size;
-                
-                // Calculer les commandes actives
-                const activeOrders = ordersQuery.docs.filter(doc => {
-                    const data = doc.data();
-                    return data.status === 'pending' || data.status === 'processing';
-                }).length;
-                
-                // Calculer le total dépensé
-                let totalSpent = 0;
-                ordersQuery.forEach(doc => {
-                    const data = doc.data();
-                    totalSpent += data.total || 0;
-                });
-                
-                // Mettre à jour l'interface
-                document.getElementById('totalOrders').textContent = totalOrders;
-                document.getElementById('activeOrders').textContent = activeOrders;
-                document.getElementById('totalSpent').textContent = `${formatNumber(totalSpent)} XAF`;
-                
-                // Mettre à jour les données dans Firestore
-                await db.collection('users').doc(currentUser.uid).update({
-                    totalOrders: totalOrders,
-                    activeOrders: activeOrders,
-                    totalSpent: totalSpent,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                
-                // Mettre à jour les données locales
-                if (userData) {
-                    userData.totalOrders = totalOrders;
-                    userData.activeOrders = activeOrders;
-                    userData.totalSpent = totalSpent;
-                }
-                
-            } catch (error) {
-                console.error('Erreur lors du chargement des statistiques:', error);
-                // Ne pas bloquer l'application en cas d'erreur
-            }
-        }
-
-        // Fonction pour confirmer la commande
-        async function confirmOrder() {
-            if (!currentUser || !userData || !currentPlatform || !currentService || !currentOption || !currentLink) {
-                showNotification('error', 'Erreur', 'Informations de commande incomplètes');
-                return;
-            }
-            
-            const orderLink = document.getElementById('orderLink').value;
-            const orderNotes = document.getElementById('orderNotes').value;
-            
-            if (!currentLink) {
-                showNotification('error', 'Erreur', 'Veuillez entrer le lien de votre publication/profil');
-                return;
-            }
-            
-            const total = currentOption.price * currentQuantity;
-            
-            // Vérifier le solde
-            if (userData.balance < total) {
-                showNotification('error', 'Solde insuffisant', 'Votre solde est insuffisant. Veuillez déposer des fonds.');
-                return;
-            }
-            
-            try {
-                // Créer la commande dans Firestore
-                const orderRef = await db.collection('orders').add({
-                    userId: currentUser.uid,
-                    userEmail: currentUser.email,
-                    userName: userData.username,
-                    platform: currentPlatform.name,
-                    platformId: currentPlatform.id,
-                    service: currentService.name,
-                    serviceId: currentService.id,
-                    option: currentOption.name,
-                    optionId: currentOption.id,
-                    quantity: currentQuantity,
-                    unit: currentService.unit,
-                    unitPrice: currentOption.price,
-                    total: total,
-                    duration: currentOption.duration,
-                    link: currentLink,
-                    notes: orderNotes,
-                    status: 'pending',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                
-                // Mettre à jour le solde
-                const newBalance = userData.balance - total;
-                await db.collection('users').doc(currentUser.uid).update({
-                    balance: newBalance,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                
-                // Mettre à jour les données locales
-                userData.balance = newBalance;
-                updateUserInfo();
-                
-                // Recharger les statistiques
-                await loadUserStats();
-                
-                // Enregistrer la transaction
-                await db.collection('transactions').add({
-                    userId: currentUser.uid,
-                    type: 'order',
-                    amount: total,
-                    description: `Commande: ${currentService.name} - ${currentOption.name}`,
-                    orderId: orderRef.id,
-                    balanceBefore: userData.balance + total,
-                    balanceAfter: userData.balance,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                
-                // Afficher le succès
-                document.getElementById('step5').style.display = 'none';
-                document.getElementById('orderSuccess').style.display = 'block';
-                
-                // Marquer toutes les étapes comme complétées
-                document.querySelectorAll('.step').forEach(step => {
-                    step.classList.add('completed');
-                    step.classList.remove('active');
-                });
-                
-                showNotification('success', 'Commande confirmée!', 'Votre commande a été passée avec succès.');
-                
-            } catch (error) {
-                console.error('Erreur lors de la commande:', error);
-                showNotification('error', 'Erreur', 'Une erreur est survenue. Veuillez réessayer.');
-            }
-        }
-
-        // Fonction pour mettre à jour les infos utilisateur
-        function updateUserInfo() {
-            if (currentUser && userData) {
-                // Avatar
-                const userName = userData.username || currentUser.displayName || currentUser.email.split('@')[0];
-                const initial = userName.charAt(0).toUpperCase();
-                document.getElementById('userAvatar').textContent = initial;
-                
-                // Nom et email
-                document.getElementById('userName').textContent = userName;
-                document.getElementById('userEmail').textContent = currentUser.email;
-                
-                // Message de bienvenue avec le nom
-                document.getElementById('welcomeMessage').textContent = `Bienvenue ${userName} sur Likéo Boost!`;
-                
-                // Solde
-                const balance = userData.balance || 0;
-                document.getElementById('userBalance').textContent = `${formatNumber(balance)} XAF`;
-                document.getElementById('currentBalance').textContent = `${formatNumber(balance)} XAF`;
-            }
-        }
-
-        // Initialisation
-        document.addEventListener('DOMContentLoaded', function() {
-            // Vérifier l'authentification
-            auth.onAuthStateChanged(async user => {
-                if (user) {
-                    currentUser = user;
-                    
-                    try {
-                        // Créer le nom d'utilisateur à partir de l'email
-                        const username = user.displayName || user.email.split('@')[0];
-                        
-                        // Vérifier et créer les champs nécessaires
-                        userData = await checkAndCreateUserFields(user.uid, user.email, username);
-                        
-                        // Mettre à jour l'interface
-                        updateUserInfo();
-                        
-                        // Charger les statistiques
-                        await loadUserStats();
-                        
-                        // Charger les plateformes
-                        loadPlatforms();
-                        
-                        // Afficher un message de bienvenue
-                        showNotification('success', 'Connexion réussie', `Bon retour ${username}!`);
-                        
-                    } catch (error) {
-                        console.error('Erreur lors du chargement des données utilisateur:', error);
-                        showNotification('error', 'Erreur', 'Impossible de charger vos données. Veuillez rafraîchir la page.');
-                    }
-                    
-                } else {
-                    // Rediriger vers la page de connexion
-                    window.location.href = 'connexion.html';
-                }
-            });
-            
-            // Gérer le menu mobile
-            document.getElementById('menuBtn').addEventListener('click', function() {
-                document.getElementById('mobileMenu').classList.add('active');
-                document.getElementById('menuOverlay').classList.add('active');
-            });
-            
-            document.getElementById('menuClose').addEventListener('click', closeMobileMenu);
-            document.getElementById('menuOverlay').addEventListener('click', closeMobileMenu);
-            
-            function closeMobileMenu() {
-                document.getElementById('mobileMenu').classList.remove('active');
-                document.getElementById('menuOverlay').classList.remove('active');
-            }
-            
-            // Navigation entre les étapes
-            document.getElementById('nextToStep2').addEventListener('click', () => {
-                if (currentPlatform) {
-                    // Charger les services pour la plateforme sélectionnée
-                    loadServices(currentPlatform.id);
-                    showStep(2);
-                } else {
-                    showNotification('warning', 'Sélection requise', 'Veuillez sélectionner une plateforme');
-                }
-            });
-            
-            document.getElementById('nextToStep3').addEventListener('click', () => {
-                if (currentPlatform && currentService && currentOption) {
-                    showStep(3);
-                } else {
-                    showNotification('warning', 'Sélection requise', 'Veuillez sélectionner un service et une qualité');
-                }
-            });
-            
-            document.getElementById('nextToStep4').addEventListener('click', () => {
-                if (currentPlatform && currentService && currentOption) {
-                    showStep(4);
-                } else {
-                    showNotification('warning', 'Sélection requise', 'Veuillez compléter toutes les sélections');
-                }
-            });
-            
-            document.getElementById('nextToStep5').addEventListener('click', () => {
-                // Récupérer le lien
-                currentLink = document.getElementById('orderLink').value.trim();
-                
-                if (!currentLink) {
-                    showNotification('error', 'Lien requis', 'Veuillez entrer le lien de votre publication/profil');
-                    return;
-                }
-                
-                if (currentPlatform && currentService && currentOption && currentLink) {
-                    generateOrderSummary();
-                    showStep(5);
-                } else {
-                    showNotification('warning', 'Sélection requise', 'Veuillez compléter toutes les sélections');
-                }
-            });
-            
-            document.getElementById('backToStep1').addEventListener('click', () => showStep(1));
-            document.getElementById('backToStep2').addEventListener('click', () => showStep(2));
-            document.getElementById('backToStep3').addEventListener('click', () => showStep(3));
-            document.getElementById('backToStep4').addEventListener('click', () => showStep(4));
-            
-            // Gérer la saisie du lien
-            document.getElementById('orderLink').addEventListener('input', function() {
-                const link = this.value.trim();
-                document.getElementById('nextToStep5').disabled = !link;
-            });
-            
-            // Gérer la quantité
-            document.getElementById('decreaseQuantity').addEventListener('click', () => {
-                if (currentQuantity > 1) {
-                    currentQuantity--;
-                    document.getElementById('quantityDisplay').textContent = currentQuantity;
-                    updateTotalPreview();
-                }
-            });
-            
-            document.getElementById('increaseQuantity').addEventListener('click', () => {
-                currentQuantity++;
-                document.getElementById('quantityDisplay').textContent = currentQuantity;
-                updateTotalPreview();
-            });
-            
-            // Confirmer la commande
-            document.getElementById('confirmOrderBtn').addEventListener('click', confirmOrder);
-            
-            // Nouvelle commande
-            document.getElementById('newOrderBtn').addEventListener('click', () => {
-                // Réinitialiser
-                currentPlatform = null;
-                currentService = null;
-                currentOption = null;
-                currentQuantity = 1;
-                currentLink = '';
-                
-                // Réinitialiser l'interface
-                document.querySelectorAll('.platform-card').forEach(card => {
-                    card.classList.remove('selected');
-                });
-                
-                document.querySelectorAll('.service-item').forEach(item => {
-                    item.classList.remove('selected');
-                });
-                
-                document.getElementById('orderLink').value = '';
-                document.getElementById('orderNotes').value = '';
-                document.getElementById('quantityDisplay').textContent = '1';
-                document.getElementById('unitPrice').textContent = '0 XAF';
-                document.getElementById('totalPreview').textContent = '0 XAF';
-                document.getElementById('nextToStep2').disabled = true;
-                document.getElementById('nextToStep3').disabled = true;
-                document.getElementById('nextToStep4').disabled = true;
-                document.getElementById('nextToStep5').disabled = true;
-                
-                // Recharger les plateformes
-                loadPlatforms();
-                
-                // Revenir à l'étape 1
-                document.getElementById('step5').style.display = 'block';
-                document.getElementById('orderSuccess').style.display = 'none';
-                showStep(1);
-            });
-            
-            // Déconnexion
-            document.getElementById('logoutBtn').addEventListener('click', function() {
-                auth.signOut().then(() => {
-                    window.location.href = 'index.html';
-                }).catch(error => {
-                    console.error('Erreur de déconnexion:', error);
-                    showNotification('error', 'Erreur', 'Impossible de se déconnecter');
-                });
-            });
-        });
-    </script>
+      });
+    }
+    
+    // Afficher le formulaire
+    document.getElementById('orderBtn').addEventListener('click', function() {
+      const form = document.getElementById('formulaire');
+      form.classList.add('active');
+      
+      // Faire défiler jusqu'au formulaire
+      form.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+      
+      // Masquer le bouton de commande
+      this.style.display = 'none';
+    });
+    
+    function calcPrix(){
+      const select = document.getElementById('type');
+      const base = select.value ? parseInt(select.value) : 0;
+      const budget = document.getElementById('budget').value;
+      
+      let prix = base;
+      
+      // Si le budget est supérieur au prix de base, l'utiliser
+      if (budget && parseInt(budget) > base) {
+        prix = parseInt(budget);
+      }
+      
+      if (prix > 0) {
+        document.getElementById('prixTotal').textContent = 'Prix estimé : ' + prix.toLocaleString() + ' FCFA';
+      } else {
+        document.getElementById('prixTotal').textContent = 'Prix estimé : -- FCFA';
+      }
+    }
+    
+    // Mettre à jour le prix lorsque le budget change
+    document.getElementById('budget').addEventListener('input', calcPrix);
+    
+    function toggleInfo(){
+      const info = document.getElementById('moreInfo');
+      info.classList.toggle('active');
+      
+      const btn = document.querySelector('.toggle-info');
+      if (info.classList.contains('active')) {
+        btn.textContent = 'Masquer les détails des tarifs';
+      } else {
+        btn.textContent = 'Détails des tarifs et options';
+      }
+    }
+    
+    function redirigerWhatsApp(e){
+      e.preventDefault();
+      const f = e.target;
+      
+      // Validation basique
+      if (!f.siteName.value || !f.companyName.value || !f.contactName.value || 
+          !f.email.value || !f.phone.value || !f.country.value || 
+          !f.type.value || !f.budget.value || !f.details.value) {
+        alert('Veuillez remplir tous les champs obligatoires (*)');
+        return;
+      }
+      
+      let msg = `🔵 NOUVELLE DEMANDE DE SITE WEB 🔵\n\n`;
+      msg += `📋 *INFORMATIONS CLIENT*\n`;
+      msg += `Nom : ${f.contactName.value}\n`;
+      msg += `Email : ${f.email.value}\n`;
+      msg += `Téléphone : ${f.phone.value}\n`;
+      msg += `Pays : ${f.country.value}\n\n`;
+      
+      msg += `🌐 *DÉTAILS DU PROJET*\n`;
+      msg += `Nom du site : ${f.siteName.value}\n`;
+      msg += `Entreprise : ${f.companyName.value}\n`;
+      msg += `Type de site : ${f.type.selectedOptions[0].text}\n`;
+      msg += `Budget estimé : ${f.budget.value} FCFA\n`;
+      msg += `Délai souhaité : ${f.deadline.value} semaines\n\n`;
+      
+      msg += `📝 *DESCRIPTION DU PROJET*\n`;
+      msg += `${f.details.value}\n\n`;
+      
+      msg += `💰 *DEVIS ESTIMÉ*\n`;
+      msg += `${document.getElementById('prixTotal').textContent}\n\n`;
+      
+      msg += `📅 *DATE DE DEMANDE*\n`;
+      msg += `${new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
+      
+      window.open(`https://wa.me/237699853665?text=${encodeURIComponent(msg)}`, '_blank');
+      
+      // Réinitialiser le formulaire
+      f.reset();
+      document.getElementById('prixTotal').textContent = 'Prix estimé : -- FCFA';
+      alert('Votre demande a été envoyée avec succès ! Vous allez être redirigé vers WhatsApp pour finaliser la discussion.');
+    }
+    
+    // Script pour le bouton retour en haut
+    const backToTopBtn = document.getElementById('backToTop');
+    
+    window.addEventListener('scroll', function() {
+      if (window.pageYOffset > 300) {
+        backToTopBtn.classList.add('visible');
+      } else {
+        backToTopBtn.classList.remove('visible');
+      }
+      
+      // Vérifier la visibilité des sections
+      checkVisibility();
+    });
+    
+    backToTopBtn.addEventListener('click', function() {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    });
+    
+    // Initialiser les étoiles et le prix
+    window.addEventListener('DOMContentLoaded', function() {
+      createStars();
+      checkVisibility();
+    });
+  </script>
+  
+  <!-- Font Awesome pour les icônes -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 </body>
 </html>
