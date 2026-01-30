@@ -1206,7 +1206,7 @@
 
         <div class="price-summary">
           <div class="price-row">
-            <span>Prix unitaire (1000)</span>
+            <span id="unitPriceLabel">Prix unitaire (1000)</span>
             <span id="unitPrice">0 FCFA</span>
           </div>
           <div class="price-row">
@@ -1355,6 +1355,7 @@
     const orderLink = document.getElementById('orderLink');
     const orderQuantity = document.getElementById('orderQuantity');
     const unitPrice = document.getElementById('unitPrice');
+    const unitPriceLabel = document.getElementById('unitPriceLabel');
     const displayQuantity = document.getElementById('displayQuantity');
     const totalPrice = document.getElementById('totalPrice');
     const submitBtn = document.getElementById('submitBtn');
@@ -1668,7 +1669,7 @@
               <i class="fas fa-layer-group"></i> ${service.min.toLocaleString()} - ${service.max.toLocaleString()}
             </span>
             <span class="service-price">
-              ${formatPrice(service.priceXAF)} <small>/1000</small>
+              ${formatPrice(service.priceXAF)} <small>${service.isPackage ? '/unité' : '/1000'}</small>
             </span>
           </div>
           <div class="service-category">
@@ -1714,7 +1715,9 @@
       if (isCustomComments && selectedService) {
         orderQuantity.value = count;
         displayQuantity.textContent = count.toLocaleString();
-        const total = (selectedService.priceXAF / 1000) * count;
+        const total = selectedService.isPackage 
+          ? selectedService.priceXAF * count 
+          : (selectedService.priceXAF / 1000) * count;
         totalPrice.textContent = formatPrice(total);
       }
     });
@@ -1726,6 +1729,7 @@
       panelServiceMin.textContent = `Min: ${selectedService.min.toLocaleString()}`;
       panelServiceMax.textContent = `Max: ${selectedService.max.toLocaleString()}`;
       unitPrice.textContent = formatPrice(selectedService.priceXAF);
+      unitPriceLabel.textContent = selectedService.isPackage ? 'Prix par unité' : 'Prix unitaire (1000)';
 
       if (selectedService.desc && selectedService.desc.trim()) {
         serviceRemarksText.innerHTML = selectedService.desc;
@@ -1772,7 +1776,9 @@
       const qty = parseInt(orderQuantity.value) || 0;
       displayQuantity.textContent = qty.toLocaleString();
       if (selectedService) {
-        const total = (selectedService.priceXAF / 1000) * qty;
+        const total = selectedService.isPackage 
+          ? selectedService.priceXAF * qty 
+          : (selectedService.priceXAF / 1000) * qty;
         totalPrice.textContent = formatPrice(total);
       }
     });
@@ -1812,7 +1818,11 @@
       }
 
       // Calculer le prix total (avec décimales comme chez le fournisseur)
-      const orderTotalPrice = (selectedService.priceXAF / 1000) * quantity;
+      // Pour les packages: prix fixe × quantité
+      // Pour les autres: (prix/1000) × quantité
+      const orderTotalPrice = selectedService.isPackage 
+        ? selectedService.priceXAF * quantity 
+        : (selectedService.priceXAF / 1000) * quantity;
       
       if (orderTotalPrice > userBalance) {
         const manquant = orderTotalPrice - userBalance;
