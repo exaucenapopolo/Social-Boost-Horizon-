@@ -1482,6 +1482,11 @@ document.addEventListener("DOMContentLoaded", function () {
   const auth = firebase.auth();
   const db = firebase.firestore();
 
+  // URL du serveur backend
+  const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('replit')
+    ? ''
+    : 'https://social-boost-exaucenapopolo2.replit.app';
+
   const COUNTRIES_CONFIG = {
     CM: { name: 'Cameroun', currency: 'XAF', symbol: 'FCFA', rate: 1 },
     SN: { name: 'Senegal', currency: 'XOF', symbol: 'FCFA', rate: 1 },
@@ -1637,6 +1642,16 @@ document.addEventListener("DOMContentLoaded", function () {
       return 0;
     }
     
+    // Si c'est une commande ExoSupplier avec données de progression
+    if (order.isAutoOrder && order.exoOrderId) {
+      const quantity = order.quantity || 0;
+      const remains = order.exoRemains !== undefined ? order.exoRemains : quantity;
+      const delivered = quantity - remains;
+      if (quantity > 0) {
+        return Math.min(100, Math.round((delivered / quantity) * 100));
+      }
+    }
+    
     let createdAt;
     if (order.createdAt && typeof order.createdAt.toDate === 'function') {
       createdAt = order.createdAt.toDate();
@@ -1752,9 +1767,10 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       const orderId    = order.orderId || order.id || 'N/A';
+      const docId      = order.id || orderId;
       const service    = order.service || 'N/A';
       const quality    = order.quality || 'N/A';
-      const quantity   = order.quantity != null ? order.quantity : 'N/A';
+      const quantity   = order.quantity != null ? Number(order.quantity) : 0;
       const currentQuantity = order.currentQuantity != null ? order.currentQuantity : null;
       const estimatedQuantity = order.estimatedQuantity != null ? order.estimatedQuantity : null;
       const totalCost  = order.totalCost != null ? order.totalCost : 0;
@@ -1762,6 +1778,16 @@ document.addEventListener("DOMContentLoaded", function () {
       const statusText = order.status || 'N/A';
       const contactType= order.contactType || '';
       const contact    = order.contact || '';
+      
+      // Données ExoSupplier
+      const isExoOrder = order.isAutoOrder && order.exoOrderId;
+      const exoOrderId = order.exoOrderId || null;
+      const startCount = order.startCount || 0;
+      const exoRemains = order.exoRemains !== undefined ? order.exoRemains : quantity;
+      const delivered = quantity - exoRemains;
+      const progressPercent = quantity > 0 ? Math.min(100, Math.round((delivered / quantity) * 100)) : 0;
+      const statusLower = (order.status || '').toLowerCase();
+      const canTakeAction = isExoOrder && !['succès', 'annulée', 'completed', 'canceled', 'partiel', 'success'].some(s => statusLower.includes(s));
       
       let customComments = '';
       if (order.customComments) {
@@ -1829,8 +1855,54 @@ document.addEventListener("DOMContentLoaded", function () {
               </div>
               <div class="order-detail-item">
                 <div class="detail-label">Quantite</div>
-                <div class="detail-value">${quantity}</div>
+                <div class="detail-value">${quantity.toLocaleString('fr-FR')}</div>
               </div>
+              
+              ${isExoOrder ? `
+              <!-- Informations ExoSupplier -->
+              <div class="order-detail-item exo-info">
+                <div class="detail-label"><i class="fas fa-robot" style="color: #8B5CF6; margin-right: 5px;"></i>ID Fournisseur</div>
+                <div class="detail-value" style="color: #8B5CF6; font-weight: 600;">#${exoOrderId}</div>
+              </div>
+              <div class="order-detail-item exo-info">
+                <div class="detail-label"><i class="fas fa-play" style="color: #06B6D4; margin-right: 5px;"></i>Compteur départ</div>
+                <div class="detail-value" style="color: #06B6D4;">${startCount.toLocaleString('fr-FR')}</div>
+              </div>
+              <div class="order-detail-item exo-info">
+                <div class="detail-label"><i class="fas fa-check-circle" style="color: #10B981; margin-right: 5px;"></i>Livrés</div>
+                <div class="detail-value" style="color: #10B981; font-weight: 600;">${delivered.toLocaleString('fr-FR')}</div>
+              </div>
+              <div class="order-detail-item exo-info">
+                <div class="detail-label"><i class="fas fa-hourglass-half" style="color: #F59E0B; margin-right: 5px;"></i>Restants</div>
+                <div class="detail-value" style="color: #F59E0B;">${exoRemains.toLocaleString('fr-FR')}</div>
+              </div>
+              
+              <!-- Barre de progression -->
+              <div class="progress-section-detail" style="grid-column: 1 / -1; margin: 15px 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <span style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">Progression</span>
+                  <span style="color: #10B981; font-weight: 600;">${progressPercent}%</span>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); border-radius: 10px; height: 8px; overflow: hidden;">
+                  <div style="background: linear-gradient(90deg, #8B5CF6, #06B6D4); height: 100%; width: ${progressPercent}%; border-radius: 10px; transition: width 0.5s ease;"></div>
+                </div>
+              </div>
+              
+              <!-- Boutons d'action ExoSupplier -->
+              <div class="exo-actions" style="grid-column: 1 / -1; display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0;">
+                <button onclick="checkExoStatus('${docId}')" class="exo-action-btn exo-action-status" style="padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #8B5CF6, #7C3AED); color: white;">
+                  <i class="fas fa-sync"></i> Actualiser
+                </button>
+                ${canTakeAction ? `
+                <button onclick="requestExoRefill('${docId}')" class="exo-action-btn exo-action-refill" style="padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #10B981, #059669); color: white;">
+                  <i class="fas fa-redo"></i> Refill
+                </button>
+                <button onclick="cancelExoOrder('${docId}')" class="exo-action-btn exo-action-cancel" style="padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #EF4444, #DC2626); color: white;">
+                  <i class="fas fa-times"></i> Annuler
+                </button>
+                ` : ''}
+              </div>
+              ` : `
               ${currentQuantity !== null && currentQuantity !== undefined ? `
               <div class="order-detail-item">
                 <div class="detail-label"><i class="fas fa-chart-line" style="color: #4CAF50; margin-right: 5px;"></i>Qte actuelle</div>
@@ -1843,6 +1915,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 <div class="detail-value" style="color: #4CAF50; font-weight: 600;">${Number(estimatedQuantity).toLocaleString('fr-FR')}</div>
               </div>
               ` : ''}
+              `}
+              
               <div class="order-detail-item">
                 <div class="detail-label">Montant</div>
                 <div class="detail-value">${formattedAmount}</div>
@@ -2079,6 +2153,143 @@ document.addEventListener("DOMContentLoaded", function () {
       displayOrders();
     }
   }, 60000);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FONCTIONS ACTIONS EXOSUPPLIER
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // Fonction de notification
+  function showNotification(message, type = 'info') {
+    const existing = document.querySelector('.exo-notification');
+    if (existing) existing.remove();
+    
+    const notification = document.createElement('div');
+    notification.className = 'exo-notification';
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      border-radius: 12px;
+      color: white;
+      font-weight: 500;
+      z-index: 10000;
+      animation: slideIn 0.3s ease;
+      max-width: 350px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    `;
+    
+    if (type === 'success') {
+      notification.style.background = 'linear-gradient(135deg, #10B981, #059669)';
+    } else if (type === 'error') {
+      notification.style.background = 'linear-gradient(135deg, #EF4444, #DC2626)';
+    } else {
+      notification.style.background = 'linear-gradient(135deg, #8B5CF6, #7C3AED)';
+    }
+    
+    notification.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}" style="margin-right: 10px;"></i>${message}`;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.style.animation = 'slideOut 0.3s ease';
+      setTimeout(() => notification.remove(), 300);
+    }, 4000);
+  }
+  
+  // Vérifier le statut d'une commande ExoSupplier
+  async function checkExoStatus(orderId) {
+    try {
+      showNotification('Vérification du statut...', 'info');
+      const idToken = await auth.currentUser.getIdToken();
+      
+      const response = await fetch(`${BACKEND_URL}/api/exo/order-status/${orderId}`, {
+        headers: { 'Authorization': `Bearer ${idToken}` }
+      });
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Erreur lors de la vérification');
+      }
+      
+      showNotification(`Statut mis à jour: ${data.status}`, 'success');
+      fetchOrders(); // Recharger les commandes
+      
+    } catch (error) {
+      console.error('Erreur vérification statut:', error);
+      showNotification(error.message || 'Erreur lors de la vérification', 'error');
+    }
+  }
+  
+  // Demander un refill pour une commande ExoSupplier
+  async function requestExoRefill(orderId) {
+    if (!confirm('Voulez-vous demander un refill pour cette commande?')) return;
+    
+    try {
+      showNotification('Envoi de la demande de refill...', 'info');
+      const idToken = await auth.currentUser.getIdToken();
+      
+      const response = await fetch(`${BACKEND_URL}/api/exo/refill`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}` 
+        },
+        body: JSON.stringify({ orderId })
+      });
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Erreur lors de la demande de refill');
+      }
+      
+      showNotification('Demande de refill envoyée avec succès!', 'success');
+      fetchOrders();
+      
+    } catch (error) {
+      console.error('Erreur refill:', error);
+      showNotification(error.message || 'Erreur lors de la demande de refill', 'error');
+    }
+  }
+  
+  // Annuler une commande ExoSupplier
+  async function cancelExoOrder(orderId) {
+    if (!confirm('Voulez-vous vraiment annuler cette commande? Le montant vous sera remboursé si l\'annulation est acceptée.')) return;
+    
+    try {
+      showNotification('Annulation en cours...', 'info');
+      const idToken = await auth.currentUser.getIdToken();
+      
+      const response = await fetch(`${BACKEND_URL}/api/exo/cancel`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}` 
+        },
+        body: JSON.stringify({ orderId })
+      });
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Erreur lors de l\'annulation');
+      }
+      
+      const refundMsg = data.refundAmount > 0 ? ` - ${data.refundAmount.toLocaleString('fr-FR')} FCFA remboursés` : '';
+      showNotification(`Commande annulée avec succès${refundMsg}`, 'success');
+      fetchOrders();
+      
+    } catch (error) {
+      console.error('Erreur annulation:', error);
+      showNotification(error.message || 'Erreur lors de l\'annulation', 'error');
+    }
+  }
+  
+  // Rendre les fonctions accessibles globalement
+  window.checkExoStatus = checkExoStatus;
+  window.requestExoRefill = requestExoRefill;
+  window.cancelExoOrder = cancelExoOrder;
 });
 </script>
 </body>
