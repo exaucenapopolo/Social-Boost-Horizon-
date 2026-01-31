@@ -14,131 +14,229 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <style>
     :root {
-      --sbh-dark-blue: #0A162B;
-      --sbh-gradient-start: #1e3c72;
-      --sbh-gradient-end: #6a0dad;
-      --sbh-btn-color: #1E90FF;
-      --sbh-btn-hover: #187bcd;
-      --sbh-text-white: #FFFFFF;
-      --sbh-text-green: #4CAF50;
-      --sbh-card-bg: rgba(17, 32, 58, 0.6);
-      --sbh-card-border: rgba(255, 255, 255, 0.1);
-      --sbh-text-light: rgba(255, 255, 255, 0.9);
-      --sbh-light-blue: #4DA6FF;
+      --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --secondary-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      --accent-color: #00d4ff;
+      --accent-pink: #ff6b9d;
+      --dark-bg: #0f0f23;
+      --card-bg: rgba(20, 20, 45, 0.9);
+      --card-border: rgba(102, 126, 234, 0.3);
+      --text-white: #FFFFFF;
+      --text-light: rgba(255, 255, 255, 0.85);
+      --text-muted: rgba(255, 255, 255, 0.6);
+      --success-green: #38ef7d;
       --font: 'Roboto', sans-serif;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: var(--font);
-      color: var(--sbh-text-white);
-      background: var(--sbh-dark-blue);
+      color: var(--text-white);
+      background: var(--dark-bg);
       min-height: 100vh;
+      overflow-x: hidden;
     }
-    .background-animation {
+
+    .animated-bg {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
-      background-color: var(--sbh-dark-blue);
+      background: linear-gradient(125deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%);
     }
-    .background-animation::before {
-      content: ""; position: absolute; width: 2px; height: 2px; border-radius: 50%;
-      background-color: rgba(255, 255, 255, 0.4);
-      box-shadow: 100px 50px 0 0 white, 200px 150px 0 0 white, 300px 250px 0 0 white,
-        400px 70px 0 0 white, 50px 300px 0 0 white, 350px 100px 0 0 white,
-        500px 400px 0 0 white, 600px 120px 0 0 white, 700px 350px 0 0 white;
-      animation: twinkle 5s infinite alternate;
+    .animated-bg::before {
+      content: ""; position: absolute; width: 100%; height: 100%;
+      background-image: radial-gradient(circle at 20% 50%, rgba(102, 126, 234, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(0, 212, 255, 0.1) 0%, transparent 40%),
+                        radial-gradient(circle at 40% 80%, rgba(255, 107, 157, 0.1) 0%, transparent 40%);
+      animation: pulse-bg 8s ease-in-out infinite alternate;
     }
-    @keyframes twinkle { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.7; } }
+    @keyframes pulse-bg {
+      0% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+
+    .floating-particles {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none;
+    }
+    .particle {
+      position: absolute; width: 4px; height: 4px; border-radius: 50%; background: var(--accent-color);
+      animation: float 15s infinite linear;
+      opacity: 0.3;
+    }
+    .particle:nth-child(1) { left: 10%; animation-delay: 0s; }
+    .particle:nth-child(2) { left: 30%; animation-delay: 3s; background: var(--accent-pink); }
+    .particle:nth-child(3) { left: 50%; animation-delay: 6s; }
+    .particle:nth-child(4) { left: 70%; animation-delay: 9s; background: var(--success-green); }
+    .particle:nth-child(5) { left: 90%; animation-delay: 12s; }
+    @keyframes float {
+      0% { transform: translateY(100vh) scale(0); opacity: 0; }
+      50% { opacity: 0.5; }
+      100% { transform: translateY(-100vh) scale(1); opacity: 0; }
+    }
 
     header {
       position: sticky; top: 0; z-index: 100;
-      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      background: var(--primary-gradient);
       display: flex; justify-content: space-between; align-items: center;
-      padding: 1rem 2rem; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      padding: 0.8rem 2rem; box-shadow: 0 4px 30px rgba(102, 126, 234, 0.3);
     }
-    .logo-text { display: flex; flex-direction: column; text-decoration: none; line-height: 1.2; }
-    .logo-text .text-social, .logo-text .text-horizon { color: var(--sbh-text-white); font-size: 1.3rem; font-weight: 600; }
-    .logo-text .boost-line { display: flex; align-items: center; color: var(--sbh-text-green); font-size: 1.8rem; font-weight: 800; }
-    .icon-hamburger { font-size: 1.8rem; color: var(--sbh-text-white); cursor: pointer; }
+    .logo-text { display: flex; flex-direction: column; text-decoration: none; line-height: 1.1; font-family: 'Poppins', sans-serif; }
+    .logo-text .text-social, .logo-text .text-horizon { color: var(--text-white); font-size: 1.1rem; font-weight: 600; }
+    .logo-text .boost-line { display: flex; align-items: center; color: var(--success-green); font-size: 1.5rem; font-weight: 800; }
+    .logo-text .boost-line img { height: 1.6rem; margin-right: 0.3rem; animation: pulse 2s infinite; border-radius: 50%; }
+    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+
+    .icon-hamburger { font-size: 1.6rem; color: var(--text-white); cursor: pointer; padding: 8px; }
     .mobile-menu {
-      display: none; position: absolute; top: 68px; right: 2rem;
-      background: rgba(10, 22, 43, 0.95); border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 10px; padding: 1.5rem; flex-direction: column; z-index: 200; min-width: 250px;
+      display: none; position: absolute; top: 65px; right: 1rem;
+      background: var(--card-bg); backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border); border-radius: 15px;
+      padding: 1rem; flex-direction: column; z-index: 200; min-width: 220px;
     }
     header.open .mobile-menu { display: flex; }
     .mobile-menu a {
-      color: var(--sbh-text-white); text-decoration: none; padding: 0.8rem 1rem;
-      font-weight: 500; border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      display: flex; align-items: center;
+      color: var(--text-white); text-decoration: none; padding: 0.7rem 1rem;
+      font-weight: 500; border-radius: 8px; display: flex; align-items: center;
+      transition: all 0.3s;
     }
-    .mobile-menu a i { margin-right: 10px; color: var(--sbh-light-blue); width: 24px; }
-    .mobile-menu a:hover { background: rgba(30, 60, 114, 0.3); border-radius: 6px; }
+    .mobile-menu a i { margin-right: 10px; color: var(--accent-color); width: 20px; }
+    .mobile-menu a:hover { background: rgba(102, 126, 234, 0.2); }
 
+    .app-download-banner {
+      background: var(--secondary-gradient);
+      padding: 12px 20px; text-align: center;
+      display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap;
+    }
+    .app-download-banner span { font-weight: 500; }
+    .app-download-banner a {
+      background: rgba(0,0,0,0.3); color: white; padding: 8px 20px;
+      border-radius: 25px; text-decoration: none; font-weight: 600;
+      display: flex; align-items: center; gap: 8px; transition: all 0.3s;
+    }
+    .app-download-banner a:hover { background: rgba(0,0,0,0.5); transform: scale(1.05); }
+
+    .services-count {
+      text-align: center; padding: 15px; margin: 15px auto; max-width: 900px;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(0, 212, 255, 0.1));
+      border-radius: 15px; border: 1px solid var(--card-border);
+    }
+    .services-count .count { font-size: 2rem; font-weight: 800; color: var(--accent-color); }
+    .services-count .label { color: var(--text-muted); font-size: 0.9rem; }
+
+    .platforms-section {
+      max-width: 900px; margin: 20px auto; padding: 0 15px;
+    }
+    .platforms-title {
+      text-align: center; margin-bottom: 15px; font-size: 1.1rem;
+      color: var(--text-muted); font-weight: 500;
+    }
     .platforms {
-      display: flex; justify-content: center; gap: 15px; padding: 15px;
-      background: rgba(17, 32, 58, 0.5); margin: 20px auto; max-width: 900px;
-      border-radius: 10px; overflow-x: auto; flex-wrap: wrap;
+      display: flex; justify-content: center; gap: 12px; padding: 15px;
+      background: var(--card-bg); border-radius: 20px; overflow-x: auto;
+      flex-wrap: wrap; border: 1px solid var(--card-border);
     }
-    .platforms img {
-      width: 45px; height: 45px; cursor: pointer; filter: brightness(0.7);
-      transition: all 0.3s; border-radius: 8px; padding: 5px;
+    .platform-icon {
+      width: 55px; height: 55px; cursor: pointer; border-radius: 15px;
+      padding: 8px; transition: all 0.3s ease; position: relative;
+      background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;
     }
-    .platforms img:hover { filter: brightness(0.9); transform: scale(1.1); }
-    .platforms img.active { filter: brightness(1); background: rgba(77, 166, 255, 0.3); box-shadow: 0 0 15px rgba(77, 166, 255, 0.5); }
+    .platform-icon img { width: 38px; height: 38px; filter: brightness(0.8); transition: all 0.3s; }
+    .platform-icon:hover { transform: translateY(-5px); background: rgba(102, 126, 234, 0.2); }
+    .platform-icon:hover img { filter: brightness(1); }
+    .platform-icon.active {
+      background: var(--primary-gradient); box-shadow: 0 5px 25px rgba(102, 126, 234, 0.5);
+      transform: translateY(-5px);
+    }
+    .platform-icon.active img { filter: brightness(1.2); }
+    .platform-icon .platform-name {
+      position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%);
+      font-size: 0.7rem; color: var(--text-muted); white-space: nowrap;
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .platform-icon:hover .platform-name, .platform-icon.active .platform-name { opacity: 1; }
 
     .content {
-      max-width: 800px; width: 95%; margin: 20px auto; padding: 25px;
-      background: rgba(17, 32, 58, 0.8); border-radius: 15px;
-      border: 1px solid var(--sbh-card-border); box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+      max-width: 700px; width: 95%; margin: 30px auto; padding: 30px;
+      background: var(--card-bg); border-radius: 25px;
+      border: 1px solid var(--card-border); box-shadow: 0 15px 50px rgba(0,0,0,0.4);
+      backdrop-filter: blur(10px);
     }
     .page-title { text-align: center; margin-bottom: 25px; }
     .page-title h2 {
-      font-family: 'Montserrat', sans-serif; font-size: 1.8rem;
-      background: linear-gradient(90deg, #fff, var(--sbh-light-blue));
+      font-family: 'Montserrat', sans-serif; font-size: 1.6rem; font-weight: 700;
+      background: linear-gradient(90deg, #fff, var(--accent-color));
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .page-title .new-badge {
+      display: inline-block; background: var(--accent-pink); color: white;
+      padding: 3px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 600;
+      margin-left: 10px; animation: pulse 1.5s infinite;
     }
 
     .balance-display {
-      text-align: center; padding: 15px; margin-bottom: 20px;
-      background: linear-gradient(135deg, rgba(30, 60, 114, 0.5), rgba(106, 13, 173, 0.3));
-      border-radius: 10px; border: 1px solid rgba(77, 166, 255, 0.3);
+      text-align: center; padding: 20px; margin-bottom: 25px;
+      background: linear-gradient(135deg, rgba(56, 239, 125, 0.15), rgba(17, 153, 142, 0.15));
+      border-radius: 15px; border: 1px solid rgba(56, 239, 125, 0.3);
     }
-    .balance-display .balance-amount { font-size: 1.5rem; font-weight: 700; color: var(--sbh-text-green); }
+    .balance-display span { color: var(--text-muted); }
+    .balance-display .balance-amount { display: block; font-size: 1.8rem; font-weight: 700; color: var(--success-green); margin-top: 5px; }
 
     .form-group { margin-bottom: 20px; }
-    .form-group label { display: block; margin-bottom: 8px; font-weight: 500; color: var(--sbh-text-light); }
+    .form-group label {
+      display: block; margin-bottom: 10px; font-weight: 600; color: var(--text-light);
+      font-size: 0.95rem;
+    }
+    .form-group label i { margin-right: 8px; color: var(--accent-color); }
     .form-group select, .form-group input, .form-group textarea {
-      width: 100%; padding: 12px 15px; border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 8px; background: rgba(10, 22, 43, 0.8); color: var(--sbh-text-white);
+      width: 100%; padding: 14px 18px; border: 2px solid rgba(102, 126, 234, 0.3);
+      border-radius: 12px; background: rgba(15, 15, 35, 0.8); color: var(--text-white);
       font-size: 1rem; transition: all 0.3s;
     }
     .form-group select:focus, .form-group input:focus, .form-group textarea:focus {
-      outline: none; border-color: var(--sbh-light-blue); box-shadow: 0 0 10px rgba(77, 166, 255, 0.3);
+      outline: none; border-color: var(--accent-color);
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
     }
-    .form-group select option { background: var(--sbh-dark-blue); }
+    .form-group select option { background: var(--dark-bg); }
+
+    .category-buttons {
+      display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;
+    }
+    .category-btn {
+      padding: 10px 20px; border: 2px solid rgba(102, 126, 234, 0.3);
+      border-radius: 25px; background: transparent; color: var(--text-light);
+      cursor: pointer; font-weight: 500; transition: all 0.3s; font-size: 0.9rem;
+    }
+    .category-btn:hover { border-color: var(--accent-color); background: rgba(0, 212, 255, 0.1); }
+    .category-btn.active {
+      background: var(--primary-gradient); border-color: transparent;
+      color: white; box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+    .category-btn i { margin-right: 6px; }
 
     .service-info {
-      background: rgba(77, 166, 255, 0.1); border: 1px solid rgba(77, 166, 255, 0.3);
-      border-radius: 10px; padding: 15px; margin-bottom: 20px;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(0, 212, 255, 0.05));
+      border: 1px solid var(--card-border);
+      border-radius: 15px; padding: 20px; margin-bottom: 20px;
     }
-    .service-info .info-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
-    .service-info .info-label { color: rgba(255,255,255,0.7); }
-    .service-info .info-value { font-weight: 600; color: var(--sbh-text-white); }
-    .price-highlight { font-size: 1.3rem; color: var(--sbh-text-green) !important; }
+    .service-info .info-row { display: flex; justify-content: space-between; margin-bottom: 12px; align-items: center; }
+    .service-info .info-row:last-child { margin-bottom: 0; }
+    .service-info .info-label { color: var(--text-muted); font-size: 0.9rem; }
+    .service-info .info-value { font-weight: 600; color: var(--text-white); }
+    .price-highlight { font-size: 1.4rem; color: var(--success-green) !important; }
 
-    .quantity-error { color: #ff6b6b; font-size: 0.85rem; margin-top: 5px; display: none; }
-    .comments-count { color: var(--sbh-light-blue); font-size: 0.9rem; margin-top: 5px; }
+    .quantity-error { color: var(--accent-pink); font-size: 0.85rem; margin-top: 8px; display: none; }
+    .comments-count { color: var(--accent-color); font-size: 0.9rem; margin-top: 8px; }
 
-    .contact-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
-    .contact-fields { display: none; margin-top: 10px; }
+    .contact-section { margin-top: 25px; padding-top: 25px; border-top: 1px solid var(--card-border); }
+    .contact-fields { display: none; margin-top: 12px; }
     .contact-fields.active { display: block; }
 
     .btn-submit {
-      width: 100%; padding: 15px; margin-top: 20px;
-      background: linear-gradient(135deg, var(--sbh-btn-color), var(--sbh-gradient-end));
-      color: white; font-size: 1.1rem; font-weight: 600; border: none;
-      border-radius: 10px; cursor: pointer; transition: all 0.3s;
+      width: 100%; padding: 18px; margin-top: 25px;
+      background: var(--primary-gradient);
+      color: white; font-size: 1.1rem; font-weight: 700; border: none;
+      border-radius: 15px; cursor: pointer; transition: all 0.3s;
       display: flex; align-items: center; justify-content: center; gap: 10px;
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
     }
-    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(30, 144, 255, 0.4); }
+    .btn-submit:hover { transform: translateY(-3px); box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5); }
     .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
     .btn-submit .spinner { display: none; }
     .btn-submit.loading .spinner { display: inline-block; }
@@ -146,73 +244,121 @@
 
     .notification-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center;
+      backdrop-filter: blur(5px);
     }
     .notification-box {
-      background: var(--sbh-dark-blue); border: 1px solid var(--sbh-card-border);
-      border-radius: 15px; padding: 30px; max-width: 400px; text-align: center;
+      background: var(--card-bg); border: 2px solid var(--card-border);
+      border-radius: 25px; padding: 40px; max-width: 400px; text-align: center;
+      animation: slideUp 0.4s ease;
     }
-    .notification-icon { font-size: 3rem; margin-bottom: 15px; }
-    .notification-message { color: var(--sbh-text-white); margin-bottom: 20px; line-height: 1.6; }
+    @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .notification-icon { font-size: 4rem; margin-bottom: 20px; }
+    .notification-message { color: var(--text-light); margin-bottom: 25px; line-height: 1.7; font-size: 1rem; }
     .notification-close {
-      padding: 10px 30px; background: var(--sbh-btn-color); color: white;
-      border: none; border-radius: 8px; cursor: pointer; font-size: 1rem;
+      padding: 12px 40px; background: var(--primary-gradient); color: white;
+      border: none; border-radius: 25px; cursor: pointer; font-size: 1rem; font-weight: 600;
+      transition: all 0.3s;
     }
-    .notification-overlay.success .notification-box { border-color: var(--sbh-text-green); }
-    .notification-overlay.error .notification-box { border-color: #ff6b6b; }
+    .notification-close:hover { transform: scale(1.05); }
+    .notification-overlay.success .notification-box { border-color: var(--success-green); }
+    .notification-overlay.error .notification-box { border-color: var(--accent-pink); }
 
     footer {
-      text-align: center; padding: 20px; margin-top: 30px;
-      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
-      color: rgba(255,255,255,0.8); font-size: 0.9rem;
+      text-align: center; padding: 25px; margin-top: 40px;
+      background: var(--primary-gradient);
+      color: rgba(255,255,255,0.9); font-size: 0.9rem;
     }
 
+    .loading-skeleton {
+      background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 10px;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
     @media (max-width: 600px) {
-      .content { padding: 15px; margin: 10px; }
-      .platforms { gap: 10px; padding: 10px; }
-      .platforms img { width: 38px; height: 38px; }
+      header { padding: 0.8rem 1rem; }
+      .content { padding: 20px; margin: 15px; border-radius: 20px; }
+      .platforms { gap: 8px; padding: 12px; }
+      .platform-icon { width: 48px; height: 48px; }
+      .platform-icon img { width: 32px; height: 32px; }
+      .category-btn { padding: 8px 16px; font-size: 0.85rem; }
+      .balance-display .balance-amount { font-size: 1.5rem; }
+      .app-download-banner { flex-direction: column; gap: 10px; }
     }
   </style>
 </head>
 <body>
-  <div class="background-animation"></div>
+  <div class="animated-bg"></div>
+  <div class="floating-particles">
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+  </div>
 
   <header>
     <a href="dashboard.html" class="logo-text">
-      <span class="text-social">Social</span>
-      <span class="boost-line">Boost</span>
-      <span class="text-horizon">Horizon</span>
+      <span class="text-social">SOCIAL</span>
+      <div class="boost-line">
+        <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo">
+        <span>BOOST</span>
+      </div>
+      <span class="text-horizon">HORIZON</span>
     </a>
     <i class="fas fa-bars icon-hamburger" onclick="this.parentElement.classList.toggle('open')"></i>
     <nav class="mobile-menu">
       <a href="dashboard.html"><i class="fas fa-home"></i> Tableau de bord</a>
       <a href="wallet.html"><i class="fas fa-wallet"></i> Portefeuille</a>
       <a href="mes-commandes.html"><i class="fas fa-list"></i> Mes commandes</a>
-      <a href="commande-automatique.html"><i class="fas fa-robot"></i> Commandes Auto</a>
-      <a href="#" onclick="firebase.auth().signOut()"><i class="fas fa-sign-out-alt"></i> Déconnexion</a>
+      <a href="commande-revendeur-exo.html"><i class="fas fa-star"></i> Espace Revendeur</a>
+      <a href="#" onclick="firebase.auth().signOut()"><i class="fas fa-sign-out-alt"></i> Deconnexion</a>
     </nav>
   </header>
 
-  <div class="platforms" id="platformsContainer">
-    <div style="text-align: center; padding: 20px; color: #888;">
-      <i class="fas fa-spinner fa-spin"></i> Chargement des plateformes...
+  <div class="app-download-banner" data-aos="fade-down">
+    <span><i class="fas fa-mobile-alt"></i> Telecharge notre application mobile !</span>
+    <a href="https://web2apkpro.com/public_download.php?project_id=501&token=9553436f25" target="_blank">
+      <i class="fab fa-android"></i> Telecharger Android
+    </a>
+  </div>
+
+  <div class="services-count" data-aos="fade-up">
+    <div class="count" id="totalServicesCount">--</div>
+    <div class="label">Services disponibles</div>
+  </div>
+
+  <div class="platforms-section" data-aos="fade-up" data-aos-delay="100">
+    <div class="platforms-title"><i class="fas fa-layer-group"></i> Choisis ta plateforme</div>
+    <div class="platforms" id="platformsContainer">
+      <div style="text-align: center; padding: 30px; width: 100%;">
+        <div class="loading-skeleton" style="height: 55px; width: 100%;"></div>
+      </div>
     </div>
   </div>
 
-  <div class="content" data-aos="fade-up">
+  <div class="content" data-aos="fade-up" data-aos-delay="200">
     <div class="page-title">
-      <h2><i class="fas fa-rocket"></i> Commander un Boost</h2>
+      <h2><i class="fas fa-rocket"></i> Commander un Boost <span class="new-badge">NOUVEAU</span></h2>
     </div>
 
     <div class="balance-display">
-      <span>Votre solde : </span>
+      <span>Ton solde actuel</span>
       <span class="balance-amount" id="userBalance">-- FCFA</span>
     </div>
 
     <form id="orderForm">
       <input type="hidden" id="userId" name="userId">
 
-      <div class="form-group">
+      <div class="form-group" id="categorySection" style="display: none;">
+        <label><i class="fas fa-tags"></i> Categorie</label>
+        <div class="category-buttons" id="categoryButtons"></div>
+      </div>
+
+      <div class="form-group" id="serviceSection" style="display: none;">
         <label><i class="fas fa-concierge-bell"></i> Service</label>
         <select id="serviceSelect" required>
           <option value="">Choisir un service</option>
@@ -225,39 +371,39 @@
           <span class="info-value" id="pricePerK">-- FCFA</span>
         </div>
         <div class="info-row">
-          <span class="info-label">Quantité min/max :</span>
+          <span class="info-label">Quantite min/max :</span>
           <span class="info-value" id="minMaxQty">-- / --</span>
         </div>
         <div class="info-row">
-          <span class="info-label">Temps estimé :</span>
+          <span class="info-label">Temps estime :</span>
           <span class="info-value" id="estimatedTime">--</span>
         </div>
       </div>
 
-      <div class="form-group">
+      <div class="form-group" id="linkSection" style="display: none;">
         <label><i class="fas fa-link"></i> Lien (URL)</label>
         <input type="url" id="linkInput" placeholder="https://..." required>
       </div>
 
-      <div class="form-group" id="quantitySection">
-        <label id="quantLabel"><i class="fas fa-sort-numeric-up"></i> Quantité</label>
+      <div class="form-group" id="quantitySection" style="display: none;">
+        <label id="quantLabel"><i class="fas fa-sort-numeric-up"></i> Quantite</label>
         <input type="number" id="quantityInput" min="1" placeholder="Ex: 1000">
         <div class="quantity-error" id="quantityError"></div>
         <div class="comments-count" id="commentsCount" style="display: none;">0 commentaire(s)</div>
       </div>
 
-      <div class="service-info">
+      <div class="service-info" id="totalSection" style="display: none;">
         <div class="info-row">
-          <span class="info-label">Prix total estimé :</span>
+          <span class="info-label">Prix total estime :</span>
           <span class="info-value price-highlight" id="totalPrice">0 FCFA</span>
         </div>
       </div>
 
-      <div class="contact-section">
+      <div class="contact-section" id="contactSection" style="display: none;">
         <div class="form-group">
-          <label><i class="fas fa-address-book"></i> Contact pour suivi</label>
+          <label><i class="fas fa-address-book"></i> Contact pour suivi (optionnel)</label>
           <select id="contactType">
-            <option value="">Choisir un type de contact</option>
+            <option value="">Aucun</option>
             <option value="whatsapp">WhatsApp</option>
             <option value="email">Email</option>
           </select>
@@ -266,11 +412,11 @@
           <input type="tel" id="contactInput" placeholder="+237 6XX XXX XXX">
         </div>
         <div class="contact-fields" id="emailField">
-          <input type="email" id="emailInput" placeholder="votre@email.com">
+          <input type="email" id="emailInput" placeholder="ton@email.com">
         </div>
       </div>
 
-      <button type="submit" class="btn-submit" id="submitBtn">
+      <button type="submit" class="btn-submit" id="submitBtn" style="display: none;">
         <i class="fas fa-spinner fa-spin spinner"></i>
         <span class="btn-text"><i class="fas fa-paper-plane"></i> Envoyer la commande</span>
       </button>
@@ -288,12 +434,12 @@
   </div>
 
   <footer>
-    <p>&copy; 2025 Social Boost Horizon. Tous droits réservés.</p>
+    <p>&copy; 2025 Social Boost Horizon. Tous droits reserves.</p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   <script>
-    AOS.init({ duration: 800, once: true });
+    AOS.init({ duration: 600, once: true });
 
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
@@ -311,9 +457,12 @@
     const db = firebase.firestore();
 
     let servicesData = {};
+    let categorizedServices = {};
     let selectedPlatform = null;
+    let selectedCategory = null;
     let selectedService = null;
     let userBalance = 0;
+    let totalServicesCount = 0;
 
     const platformIcons = {
       tiktok: 'https://img.icons8.com/color/48/tiktok--v1.png',
@@ -333,6 +482,21 @@
       soundcloud: 'https://img.icons8.com/color/48/soundcloud.png'
     };
 
+    const categoryIcons = {
+      followers: 'fa-users',
+      likes: 'fa-heart',
+      views: 'fa-eye',
+      comments: 'fa-comments',
+      shares: 'fa-share',
+      subscribers: 'fa-bell',
+      members: 'fa-user-plus',
+      reactions: 'fa-smile',
+      saves: 'fa-bookmark',
+      impressions: 'fa-chart-line',
+      plays: 'fa-play',
+      other: 'fa-star'
+    };
+
     auth.onAuthStateChanged(async (user) => {
       if (!user) {
         window.location.href = 'login.html';
@@ -350,13 +514,29 @@
     });
 
     function formatPrice(amount) {
-      return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount) + ' FCFA';
+      return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(amount)) + ' FCFA';
     }
 
     function decodeHTML(text) {
       const el = document.createElement('textarea');
       el.innerHTML = text;
       return el.value;
+    }
+
+    function extractCategory(serviceName) {
+      const name = serviceName.toLowerCase();
+      if (name.includes('follower') || name.includes('abonne')) return 'followers';
+      if (name.includes('like') || name.includes('j\'aime')) return 'likes';
+      if (name.includes('view') || name.includes('vue')) return 'views';
+      if (name.includes('comment')) return 'comments';
+      if (name.includes('share') || name.includes('partage')) return 'shares';
+      if (name.includes('subscriber') || name.includes('abonnement')) return 'subscribers';
+      if (name.includes('member') || name.includes('membre')) return 'members';
+      if (name.includes('reaction')) return 'reactions';
+      if (name.includes('save') || name.includes('enregistr')) return 'saves';
+      if (name.includes('impression')) return 'impressions';
+      if (name.includes('play') || name.includes('stream')) return 'plays';
+      return 'other';
     }
 
     async function loadServices() {
@@ -370,35 +550,92 @@
         servicesData = data.platforms;
         container.innerHTML = '';
         
+        totalServicesCount = 0;
         Object.keys(servicesData).forEach(platform => {
           if (servicesData[platform] && servicesData[platform].length > 0) {
-            const img = document.createElement('img');
-            img.src = platformIcons[platform] || `https://img.icons8.com/color/48/${platform}.png`;
-            img.alt = platform;
-            img.dataset.platform = platform;
-            img.onclick = () => selectPlatform(platform);
-            container.appendChild(img);
+            totalServicesCount += servicesData[platform].length;
+            
+            const iconDiv = document.createElement('div');
+            iconDiv.className = 'platform-icon';
+            iconDiv.dataset.platform = platform;
+            iconDiv.onclick = () => selectPlatform(platform);
+            iconDiv.innerHTML = `
+              <img src="${platformIcons[platform] || `https://img.icons8.com/color/48/${platform}.png`}" alt="${platform}">
+              <span class="platform-name">${platform.charAt(0).toUpperCase() + platform.slice(1)}</span>
+            `;
+            container.appendChild(iconDiv);
           }
         });
         
-        const first = Object.keys(servicesData)[0];
-        if (first) selectPlatform(first);
+        document.getElementById('totalServicesCount').textContent = totalServicesCount;
         
       } catch (error) {
-        container.innerHTML = `<div style="color:#ff6b6b;padding:20px;">Erreur de chargement. <button onclick="loadServices()" style="margin-left:10px;padding:5px 15px;background:#4CAF50;color:white;border:none;border-radius:5px;cursor:pointer;">Réessayer</button></div>`;
+        container.innerHTML = `<div style="color:#ff6b9d;padding:20px;text-align:center;width:100%;">
+          <i class="fas fa-exclamation-triangle" style="font-size:2rem;margin-bottom:10px;display:block;"></i>
+          Erreur de chargement des services.
+          <button onclick="loadServices()" style="margin-top:15px;padding:10px 25px;background:var(--primary-gradient);color:white;border:none;border-radius:25px;cursor:pointer;font-weight:600;">
+            <i class="fas fa-redo"></i> Reessayer
+          </button>
+        </div>`;
       }
     }
 
     function selectPlatform(platform) {
-      document.querySelectorAll('.platforms img').forEach(i => i.classList.remove('active'));
-      const icon = document.querySelector(`.platforms img[data-platform="${platform}"]`);
+      document.querySelectorAll('.platform-icon').forEach(i => i.classList.remove('active'));
+      const icon = document.querySelector(`.platform-icon[data-platform="${platform}"]`);
       if (icon) icon.classList.add('active');
       
       selectedPlatform = platform;
+      selectedCategory = null;
+      selectedService = null;
+      
+      categorizedServices = {};
+      servicesData[platform].forEach(service => {
+        const category = extractCategory(service.name);
+        if (!categorizedServices[category]) {
+          categorizedServices[category] = [];
+        }
+        categorizedServices[category].push(service);
+      });
+      
+      const categorySection = document.getElementById('categorySection');
+      const categoryButtons = document.getElementById('categoryButtons');
+      categoryButtons.innerHTML = '';
+      
+      Object.keys(categorizedServices).forEach(category => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'category-btn';
+        btn.dataset.category = category;
+        btn.onclick = () => selectCategory(category);
+        const icon = categoryIcons[category] || 'fa-star';
+        const count = categorizedServices[category].length;
+        btn.innerHTML = `<i class="fas ${icon}"></i> ${category.charAt(0).toUpperCase() + category.slice(1)} (${count})`;
+        categoryButtons.appendChild(btn);
+      });
+      
+      categorySection.style.display = 'block';
+      document.getElementById('serviceSection').style.display = 'none';
+      document.getElementById('serviceInfo').style.display = 'none';
+      document.getElementById('linkSection').style.display = 'none';
+      document.getElementById('quantitySection').style.display = 'none';
+      document.getElementById('totalSection').style.display = 'none';
+      document.getElementById('contactSection').style.display = 'none';
+      document.getElementById('submitBtn').style.display = 'none';
+    }
+
+    function selectCategory(category) {
+      document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+      const btn = document.querySelector(`.category-btn[data-category="${category}"]`);
+      if (btn) btn.classList.add('active');
+      
+      selectedCategory = category;
+      selectedService = null;
+      
       const select = document.getElementById('serviceSelect');
       select.innerHTML = '<option value="">Choisir un service</option>';
       
-      servicesData[platform].forEach(service => {
+      categorizedServices[category].forEach(service => {
         const opt = document.createElement('option');
         opt.value = service.id;
         opt.textContent = decodeHTML(service.name);
@@ -411,21 +648,26 @@
         select.appendChild(opt);
       });
       
-      resetForm();
-    }
-
-    function resetForm() {
-      selectedService = null;
+      document.getElementById('serviceSection').style.display = 'block';
       document.getElementById('serviceInfo').style.display = 'none';
-      document.getElementById('quantityInput').value = '';
-      document.getElementById('totalPrice').textContent = '0 FCFA';
-      document.getElementById('quantityError').style.display = 'none';
-      document.getElementById('commentsCount').style.display = 'none';
+      document.getElementById('linkSection').style.display = 'none';
+      document.getElementById('quantitySection').style.display = 'none';
+      document.getElementById('totalSection').style.display = 'none';
+      document.getElementById('contactSection').style.display = 'none';
+      document.getElementById('submitBtn').style.display = 'none';
     }
 
     document.getElementById('serviceSelect').addEventListener('change', function() {
       const opt = this.options[this.selectedIndex];
-      if (!opt.value) { resetForm(); return; }
+      if (!opt.value) {
+        document.getElementById('serviceInfo').style.display = 'none';
+        document.getElementById('linkSection').style.display = 'none';
+        document.getElementById('quantitySection').style.display = 'none';
+        document.getElementById('totalSection').style.display = 'none';
+        document.getElementById('contactSection').style.display = 'none';
+        document.getElementById('submitBtn').style.display = 'none';
+        return;
+      }
       
       selectedService = {
         id: opt.value,
@@ -440,10 +682,16 @@
       
       document.getElementById('serviceInfo').style.display = 'block';
       document.getElementById('pricePerK').textContent = selectedService.isPackage 
-        ? formatPrice(selectedService.priceXAF) + '/unité'
+        ? formatPrice(selectedService.priceXAF) + '/unite'
         : formatPrice(selectedService.priceXAF) + '/1000';
       document.getElementById('minMaxQty').textContent = `${selectedService.min.toLocaleString('fr-FR')} / ${selectedService.max.toLocaleString('fr-FR')}`;
       document.getElementById('estimatedTime').textContent = selectedService.averageTime;
+      
+      document.getElementById('linkSection').style.display = 'block';
+      document.getElementById('quantitySection').style.display = 'block';
+      document.getElementById('totalSection').style.display = 'block';
+      document.getElementById('contactSection').style.display = 'block';
+      document.getElementById('submitBtn').style.display = 'flex';
       
       const qtySection = document.getElementById('quantitySection');
       const qtyInput = document.getElementById('quantityInput');
@@ -454,10 +702,11 @@
           textarea.id = 'quantityInput';
           textarea.rows = 5;
           textarea.placeholder = 'Un commentaire par ligne...';
-          qtySection.replaceChild(textarea, qtyInput);
+          textarea.style.cssText = qtyInput.style.cssText;
+          qtyInput.parentNode.replaceChild(textarea, qtyInput);
           document.getElementById('quantityInput').addEventListener('input', updatePrice);
         }
-        document.getElementById('quantLabel').innerHTML = '<i class="fas fa-comments"></i> Vos commentaires';
+        document.getElementById('quantLabel').innerHTML = '<i class="fas fa-comments"></i> Tes commentaires';
         document.getElementById('commentsCount').style.display = 'block';
       } else {
         if (qtyInput.tagName === 'TEXTAREA') {
@@ -466,14 +715,15 @@
           input.id = 'quantityInput';
           input.min = selectedService.min;
           input.placeholder = `Min: ${selectedService.min}`;
-          qtySection.replaceChild(input, qtyInput);
+          qtyInput.parentNode.replaceChild(input, qtyInput);
           document.getElementById('quantityInput').addEventListener('input', updatePrice);
         }
-        document.getElementById('quantLabel').innerHTML = '<i class="fas fa-sort-numeric-up"></i> Quantité';
+        document.getElementById('quantLabel').innerHTML = '<i class="fas fa-sort-numeric-up"></i> Quantite';
         document.getElementById('commentsCount').style.display = 'none';
       }
       
-      updatePrice();
+      document.getElementById('quantityInput').value = '';
+      document.getElementById('totalPrice').textContent = '0 FCFA';
     });
 
     document.getElementById('quantityInput').addEventListener('input', updatePrice);
@@ -508,7 +758,7 @@
         ? selectedService.priceXAF * qty 
         : (selectedService.priceXAF / 1000) * qty;
       
-      document.getElementById('totalPrice').textContent = formatPrice(Math.round(total * 100) / 100);
+      document.getElementById('totalPrice').textContent = formatPrice(Math.round(total));
     }
 
     document.getElementById('contactType').addEventListener('change', function() {
@@ -522,7 +772,7 @@
       e.preventDefault();
       
       if (!selectedService) {
-        showNotification('Veuillez sélectionner un service', 'error');
+        showNotification('Veuillez selectionner un service', 'error');
         return;
       }
       
@@ -540,7 +790,7 @@
       }
       
       if (qty < selectedService.min) {
-        showNotification(`Quantité minimum: ${selectedService.min}`, 'error');
+        showNotification(`Quantite minimum: ${selectedService.min}`, 'error');
         return;
       }
       
@@ -562,10 +812,10 @@
           link: link,
           quantity: qty,
           comments: selectedService.isCustomComments ? comments : null,
-          contactType: contactType,
+          contactType: contactType || null,
           contact: contactType === 'email' 
             ? document.getElementById('emailInput').value 
-            : document.getElementById('contactInput').value
+            : (contactType === 'whatsapp' ? document.getElementById('contactInput').value : null)
         };
         
         const res = await fetch('/api/order-exo', {
@@ -579,9 +829,16 @@
         if (result.success) {
           userBalance = result.newBalance;
           document.getElementById('userBalance').textContent = formatPrice(userBalance);
-          showNotification(`Commande envoyée avec succès !<br>ID: ${result.orderId}<br>Nouveau solde: ${formatPrice(result.newBalance)}`, 'success');
+          showNotification(`Commande envoyee avec succes !<br><br><strong>ID:</strong> ${result.orderId}<br><strong>Nouveau solde:</strong> ${formatPrice(result.newBalance)}`, 'success');
           document.getElementById('orderForm').reset();
-          resetForm();
+          document.getElementById('serviceSection').style.display = 'none';
+          document.getElementById('serviceInfo').style.display = 'none';
+          document.getElementById('linkSection').style.display = 'none';
+          document.getElementById('quantitySection').style.display = 'none';
+          document.getElementById('totalSection').style.display = 'none';
+          document.getElementById('contactSection').style.display = 'none';
+          document.getElementById('submitBtn').style.display = 'none';
+          document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
         } else {
           throw new Error(result.error);
         }
@@ -596,7 +853,7 @@
 
     function showNotification(message, type) {
       const notif = document.getElementById('notification');
-      document.getElementById('notificationIcon').textContent = type === 'success' ? '✅' : '❌';
+      document.getElementById('notificationIcon').textContent = type === 'success' ? '🎉' : '❌';
       document.getElementById('notificationMessage').innerHTML = message;
       notif.className = `notification-overlay ${type}`;
       notif.style.display = 'flex';
