@@ -1758,7 +1758,7 @@
               <i class="fas fa-layer-group"></i> ${service.min.toLocaleString()} - ${service.max.toLocaleString()}
             </span>
             <span class="service-price">
-              ${formatPrice(service.priceXAF)} <small>${service.isPackage ? '/unité' : '/1000'}</small>
+              ${formatPrice(service.priceXAF)} <small>${service.isPerOne || service.isPackage ? '/unité' : '/1000'}</small>
             </span>
           </div>
           <div class="service-category">
@@ -1804,7 +1804,8 @@
       if (isCustomComments && selectedService) {
         orderQuantity.value = count;
         displayQuantity.textContent = count.toLocaleString();
-        const total = selectedService.isPackage 
+        const isPerUnit = selectedService.isPerOne || selectedService.isPackage;
+        const total = isPerUnit 
           ? selectedService.priceXAF * count 
           : (selectedService.priceXAF / 1000) * count;
         totalPrice.textContent = formatPrice(total);
@@ -1818,7 +1819,7 @@
       panelServiceMin.textContent = `Min: ${selectedService.min.toLocaleString()}`;
       panelServiceMax.textContent = `Max: ${selectedService.max.toLocaleString()}`;
       unitPrice.textContent = formatPrice(selectedService.priceXAF);
-      unitPriceLabel.textContent = selectedService.isPackage ? 'Prix par unité' : 'Prix unitaire (1000)';
+      unitPriceLabel.textContent = (selectedService.isPerOne || selectedService.isPackage) ? 'Prix par unité' : 'Prix unitaire (1000)';
 
       if (selectedService.desc && selectedService.desc.trim()) {
         serviceRemarksText.innerHTML = selectedService.desc;
@@ -1865,7 +1866,8 @@
       const qty = parseInt(orderQuantity.value) || 0;
       displayQuantity.textContent = qty.toLocaleString();
       if (selectedService) {
-        const total = selectedService.isPackage 
+        const isPerUnit = selectedService.isPerOne || selectedService.isPackage;
+        const total = isPerUnit 
           ? selectedService.priceXAF * qty 
           : (selectedService.priceXAF / 1000) * qty;
         totalPrice.textContent = formatPrice(total);
@@ -1907,9 +1909,10 @@
       }
 
       // Calculer le prix total (avec décimales comme chez le fournisseur)
-      // Pour les packages: prix fixe × quantité
-      // Pour les autres: (prix/1000) × quantité
-      const orderTotalPrice = selectedService.isPackage 
+      // Pour les services "par 1" (packages, partages, etc.): prix × quantité
+      // Pour les services "par 1000": (prix/1000) × quantité
+      const isPerUnit = selectedService.isPerOne || selectedService.isPackage;
+      const orderTotalPrice = isPerUnit 
         ? selectedService.priceXAF * quantity 
         : (selectedService.priceXAF / 1000) * quantity;
       
