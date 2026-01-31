@@ -648,6 +648,7 @@
         opt.dataset.min = service.min;
         opt.dataset.max = service.max;
         opt.dataset.isPackage = service.isPackage;
+        opt.dataset.isPerOne = service.isPerOne;
         opt.dataset.isCustomComments = service.isCustomComments;
         opt.dataset.averageTime = service.averageTime || 'Rapide';
         select.appendChild(opt);
@@ -681,12 +682,14 @@
         min: parseInt(opt.dataset.min) || 1,
         max: parseInt(opt.dataset.max) || 1000000,
         isPackage: opt.dataset.isPackage === 'true',
+        isPerOne: opt.dataset.isPerOne === 'true',
         isCustomComments: opt.dataset.isCustomComments === 'true',
         averageTime: opt.dataset.averageTime
       };
       
       document.getElementById('serviceInfo').style.display = 'block';
-      document.getElementById('pricePerK').textContent = selectedService.isPackage 
+      const isPerUnit = selectedService.isPerOne || selectedService.isPackage;
+      document.getElementById('pricePerK').textContent = isPerUnit 
         ? formatPrice(selectedService.priceXAF) + '/unite'
         : formatPrice(selectedService.priceXAF) + '/1000';
       document.getElementById('minMaxQty').textContent = `${selectedService.min.toLocaleString('fr-FR')} / ${selectedService.max.toLocaleString('fr-FR')}`;
@@ -759,7 +762,8 @@
         errorEl.style.display = 'none';
       }
       
-      let total = selectedService.isPackage 
+      const isPerUnit = selectedService.isPerOne || selectedService.isPackage;
+      let total = isPerUnit 
         ? selectedService.priceXAF * qty 
         : (selectedService.priceXAF / 1000) * qty;
       
