@@ -2123,7 +2123,42 @@ document.addEventListener("DOMContentLoaded", function () {
       const orderId    = order.orderId || order.id || 'N/A';
       const docId      = order.id || orderId;
       const service    = order.service || 'N/A';
-      const quality    = order.quality || 'N/A';
+      
+      // Détection automatique de la qualité à partir du nom du service (FR + EN)
+      function detectQuality(serviceName) {
+        const nameLower = (serviceName || '').toLowerCase();
+        
+        // Mots-clés pour haute qualité (Français + Anglais)
+        const highQualityKeywords = [
+          // Français
+          'haute qualité', '(haute qualité)', 'qualité haute', 'hq', 'premium', 
+          'réel', 'réels', 'actif', 'actifs', 'organique', 'organiques',
+          'sans perte', 'permanent', 'permanents', 'garantie', 'garanti',
+          // Anglais
+          'high quality', '(high quality)', 'premium', 'real', 'genuine', 
+          'active', 'organic', 'non drop', 'no drop', 'lifetime', 'guarantee'
+        ];
+        
+        // Mots-clés pour qualité moyenne (Français + Anglais)
+        const mediumQualityKeywords = [
+          // Français
+          'qualité moyenne', '(qualité moyenne)', 'moyenne qualité', 'mq',
+          'mixte', 'standard', 'normal', 'rapide', 'instantané',
+          // Anglais
+          'medium quality', '(medium quality)', 'mix', 'mixed', 'regular', 
+          'bot', 'cheap', 'low cost', 'fast', 'instant'
+        ];
+        
+        for (const kw of highQualityKeywords) {
+          if (nameLower.includes(kw)) return 'Haute qualité';
+        }
+        for (const kw of mediumQualityKeywords) {
+          if (nameLower.includes(kw)) return 'Qualité moyenne';
+        }
+        return 'Standard';
+      }
+      
+      const quality = order.quality && order.quality !== 'N/A' ? order.quality : detectQuality(service);
       const quantity   = order.quantity != null ? Number(order.quantity) : 0;
       const currentQuantity = order.currentQuantity != null ? order.currentQuantity : null;
       const estimatedQuantity = order.estimatedQuantity != null ? order.estimatedQuantity : null;
@@ -2228,10 +2263,6 @@ document.addEventListener("DOMContentLoaded", function () {
               
               ${isExoOrder ? `
               <!-- Informations ExoSupplier -->
-              <div class="order-detail-item exo-info">
-                <div class="detail-label"><i class="fas fa-robot" style="color: #8B5CF6; margin-right: 5px;"></i>ID Fournisseur</div>
-                <div class="detail-value" style="color: #8B5CF6; font-weight: 600;">#${exoOrderId}</div>
-              </div>
               <div class="order-detail-item exo-info">
                 <div class="detail-label"><i class="fas fa-play" style="color: #06B6D4; margin-right: 5px;"></i>Compteur départ</div>
                 <div class="detail-value" style="color: #06B6D4;">${startCount.toLocaleString('fr-FR')}</div>
