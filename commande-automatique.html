@@ -431,6 +431,29 @@
       color: var(--auto-error);
     }
 
+    .badge-provider {
+      font-weight: 700;
+      font-size: 0.65rem;
+      width: 18px;
+      height: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+    }
+
+    .provider-m {
+      background: rgba(139, 92, 246, 0.3);
+      color: var(--auto-primary);
+      border: 1px solid rgba(139, 92, 246, 0.4);
+    }
+
+    .provider-s {
+      background: rgba(6, 182, 212, 0.3);
+      color: var(--auto-secondary);
+      border: 1px solid rgba(6, 182, 212, 0.4);
+    }
+
     .service-name {
       font-size: 1rem;
       font-weight: 500;
@@ -1510,19 +1533,52 @@
 
     async function loadServices() {
       try {
-        const response = await fetch(`${BACKEND_URL}/api/mtp/services`);
-        const data = await response.json();
+        // Charger les services des deux fournisseurs en parallèle
+        const [mtpResponse, smmgenResponse] = await Promise.allSettled([
+          fetch(`${BACKEND_URL}/api/mtp/services`),
+          fetch(`${BACKEND_URL}/api/smmgen/services`)
+        ]);
 
-        if (!data.success) {
-          throw new Error(data.error || 'Erreur de chargement');
+        let mtpServices = [];
+        let smmgenServices = [];
+
+        // Traiter les services MTP
+        if (mtpResponse.status === 'fulfilled' && mtpResponse.value.ok) {
+          const mtpData = await mtpResponse.value.json();
+          if (mtpData.success && Array.isArray(mtpData.services)) {
+            mtpServices = mtpData.services.map(s => ({
+              ...s,
+              provider: 'mtp' // Marquer comme MTP
+            }));
+          }
         }
 
-        allServices = data.services.map(s => ({
+        // Traiter les services SMMGen
+        if (smmgenResponse.status === 'fulfilled' && smmgenResponse.value.ok) {
+          const smmgenData = await smmgenResponse.value.json();
+          if (smmgenData.success && Array.isArray(smmgenData.services)) {
+            smmgenServices = smmgenData.services.map(s => ({
+              ...s,
+              provider: 'smmgen' // Marquer comme SMMGen
+            }));
+          }
+        }
+
+        // Combiner tous les services
+        const combinedServices = [...mtpServices, ...smmgenServices];
+
+        if (combinedServices.length === 0) {
+          throw new Error('Aucun service disponible');
+        }
+
+        allServices = combinedServices.map(s => ({
           ...s,
           platform: detectPlatform(s),
           serviceType: detectServiceType(s.name),
           translatedName: translateServiceName(s.name)
         }));
+
+        console.log(`✅ ${mtpServices.length} services M + ${smmgenServices.length} services S = ${allServices.length} total`);
 
         renderCategories();
         filterAndRenderServices();
@@ -1653,12 +1709,15 @@
 
       servicesGrid.innerHTML = services.map(service => {
         const qualityClass = getQualityClass(service.name, service.priceXAF);
+        const providerBadge = service.provider === 'smmgen' ? 'S' : 'M';
+        const providerClass = service.provider === 'smmgen' ? 'provider-s' : 'provider-m';
         return `
-        <div class="service-card" data-id="${service.id}">
+        <div class="service-card" data-id="${service.id}" data-provider="${service.provider || 'mtp'}">
           <div class="quality-indicator ${qualityClass}"></div>
           <div class="service-header">
             <span class="service-id">#${service.id}</span>
             <div class="service-badges">
+              <span class="badge badge-provider ${providerClass}">${providerBadge}</span>
               ${service.refill ? '<span class="badge badge-refill">Recharge</span>' : ''}
               ${service.cancel ? '<span class="badge badge-cancel">Annulable</span>' : ''}
             </div>
@@ -1851,7 +1910,13 @@
           orderPayload.comments = comments;
         }
 
-        const response = await fetch(`${BACKEND_URL}/api/mtp/order`, {
+        // Router vers le bon endpoint selon le fournisseur du service
+        const provider = selectedService.provider || 'mtp';
+        const orderEndpoint = provider === 'smmgen' 
+          ? `${BACKEND_URL}/api/smmgen/order` 
+          : `${BACKEND_URL}/api/mtp/order`;
+
+        const response = await fetch(orderEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

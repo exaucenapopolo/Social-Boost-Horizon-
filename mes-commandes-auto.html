@@ -319,8 +319,9 @@
 
     .order-ids {
       display: flex;
-      flex-direction: column;
-      gap: 4px;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
     }
 
     .order-id {
@@ -330,9 +331,32 @@
       color: var(--auto-secondary);
     }
 
-    .mtp-id {
+    .provider-id {
       font-size: 0.8rem;
       color: var(--auto-text-muted);
+    }
+
+    .badge-provider {
+      font-weight: 700;
+      font-size: 0.6rem;
+      width: 16px;
+      height: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+    }
+
+    .provider-m {
+      background: rgba(139, 92, 246, 0.3);
+      color: var(--auto-primary);
+      border: 1px solid rgba(139, 92, 246, 0.4);
+    }
+
+    .provider-s {
+      background: rgba(6, 182, 212, 0.3);
+      color: var(--auto-secondary);
+      border: 1px solid rgba(6, 182, 212, 0.4);
     }
 
     .order-date {
@@ -871,20 +895,28 @@
 
       ordersList.innerHTML = orders.map(order => {
         const quantity = order.quantity || 0;
-        const startCount = order.mtpStartCount || 0;
-        const remains = order.mtpRemains !== undefined ? order.mtpRemains : quantity;
+        // Supporter les deux formats (ancien mtpStartCount et nouveau providerStartCount)
+        const startCount = order.providerStartCount || order.mtpStartCount || 0;
+        const remains = order.providerRemains !== undefined ? order.providerRemains : (order.mtpRemains !== undefined ? order.mtpRemains : quantity);
         const delivered = quantity - remains;
         const progressPercent = quantity > 0 ? Math.min(100, Math.round((delivered / quantity) * 100)) : 0;
         
-        const status = order.status || order.mtpStatus || 'En attente';
+        const status = order.status || order.providerStatus || order.mtpStatus || 'En attente';
         const canRefill = !['Completed', 'Canceled', 'Terminé', 'Annulé'].includes(status);
         
+        // Déterminer le fournisseur (par défaut MTP pour les anciennes commandes)
+        const provider = order.provider || 'mtp';
+        const providerBadge = provider === 'smmgen' ? 'S' : 'M';
+        const providerClass = provider === 'smmgen' ? 'provider-s' : 'provider-m';
+        const providerOrderId = order.providerOrderId || order.mtpOrderId || '-';
+        
         return `
-        <div class="order-item" data-aos="fade-up">
+        <div class="order-item" data-aos="fade-up" data-provider="${provider}">
           <div class="order-header">
             <div class="order-ids">
               <span class="order-id">${order.orderId || 'N/A'}</span>
-              <span class="mtp-id">MTP: #${order.mtpOrderId || '-'}</span>
+              <span class="badge-provider ${providerClass}">${providerBadge}</span>
+              <span class="provider-id">#${providerOrderId}</span>
             </div>
             <span class="order-date"><i class="far fa-calendar-alt"></i> ${formatDate(order.createdAt)}</span>
           </div>
@@ -934,11 +966,24 @@
       `}).join('');
     }
 
+    // Fonction helper pour obtenir le provider d'une commande
+    function getOrderProvider(orderId) {
+      const order = orders.find(o => o.orderId === orderId);
+      return order?.provider || 'mtp'; // Par défaut MTP pour les anciennes commandes
+    }
+
     async function checkStatus(orderId) {
       try {
         notify('Vérification du statut...', 'info');
         const idToken = await auth.currentUser.getIdToken();
-        const response = await fetch(`${BACKEND_URL}/api/mtp/order-status/${orderId}`, {
+        
+        // Router vers le bon endpoint selon le fournisseur
+        const provider = getOrderProvider(orderId);
+        const endpoint = provider === 'smmgen' 
+          ? `${BACKEND_URL}/api/smmgen/order-status/${orderId}`
+          : `${BACKEND_URL}/api/mtp/order-status/${orderId}`;
+        
+        const response = await fetch(endpoint, {
           headers: { 'Authorization': `Bearer ${idToken}` }
         });
         const data = await response.json();
@@ -962,7 +1007,14 @@
       try {
         notify('Demande de refill en cours...', 'info');
         const idToken = await auth.currentUser.getIdToken();
-        const response = await fetch(`${BACKEND_URL}/api/mtp/refill`, {
+        
+        // Router vers le bon endpoint selon le fournisseur
+        const provider = getOrderProvider(orderId);
+        const endpoint = provider === 'smmgen' 
+          ? `${BACKEND_URL}/api/smmgen/refill`
+          : `${BACKEND_URL}/api/mtp/refill`;
+        
+        const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -991,7 +1043,14 @@
       try {
         notify('Annulation en cours...', 'info');
         const idToken = await auth.currentUser.getIdToken();
-        const response = await fetch(`${BACKEND_URL}/api/mtp/cancel`, {
+        
+        // Router vers le bon endpoint selon le fournisseur
+        const provider = getOrderProvider(orderId);
+        const endpoint = provider === 'smmgen' 
+          ? `${BACKEND_URL}/api/smmgen/cancel`
+          : `${BACKEND_URL}/api/mtp/cancel`;
+        
+        const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1005,7 +1064,7 @@
           throw new Error(data.error || 'Erreur');
         }
 
-        notify(`Commande annulée. Remboursement: ${formatPrice(data.refundAmount || 0)}`, 'success');
+        notify(`Commande annulée. Remboursement: ${formatPrice(data.refundedAmount || data.refundAmount || 0)}`, 'success');
         loadOrders();
 
       } catch (error) {
