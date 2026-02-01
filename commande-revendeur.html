@@ -235,6 +235,21 @@
     .btn-submit .spinner { display: none; }
     .btn-submit.loading .spinner { display: inline-block; }
     .btn-submit.loading .btn-text { display: none; }
+    
+    .boost-tips-btn {
+      width: 100%; padding: 15px; margin-top: 15px;
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: white; font-size: 1rem; font-weight: 600; border: none;
+      border-radius: 12px; cursor: pointer; transition: all 0.3s;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      text-decoration: none;
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3);
+    }
+    .boost-tips-btn:hover { 
+      transform: translateY(-2px); 
+      box-shadow: 0 10px 30px rgba(245, 158, 11, 0.4); 
+    }
+    .boost-tips-btn i { font-size: 1.2rem; }
 
     .notification-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -457,6 +472,10 @@
         <i class="fas fa-spinner fa-spin spinner"></i>
         <span class="btn-text"><i class="fas fa-paper-plane"></i> Passer la commande</span>
       </button>
+      
+      <a href="boost.html" class="boost-tips-btn" id="boostTipsBtn" style="display: none;">
+        <i class="fas fa-lightbulb"></i> Conseils de Boost Intelligents
+      </a>
     </form>
   </div>
 
@@ -499,6 +518,47 @@
     let selectedCategory = null;
     let selectedService = null;
     let userBalance = 0;
+    let userBalanceXAF = 0;
+    
+    // Configuration des devises pour les 18 pays africains
+    const CURRENCY_CONFIG = {
+      'cm': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇲' },
+      'ga': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇬🇦' },
+      'cg': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇬' },
+      'td': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇹🇩' },
+      'cf': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇫' },
+      'gq': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇬🇶' },
+      'sn': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇸🇳' },
+      'ci': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇨🇮' },
+      'ml': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇲🇱' },
+      'bf': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇫' },
+      'bj': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇯' },
+      'tg': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇹🇬' },
+      'ne': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇳🇪' },
+      'gw': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇬🇼' },
+      'cd': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+      'gh': { code: 'GHS', symbol: 'GH₵', rate: 0.024, flag: '🇬🇭' },
+      'ng': { code: 'NGN', symbol: '₦', rate: 2.44, flag: '🇳🇬' },
+      'ke': { code: 'KES', symbol: 'KSh', rate: 0.20, flag: '🇰🇪' },
+      'ug': { code: 'UGX', symbol: 'USh', rate: 5.64, flag: '🇺🇬' },
+      'tz': { code: 'TZS', symbol: 'TSh', rate: 3.81, flag: '🇹🇿' },
+      'rw': { code: 'RWF', symbol: 'FRw', rate: 1.98, flag: '🇷🇼' },
+      'zm': { code: 'ZMW', symbol: 'ZK', rate: 0.041, flag: '🇿🇲' },
+      'mw': { code: 'MWK', symbol: 'MK', rate: 2.67, flag: '🇲🇼' },
+      'Cameroun': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇲' },
+      'RDC': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+      'RD Congo': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+      'Sénégal': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇸🇳' },
+      'Côte d\'Ivoire': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇨🇮' },
+      'Ghana': { code: 'GHS', symbol: 'GH₵', rate: 0.024, flag: '🇬🇭' },
+      'Nigeria': { code: 'NGN', symbol: '₦', rate: 2.44, flag: '🇳🇬' }
+    };
+    
+    let userCurrency = CURRENCY_CONFIG['Cameroun'];
+    
+    function convertFromXAF(amountXAF) {
+      return amountXAF * userCurrency.rate;
+    }
     let resellerDiscount = 0;
     let resellerLevel = 'Debutant';
     let totalSavings = 0;
@@ -553,8 +613,18 @@
       const userDoc = await db.collection('users').doc(user.uid).get();
       if (userDoc.exists) {
         const data = userDoc.data();
-        userBalance = data.balance || 0;
-        document.getElementById('userBalance').textContent = formatPrice(userBalance);
+        userBalanceXAF = data.balance || 0;
+        userBalance = userBalanceXAF;
+        
+        // Détection de la devise selon le pays de l'utilisateur
+        const country = data.country || data.pays || 'Cameroun';
+        if (CURRENCY_CONFIG[country]) {
+          userCurrency = CURRENCY_CONFIG[country];
+        } else if (CURRENCY_CONFIG[country.toLowerCase()]) {
+          userCurrency = CURRENCY_CONFIG[country.toLowerCase()];
+        }
+        
+        document.getElementById('userBalance').textContent = formatPrice(userBalanceXAF);
         
         if (data.isReseller) {
           resellerDiscount = data.discountRate || 5;
@@ -575,8 +645,13 @@
       loadServices();
     });
 
-    function formatPrice(amount) {
-      return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(amount)) + ' FCFA';
+    function formatPrice(amountXAF) {
+      const localAmount = convertFromXAF(amountXAF);
+      if (userCurrency.rate === 1) {
+        return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(localAmount)) + ' ' + userCurrency.symbol;
+      } else {
+        return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(localAmount) + ' ' + userCurrency.symbol;
+      }
     }
 
     function decodeHTML(text) {
@@ -681,6 +756,7 @@
       document.getElementById('priceBreakdown').style.display = 'none';
       document.getElementById('contactSection').style.display = 'none';
       document.getElementById('submitBtn').style.display = 'none';
+      document.getElementById('boostTipsBtn').style.display = 'none';
     }
 
     function selectCategory(category) {
@@ -715,6 +791,7 @@
       document.getElementById('priceBreakdown').style.display = 'none';
       document.getElementById('contactSection').style.display = 'none';
       document.getElementById('submitBtn').style.display = 'none';
+      document.getElementById('boostTipsBtn').style.display = 'none';
     }
 
     document.getElementById('serviceSelect').addEventListener('change', function() {
@@ -726,6 +803,7 @@
         document.getElementById('priceBreakdown').style.display = 'none';
         document.getElementById('contactSection').style.display = 'none';
         document.getElementById('submitBtn').style.display = 'none';
+        document.getElementById('boostTipsBtn').style.display = 'none';
         return;
       }
       
@@ -755,6 +833,7 @@
       document.getElementById('priceBreakdown').style.display = 'block';
       document.getElementById('contactSection').style.display = 'block';
       document.getElementById('submitBtn').style.display = 'flex';
+      document.getElementById('boostTipsBtn').style.display = 'flex';
       
       const qtySection = document.getElementById('quantitySection');
       const qtyInput = document.getElementById('quantityInput');
@@ -918,6 +997,7 @@
           document.getElementById('priceBreakdown').style.display = 'none';
           document.getElementById('contactSection').style.display = 'none';
           document.getElementById('submitBtn').style.display = 'none';
+          document.getElementById('boostTipsBtn').style.display = 'none';
           document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
         } else {
           throw new Error(result.error);
