@@ -1,0 +1,1713 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guide d'Assistance - Social Boost Horizon</title>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- AOS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+  <style>
+    /* =======================================================
+       Variables & Design System
+       ======================================================= */
+    :root {
+      --primary-color: #1A237E;
+      --secondary-color: #283593;
+      --accent-color: #00BFA5;
+      --accent-dark: #00897B;
+      --warning-color: #FF6B35;
+      --success-color: #4CAF50;
+      --text-primary: #FFFFFF;
+      --text-secondary: #B0BEC5;
+      --text-tertiary: #78909C;
+      --bg-primary: #0F1A30;
+      --bg-secondary: #1A2B4A;
+      --bg-tertiary: #25395A;
+      --card-bg: rgba(255, 255, 255, 0.05);
+      --border-color: rgba(255, 255, 255, 0.1);
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+      --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.15);
+      --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.2);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 20px;
+      --radius-xl: 30px;
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Reset & Base Styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes slideInLeft {
+      from { opacity: 0; transform: translateX(-20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    /* Header */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: rgba(15, 26, 48, 0.95);
+      backdrop-filter: blur(20px);
+      z-index: 1000;
+      border-bottom: 1px solid var(--border-color);
+      padding: 1.2rem 2rem;
+    }
+
+    .header-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      color: white;
+    }
+
+    .logo-text {
+      font-family: 'Manrope', sans-serif;
+      font-weight: 800;
+      font-size: 1.4rem;
+      background: linear-gradient(135deg, var(--text-primary), var(--accent-color));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-menu {
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+    }
+
+    .nav-link {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.95rem;
+      transition: var(--transition);
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .nav-link:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-link.active {
+      color: var(--accent-color);
+      background: rgba(0, 191, 165, 0.1);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: white;
+      border: none;
+      padding: 0.8rem 1.8rem;
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: var(--transition);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    /* Main Container */
+    .main-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 6rem 2rem 2rem;
+    }
+
+    /* Hero Section */
+    .hero-section {
+      text-align: center;
+      padding: 4rem 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-background {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 800px;
+      height: 800px;
+      background: radial-gradient(circle, rgba(0, 191, 165, 0.1) 0%, rgba(26, 35, 126, 0.05) 50%, transparent 70%);
+      z-index: -1;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0, 191, 165, 0.1);
+      color: var(--accent-color);
+      padding: 0.6rem 1.2rem;
+      border-radius: 50px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+      animation: pulse 2s infinite;
+    }
+
+    .hero-title {
+      font-family: 'Manrope', sans-serif;
+      font-size: 3.5rem;
+      font-weight: 800;
+      margin-bottom: 1.5rem;
+      line-height: 1.2;
+      background: linear-gradient(135deg, var(--text-primary), var(--accent-color));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 1.2rem;
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto 3rem;
+    }
+
+    /* Chat Assistant Section */
+    .chat-assistant {
+      background: var(--card-bg);
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+      margin: 3rem 0;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .chat-header {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .chat-avatar {
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, var(--accent-color), var(--accent-dark));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    .chat-info h3 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .chat-info p {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.9rem;
+    }
+
+    .chat-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      color: #4CAF50;
+      margin-left: auto;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: #4CAF50;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    /* Chat Messages Container */
+    .chat-messages {
+      height: 500px;
+      overflow-y: auto;
+      padding: 2rem;
+      background: rgba(15, 26, 48, 0.5);
+    }
+
+    .message {
+      margin-bottom: 1.5rem;
+      opacity: 0;
+      transform: translateY(10px);
+      animation: fadeIn 0.3s ease forwards;
+    }
+
+    .message.bot {
+      text-align: left;
+    }
+
+    .message.user {
+      text-align: right;
+    }
+
+    .message-content {
+      display: inline-block;
+      max-width: 70%;
+      padding: 1rem 1.5rem;
+      border-radius: var(--radius-lg);
+      position: relative;
+    }
+
+    .bot .message-content {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      border-bottom-left-radius: 4px;
+    }
+
+    .user .message-content {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .message-time {
+      font-size: 0.75rem;
+      color: var(--text-tertiary);
+      margin-top: 6px;
+      display: block;
+    }
+
+    /* Chat Options */
+    .chat-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 1rem;
+    }
+
+    .chat-option {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 0.8rem 1.5rem;
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .chat-option:hover {
+      background: rgba(0, 191, 165, 0.1);
+      border-color: var(--accent-color);
+      color: var(--accent-color);
+      transform: translateY(-2px);
+    }
+
+    .chat-option.selected {
+      background: rgba(0, 191, 165, 0.15);
+      border-color: var(--accent-color);
+      color: var(--accent-color);
+    }
+
+    /* Chat Input */
+    .chat-input-container {
+      padding: 1.5rem 2rem;
+      background: var(--bg-tertiary);
+      border-top: 1px solid var(--border-color);
+    }
+
+    .chat-input-wrapper {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .chat-input {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1rem 1.5rem;
+      color: var(--text-primary);
+      font-size: 1rem;
+      transition: var(--transition);
+    }
+
+    .chat-input:focus {
+      outline: none;
+      border-color: var(--accent-color);
+      box-shadow: 0 0 0 2px rgba(0, 191, 165, 0.2);
+    }
+
+    .send-button {
+      background: linear-gradient(135deg, var(--accent-color), var(--accent-dark));
+      border: none;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .send-button:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 15px rgba(0, 191, 165, 0.4);
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin: 3rem 0;
+    }
+
+    .quick-action-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      transition: var(--transition);
+      cursor: pointer;
+    }
+
+    .quick-action-card:hover {
+      transform: translateY(-5px);
+      border-color: var(--accent-color);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .action-icon {
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      color: white;
+    }
+
+    .action-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+    }
+
+    .action-description {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    /* Knowledge Base */
+    .knowledge-base {
+      background: var(--card-bg);
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border-color);
+      padding: 3rem;
+      margin: 4rem 0;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .section-title {
+      font-family: 'Manrope', sans-serif;
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, var(--text-primary), var(--accent-color));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .section-subtitle {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .knowledge-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+
+    .knowledge-card {
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      border: 1px solid var(--border-color);
+      transition: var(--transition);
+    }
+
+    .knowledge-card:hover {
+      border-color: var(--accent-color);
+      transform: translateY(-5px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .knowledge-icon {
+      width: 50px;
+      height: 50px;
+      background: rgba(0, 191, 165, 0.1);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      color: var(--accent-color);
+      margin-bottom: 1.5rem;
+    }
+
+    .knowledge-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+    }
+
+    .knowledge-description {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+    }
+
+    .read-more {
+      color: var(--accent-color);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: var(--transition);
+    }
+
+    .read-more:hover {
+      gap: 10px;
+    }
+
+    /* FAQ Section */
+    .faq-section {
+      margin: 4rem 0;
+    }
+
+    .faq-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .faq-item {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      margin-bottom: 1rem;
+      overflow: hidden;
+      transition: var(--transition);
+    }
+
+    .faq-item.active {
+      border-color: var(--accent-color);
+    }
+
+    .faq-question {
+      padding: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .faq-question:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .faq-question h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .faq-toggle {
+      width: 24px;
+      height: 24px;
+      background: rgba(0, 191, 165, 0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-color);
+      transition: var(--transition);
+    }
+
+    .faq-item.active .faq-toggle {
+      transform: rotate(45deg);
+    }
+
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+
+    .faq-item.active .faq-answer {
+      max-height: 500px;
+    }
+
+    .faq-answer-content {
+      padding: 0 1.5rem 1.5rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* Contact Section */
+    .contact-section {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      border-radius: var(--radius-xl);
+      padding: 4rem;
+      margin: 4rem 0;
+      text-align: center;
+    }
+
+    .contact-title {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+      color: white;
+    }
+
+    .contact-description {
+      color: rgba(255, 255, 255, 0.9);
+      max-width: 600px;
+      margin: 0 auto 2rem;
+      font-size: 1.1rem;
+    }
+
+    .contact-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .contact-button {
+      background: white;
+      color: var(--primary-color);
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .contact-button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Footer */
+    .footer {
+      background: var(--bg-tertiary);
+      border-top: 1px solid var(--border-color);
+      padding: 4rem 2rem 2rem;
+      margin-top: 4rem;
+    }
+
+    .footer-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 3rem;
+    }
+
+    .footer-section h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      color: var(--text-primary);
+    }
+
+    .footer-links {
+      list-style: none;
+    }
+
+    .footer-links li {
+      margin-bottom: 0.8rem;
+    }
+
+    .footer-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .footer-links a:hover {
+      color: var(--accent-color);
+      transform: translateX(5px);
+    }
+
+    .footer-bottom {
+      text-align: center;
+      padding-top: 2rem;
+      margin-top: 3rem;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-tertiary);
+      font-size: 0.9rem;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .header-container {
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .nav-menu {
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .hero-title {
+        font-size: 2.5rem;
+      }
+
+      .main-container {
+        padding: 8rem 1rem 1rem;
+      }
+
+      .chat-messages {
+        height: 400px;
+        padding: 1rem;
+      }
+
+      .message-content {
+        max-width: 85%;
+      }
+
+      .contact-section {
+        padding: 2rem;
+      }
+
+      .contact-title {
+        font-size: 2rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .hero-title {
+        font-size: 2rem;
+      }
+
+      .section-title {
+        font-size: 2rem;
+      }
+
+      .knowledge-base,
+      .contact-section {
+        padding: 1.5rem;
+      }
+
+      .chat-options {
+        flex-direction: column;
+      }
+
+      .chat-option {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-container">
+      <a href="dashboard.html" class="logo">
+        <div class="logo-icon">
+          <i class="fas fa-rocket"></i>
+        </div>
+        <span class="logo-text">Social Boost Horizon</span>
+      </a>
+
+      <nav class="nav-menu">
+        <a href="dashboard.html" class="nav-link"><i class="fas fa-home"></i> Dashboard</a>
+        <a href="assistance.html" class="nav-link active"><i class="fas fa-headset"></i> Assistance</a>
+        <a href="strategie-de-boost.html" class="nav-link"><i class="fas fa-chart-line"></i> Stratégie</a>
+        <a href="communaute.html" class="nav-link"><i class="fas fa-users"></i> Communauté</a>
+        <a href="faq.html" class="nav-link"><i class="fas fa-question-circle"></i> FAQ</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="dashboard.html" class="btn-primary">
+          <i class="fas fa-arrow-left"></i> Retour au Dashboard
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-container">
+    <!-- Hero Section -->
+    <section class="hero-section" data-aos="fade-up">
+      <div class="hero-background"></div>
+      <div class="hero-badge">
+        <i class="fas fa-star"></i>
+        Guide Complet d'Assistance
+      </div>
+      <h1 class="hero-title">Votre Assistant Virtuel pour Réussir sur les Réseaux</h1>
+      <p class="hero-subtitle">
+        Obtenez des réponses personnalisées à toutes vos questions sur le boost, 
+        comprenez les bonnes pratiques et maximisez vos résultats
+      </p>
+    </section>
+
+    <!-- Chat Assistant -->
+    <section class="chat-assistant" data-aos="fade-up">
+      <div class="chat-header">
+        <div class="chat-avatar">
+          <i class="fas fa-robot"></i>
+        </div>
+        <div class="chat-info">
+          <h3>Assistant Horizon</h3>
+          <p>Expert en stratégie de boost</p>
+        </div>
+        <div class="chat-status">
+          <div class="status-dot"></div>
+          <span>En ligne • Prêt à vous aider</span>
+        </div>
+      </div>
+
+      <div class="chat-messages" id="chatMessages">
+        <!-- Messages will be inserted here by JavaScript -->
+        <div class="message bot">
+          <div class="message-content">
+            Bonjour ! 👋 Je suis votre assistant virtuel Horizon. 
+            <br><br>
+            Je suis ici pour vous guider dans votre parcours de croissance sur les réseaux sociaux. 
+            Je peux vous expliquer les concepts clés du boost, vous aider à choisir les bonnes stratégies 
+            et répondre à toutes vos questions.
+            <br><br>
+            <strong>Quelle est votre principale préoccupation aujourd'hui ?</strong>
+            <div class="chat-options" id="initialOptions">
+              <!-- Options will be inserted here by JavaScript -->
+            </div>
+          </div>
+          <span class="message-time">Maintenant</span>
+        </div>
+      </div>
+
+      <div class="chat-input-container">
+        <div class="chat-input-wrapper">
+          <input type="text" class="chat-input" id="userInput" placeholder="Posez votre question ici..." maxlength="500">
+          <button class="send-button" id="sendButton">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </div>
+        <div class="chat-options" id="quickOptions" style="margin-top: 1rem;">
+          <!-- Quick options will be inserted here by JavaScript -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Quick Actions -->
+    <section class="quick-actions" data-aos="fade-up">
+      <div class="quick-action-card" onclick="selectOption('chutes')">
+        <div class="action-icon">
+          <i class="fas fa-chart-line"></i>
+        </div>
+        <h3 class="action-title">Comprendre les Chutes</h3>
+        <p class="action-description">
+          Apprenez pourquoi les baisses sont normales et comment les minimiser pour une croissance stable.
+        </p>
+      </div>
+
+      <div class="quick-action-card" onclick="selectOption('qualites')">
+        <div class="action-icon">
+          <i class="fas fa-layer-group"></i>
+        </div>
+        <h3 class="action-title">Qualités de Service</h3>
+        <p class="action-description">
+          Découvrez la différence entre qualité moyenne et haute qualité pour faire le bon choix.
+        </p>
+      </div>
+
+      <div class="quick-action-card" onclick="selectOption('strategies')">
+        <div class="action-icon">
+          <i class="fas fa-chess-knight"></i>
+        </div>
+        <h3 class="action-title">Stratégies Avancées</h3>
+        <p class="action-description">
+          Maîtrisez les techniques pro pour booster efficacement et maximiser votre ROI.
+        </p>
+      </div>
+    </section>
+
+    <!-- Knowledge Base -->
+    <section class="knowledge-base" data-aos="fade-up">
+      <div class="section-header">
+        <h2 class="section-title">Base de Connaissances Complète</h2>
+        <p class="section-subtitle">
+          Toutes les informations essentielles pour réussir votre croissance sur les réseaux sociaux
+        </p>
+      </div>
+
+      <div class="knowledge-grid">
+        <div class="knowledge-card">
+          <div class="knowledge-icon">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+          <h3 class="knowledge-title">Sécurité & Confidentialité</h3>
+          <p class="knowledge-description">
+            Découvrez comment nous protégeons votre compte et respectons votre vie privée pendant le processus de boost.
+          </p>
+          <a href="#" class="read-more" onclick="selectOption('securite')">
+            En savoir plus <i class="fas fa-arrow-right"></i>
+          </a>
+        </div>
+
+        <div class="knowledge-card">
+          <div class="knowledge-icon">
+            <i class="fas fa-tachometer-alt"></i>
+          </div>
+          <h3 class="knowledge-title">Optimisation des Résultats</h3>
+          <p class="knowledge-description">
+            Techniques avancées pour maximiser l'impact de votre boost et atteindre vos objectifs plus rapidement.
+          </p>
+          <a href="#" class="read-more" onclick="selectOption('optimisation')">
+            En savoir plus <i class="fas fa-arrow-right"></i>
+          </a>
+        </div>
+
+        <div class="knowledge-card">
+          <div class="knowledge-icon">
+            <i class="fas fa-handshake"></i>
+          </div>
+          <h3 class="knowledge-title">Service Client Premium</h3>
+          <p class="knowledge-description">
+            Comment bénéficier de notre support prioritaire et résoudre rapidement vos préoccupations.
+          </p>
+          <a href="#" class="read-more" onclick="selectOption('support')">
+            En savoir plus <i class="fas fa-arrow-right"></i>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="faq-section" data-aos="fade-up">
+      <div class="section-header">
+        <h2 class="section-title">Questions Fréquentes</h2>
+        <p class="section-subtitle">
+          Les réponses aux questions les plus courantes sur nos services
+        </p>
+      </div>
+
+      <div class="faq-container">
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <h3>Est-ce que le boost est sûr pour mon compte ?</h3>
+            <div class="faq-toggle">
+              <i class="fas fa-plus"></i>
+            </div>
+          </div>
+          <div class="faq-answer">
+            <div class="faq-answer-content">
+              <p>Oui, lorsqu'il est fait correctement. Nous utilisons des méthodes naturelles et respectons les limites de sécurité des plateformes. Nos services haute qualité sont spécialement conçus pour minimiser les risques.</p>
+              <ul style="margin-top: 1rem; padding-left: 1.5rem;">
+                <li>Respect des limites quotidiennes</li>
+                <li>Croissance progressive et naturelle</li>
+                <li>Comptes réels et actifs</li>
+                <li>Surveillance continue des performances</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <h3>Combien de temps dure une livraison ?</h3>
+            <div class="faq-toggle">
+              <i class="fas fa-plus"></i>
+            </div>
+          </div>
+          <div class="faq-answer">
+            <div class="faq-answer-content">
+              <p>Les délais de livraison varient selon le service et la quantité :</p>
+              <ul style="margin-top: 1rem; padding-left: 1.5rem;">
+                <li><strong>Services rapides :</strong> 1 à 24 heures</li>
+                <li><strong>Services standard :</strong> 1 à 3 jours</li>
+                <li><strong>Services premium :</strong> 3 à 7 jours (pour une croissance naturelle)</li>
+                <li><strong>Grandes quantités :</strong> Jusqu'à 14 jours avec livraison progressive</li>
+              </ul>
+              <p style="margin-top: 1rem;">Nous privilégions toujours la qualité à la vitesse pour garantir des résultats durables.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <h3>Comment puis-je suivre ma commande ?</h3>
+            <div class="faq-toggle">
+              <i class="fas fa-plus"></i>
+            </div>
+          </div>
+          <div class="faq-answer">
+            <div class="faq-answer-content">
+              <p>Vous pouvez suivre toutes vos commandes directement depuis votre dashboard :</p>
+              <ol style="margin-top: 1rem; padding-left: 1.5rem;">
+                <li>Connectez-vous à votre compte</li>
+                <li>Accédez à la section "Mes commandes"</li>
+                <li>Consultez le statut en temps réel de chaque commande</li>
+                <li>Recevez des notifications par email à chaque étape</li>
+              </ol>
+              <p style="margin-top: 1rem;">Notre équipe support peut également vous fournir des mises à jour manuelles sur demande.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section class="contact-section" data-aos="fade-up">
+      <h2 class="contact-title">Besoin d'une aide personnalisée ?</h2>
+      <p class="contact-description">
+        Notre équipe d'experts est disponible pour vous accompagner personnellement dans votre stratégie de croissance.
+      </p>
+      <div class="contact-buttons">
+        <a href="https://wa.me/237699853665" target="_blank" class="contact-button">
+          <i class="fab fa-whatsapp"></i> WhatsApp Support
+        </a>
+        <a href="mailto:support@socialboosothorizon.com" class="contact-button">
+          <i class="fas fa-envelope"></i> Email Support
+        </a>
+        <a href="communaute.html" class="contact-button">
+          <i class="fas fa-users"></i> Communauté
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-section">
+        <h3>Social Boost Horizon</h3>
+        <p style="color: var(--text-secondary); margin-top: 1rem;">
+          Votre partenaire de confiance pour une croissance intelligente et durable sur les réseaux sociaux.
+        </p>
+      </div>
+
+      <div class="footer-section">
+        <h3>Liens Rapides</h3>
+        <ul class="footer-links">
+          <li><a href="dashboard.html"><i class="fas fa-home"></i> Dashboard</a></li>
+          <li><a href="services.html"><i class="fas fa-bolt"></i> Nos Services</a></li>
+          <li><a href="strategie-de-boost.html"><i class="fas fa-chart-line"></i> Stratégie de Boost</a></li>
+          <li><a href="assistance.html"><i class="fas fa-headset"></i> Assistance</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-section">
+        <h3>Support</h3>
+        <ul class="footer-links">
+          <li><a href="faq.html"><i class="fas fa-question-circle"></i> FAQ</a></li>
+          <li><a href="communaute.html"><i class="fas fa-users"></i> Communauté</a></li>
+          <li><a href="contact.html"><i class="fas fa-envelope"></i> Contact</a></li>
+          <li><a href="conditions.html"><i class="fas fa-file-contract"></i> Conditions</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p>&copy; 2024 Social Boost Horizon. Tous droits réservés. | Développé avec ❤️ pour votre succès</p>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  
+  <script>
+    // Configuration Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.appspot.com",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+    };
+
+    // Initialiser Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    // Base de connaissances
+    const knowledgeBase = {
+      // Section 1: Comprendre les chutes
+      'chutes': {
+        title: '📘 Comprendre les Chutes (Baisses)',
+        content: `<p>Les chutes correspondent à une perte partielle d'abonnés, de likes ou de vues après une commande.</p>
+
+        <div style="background: rgba(255, 107, 53, 0.1); padding: 1.5rem; border-radius: var(--radius-md); border-left: 4px solid var(--warning-color); margin: 1.5rem 0;">
+          <h4 style="color: var(--warning-color); margin-bottom: 0.5rem;">⚠️ Pourquoi les chutes sont normales ?</h4>
+          <p>Les plateformes comme Instagram, TikTok, Facebook, YouTube :</p>
+          <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+            <li>Suppriment régulièrement des comptes inactifs</li>
+            <li>Nettoient les faux profils</li>
+            <li>Ajustent leurs algorithmes</li>
+            <li>Suppriment des interactions jugées non naturelles</li>
+          </ul>
+          <p style="margin-top: 1rem;"><strong>👉 Même une croissance 100% organique peut subir des baisses.</strong></p>
+        </div>
+
+        <div style="background: rgba(0, 191, 165, 0.1); padding: 1.5rem; border-radius: var(--radius-md); border-left: 4px solid var(--accent-color); margin: 1.5rem 0;">
+          <h4 style="color: var(--accent-color); margin-bottom: 0.5rem;">💡 Important :</h4>
+          <p>Une chute n'est ni une arnaque, ni une erreur du système.</p>
+          <p><strong>C'est un phénomène normal et connu dans le domaine du marketing digital.</strong></p>
+        </div>
+
+        <div style="margin-top: 2rem;">
+          <h4>🎯 Taux de rétention typiques :</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+            <div style="background: rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: var(--radius-md);">
+              <div style="color: var(--warning-color); font-weight: 600;">Qualité Moyenne</div>
+              <div style="font-size: 1.5rem; font-weight: 700; margin-top: 0.5rem;">70-85%</div>
+              <div style="font-size: 0.85rem; color: var(--text-tertiary);">Rétention après 30 jours</div>
+            </div>
+            <div style="background: rgba(0, 191, 165, 0.1); padding: 1rem; border-radius: var(--radius-md);">
+              <div style="color: var(--accent-color); font-weight: 600;">Haute Qualité</div>
+              <div style="font-size: 1.5rem; font-weight: 700; margin-top: 0.5rem;">85-95%</div>
+              <div style="font-size: 0.85rem; color: var(--text-tertiary);">Rétention après 30 jours</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+          <h4>Que souhaitez-vous explorer ensuite ?</h4>
+          <div class="chat-options" style="margin-top: 1rem;">
+            <div class="chat-option" onclick="selectOption('qualites')">📊 Différence entre les qualités</div>
+            <div class="chat-option" onclick="selectOption('reclamation')">🛡️ Procédure de réclamation</div>
+            <div class="chat-option" onclick="selectOption('strategies')">🎯 Stratégies pour minimiser les chutes</div>
+            <div class="chat-option" onclick="showMainMenu()">🏠 Retour au menu principal</div>
+          </div>
+        </div>`,
+        followUp: ['qualites', 'reclamation', 'strategies']
+      },
+
+      // Section 2: Différence entre qualités
+      'qualites': {
+        title: '🎨 Différence entre Qualité Moyenne et Haute Qualité',
+        content: `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 2rem 0;">
+          <div style="background: rgba(255, 255, 255, 0.05); border-radius: var(--radius-md); padding: 1.5rem; border: 1px solid rgba(255, 255, 255, 0.1);">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;">
+              <div style="width: 20px; height: 20px; background: #4CAF50; border-radius: 4px;"></div>
+              <h4 style="margin: 0;">QUALITÉ MOYENNE</h4>
+            </div>
+            
+            <div style="margin-bottom: 1.5rem;">
+              <h5 style="color: var(--text-secondary); margin-bottom: 0.5rem;">Description :</h5>
+              <ul style="padding-left: 1.2rem; color: var(--text-secondary); font-size: 0.95rem;">
+                <li>Vrais comptes réels</li>
+                <li>Exécution rapide de l'action demandée</li>
+                <li>Interactions limitées après l'action initiale</li>
+              </ul>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+              <h5 style="color: #4CAF50; margin-bottom: 0.5rem;">✅ Avantages :</h5>
+              <ul style="padding-left: 1.2rem; color: var(--text-secondary); font-size: 0.95rem;">
+                <li>Prix plus abordable</li>
+                <li>Livraison rapide</li>
+                <li>Idéal pour la preuve sociale</li>
+              </ul>
+            </div>
+
+            <div>
+              <h5 style="color: var(--warning-color); margin-bottom: 0.5rem;">⚠️ Inconvénients :</h5>
+              <ul style="padding-left: 1.2rem; color: var(--text-secondary); font-size: 0.95rem;">
+                <li>Chutes plus visibles possibles</li>
+                <li>Interactions limitées</li>
+              </ul>
+            </div>
+          </div>
+
+          <div style="background: rgba(0, 191, 165, 0.1); border-radius: var(--radius-md); padding: 1.5rem; border: 1px solid var(--accent-color);">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;">
+              <div style="width: 20px; height: 20px; background: var(--accent-color); border-radius: 4px;"></div>
+              <h4 style="margin: 0;">HAUTE QUALITÉ</h4>
+            </div>
+            
+            <div style="margin-bottom: 1.5rem;">
+              <h5 style="color: var(--text-secondary); margin-bottom: 0.5rem;">Description :</h5>
+              <ul style="padding-left: 1.2rem; color: var(--text-secondary); font-size: 0.95rem;">
+                <li>Comptes actifs et anciens</li>
+                <li>Profils plus stables</li>
+                <li>Interactions naturelles</li>
+              </ul>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+              <h5 style="color: var(--accent-color); margin-bottom: 0.5rem;">✅ Avantages :</h5>
+              <ul style="padding-left: 1.2rem; color: var(--text-secondary); font-size: 0.95rem;">
+                <li>Beaucoup plus stable</li>
+                <li>Moins de chutes</li>
+                <li>Idéal pour monétisation</li>
+                <li>Réclamation gratuite disponible</li>
+              </ul>
+            </div>
+
+            <div>
+              <h5 style="color: var(--warning-color); margin-bottom: 0.5rem;">❌ Inconvénients :</h5>
+              <ul style="padding-left: 1.2rem; color: var(--text-secondary); font-size: 0.95rem;">
+                <li>Prix plus élevé</li>
+                <li>Mais plus rentable long terme</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: rgba(26, 35, 126, 0.2); padding: 1.5rem; border-radius: var(--radius-md); margin: 1.5rem 0; border-left: 4px solid var(--primary-color);">
+          <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">📌 Recommandation officielle :</h4>
+          <p style="color: var(--text-secondary);">Pour la monétisation, la publicité et les collaborations, la haute qualité est fortement conseillée.</p>
+        </div>
+
+        <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+          <h4>Que souhaitez-vous explorer ensuite ?</h4>
+          <div class="chat-options" style="margin-top: 1rem;">
+            <div class="chat-option" onclick="selectOption('strategies')">🎯 Stratégies selon votre objectif</div>
+            <div class="chat-option" onclick="selectOption('securite')">🛡️ Sécurité des comptes</div>
+            <div class="chat-option" onclick="selectOption('choix')">🤔 Comment choisir la bonne qualité</div>
+            <div class="chat-option" onclick="showMainMenu()">🏠 Retour au menu principal</div>
+          </div>
+        </div>`,
+        followUp: ['strategies', 'securite', 'choix']
+      },
+
+      // Section 3: Stratégies
+      'strategies': {
+        title: '🎯 Stratégies Avancées pour Réussir',
+        content: `<p>Le succès du boost dépend grandement de votre stratégie. Voici les meilleures pratiques :</p>
+
+        <div style="background: rgba(255, 107, 53, 0.1); padding: 1.5rem; border-radius: var(--radius-md); border-left: 4px solid var(--warning-color); margin: 1.5rem 0;">
+          <h4 style="color: var(--warning-color); margin-bottom: 0.5rem;">❌ À éviter absolument</h4>
+          <ul style="padding-left: 1.5rem; color: var(--text-secondary);">
+            <li>Commander plusieurs fois sur le même lien en même temps</li>
+            <li>Commander une énorme quantité d'un coup</li>
+            <li>Booster une vidéo sans likes ni commentaires</li>
+            <li>Commander tous les jours sur le même post</li>
+          </ul>
+        </div>
+
+        <div style="background: rgba(76, 175, 80, 0.1); padding: 1.5rem; border-radius: var(--radius-md); border-left: 4px solid var(--success-color); margin: 1.5rem 0;">
+          <h4 style="color: var(--success-color); margin-bottom: 0.5rem;">✅ Bonnes pratiques</h4>
+          <ul style="padding-left: 1.5rem; color: var(--text-secondary);">
+            <li>✔️ Espacer les commandes (minimum 3-7 jours)</li>
+            <li>✔️ Mélanger vues + likes + commentaires</li>
+            <li>✔️ Augmenter progressivement les quantités</li>
+            <li>✔️ Respecter la logique naturelle d'un compte</li>
+          </ul>
+        </div>
+
+        <div style="margin: 2rem 0; padding: 1.5rem; background: rgba(255, 255, 255, 0.05); border-radius: var(--radius-md);">
+          <h4 style="margin-bottom: 1rem;">📈 Exemple de stratégie réussie :</h4>
+          <div style="display: grid; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: rgba(0, 191, 165, 0.1); border-radius: var(--radius-sm);">
+              <div style="font-weight: 700; color: var(--accent-color);">Jour 1</div>
+              <div style="flex: 1;">2 000 vues + 100 likes</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: rgba(0, 191, 165, 0.1); border-radius: var(--radius-sm);">
+              <div style="font-weight: 700; color: var(--accent-color);">Jour 3</div>
+              <div style="flex: 1;">3 000 vues + 150 likes + 20 commentaires</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: rgba(0, 191, 165, 0.1); border-radius: var(--radius-sm);">
+              <div style="font-weight: 700; color: var(--accent-color);">Jour 6</div>
+              <div style="flex: 1;">5 000 vues + 300 likes + commentaires + partages</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+          <h4>Besoin de conseils spécifiques ?</h4>
+          <div class="chat-options" style="margin-top: 1rem;">
+            <div class="chat-option" onclick="selectOption('tiktok')">🎵 Stratégie TikTok</div>
+            <div class="chat-option" onclick="selectOption('instagram')">📸 Stratégie Instagram</div>
+            <div class="chat-option" onclick="selectOption('youtube')">🎥 Stratégie YouTube</div>
+            <div class="chat-option" onclick="showMainMenu()">🏠 Retour au menu principal</div>
+          </div>
+        </div>`,
+        followUp: ['tiktok', 'instagram', 'youtube']
+      },
+
+      // Section 4: Réclamation
+      'reclamation': {
+        title: '🛡️ Procédure de Réclamation',
+        content: `<div style="background: rgba(0, 191, 165, 0.1); padding: 1.5rem; border-radius: var(--radius-md); border-left: 4px solid var(--accent-color); margin: 1.5rem 0;">
+          <h4 style="color: var(--accent-color); margin-bottom: 0.5rem;">📌 Conditions d'éligibilité :</h4>
+          <ul style="padding-left: 1.5rem; color: var(--text-secondary);">
+            <li>Service en <strong>Haute Qualité uniquement</strong></li>
+            <li>Perte supérieure à <strong>10%</strong> de la quantité commandée</li>
+            <li>Réclamation dans les <strong>7 jours</strong> suivant la fin de livraison</li>
+            <li>Preuves d'achat et de baisse fournies</li>
+          </ul>
+        </div>
+
+        <div style="margin: 2rem 0;">
+          <h4>🛠️ Que faire en cas de baisse ?</h4>
+          <div style="display: grid; gap: 1rem; margin-top: 1rem;">
+            <div style="display: flex; gap: 1rem; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.05); border-radius: var(--radius-md);">
+              <div style="background: var(--primary-color); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700;">1</div>
+              <div>
+                <div style="font-weight: 600; margin-bottom: 0.3rem;">Ne pas paniquer</div>
+                <div style="color: var(--text-secondary); font-size: 0.95rem;">Attendez 2-3 jours pour la stabilisation</div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.05); border-radius: var(--radius-md);">
+              <div style="background: var(--primary-color); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700;">2</div>
+              <div>
+                <div style="font-weight: 600; margin-bottom: 0.3rem;">Vérifier l'éligibilité</div>
+                <div style="color: var(--text-secondary); font-size: 0.95rem;">Confirmez que le service est en haute qualité</div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.05); border-radius: var(--radius-md);">
+              <div style="background: var(--primary-color); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700;">3</div>
+              <div>
+                <div style="font-weight: 600; margin-bottom: 0.3rem;">Contacter le support</div>
+                <div style="color: var(--text-secondary); font-size: 0.95rem;">Via WhatsApp ou email avec les preuves nécessaires</div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.05); border-radius: var(--radius-md);">
+              <div style="background: var(--primary-color); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700;">4</div>
+              <div>
+                <div style="font-weight: 600; margin-bottom: 0.3rem;">Suivre le processus</div>
+                <div style="color: var(--text-secondary); font-size: 0.95rem;">Notre équipe traite généralement dans les 24-48h</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+          <h4>Besoin d'aide supplémentaire ?</h4>
+          <div class="chat-options" style="margin-top: 1rem;">
+            <div class="chat-option" onclick="selectOption('support')">👨‍💻 Contacter le support</div>
+            <div class="chat-option" onclick="selectOption('preuves')">📸 Quelles preuves fournir</div>
+            <div class="chat-option" onclick="selectOption('delais')">⏱️ Délais de traitement</div>
+            <div class="chat-option" onclick="showMainMenu()">🏠 Retour au menu principal</div>
+          </div>
+        </div>`,
+        followUp: ['support', 'preuves', 'delais']
+      },
+
+      // Section 5: Menu principal
+      'menu': {
+        title: 'Menu Principal',
+        content: `<p>Bienvenue ! Je suis votre assistant Horizon. Comment puis-je vous aider aujourd'hui ?</p>
+        <div class="chat-options" style="margin-top: 1.5rem;">
+          <div class="chat-option" onclick="selectOption('chutes')">📉 Comprendre les chutes</div>
+          <div class="chat-option" onclick="selectOption('qualites')">🎯 Différence qualités</div>
+          <div class="chat-option" onclick="selectOption('strategies')">🚀 Stratégies avancées</div>
+          <div class="chat-option" onclick="selectOption('reclamation')">🛡️ Procédure réclamation</div>
+          <div class="chat-option" onclick="selectOption('securite')">🔒 Sécurité & confidentialité</div>
+          <div class="chat-option" onclick="selectOption('optimisation')">⚡ Optimisation résultats</div>
+          <div class="chat-option" onclick="selectOption('support')">👨‍💻 Support client</div>
+        </div>`,
+        followUp: []
+      }
+    };
+
+    document.addEventListener("DOMContentLoaded", function () {
+      // Initialiser AOS
+      AOS.init({
+        duration: 800,
+        once: true,
+        offset: 100
+      });
+
+      // Vérifier l'authentification
+      auth.onAuthStateChanged((user) => {
+        if (!user) {
+          window.location.href = "login.html";
+        } else {
+          initializeChat();
+        }
+      });
+
+      // Éléments DOM
+      const chatMessages = document.getElementById('chatMessages');
+      const userInput = document.getElementById('userInput');
+      const sendButton = document.getElementById('sendButton');
+      const initialOptions = document.getElementById('initialOptions');
+      const quickOptions = document.getElementById('quickOptions');
+
+      // Initialiser les options initiales
+      function initializeInitialOptions() {
+        const menu = knowledgeBase['menu'];
+        initialOptions.innerHTML = '';
+        
+        menu.followUp.forEach(optionId => {
+          const option = knowledgeBase[optionId];
+          if (option) {
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'chat-option';
+            optionDiv.textContent = option.title;
+            optionDiv.onclick = () => selectOption(optionId);
+            initialOptions.appendChild(optionDiv);
+          }
+        });
+
+        // Ajouter les options principales
+        const mainOptions = ['chutes', 'qualites', 'strategies', 'reclamation', 'support'];
+        mainOptions.forEach(optionId => {
+          const option = knowledgeBase[optionId];
+          if (option) {
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'chat-option';
+            optionDiv.textContent = option.title;
+            optionDiv.onclick = () => selectOption(optionId);
+            initialOptions.appendChild(optionDiv);
+          }
+        });
+      }
+
+      // Initialiser les options rapides
+      function initializeQuickOptions() {
+        const quickTopics = [
+          { id: 'chutes', icon: '📉', text: 'Chutes' },
+          { id: 'qualites', icon: '🎯', text: 'Qualités' },
+          { id: 'strategies', icon: '🚀', text: 'Stratégies' },
+          { id: 'support', icon: '👨‍💻', text: 'Support' },
+          { id: 'reclamation', icon: '🛡️', text: 'Réclamation' }
+        ];
+
+        quickOptions.innerHTML = '';
+        quickTopics.forEach(topic => {
+          const optionDiv = document.createElement('div');
+          optionDiv.className = 'chat-option';
+          optionDiv.innerHTML = `${topic.icon} ${topic.text}`;
+          optionDiv.onclick = () => selectOption(topic.id);
+          quickOptions.appendChild(optionDiv);
+        });
+      }
+
+      // Afficher un message
+      function addMessage(content, isUser = false, options = null) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+        
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        messageDiv.innerHTML = `
+          <div class="message-content">
+            ${content}
+          </div>
+          <span class="message-time">${time}</span>
+        `;
+        
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        // Animation
+        setTimeout(() => {
+          messageDiv.style.opacity = '1';
+          messageDiv.style.transform = 'translateY(0)';
+        }, 100);
+      }
+
+      // Sélectionner une option
+      window.selectOption = function(optionId) {
+        const knowledge = knowledgeBase[optionId];
+        if (!knowledge) return;
+
+        // Ajouter le message de l'utilisateur
+        addMessage(knowledge.title, true);
+
+        // Ajouter la réponse du bot avec un délai
+        setTimeout(() => {
+          addMessage(knowledge.content);
+          
+          // Mettre à jour les options rapides
+          if (knowledge.followUp && knowledge.followUp.length > 0) {
+            updateQuickOptions(knowledge.followUp);
+          }
+        }, 500);
+      };
+
+      // Mettre à jour les options rapides
+      function updateQuickOptions(followUpIds) {
+        quickOptions.innerHTML = '';
+        
+        followUpIds.forEach(optionId => {
+          const option = knowledgeBase[optionId];
+          if (option) {
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'chat-option';
+            optionDiv.textContent = option.title.substring(0, 30) + '...';
+            optionDiv.onclick = () => selectOption(optionId);
+            quickOptions.appendChild(optionDiv);
+          }
+        });
+
+        // Ajouter l'option retour au menu
+        const backOption = document.createElement('div');
+        backOption.className = 'chat-option';
+        backOption.innerHTML = '🏠 Retour au menu';
+        backOption.onclick = showMainMenu;
+        quickOptions.appendChild(backOption);
+      }
+
+      // Afficher le menu principal
+      window.showMainMenu = function() {
+        addMessage("Retour au menu principal", true);
+        setTimeout(() => {
+          selectOption('menu');
+        }, 500);
+      };
+
+      // Gestionnaire d'envoi de message
+      sendButton.addEventListener('click', sendMessage);
+      userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+      });
+
+      function sendMessage() {
+        const message = userInput.value.trim();
+        if (!message) return;
+
+        // Ajouter le message de l'utilisateur
+        addMessage(message, true);
+        userInput.value = '';
+
+        // Réponse automatique basée sur les mots-clés
+        setTimeout(() => {
+          const response = generateBotResponse(message);
+          addMessage(response);
+        }, 1000);
+      }
+
+      // Générer une réponse du bot basée sur le message
+      function generateBotResponse(message) {
+        const lowerMessage = message.toLowerCase();
+        
+        // Détection de mots-clés
+        if (lowerMessage.includes('chute') || lowerMessage.includes('baisse')) {
+          return knowledgeBase['chutes'].content;
+        } else if (lowerMessage.includes('qualité') || lowerMessage.includes('moyen') || lowerMessage.includes('haut')) {
+          return knowledgeBase['qualites'].content;
+        } else if (lowerMessage.includes('stratégie') || lowerMessage.includes('conseil') || lowerMessage.includes('astuce')) {
+          return knowledgeBase['strategies'].content;
+        } else if (lowerMessage.includes('réclamation') || lowerMessage.includes('remboursement') || lowerMessage.includes('problème')) {
+          return knowledgeBase['reclamation'].content;
+        } else if (lowerMessage.includes('support') || lowerMessage.includes('contact') || lowerMessage.includes('aide')) {
+          return `<p>Pour une assistance directe, vous pouvez :</p>
+          <div style="margin-top: 1rem;">
+            <a href="https://wa.me/237699853665" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; background: #25D366; color: white; padding: 0.8rem 1.5rem; border-radius: var(--radius-md); text-decoration: none; margin-right: 1rem;">
+              <i class="fab fa-whatsapp"></i> WhatsApp Support
+            </a>
+            <a href="mailto:support@socialboosothorizon.com" style="display: inline-flex; align-items: center; gap: 8px; background: var(--primary-color); color: white; padding: 0.8rem 1.5rem; border-radius: var(--radius-md); text-decoration: none;">
+              <i class="fas fa-envelope"></i> Email Support
+            </a>
+          </div>
+          <div style="margin-top: 1.5rem;">
+            <p>Notre équipe répond généralement dans les 2 à 6 heures.</p>
+          </div>`;
+        } else if (lowerMessage.includes('bonjour') || lowerMessage.includes('salut') || lowerMessage.includes('hello')) {
+          return `<p>Bonjour ! 😊 Heureux de vous aider. Comment allez-vous aujourd'hui ?</p>
+          <p>Je suis ici pour répondre à toutes vos questions sur le boost des réseaux sociaux.</p>
+          ${knowledgeBase['menu'].content}`;
+        } else if (lowerMessage.includes('merci')) {
+          return `<p>Avec plaisir ! 😊 N'hésitez pas si vous avez d'autres questions.</p>
+          <p>Je reste à votre disposition pour vous accompagner dans votre croissance sur les réseaux sociaux.</p>`;
+        } else {
+          return `<p>Je comprends votre question : "${message}"</p>
+          <p>Pour vous aider au mieux, pourriez-vous préciser votre préoccupation ?</p>
+          <div class="chat-options" style="margin-top: 1rem;">
+            <div class="chat-option" onclick="selectOption('chutes')">📉 Question sur les chutes</div>
+            <div class="chat-option" onclick="selectOption('qualites')">🎯 Question sur les qualités</div>
+            <div class="chat-option" onclick="selectOption('strategies')">🚀 Besoin de stratégies</div>
+            <div class="chat-option" onclick="selectOption('support')">👨‍💻 Contacter le support</div>
+          </div>`;
+        }
+      }
+
+      // Toggle FAQ
+      window.toggleFAQ = function(element) {
+        const faqItem = element.parentElement;
+        faqItem.classList.toggle('active');
+      };
+
+      // Initialiser le chat
+      function initializeChat() {
+        initializeInitialOptions();
+        initializeQuickOptions();
+        
+        // Ajouter un message de bienvenue initial
+        setTimeout(() => {
+          addMessage(`Bienvenue ! Je suis votre assistant virtuel Horizon. 
+          <br><br>
+          Je peux vous expliquer :
+          <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+            <li>📉 Pourquoi les chutes sont normales</li>
+            <li>🎯 La différence entre les qualités de service</li>
+            <li>🚀 Les meilleures stratégies de boost</li>
+            <li>🛡️ Comment faire une réclamation</li>
+            <li>🔒 La sécurité de votre compte</li>
+          </ul>
+          <br>
+          <strong>Que souhaitez-vous découvrir aujourd'hui ?</strong>
+          ${knowledgeBase['menu'].content}`);
+        }, 1000);
+      }
+
+      // Initialiser les animations de particules
+      createFloatingParticles();
+    });
+
+    // Créer des particules flottantes
+    function createFloatingParticles() {
+      const container = document.querySelector('.hero-section');
+      if (!container) return;
+
+      for (let i = 0; i < 15; i++) {
+        const particle = document.createElement('div');
+        particle.style.position = 'absolute';
+        particle.style.width = Math.random() * 100 + 50 + 'px';
+        particle.style.height = Math.random() * 100 + 50 + 'px';
+        particle.style.background = `radial-gradient(circle, rgba(0, 191, 165, ${Math.random() * 0.1 + 0.05}) 0%, transparent 70%)`;
+        particle.style.borderRadius = '50%';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.top = Math.random() * 100 + '%';
+        particle.style.opacity = '0.3';
+        particle.style.zIndex = '-1';
+        particle.style.animation = `float ${Math.random() * 20 + 10}s ease-in-out infinite`;
+        particle.style.animationDelay = Math.random() * 5 + 's';
+
+        container.appendChild(particle);
+      }
+
+      // Ajouter l'animation keyframes
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes float {
+          0%, 100% { transform: translate(0, 0) rotate(0deg); }
+          25% { transform: translate(${Math.random() * 50 - 25}px, ${Math.random() * 50 - 25}px) rotate(90deg); }
+          50% { transform: translate(${Math.random() * 50 - 25}px, ${Math.random() * 50 - 25}px) rotate(180deg); }
+          75% { transform: translate(${Math.random() * 50 - 25}px, ${Math.random() * 50 - 25}px) rotate(270deg); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  </script>
+</body>
+</html>
