@@ -43,6 +43,29 @@
       --gold-primary: #FFD700;
       --gold-secondary: #D4AF37;
       --gold-tertiary: #FFC107;
+      --cyan-glow: #00D4FF;
+      --purple-glow: #8B5CF6;
+    }
+
+    /* Animation de brillance */
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    @keyframes floatUp {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes glowPulse {
+      0%, 100% { box-shadow: 0 0 15px rgba(0, 212, 255, 0.3); }
+      50% { box-shadow: 0 0 30px rgba(0, 212, 255, 0.6), 0 0 50px rgba(139, 92, 246, 0.3); }
+    }
+
+    @keyframes borderGlow {
+      0%, 100% { border-color: rgba(77, 166, 255, 0.3); }
+      50% { border-color: rgba(139, 92, 246, 0.6); }
     }
 
     /* Body et fond animé (étoiles + nuages) */
@@ -320,10 +343,10 @@
       align-items: center;
       padding: 15px 25px;
       margin: 20px;
-      background: rgba(20, 35, 60, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: linear-gradient(135deg, rgba(20, 35, 60, 0.8), rgba(30, 60, 114, 0.6));
+      border: 1px solid rgba(0, 212, 255, 0.2);
       border-radius: 15px;
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2), 0 0 20px rgba(0, 212, 255, 0.1);
       backdrop-filter: blur(10px);
       transition: all 0.3s ease;
       position: relative;
@@ -336,17 +359,15 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-      transform: translateX(-100%);
-      transition: transform 0.5s ease;
-      z-index: -1;
+      background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.1), rgba(139, 92, 246, 0.1), transparent);
+      background-size: 200% 100%;
+      animation: shimmer 3s ease-in-out infinite;
+      z-index: 0;
     }
     .balance-section:hover {
       transform: translateY(-5px);
-      box-shadow: 0 12px 30px rgba(30, 144, 255, 0.3);
-    }
-    .balance-section:hover::before {
-      transform: translateX(100%);
+      box-shadow: 0 12px 30px rgba(30, 144, 255, 0.3), 0 0 30px rgba(0, 212, 255, 0.2);
+      border-color: rgba(0, 212, 255, 0.4);
     }
     .balance-section span {
       font-family: 'Montserrat', sans-serif;
@@ -356,9 +377,12 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      position: relative;
+      z-index: 1;
     }
     .balance-section span i {
-      color: var(--sbh-icon-color);
+      color: var(--gold-primary);
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
     }
     .balance-section button {
       background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
@@ -374,6 +398,7 @@
       transition: all 0.3s ease;
       position: relative;
       overflow: hidden;
+      z-index: 1;
     }
     .balance-section button::after {
       content: "";
@@ -388,8 +413,8 @@
     }
     .balance-section button:hover {
       background: linear-gradient(45deg, var(--sbh-gradient-start), #2a7fff);
-      transform: translateY(-3px);
-      box-shadow: 0 7px 20px rgba(30, 144, 255, 0.4);
+      transform: translateY(-3px) scale(1.05);
+      box-shadow: 0 7px 20px rgba(30, 144, 255, 0.4), 0 0 25px rgba(0, 212, 255, 0.3);
     }
     .balance-section button:hover::after {
       transform: rotate(30deg) translateX(150%);
@@ -469,9 +494,10 @@
     }
     .dashboard-card:hover {
       transform: translateY(-10px) scale(1.02);
-      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3), 0 0 30px rgba(0, 212, 255, 0.15);
       border-color: rgba(77, 166, 255, 0.4);
       background: rgba(20, 35, 60, 0.8);
+      animation: borderGlow 2s ease-in-out infinite;
     }
     .dashboard-card:hover::before {
       transform: translateY(0);
@@ -487,14 +513,15 @@
       align-items: center;
       justify-content: center;
       border-radius: 50%;
-      transition: all 0.3s ease;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       position: relative;
       z-index: 2;
     }
     .dashboard-card:hover i {
-      transform: scale(1.15) rotate(5deg);
+      transform: scale(1.15) rotate(10deg);
       background: rgba(76, 175, 80, 0.2);
-      box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+      box-shadow: 0 0 25px rgba(76, 175, 80, 0.4), 0 0 40px rgba(0, 212, 255, 0.2);
+      animation: floatUp 2s ease-in-out infinite;
     }
     .dashboard-card h2 {
       font-size: 1.5rem;
@@ -1521,6 +1548,186 @@
       }
     }
 
+    /* ====== Modal d'historique des commandes ====== */
+    .history-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(5px);
+    }
+    .history-modal.active {
+      display: flex;
+    }
+    .history-modal-content {
+      background: rgba(20, 35, 60, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 450px;
+      width: 90%;
+      text-align: center;
+      position: relative;
+      animation: modalSlideIn 0.3s ease;
+    }
+    .history-modal-content h3 {
+      margin-bottom: 10px;
+      font-size: 1.5rem;
+      color: var(--sbh-text-white);
+    }
+    .history-modal-content h3 i {
+      color: var(--sbh-btn-color);
+      margin-right: 8px;
+    }
+    .history-modal-content > p {
+      margin-bottom: 25px;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.95rem;
+    }
+    .history-options {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .history-option {
+      background: rgba(30, 60, 114, 0.5);
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      text-align: left;
+    }
+    .history-option:hover {
+      border-color: var(--sbh-light-blue);
+      transform: translateY(-3px);
+      background: rgba(30, 60, 114, 0.7);
+      box-shadow: 0 8px 25px rgba(30, 144, 255, 0.2);
+    }
+    .history-option .option-icon {
+      width: 50px;
+      height: 50px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      flex-shrink: 0;
+      transition: all 0.3s ease;
+    }
+    .history-option:hover .option-icon {
+      transform: scale(1.1) rotate(5deg);
+    }
+    .history-option .option-info h4 {
+      margin: 0 0 5px;
+      font-size: 1.1rem;
+      color: var(--sbh-text-white);
+    }
+    .history-option .option-info p {
+      margin: 0;
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+    .history-option.standard .option-icon {
+      color: #4DA6FF;
+    }
+    .history-option.auto .option-icon {
+      color: #8B5CF6;
+    }
+    .history-modal-close {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #fff;
+      padding: 10px 25px;
+      border-radius: 50px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.3s ease;
+    }
+    .history-modal-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* ====== Styles pour le cadeau 50 likes ====== */
+    .gift-likes { color: #E91E63; }
+    
+    .platform-selector {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin: 15px 0;
+    }
+    .platform-btn {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      background: rgba(30, 60, 114, 0.5);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      transition: all 0.3s ease;
+    }
+    .platform-btn:hover {
+      transform: scale(1.1);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+    .platform-btn.selected {
+      border-color: #4CAF50;
+      background: rgba(76, 175, 80, 0.3);
+      transform: scale(1.15);
+      box-shadow: 0 0 20px rgba(76, 175, 80, 0.4);
+    }
+    .platform-btn.tiktok { color: #69C9D0; }
+    .platform-btn.facebook { color: #1877F2; }
+    .platform-btn.instagram { color: #E4405F; }
+    
+    .link-input-container {
+      display: none;
+      margin-top: 15px;
+      animation: fadeInUp 0.3s ease;
+    }
+    .link-input-container.active {
+      display: block;
+    }
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .post-link-input {
+      width: 100%;
+      padding: 12px 15px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(30, 60, 114, 0.5);
+      color: white;
+      font-size: 0.95rem;
+      margin-bottom: 15px;
+    }
+    .post-link-input:focus {
+      outline: none;
+      border-color: var(--sbh-light-blue);
+    }
+
     /* ====== Modal de sélection de commande ====== */
     .order-selection-modal {
       display: none;
@@ -1678,6 +1885,38 @@
     </div>
   </div>
 
+  <!-- Modal d'historique des commandes -->
+  <div id="historyModal" class="history-modal">
+    <div class="history-modal-content">
+      <h3><i class="fas fa-history"></i> Historique des commandes</h3>
+      <p>Consultez vos commandes selon le type</p>
+      
+      <div class="history-options">
+        <div class="history-option standard" id="historyStandard">
+          <div class="option-icon">
+            <i class="fas fa-shopping-bag"></i>
+          </div>
+          <div class="option-info">
+            <h4>Commandes Standard</h4>
+            <p>Commandes manuelles traitées par notre équipe</p>
+          </div>
+        </div>
+        
+        <div class="history-option auto" id="historyAuto">
+          <div class="option-icon">
+            <i class="fas fa-bolt"></i>
+          </div>
+          <div class="option-info">
+            <h4>Commandes Automatiques</h4>
+            <p>Commandes 100% automatisées avec livraison rapide</p>
+          </div>
+        </div>
+      </div>
+      
+      <button class="history-modal-close" id="closeHistoryModal">Annuler</button>
+    </div>
+  </div>
+
   <!-- Modal de dépôt -->
   <div id="depositModal" class="deposit-modal">
     <div class="deposit-modal-content">
@@ -1811,7 +2050,7 @@
       <i class="fas fa-shopping-cart"></i>
       <h2>Mes commandes</h2>
       <p>Consultez l'historique de vos commandes et suivez leur statut en temps réel.</p>
-      <a href="commandes.html" class="btn">Mes commandes</a>
+      <button class="btn" id="openHistoryModal">Mes commandes</button>
     </div>
     
     <!-- 4. Galerie (tutoriels YouTube) -->
@@ -2239,7 +2478,7 @@
 
       // Fonction pour distribuer aléatoirement les cadeaux
       function distributeGifts() {
-        const gifts = ['money', 'canva', 'tiktok'];
+        const gifts = ['money', 'likes', 'tiktok'];
         
         for (let i = gifts.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
@@ -2252,15 +2491,15 @@
           const giftContent = chest.querySelector('.gift-content');
           switch(gifts[index]) {
             case 'money':
-              giftContent.innerHTML = '<i class="fas fa-coins"></i><p>100 FCFA</p>';
+              giftContent.innerHTML = '<i class="fas fa-coins"></i><p>25 FCFA</p>';
               giftContent.classList.add('gift-money');
               break;
-            case 'canva':
-              giftContent.innerHTML = '<i class="fas fa-palette"></i><p>Canva Pro</p>';
-              giftContent.classList.add('gift-canva');
+            case 'likes':
+              giftContent.innerHTML = '<i class="fas fa-heart"></i><p>50 Likes</p>';
+              giftContent.classList.add('gift-likes');
               break;
             case 'tiktok':
-              giftContent.innerHTML = '<i class="fab fa-tiktok"></i><p>10 000 vues</p>';
+              giftContent.innerHTML = '<i class="fab fa-tiktok"></i><p>5000 vues</p>';
               giftContent.classList.add('gift-tiktok');
               break;
           }
@@ -2422,7 +2661,7 @@
                 giftMessage = `
                   <div class="gift-message">
                     <h3>Félicitations !</h3>
-                    <p>Vous avez gagné <strong>100 FCFA</strong> à créditer sur votre solde.</p>
+                    <p>Vous avez gagné <strong>25 FCFA</strong> à créditer sur votre solde.</p>
                     <p>Veuillez entrer l'adresse e-mail associée à votre compte Social Boost Horizon :</p>
                     <input type="email" 
                            class="email-input" 
@@ -2436,19 +2675,33 @@
                 `;
                 break;
                 
-              case 'canva':
+              case 'likes':
                 giftMessage = `
                   <div class="gift-message">
-                    <h3>Abonnement Canva Pro à vie !</h3>
-                    <p>Profitez d'un accès à vie à Canva Pro, l'outil de création graphique premium.</p>
-                    <p>Cliquez ci-dessous pour activer votre compte :</p>
-                    <div class="modal-actions">
-                      <a href="https://www.canva.com/brand/join?token=YA0kZ3j5eRuROd0r6cileQ&referrer=team-invite" 
-                         target="_blank" 
-                         class="modal-btn btn-primary">
-                        Activer Canva Pro
-                      </a>
-                      <button class="modal-btn btn-secondary" id="closeAfterCanva">Fermer</button>
+                    <h3>50 Likes gratuits !</h3>
+                    <p>Boostez une de vos publications avec 50 likes !</p>
+                    <p>Choisissez votre plateforme :</p>
+                    <div class="platform-selector">
+                      <button class="platform-btn tiktok" data-platform="TikTok" title="TikTok">
+                        <i class="fab fa-tiktok"></i>
+                      </button>
+                      <button class="platform-btn facebook" data-platform="Facebook" title="Facebook">
+                        <i class="fab fa-facebook-f"></i>
+                      </button>
+                      <button class="platform-btn instagram" data-platform="Instagram" title="Instagram">
+                        <i class="fab fa-instagram"></i>
+                      </button>
+                    </div>
+                    <div class="link-input-container" id="likesLinkContainer">
+                      <p id="platformLabel">Collez le lien de votre publication :</p>
+                      <input type="url" 
+                             class="post-link-input" 
+                             placeholder="Lien de votre publication..." 
+                             id="postLinkInput"
+                             required>
+                      <div class="modal-actions">
+                        <button class="tiktok-submit-btn" id="submitLikes">Demander mes likes</button>
+                      </div>
                     </div>
                   </div>
                 `;
@@ -2457,8 +2710,8 @@
               case 'tiktok':
                 giftMessage = `
                   <div class="gift-message">
-                    <h3>10 000 vues TikTok !</h3>
-                    <p>Boostez votre vidéo TikTok avec 10 000 vues réelles et engageantes !</p>
+                    <h3>5000 vues TikTok !</h3>
+                    <p>Boostez votre vidéo TikTok avec 5000 vues réelles et engageantes !</p>
                     <p>Collez le lien de votre vidéo TikTok ci-dessous :</p>
                     <input type="url" 
                            class="tiktok-link-input" 
@@ -2486,14 +2739,14 @@
                   }
 
                   const message = encodeURIComponent(
-                    `Bonjour, je viens de gagner 100 FCFA sur Social Boost Horizon. Mon adresse e-mail est : ${userEmail}`
+                    `Bonjour, je viens de gagner 25 FCFA sur Social Boost Horizon. Mon adresse e-mail est : ${userEmail}`
                   );
                   window.open(`https://api.whatsapp.com/send?phone=+237699853665&text=${message}`, '_blank');
 
                   giftResult.innerHTML = `
                     <div class="gift-message">
                       <h3>Demande envoyée !</h3>
-                      <p>Votre demande de crédit de 100 FCFA a été transmise à notre équipe.</p>
+                      <p>Votre demande de crédit de 25 FCFA a été transmise à notre équipe.</p>
                       <p>Nous créditerons votre solde dans les plus brefs délais.</p>
                       <div class="modal-actions">
                         <button class="modal-btn btn-primary" id="closeAfterEmail">Fermer</button>
@@ -2507,9 +2760,52 @@
                 });
                 break;
                 
-              case 'canva':
-                document.getElementById('closeAfterCanva').addEventListener('click', () => {
-                  welcomeModal.style.display = 'none';
+              case 'likes':
+                let selectedPlatform = null;
+                const platformBtns = document.querySelectorAll('.platform-btn');
+                const linkContainer = document.getElementById('likesLinkContainer');
+                const platformLabel = document.getElementById('platformLabel');
+                
+                platformBtns.forEach(btn => {
+                  btn.addEventListener('click', function() {
+                    platformBtns.forEach(b => b.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedPlatform = this.getAttribute('data-platform');
+                    platformLabel.textContent = `Collez le lien de votre publication ${selectedPlatform} :`;
+                    linkContainer.classList.add('active');
+                  });
+                });
+                
+                document.getElementById('submitLikes').addEventListener('click', function() {
+                  const postLink = document.getElementById('postLinkInput').value;
+                  if (!selectedPlatform) {
+                    alert('Veuillez sélectionner une plateforme.');
+                    return;
+                  }
+                  if (!postLink) {
+                    alert('Veuillez coller le lien de votre publication.');
+                    return;
+                  }
+                  
+                  const message = encodeURIComponent(
+                    `Bonjour, je viens de gagner 50 likes sur Social Boost Horizon.\n\nPlateforme: ${selectedPlatform}\nLien de ma publication: ${postLink}`
+                  );
+                  window.open(`https://api.whatsapp.com/send?phone=+237699853665&text=${message}`, '_blank');
+                  
+                  giftResult.innerHTML = `
+                    <div class="gift-message">
+                      <h3>Demande envoyée !</h3>
+                      <p>Votre demande de 50 likes ${selectedPlatform} a été transmise à notre équipe.</p>
+                      <p>Nous traiterons votre demande dans les plus brefs délais.</p>
+                      <div class="modal-actions">
+                        <button class="modal-btn btn-primary" id="closeAfterLikes">Fermer</button>
+                      </div>
+                    </div>
+                  `;
+                  
+                  document.getElementById('closeAfterLikes').addEventListener('click', () => {
+                    welcomeModal.style.display = 'none';
+                  });
                 });
                 break;
                 
@@ -2522,14 +2818,14 @@
                   }
                   
                   const message = encodeURIComponent(
-                    `Bonjour, je viens de gagner 10 000 vues TikTok sur Social Boost Horizon. Voici le lien de ma vidéo : ${tiktokLink}`
+                    `Bonjour, je viens de gagner 5000 vues TikTok sur Social Boost Horizon. Voici le lien de ma vidéo : ${tiktokLink}`
                   );
                   window.open(`https://api.whatsapp.com/send?phone=+237699853665&text=${message}`, '_blank');
                   
                   giftResult.innerHTML = `
                     <div class="gift-message">
                       <h3>Demande envoyée !</h3>
-                      <p>Votre demande de 10 000 vues a été transmise à notre équipe.</p>
+                      <p>Votre demande de 5000 vues a été transmise à notre équipe.</p>
                       <p>Nous traiterons votre demande dans les plus brefs délais.</p>
                       <div class="modal-actions">
                         <button class="modal-btn btn-primary" id="closeAfterTikTok">Fermer</button>
@@ -2587,6 +2883,45 @@
       depositInternational.addEventListener('click', () => {
         depositModal.classList.remove('active');
         window.location.href = 'paid.html';
+      });
+
+      // =======================================================
+      // GESTION DE LA MODAL D'HISTORIQUE DES COMMANDES
+      // =======================================================
+      
+      const historyModal = document.getElementById('historyModal');
+      const openHistoryModalBtn = document.getElementById('openHistoryModal');
+      const closeHistoryModalBtn = document.getElementById('closeHistoryModal');
+      const historyStandard = document.getElementById('historyStandard');
+      const historyAuto = document.getElementById('historyAuto');
+      
+      // Ouvrir la modal d'historique
+      openHistoryModalBtn.addEventListener('click', () => {
+        historyModal.classList.add('active');
+      });
+      
+      // Fermer la modal d'historique
+      closeHistoryModalBtn.addEventListener('click', () => {
+        historyModal.classList.remove('active');
+      });
+      
+      // Fermer si on clique en dehors
+      historyModal.addEventListener('click', (e) => {
+        if (e.target === historyModal) {
+          historyModal.classList.remove('active');
+        }
+      });
+      
+      // Option Commandes Standard → commandes.html
+      historyStandard.addEventListener('click', () => {
+        historyModal.classList.remove('active');
+        window.location.href = 'commandes.html';
+      });
+      
+      // Option Commandes Automatiques → mes-commandes-auto.html
+      historyAuto.addEventListener('click', () => {
+        historyModal.classList.remove('active');
+        window.location.href = 'mes-commandes-auto.html';
       });
 
       // =======================================================
