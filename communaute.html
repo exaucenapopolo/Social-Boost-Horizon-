@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Communauté - Social Boost Horizon</title>
 
-  <!-- Firebase SDK (même config que boost.html) -->
+  <!-- Firebase SDK (Realtime Database) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
   <!-- Fonts & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
 
   <style>
-    /* ========== VARIABLES & DESIGN SYSTEM (IDENTIQUE À BOOST.HTML) ========== */
+    /* ========== VARIABLES & DESIGN SYSTEM ========== */
     :root {
       --primary-color: #1A237E;
       --secondary-color: #283593;
@@ -64,7 +64,7 @@
       line-height: 1.6;
     }
 
-    /* ========== HEADER (copie conforme) ========== */
+    /* ========== HEADER ========== */
     .header {
       position: fixed;
       top: 0;
@@ -145,7 +145,7 @@
       padding: 5rem 1rem 1rem;
     }
 
-    /* ========== HERO SECTION ========== */
+    /* ========== HERO ========== */
     .hero-section {
       text-align: center;
       padding: 2rem 0 3rem;
@@ -248,6 +248,7 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 1.5rem;
+      flex-wrap: wrap;
     }
 
     .section-title {
@@ -263,6 +264,58 @@
       display: flex;
       align-items: center;
       gap: 6px;
+    }
+
+    /* ========== FORMULAIRE NOUVEAU POST ========== */
+    .new-post-form {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .new-post-form textarea {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 0.9rem 1.2rem;
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      resize: vertical;
+      min-height: 100px;
+      font-family: 'Inter', sans-serif;
+      margin-bottom: 1rem;
+    }
+
+    .new-post-form textarea:focus {
+      outline: none;
+      border-color: var(--accent-color);
+    }
+
+    .post-submit-btn {
+      background: linear-gradient(135deg, var(--accent-color), var(--accent-dark));
+      color: white;
+      border: none;
+      padding: 0.7rem 1.5rem;
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .post-submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0, 191, 165, 0.3);
+    }
+
+    .post-submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     /* ========== POSTS CARDS ========== */
@@ -319,6 +372,7 @@
       color: var(--text-secondary);
       margin-bottom: 1rem;
       font-size: 0.95rem;
+      word-wrap: break-word;
     }
 
     .post-stats {
@@ -650,6 +704,10 @@
       height: 45px;
       border-radius: 50%;
       background: var(--primary-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
     }
 
     .testimonial-name {
@@ -714,11 +772,8 @@
 
     /* ========== RESPONSIVE ========== */
     @media (max-width: 900px) {
-      .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
     }
-
     @media (max-width: 768px) {
       .header { padding: 0.8rem 1rem; }
       .main-container { padding: 4rem 0.5rem; }
@@ -726,7 +781,6 @@
       .stats-grid { grid-template-columns: 1fr; }
       .section-title { font-size: 1.5rem; }
     }
-
     @media (max-width: 480px) {
       .hero-title { font-size: 1.7rem; }
       .member-card { flex-direction: column; text-align: center; }
@@ -751,7 +805,6 @@
     </div>
   </header>
 
-  <!-- ========== MAIN ========== -->
   <main class="main-container">
     <!-- ========== HERO ========== -->
     <section class="hero-section" data-aos="fade-up">
@@ -771,22 +824,22 @@
     <div class="stats-grid" data-aos="fade-up" data-aos-delay="100">
       <div class="stat-card">
         <div class="stat-icon"><i class="fas fa-user-friends"></i></div>
-        <div class="stat-number" id="stat-members">12.4k</div>
-        <div class="stat-label">Membres actifs</div>
+        <div class="stat-number" id="stat-members">0</div>
+        <div class="stat-label">Membres en ligne</div>
       </div>
       <div class="stat-card">
         <div class="stat-icon"><i class="fas fa-comments"></i></div>
-        <div class="stat-number" id="stat-messages">8.2k</div>
+        <div class="stat-number" id="stat-messages">0</div>
         <div class="stat-label">Messages échangés</div>
       </div>
       <div class="stat-card">
         <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
-        <div class="stat-number" id="stat-groups">24</div>
+        <div class="stat-number" id="stat-groups">0</div>
         <div class="stat-label">Groupes de discussion</div>
       </div>
       <div class="stat-card">
         <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
-        <div class="stat-number" id="stat-events">6</div>
+        <div class="stat-number" id="stat-events">0</div>
         <div class="stat-label">Événements à venir</div>
       </div>
     </div>
@@ -797,9 +850,13 @@
         <h2 class="section-title"><i class="fas fa-rss" style="margin-right: 10px; color: var(--accent-color);"></i> Activité récente</h2>
         <a href="#" class="section-link">Voir tout <i class="fas fa-arrow-right"></i></a>
       </div>
-      <div class="posts-grid" id="postsGrid">
-        <!-- Les posts seront injectés via JS -->
+
+      <div id="newPostFormContainer" style="display: none;" class="new-post-form">
+        <textarea id="postContentInput" placeholder="Partagez votre expérience, posez une question..."></textarea>
+        <button id="submitPostBtn" class="post-submit-btn"><i class="fas fa-paper-plane"></i> Publier</button>
       </div>
+
+      <div class="posts-grid" id="postsGrid"></div>
     </section>
 
     <!-- ========== MEMBRES EN LIGNE ========== -->
@@ -820,7 +877,7 @@
       <div class="groups-grid" id="groupsGrid"></div>
     </section>
 
-    <!-- ========== CHAT COMMUNAUTAIRE TEMPS RÉEL ========== -->
+    <!-- ========== CHAT COMMUNAUTAIRE ========== -->
     <section class="community-chat" data-aos="fade-up" data-aos-delay="200">
       <div class="chat-header">
         <i class="fas fa-comment-dots"></i>
@@ -829,19 +886,13 @@
           <p>Échangez instantanément avec la communauté</p>
         </div>
       </div>
-
-      <!-- Zone des messages -->
       <div class="chat-messages" id="chatMessages"></div>
-
-      <!-- Zone de saisie -->
       <div class="chat-input-area">
-        <input type="text" class="chat-input" id="chatInput" placeholder="Votre message..." maxlength="200">
-        <button class="chat-send" id="chatSendBtn">
-          <i class="fas fa-paper-plane"></i>
-        </button>
+        <input type="text" class="chat-input" id="chatInput" placeholder="Votre message..." maxlength="200" disabled>
+        <button class="chat-send" id="chatSendBtn" disabled><i class="fas fa-paper-plane"></i></button>
       </div>
       <p style="color: var(--text-tertiary); font-size: 0.75rem; margin-top: 0.5rem;">
-        <i class="fas fa-info-circle"></i> Connectez‑vous pour participer au chat.
+        <i class="fas fa-info-circle"></i> Connectez‑vous pour participer au chat et publier des posts.
       </p>
     </section>
 
@@ -859,9 +910,7 @@
       <div class="section-header">
         <h2 class="section-title"><i class="fas fa-quote-right" style="margin-right: 10px; color: var(--accent-color);"></i> Ils parlent de nous</h2>
       </div>
-      <div class="testimonials-slider" id="testimonialsSlider">
-        <!-- Injecté par JS -->
-      </div>
+      <div class="testimonials-slider" id="testimonialsSlider"></div>
     </section>
   </main>
 
@@ -870,9 +919,7 @@
     <div class="footer-content">
       <div class="footer-section">
         <h3>Social Boost Horizon</h3>
-        <p style="color: var(--text-secondary); margin-top: 0.5rem; font-size: 0.9rem;">
-          Votre partenaire pour une croissance intelligente sur les réseaux sociaux.
-        </p>
+        <p style="color: var(--text-secondary); margin-top: 0.5rem; font-size: 0.9rem;">Votre partenaire pour une croissance intelligente sur les réseaux sociaux.</p>
       </div>
       <div class="footer-section">
         <h3>Liens Rapides</h3>
@@ -902,7 +949,7 @@
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   <script>
     // ============================================
-    //  CONFIGURATION FIREBASE (identique à boost)
+    //  CONFIGURATION FIREBASE (VOTRE PROJET)
     // ============================================
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
@@ -910,11 +957,12 @@
       projectId: "social-boost-horizon",
       storageBucket: "social-boost-horizon.appspot.com",
       messagingSenderId: "43658165639",
-      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
+      databaseURL: "https://social-boost-horizon-default-rtdb.firebaseio.com/" // ✅ Votre URL
     };
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
-    const db = firebase.firestore();
+    const db = firebase.database();
 
     // ============================================
     //  INITIALISATION AOS
@@ -922,103 +970,332 @@
     AOS.init({ duration: 800, once: true, offset: 100 });
 
     // ============================================
-    //  DONNÉES STATIQUES (simulation)
+    //  ÉTAT GLOBAL
     // ============================================
-    const postsData = [
-      { author: "Alexandre", time: "il y a 12 min", content: "Je viens de tester la stratégie progressive sur Instagram, résultat impressionnant ! 📈", likes: 24, comments: 8, shares: 3 },
-      { author: "Claire", time: "il y a 35 min", content: "Quelqu'un a déjà utilisé le service Haute Qualité pour YouTube ? Retours ?", likes: 15, comments: 12, shares: 2 },
-      { author: "Moussa", time: "il y a 1h", content: "Merci à l'équipe pour le support, ma réclamation a été traitée en 2h !", likes: 42, comments: 5, shares: 7 },
-      { author: "Sophie", time: "il y a 2h", content: "📊 Petit bilan : +3000 abonnés en 10 jours avec un mix vues/likes. Satisfaite !", likes: 67, comments: 14, shares: 12 }
-    ];
-
-    const membersData = [
-      { name: "Lucas", role: "Créateur TikTok", online: true },
-      { name: "Emma", role: "Community Manager", online: true },
-      { name: "Karim", role: "Influenceur", online: false },
-      { name: "Julie", role: "Entrepreneuse", online: true },
-      { name: "Thomas", role: "Photographe", online: false },
-      { name: "Aïcha", role: "Coach fitness", online: true }
-    ];
-
-    const groupsData = [
-      { name: "Stratégies Instagram", members: 1250, icon: "fa-instagram" },
-      { name: "Boost TikTok", members: 980, icon: "fa-tiktok" },
-      { name: "Monétisation YouTube", members: 730, icon: "fa-youtube" },
-      { name: "Entraide créateurs", members: 2100, icon: "fa-handshake" }
-    ];
-
-    const eventsData = [
-      { day: "15", month: "Mai", title: "Webinar : Booster sans se faire bannir", time: "18h", attendees: 45 },
-      { day: "22", month: "Mai", title: "Atelier : Créer des visuels qui convertissent", time: "20h", attendees: 32 },
-      { day: "05", month: "Juin", title: "AMA avec un expert Instagram", time: "19h", attendees: 78 },
-      { day: "12", month: "Juin", title: "Challenge communauté : 1k abonnés en 7j", time: "24h", attendees: 112 }
-    ];
-
-    const testimonialsData = [
-      { text: "Grâce aux conseils de la communauté, j'ai multiplié mon engagement par 3 en 2 semaines.", author: "Marc D.", role: "Créateur voyage" },
-      { text: "Le chat est super réactif, on se sent vraiment entouré.", author: "Léa P.", role: "Beauté" },
-      { text: "J'ai découvert des méthodes que je n'aurais jamais trouvé seul. Merci !", author: "Youssef K.", role: "Gaming" }
-    ];
+    let currentUser = null;
+    let currentUserName = "Anonyme";
 
     // ============================================
-    //  RENDU DES CARTES (statique)
+    //  INITIALISATION DES DONNÉES DE DÉMO
     // ============================================
-    function renderPosts() {
-      const container = document.getElementById('postsGrid');
-      container.innerHTML = postsData.map(post => `
-        <div class="post-card">
+    async function initializeDefaultData() {
+      // ----- GROUPES -----
+      const groupsSnapshot = await db.ref('groups').once('value');
+      if (!groupsSnapshot.exists()) {
+        const defaultGroups = {
+          group1: {
+            name: "Stratégies Instagram",
+            members: 1250,
+            icon: "fa-instagram",
+            description: "Astuces, algorithmes et retours d'expérience"
+          },
+          group2: {
+            name: "Boost TikTok",
+            members: 980,
+            icon: "fa-tiktok",
+            description: "Vidéos virales et croissance express"
+          },
+          group3: {
+            name: "Monétisation YouTube",
+            members: 730,
+            icon: "fa-youtube",
+            description: "Gagner sa vie grâce à sa chaîne"
+          },
+          group4: {
+            name: "Entraide créateurs",
+            members: 2100,
+            icon: "fa-handshake",
+            description: "Collaborations et conseils entre pros"
+          },
+          group5: {
+            name: "Facebook Ads",
+            members: 540,
+            icon: "fa-facebook",
+            description: "Publicité et marketing avancé"
+          },
+          group6: {
+            name: "LinkedIn B2B",
+            members: 410,
+            icon: "fa-linkedin",
+            description: "Réseautage et prospection"
+          }
+        };
+        await db.ref('groups').set(defaultGroups);
+        console.log("✅ Groupes par défaut créés");
+      }
+
+      // ----- ÉVÉNEMENTS -----
+      const eventsSnapshot = await db.ref('events').once('value');
+      if (!eventsSnapshot.exists()) {
+        const defaultEvents = {
+          event1: {
+            day: "15",
+            month: "Mai",
+            title: "Webinar : Booster sans se faire bannir",
+            time: "18h",
+            attendees: 45
+          },
+          event2: {
+            day: "22",
+            month: "Mai",
+            title: "Atelier : Créer des visuels qui convertissent",
+            time: "20h",
+            attendees: 32
+          },
+          event3: {
+            day: "05",
+            month: "Juin",
+            title: "AMA avec un expert Instagram",
+            time: "19h",
+            attendees: 78
+          },
+          event4: {
+            day: "12",
+            month: "Juin",
+            title: "Challenge communauté : 1k abonnés en 7j",
+            time: "24h",
+            attendees: 112
+          },
+          event5: {
+            day: "20",
+            month: "Juin",
+            title: "Live : Analyse de comptes en direct",
+            time: "21h",
+            attendees: 64
+          }
+        };
+        await db.ref('events').set(defaultEvents);
+        console.log("✅ Événements par défaut créés");
+      }
+
+      // ----- TÉMOIGNAGES -----
+      const testimonialsSnapshot = await db.ref('testimonials').once('value');
+      if (!testimonialsSnapshot.exists()) {
+        const defaultTestimonials = {
+          t1: {
+            text: "Grâce aux conseils de la communauté, j'ai multiplié mon engagement par 3 en 2 semaines.",
+            author: "Marc D.",
+            role: "Créateur voyage"
+          },
+          t2: {
+            text: "Le chat est super réactif, on se sent vraiment entouré.",
+            author: "Léa P.",
+            role: "Beauté"
+          },
+          t3: {
+            text: "J'ai découvert des méthodes que je n'aurais jamais trouvé seul. Merci !",
+            author: "Youssef K.",
+            role: "Gaming"
+          },
+          t4: {
+            text: "Service client impeccable et communauté bienveillante. Je recommande !",
+            author: "Sophie L.",
+            role: "Coach fitness"
+          },
+          t5: {
+            text: "Les stratégies partagées ici m'ont aidé à décrocher mes premiers partenariats.",
+            author: "Alexandre B.",
+            role: "Influenceur tech"
+          }
+        };
+        await db.ref('testimonials').set(defaultTestimonials);
+        console.log("✅ Témoignages par défaut créés");
+      }
+    }
+
+    // Lancer l'initialisation juste après le chargement
+    initializeDefaultData().catch(console.error);
+
+    // ============================================
+    //  AUTHENTIFICATION & PRÉSENCE
+    // ============================================
+    auth.onAuthStateChanged(user => {
+      currentUser = user;
+      const formContainer = document.getElementById('newPostFormContainer');
+      const chatInput = document.getElementById('chatInput');
+      const chatSend = document.getElementById('chatSendBtn');
+
+      if (user) {
+        currentUserName = user.displayName || user.email.split('@')[0];
+        formContainer.style.display = 'block';
+        chatInput.disabled = false;
+        chatSend.disabled = false;
+
+        const userStatusRef = db.ref('status/' + user.uid);
+        const userStatusDatabaseRef = db.ref('.info/connected');
+        userStatusDatabaseRef.on('value', (snap) => {
+          if (snap.val() === true) {
+            userStatusRef.set({ status: 'online', lastOnline: firebase.database.ServerValue.TIMESTAMP, userName: currentUserName });
+            userStatusRef.onDisconnect().set({ status: 'offline', lastOnline: firebase.database.ServerValue.TIMESTAMP, userName: currentUserName });
+          }
+        });
+      } else {
+        formContainer.style.display = 'none';
+        chatInput.disabled = true;
+        chatSend.disabled = true;
+        if (currentUser) db.ref('status/' + currentUser.uid).remove();
+        currentUser = null;
+        currentUserName = "Anonyme";
+      }
+    });
+
+    // ============================================
+    //  STATISTIQUES DYNAMIQUES
+    // ============================================
+    db.ref('status').on('value', (snapshot) => {
+      let online = 0;
+      snapshot.forEach(c => { if (c.val().status === 'online') online++; });
+      document.getElementById('stat-members').innerText = online;
+    });
+    db.ref('chat_messages').on('value', (snapshot) => {
+      document.getElementById('stat-messages').innerText = snapshot.numChildren() || 0;
+    });
+    db.ref('groups').on('value', (snapshot) => {
+      document.getElementById('stat-groups').innerText = snapshot.numChildren() || 0;
+    });
+    db.ref('events').on('value', (snapshot) => {
+      document.getElementById('stat-events').innerText = snapshot.numChildren() || 0;
+    });
+
+    // ============================================
+    //  POSTS (affichage, création, likes)
+    // ============================================
+    const postsGrid = document.getElementById('postsGrid');
+    db.ref('posts').orderByChild('timestamp').limitToLast(20).on('value', (snapshot) => {
+      const posts = [];
+      snapshot.forEach(child => posts.push({ id: child.key, ...child.val() }));
+      posts.reverse();
+      postsGrid.innerHTML = posts.map(post => `
+        <div class="post-card" data-post-id="${post.id}">
           <div class="post-header">
-            <div class="post-avatar">${post.author.charAt(0)}</div>
+            <div class="post-avatar">${post.authorName ? post.authorName.charAt(0) : 'A'}</div>
             <div>
-              <div class="post-author">${post.author}</div>
-              <div class="post-time">${post.time}</div>
+              <div class="post-author">${post.authorName || 'Anonyme'}</div>
+              <div class="post-time">${formatTime(post.timestamp)}</div>
             </div>
           </div>
-          <div class="post-content">${post.content}</div>
+          <div class="post-content">${escapeHtml(post.content)}</div>
           <div class="post-stats">
-            <span class="post-stat like-btn"><i class="far fa-heart"></i> ${post.likes}</span>
-            <span class="post-stat"><i class="far fa-comment"></i> ${post.comments}</span>
-            <span class="post-stat"><i class="far fa-share-square"></i> ${post.shares}</span>
+            <span class="post-stat like-btn" data-post-id="${post.id}">
+              <i class="${post.likes && post.likes[currentUser?.uid] ? 'fas' : 'far'} fa-heart ${post.likes && post.likes[currentUser?.uid] ? 'liked' : ''}"></i>
+              ${post.likesCount || 0}
+            </span>
+            <span class="post-stat"><i class="far fa-comment"></i> ${post.commentsCount || 0}</span>
+            <span class="post-stat"><i class="far fa-share-square"></i> ${post.sharesCount || 0}</span>
           </div>
         </div>
       `).join('');
+      attachLikeListeners();
+    });
+
+    document.getElementById('submitPostBtn').addEventListener('click', async () => {
+      const content = document.getElementById('postContentInput').value.trim();
+      if (!content || !currentUser) return;
+      await db.ref('posts').push({
+        authorId: currentUser.uid,
+        authorName: currentUserName,
+        content: content,
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        likesCount: 0, commentsCount: 0, sharesCount: 0, likes: {}
+      });
+      document.getElementById('postContentInput').value = '';
+    });
+
+    function attachLikeListeners() {
+      document.querySelectorAll('.like-btn').forEach(btn => {
+        btn.removeEventListener('click', handleLike);
+        btn.addEventListener('click', handleLike);
+      });
+    }
+    async function handleLike(e) {
+      e.preventDefault();
+      if (!currentUser) { alert('Connectez‑vous pour aimer'); return; }
+      const postId = this.dataset.postId;
+      const postRef = db.ref('posts/' + postId);
+      const already = await postRef.child('likes/' + currentUser.uid).once('value');
+      if (already.val()) {
+        postRef.update({ [`likes/${currentUser.uid}`]: null, likesCount: firebase.database.ServerValue.increment(-1) });
+      } else {
+        postRef.update({ [`likes/${currentUser.uid}`]: true, likesCount: firebase.database.ServerValue.increment(1) });
+      }
     }
 
-    function renderMembers() {
-      const container = document.getElementById('membersGrid');
-      container.innerHTML = membersData.map(m => `
+    // ============================================
+    //  MEMBRES EN LIGNE
+    // ============================================
+    db.ref('status').on('value', (snapshot) => {
+      const members = [];
+      snapshot.forEach(child => {
+        const data = child.val();
+        if (data.status === 'online') members.push({ name: data.userName || 'Membre', role: 'En ligne', online: true });
+      });
+      document.getElementById('membersGrid').innerHTML = members.map(m => `
         <div class="member-card">
-          <div class="member-avatar">
-            ${m.name.charAt(0)}
-            ${m.online ? '<span class="online-dot"></span>' : ''}
-          </div>
-          <div class="member-info">
-            <h4>${m.name}</h4>
-            <div class="member-role">${m.role}</div>
-          </div>
+          <div class="member-avatar">${m.name.charAt(0)}<span class="online-dot"></span></div>
+          <div class="member-info"><h4>${m.name}</h4><div class="member-role">${m.role}</div></div>
         </div>
       `).join('');
-    }
+    });
 
-    function renderGroups() {
-      const container = document.getElementById('groupsGrid');
-      container.innerHTML = groupsData.map(g => `
+    // ============================================
+    //  GROUPES
+    // ============================================
+    db.ref('groups').on('value', (snapshot) => {
+      const groups = [];
+      snapshot.forEach(child => groups.push(child.val()));
+      document.getElementById('groupsGrid').innerHTML = groups.map(g => `
         <div class="group-card">
           <div class="group-icon"><i class="fab ${g.icon}"></i></div>
           <div class="group-name">${g.name}</div>
           <div class="group-members">${g.members} membres</div>
         </div>
       `).join('');
-    }
+    });
 
-    function renderEvents() {
-      const container = document.getElementById('eventsGrid');
-      container.innerHTML = eventsData.map(e => `
-        <div class="event-card">
-          <div class="event-date">
-            <div class="event-day">${e.day}</div>
-            <div class="event-month">${e.month}</div>
+    // ============================================
+    //  CHAT
+    // ============================================
+    db.ref('chat_messages').orderByChild('timestamp').limitToLast(50).on('value', (snapshot) => {
+      const msgs = [];
+      snapshot.forEach(child => msgs.push(child.val()));
+      msgs.reverse();
+      document.getElementById('chatMessages').innerHTML = msgs.map(m => `
+        <div class="chat-message">
+          <div class="chat-message-avatar">${m.userName ? m.userName.charAt(0) : 'A'}</div>
+          <div class="chat-message-content">
+            <div class="chat-message-author">${m.userName || 'Anonyme'}</div>
+            <div class="chat-message-text">${escapeHtml(m.text)}</div>
           </div>
+        </div>
+      `).join('');
+      document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+    });
+
+    document.getElementById('chatSendBtn').addEventListener('click', async () => {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text || !currentUser) return;
+      await db.ref('chat_messages').push({
+        userId: currentUser.uid,
+        userName: currentUserName,
+        text: text,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      });
+      input.value = '';
+    });
+    document.getElementById('chatInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') document.getElementById('chatSendBtn').click();
+    });
+
+    // ============================================
+    //  ÉVÉNEMENTS
+    // ============================================
+    db.ref('events').on('value', (snapshot) => {
+      const events = [];
+      snapshot.forEach(child => events.push(child.val()));
+      document.getElementById('eventsGrid').innerHTML = events.map(e => `
+        <div class="event-card">
+          <div class="event-date"><div class="event-day">${e.day}</div><div class="event-month">${e.month}</div></div>
           <div class="event-details">
             <h4>${e.title}</h4>
             <div class="event-meta">
@@ -1028,15 +1305,19 @@
           </div>
         </div>
       `).join('');
-    }
+    });
 
-    function renderTestimonials() {
-      const container = document.getElementById('testimonialsSlider');
-      container.innerHTML = testimonialsData.map(t => `
+    // ============================================
+    //  TÉMOIGNAGES
+    // ============================================
+    db.ref('testimonials').on('value', (snapshot) => {
+      const testimonials = [];
+      snapshot.forEach(child => testimonials.push(child.val()));
+      document.getElementById('testimonialsSlider').innerHTML = testimonials.map(t => `
         <div class="testimonial-card">
           <div class="testimonial-text">“${t.text}”</div>
           <div class="testimonial-author">
-            <div class="testimonial-avatar" style="background: linear-gradient(145deg, var(--primary-color), var(--secondary-color)); display: flex; align-items: center; justify-content: center; color: white;">${t.author.charAt(0)}</div>
+            <div class="testimonial-avatar" style="background: linear-gradient(145deg, var(--primary-color), var(--secondary-color));">${t.author.charAt(0)}</div>
             <div>
               <div class="testimonial-name">${t.author}</div>
               <div class="testimonial-role">${t.role}</div>
@@ -1044,116 +1325,24 @@
           </div>
         </div>
       `).join('');
+    });
+
+    // ============================================
+    //  UTILITAIRES
+    // ============================================
+    function formatTime(t) {
+      if (!t) return 'récent';
+      const d = new Date(t), n = new Date();
+      const m = Math.floor((n - d) / 60000);
+      if (m < 1) return 'à l\'instant';
+      if (m < 60) return `il y a ${m} min`;
+      if (m < 1440) return `il y a ${Math.floor(m / 60)} h`;
+      return `il y a ${Math.floor(m / 1440)} j`;
     }
-
-    // ============================================
-    //  CHAT EN TEMPS RÉEL (FIREBASE)
-    // ============================================
-    let currentUser = null;
-
-    auth.onAuthStateChanged(user => {
-      currentUser = user;
-      if (user) {
-        // Activer le chat
-        document.getElementById('chatInput').disabled = false;
-        document.getElementById('chatSendBtn').disabled = false;
-      } else {
-        // Désactiver le chat si non connecté
-        document.getElementById('chatInput').disabled = true;
-        document.getElementById('chatSendBtn').disabled = true;
-      }
-    });
-
-    // Écouter les messages en temps réel
-    const chatMessagesDiv = document.getElementById('chatMessages');
-    function loadMessages() {
-      db.collection('community_messages')
-        .orderBy('timestamp', 'desc')
-        .limit(50)
-        .onSnapshot(snapshot => {
-          const messages = [];
-          snapshot.forEach(doc => messages.push(doc.data()));
-          messages.reverse(); // afficher du plus ancien au plus récent
-          chatMessagesDiv.innerHTML = messages.map(msg => `
-            <div class="chat-message">
-              <div class="chat-message-avatar">${msg.userName ? msg.userName.charAt(0) : 'A'}</div>
-              <div class="chat-message-content">
-                <div class="chat-message-author">${msg.userName || 'Anonyme'}</div>
-                <div class="chat-message-text">${msg.text}</div>
-              </div>
-            </div>
-          `).join('');
-          chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
-        });
+    function escapeHtml(unsafe) {
+      if (!unsafe) return '';
+      return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
-    loadMessages();
-
-    // Envoyer un message
-    document.getElementById('chatSendBtn').addEventListener('click', async () => {
-      const input = document.getElementById('chatInput');
-      const text = input.value.trim();
-      if (!text || !currentUser) return;
-
-      try {
-        await db.collection('community_messages').add({
-          text: text,
-          userId: currentUser.uid,
-          userName: currentUser.displayName || currentUser.email.split('@')[0],
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        input.value = '';
-      } catch (error) {
-        console.error("Erreur envoi message:", error);
-      }
-    });
-
-    document.getElementById('chatInput').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        document.getElementById('chatSendBtn').click();
-      }
-    });
-
-    // ============================================
-    //  GESTION DES LIKES (simulation)
-    // ============================================
-    function attachLikeListeners() {
-      document.querySelectorAll('.like-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-          e.preventDefault();
-          const icon = this.querySelector('i');
-          icon.classList.toggle('far');
-          icon.classList.toggle('fas');
-          icon.classList.toggle('liked');
-          let count = parseInt(this.innerText.match(/\d+/)[0]);
-          if (icon.classList.contains('fas')) {
-            count++;
-          } else {
-            count--;
-          }
-          this.innerHTML = `<i class="${icon.classList.contains('fas') ? 'fas' : 'far'} fa-heart"></i> ${count}`;
-        });
-      });
-    }
-
-    // ============================================
-    //  INITIALISATION
-    // ============================================
-    document.addEventListener("DOMContentLoaded", function() {
-      renderPosts();
-      renderMembers();
-      renderGroups();
-      renderEvents();
-      renderTestimonials();
-      attachLikeListeners();
-
-      // Animation des compteurs (statistiques)
-      setTimeout(() => {
-        document.getElementById('stat-members').innerText = '12.4k';
-        document.getElementById('stat-messages').innerText = '8.2k';
-        document.getElementById('stat-groups').innerText = '24';
-        document.getElementById('stat-events').innerText = '6';
-      }, 200);
-    });
   </script>
 </body>
 </html>
