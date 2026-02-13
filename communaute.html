@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Communauté - Social Boost Horizon</title>
 
-  <!-- Firebase SDK (Realtime Database) -->
+  <!-- Firebase SDK : app + auth + database UNIQUEMENT -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -805,6 +805,7 @@
     </div>
   </header>
 
+  <!-- ========== MAIN ========== -->
   <main class="main-container">
     <!-- ========== HERO ========== -->
     <section class="hero-section" data-aos="fade-up">
@@ -851,11 +852,13 @@
         <a href="#" class="section-link">Voir tout <i class="fas fa-arrow-right"></i></a>
       </div>
 
+      <!-- Formulaire de post (visible si connecté) -->
       <div id="newPostFormContainer" style="display: none;" class="new-post-form">
         <textarea id="postContentInput" placeholder="Partagez votre expérience, posez une question..."></textarea>
         <button id="submitPostBtn" class="post-submit-btn"><i class="fas fa-paper-plane"></i> Publier</button>
       </div>
 
+      <!-- Grille des posts -->
       <div class="posts-grid" id="postsGrid"></div>
     </section>
 
@@ -886,7 +889,11 @@
           <p>Échangez instantanément avec la communauté</p>
         </div>
       </div>
+
+      <!-- Messages du chat -->
       <div class="chat-messages" id="chatMessages"></div>
+
+      <!-- Zone de saisie -->
       <div class="chat-input-area">
         <input type="text" class="chat-input" id="chatInput" placeholder="Votre message..." maxlength="200" disabled>
         <button class="chat-send" id="chatSendBtn" disabled><i class="fas fa-paper-plane"></i></button>
@@ -949,7 +956,7 @@
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   <script>
     // ============================================
-    //  CONFIGURATION FIREBASE (VOTRE PROJET)
+    //  CONFIGURATION FIREBASE (Realtime Database uniquement)
     // ============================================
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
@@ -958,11 +965,11 @@
       storageBucket: "social-boost-horizon.appspot.com",
       messagingSenderId: "43658165639",
       appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
-      databaseURL: "https://social-boost-horizon-default-rtdb.firebaseio.com/" // ✅ Votre URL
+      databaseURL: "https://social-boost-horizon-default-rtdb.firebaseio.com/"   // <-- VOTRE URL
     };
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
-    const db = firebase.database();
+    const db = firebase.database();   // Realtime Database uniquement
 
     // ============================================
     //  INITIALISATION AOS
@@ -976,134 +983,46 @@
     let currentUserName = "Anonyme";
 
     // ============================================
-    //  INITIALISATION DES DONNÉES DE DÉMO
+    //  INITIALISATION DES DONNÉES DE DÉMO (groupes, événements, témoignages)
     // ============================================
     async function initializeDefaultData() {
-      // ----- GROUPES -----
-      const groupsSnapshot = await db.ref('groups').once('value');
-      if (!groupsSnapshot.exists()) {
-        const defaultGroups = {
-          group1: {
-            name: "Stratégies Instagram",
-            members: 1250,
-            icon: "fa-instagram",
-            description: "Astuces, algorithmes et retours d'expérience"
-          },
-          group2: {
-            name: "Boost TikTok",
-            members: 980,
-            icon: "fa-tiktok",
-            description: "Vidéos virales et croissance express"
-          },
-          group3: {
-            name: "Monétisation YouTube",
-            members: 730,
-            icon: "fa-youtube",
-            description: "Gagner sa vie grâce à sa chaîne"
-          },
-          group4: {
-            name: "Entraide créateurs",
-            members: 2100,
-            icon: "fa-handshake",
-            description: "Collaborations et conseils entre pros"
-          },
-          group5: {
-            name: "Facebook Ads",
-            members: 540,
-            icon: "fa-facebook",
-            description: "Publicité et marketing avancé"
-          },
-          group6: {
-            name: "LinkedIn B2B",
-            members: 410,
-            icon: "fa-linkedin",
-            description: "Réseautage et prospection"
-          }
-        };
-        await db.ref('groups').set(defaultGroups);
-        console.log("✅ Groupes par défaut créés");
+      // --- GROUPES ---
+      const groupsSnap = await db.ref('groups').once('value');
+      if (!groupsSnap.exists()) {
+        await db.ref('groups').set({
+          group1: { name: "Stratégies Instagram", members: 1250, icon: "fa-instagram", description: "Astuces, algorithmes et retours d'expérience" },
+          group2: { name: "Boost TikTok", members: 980, icon: "fa-tiktok", description: "Vidéos virales et croissance express" },
+          group3: { name: "Monétisation YouTube", members: 730, icon: "fa-youtube", description: "Gagner sa vie grâce à sa chaîne" },
+          group4: { name: "Entraide créateurs", members: 2100, icon: "fa-handshake", description: "Collaborations et conseils entre pros" },
+          group5: { name: "Facebook Ads", members: 540, icon: "fa-facebook", description: "Publicité et marketing avancé" },
+          group6: { name: "LinkedIn B2B", members: 410, icon: "fa-linkedin", description: "Réseautage et prospection" }
+        });
       }
 
-      // ----- ÉVÉNEMENTS -----
-      const eventsSnapshot = await db.ref('events').once('value');
-      if (!eventsSnapshot.exists()) {
-        const defaultEvents = {
-          event1: {
-            day: "15",
-            month: "Mai",
-            title: "Webinar : Booster sans se faire bannir",
-            time: "18h",
-            attendees: 45
-          },
-          event2: {
-            day: "22",
-            month: "Mai",
-            title: "Atelier : Créer des visuels qui convertissent",
-            time: "20h",
-            attendees: 32
-          },
-          event3: {
-            day: "05",
-            month: "Juin",
-            title: "AMA avec un expert Instagram",
-            time: "19h",
-            attendees: 78
-          },
-          event4: {
-            day: "12",
-            month: "Juin",
-            title: "Challenge communauté : 1k abonnés en 7j",
-            time: "24h",
-            attendees: 112
-          },
-          event5: {
-            day: "20",
-            month: "Juin",
-            title: "Live : Analyse de comptes en direct",
-            time: "21h",
-            attendees: 64
-          }
-        };
-        await db.ref('events').set(defaultEvents);
-        console.log("✅ Événements par défaut créés");
+      // --- ÉVÉNEMENTS ---
+      const eventsSnap = await db.ref('events').once('value');
+      if (!eventsSnap.exists()) {
+        await db.ref('events').set({
+          event1: { day: "15", month: "Mai", title: "Webinar : Booster sans se faire bannir", time: "18h", attendees: 45 },
+          event2: { day: "22", month: "Mai", title: "Atelier : Créer des visuels qui convertissent", time: "20h", attendees: 32 },
+          event3: { day: "05", month: "Juin", title: "AMA avec un expert Instagram", time: "19h", attendees: 78 },
+          event4: { day: "12", month: "Juin", title: "Challenge communauté : 1k abonnés en 7j", time: "24h", attendees: 112 },
+          event5: { day: "20", month: "Juin", title: "Live : Analyse de comptes en direct", time: "21h", attendees: 64 }
+        });
       }
 
-      // ----- TÉMOIGNAGES -----
-      const testimonialsSnapshot = await db.ref('testimonials').once('value');
-      if (!testimonialsSnapshot.exists()) {
-        const defaultTestimonials = {
-          t1: {
-            text: "Grâce aux conseils de la communauté, j'ai multiplié mon engagement par 3 en 2 semaines.",
-            author: "Marc D.",
-            role: "Créateur voyage"
-          },
-          t2: {
-            text: "Le chat est super réactif, on se sent vraiment entouré.",
-            author: "Léa P.",
-            role: "Beauté"
-          },
-          t3: {
-            text: "J'ai découvert des méthodes que je n'aurais jamais trouvé seul. Merci !",
-            author: "Youssef K.",
-            role: "Gaming"
-          },
-          t4: {
-            text: "Service client impeccable et communauté bienveillante. Je recommande !",
-            author: "Sophie L.",
-            role: "Coach fitness"
-          },
-          t5: {
-            text: "Les stratégies partagées ici m'ont aidé à décrocher mes premiers partenariats.",
-            author: "Alexandre B.",
-            role: "Influenceur tech"
-          }
-        };
-        await db.ref('testimonials').set(defaultTestimonials);
-        console.log("✅ Témoignages par défaut créés");
+      // --- TÉMOIGNAGES ---
+      const testimonialsSnap = await db.ref('testimonials').once('value');
+      if (!testimonialsSnap.exists()) {
+        await db.ref('testimonials').set({
+          t1: { text: "Grâce aux conseils de la communauté, j'ai multiplié mon engagement par 3 en 2 semaines.", author: "Marc D.", role: "Créateur voyage" },
+          t2: { text: "Le chat est super réactif, on se sent vraiment entouré.", author: "Léa P.", role: "Beauté" },
+          t3: { text: "J'ai découvert des méthodes que je n'aurais jamais trouvé seul. Merci !", author: "Youssef K.", role: "Gaming" },
+          t4: { text: "Service client impeccable et communauté bienveillante. Je recommande !", author: "Sophie L.", role: "Coach fitness" },
+          t5: { text: "Les stratégies partagées ici m'ont aidé à décrocher mes premiers partenariats.", author: "Alexandre B.", role: "Influenceur tech" }
+        });
       }
     }
-
-    // Lancer l'initialisation juste après le chargement
     initializeDefaultData().catch(console.error);
 
     // ============================================
@@ -1121,12 +1040,21 @@
         chatInput.disabled = false;
         chatSend.disabled = false;
 
+        // Gestion présence en ligne
         const userStatusRef = db.ref('status/' + user.uid);
-        const userStatusDatabaseRef = db.ref('.info/connected');
-        userStatusDatabaseRef.on('value', (snap) => {
+        const connectedRef = db.ref('.info/connected');
+        connectedRef.on('value', (snap) => {
           if (snap.val() === true) {
-            userStatusRef.set({ status: 'online', lastOnline: firebase.database.ServerValue.TIMESTAMP, userName: currentUserName });
-            userStatusRef.onDisconnect().set({ status: 'offline', lastOnline: firebase.database.ServerValue.TIMESTAMP, userName: currentUserName });
+            userStatusRef.set({
+              status: 'online',
+              lastOnline: firebase.database.ServerValue.TIMESTAMP,
+              userName: currentUserName
+            });
+            userStatusRef.onDisconnect().set({
+              status: 'offline',
+              lastOnline: firebase.database.ServerValue.TIMESTAMP,
+              userName: currentUserName
+            });
           }
         });
       } else {
@@ -1144,7 +1072,7 @@
     // ============================================
     db.ref('status').on('value', (snapshot) => {
       let online = 0;
-      snapshot.forEach(c => { if (c.val().status === 'online') online++; });
+      snapshot.forEach(child => { if (child.val().status === 'online') online++; });
       document.getElementById('stat-members').innerText = online;
     });
     db.ref('chat_messages').on('value', (snapshot) => {
@@ -1164,7 +1092,7 @@
     db.ref('posts').orderByChild('timestamp').limitToLast(20).on('value', (snapshot) => {
       const posts = [];
       snapshot.forEach(child => posts.push({ id: child.key, ...child.val() }));
-      posts.reverse();
+      posts.reverse(); // plus récents en premier
       postsGrid.innerHTML = posts.map(post => `
         <div class="post-card" data-post-id="${post.id}">
           <div class="post-header">
@@ -1196,7 +1124,10 @@
         authorName: currentUserName,
         content: content,
         timestamp: firebase.database.ServerValue.TIMESTAMP,
-        likesCount: 0, commentsCount: 0, sharesCount: 0, likes: {}
+        likesCount: 0,
+        commentsCount: 0,
+        sharesCount: 0,
+        likes: {}
       });
       document.getElementById('postContentInput').value = '';
     });
@@ -1209,7 +1140,7 @@
     }
     async function handleLike(e) {
       e.preventDefault();
-      if (!currentUser) { alert('Connectez‑vous pour aimer'); return; }
+      if (!currentUser) { alert('Veuillez vous connecter pour aimer un post.'); return; }
       const postId = this.dataset.postId;
       const postRef = db.ref('posts/' + postId);
       const already = await postRef.child('likes/' + currentUser.uid).once('value');
@@ -1227,12 +1158,20 @@
       const members = [];
       snapshot.forEach(child => {
         const data = child.val();
-        if (data.status === 'online') members.push({ name: data.userName || 'Membre', role: 'En ligne', online: true });
+        if (data.status === 'online') {
+          members.push({ name: data.userName || 'Membre', role: 'En ligne', online: true });
+        }
       });
       document.getElementById('membersGrid').innerHTML = members.map(m => `
         <div class="member-card">
-          <div class="member-avatar">${m.name.charAt(0)}<span class="online-dot"></span></div>
-          <div class="member-info"><h4>${m.name}</h4><div class="member-role">${m.role}</div></div>
+          <div class="member-avatar">
+            ${m.name.charAt(0)}
+            <span class="online-dot"></span>
+          </div>
+          <div class="member-info">
+            <h4>${m.name}</h4>
+            <div class="member-role">${m.role}</div>
+          </div>
         </div>
       `).join('');
     });
@@ -1258,7 +1197,7 @@
     db.ref('chat_messages').orderByChild('timestamp').limitToLast(50).on('value', (snapshot) => {
       const msgs = [];
       snapshot.forEach(child => msgs.push(child.val()));
-      msgs.reverse();
+      msgs.reverse(); // plus récents en bas
       document.getElementById('chatMessages').innerHTML = msgs.map(m => `
         <div class="chat-message">
           <div class="chat-message-avatar">${m.userName ? m.userName.charAt(0) : 'A'}</div>
@@ -1295,7 +1234,10 @@
       snapshot.forEach(child => events.push(child.val()));
       document.getElementById('eventsGrid').innerHTML = events.map(e => `
         <div class="event-card">
-          <div class="event-date"><div class="event-day">${e.day}</div><div class="event-month">${e.month}</div></div>
+          <div class="event-date">
+            <div class="event-day">${e.day}</div>
+            <div class="event-month">${e.month}</div>
+          </div>
           <div class="event-details">
             <h4>${e.title}</h4>
             <div class="event-meta">
@@ -1330,18 +1272,25 @@
     // ============================================
     //  UTILITAIRES
     // ============================================
-    function formatTime(t) {
-      if (!t) return 'récent';
-      const d = new Date(t), n = new Date();
-      const m = Math.floor((n - d) / 60000);
-      if (m < 1) return 'à l\'instant';
-      if (m < 60) return `il y a ${m} min`;
-      if (m < 1440) return `il y a ${Math.floor(m / 60)} h`;
-      return `il y a ${Math.floor(m / 1440)} j`;
+    function formatTime(timestamp) {
+      if (!timestamp) return 'récent';
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      if (diffMins < 1) return 'à l\'instant';
+      if (diffMins < 60) return `il y a ${diffMins} min`;
+      if (diffMins < 1440) return `il y a ${Math.floor(diffMins / 60)} h`;
+      return `il y a ${Math.floor(diffMins / 1440)} j`;
     }
     function escapeHtml(unsafe) {
       if (!unsafe) return '';
-      return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+      return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
     }
   </script>
 </body>
