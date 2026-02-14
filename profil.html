@@ -190,7 +190,7 @@
       width: 120px;
       height: 120px;
       border-radius: 50%;
-      cursor: pointer;
+      cursor: default;
     }
 
     .avatar {
@@ -234,7 +234,7 @@
       pointer-events: none;
     }
 
-    .avatar-container:hover .avatar-edit-overlay {
+    .avatar-container.edit-mode .avatar-edit-overlay {
       opacity: 1;
     }
 
@@ -729,11 +729,11 @@
   <div class="profile-container">
     <div class="profile-card" data-aos="fade-up">
       <div class="avatar-section">
-        <div class="avatar-container" id="avatarContainer" style="cursor: default;">
+        <div class="avatar-container" id="avatarContainer">
           <div class="avatar" id="userAvatar">
             <!-- Avatar image or letter will be inserted via JS -->
           </div>
-          <div class="avatar-edit-overlay" id="avatarEditOverlay" style="display: none; pointer-events: none;">
+          <div class="avatar-edit-overlay" id="avatarEditOverlay">
             <i class="fa-solid fa-camera"></i>
           </div>
         </div>
@@ -1011,10 +1011,8 @@
       document.getElementById('viewButtons').style.display = 'none';
       document.getElementById('editButtons').style.display = 'flex';
 
-      // Activer le clic sur l'avatar
-      document.getElementById('avatarContainer').style.cursor = 'pointer';
-      document.getElementById('avatarEditOverlay').style.display = 'flex';
-      document.getElementById('avatarEditOverlay').style.pointerEvents = 'none'; // pour ne pas bloquer le clic
+      // Ajouter la classe edit-mode à l'avatar pour afficher l'overlay caméra
+      document.getElementById('avatarContainer').classList.add('edit-mode');
     }
 
     function exitEditMode() {
@@ -1033,9 +1031,8 @@
       document.getElementById('viewButtons').style.display = 'flex';
       document.getElementById('editButtons').style.display = 'none';
 
-      // Désactiver le clic sur l'avatar
-      document.getElementById('avatarContainer').style.cursor = 'default';
-      document.getElementById('avatarEditOverlay').style.display = 'none';
+      // Retirer la classe edit-mode
+      document.getElementById('avatarContainer').classList.remove('edit-mode');
 
       // Restaurer l'avatar original
       updateAvatarDisplay(originalData.photoURL, originalData.displayName);
@@ -1075,31 +1072,27 @@
         return;
       }
 
-      try {
-        const photoChanged = selectedPhotoURL && selectedPhotoURL !== originalData.photoURL;
-        const photoToSave = photoChanged ? selectedPhotoURL : originalData.photoURL;
+      // Déterminer la photo à sauvegarder (si changée)
+      const photoToSave = selectedPhotoURL !== null ? selectedPhotoURL : originalData.photoURL;
 
+      try {
         const idToken = await currentUser.getIdToken();
         
-        const bodyPayload = {
-          userId: currentUser.uid,
-          displayName: newDisplayName,
-          email: newEmail,
-          phone: newPhone,
-          newPassword: newPassword || undefined
-        };
-
-        if (photoChanged) {
-          bodyPayload.photoURL = selectedPhotoURL;
-        }
-
+        // Appel au backend avec toutes les infos, y compris photoURL
         const response = await fetch(BACKEND_URL + '/api/update-profile', {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + idToken
           },
-          body: JSON.stringify(bodyPayload)
+          body: JSON.stringify({
+            userId: currentUser.uid,
+            displayName: newDisplayName,
+            email: newEmail,
+            phone: newPhone,
+            newPassword: newPassword || undefined,
+            photoURL: photoToSave // Ajout de la photo
+          })
         });
 
         const data = await response.json();
@@ -1108,10 +1101,7 @@
           throw new Error(data.error || 'Erreur lors de la mise a jour');
         }
 
-        if (photoChanged) {
-          currentPhotoURL = photoToSave;
-        }
-
+        // Mettre à jour les données originales
         originalData = {
           displayName: newDisplayName,
           email: newEmail,
@@ -1119,8 +1109,10 @@
           photoURL: photoToSave
         };
 
+        // Mettre à jour l'affichage
         document.getElementById('userDisplayName').textContent = newDisplayName;
         document.getElementById('newPassword').value = '';
+        currentPhotoURL = photoToSave;
         selectedPhotoURL = null; // Réinitialiser
 
         exitEditMode();
@@ -1209,6 +1201,8 @@
       const modal = document.getElementById('avatarModal');
       modal.classList.remove('active');
       // Ne pas modifier selectedPhotoURL ici, on attend le choix ou l'annulation
+      // Si on annule, on remet selectedPhotoURL à null pour éviter de prendre l'ancienne sélection
+      selectedPhotoURL = null;
     }
 
     function showNotification(message, isSuccess) {
