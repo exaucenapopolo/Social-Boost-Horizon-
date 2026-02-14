@@ -185,9 +185,17 @@
       position: relative;
     }
 
-    .avatar {
+    .avatar-container {
+      position: relative;
       width: 120px;
       height: 120px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .avatar {
+      width: 100%;
+      height: 100%;
       border-radius: 50%;
       background: linear-gradient(135deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
       display: flex;
@@ -198,22 +206,40 @@
       font-weight: 700;
       box-shadow: 0 8px 25px rgba(30, 144, 255, 0.3);
       border: 4px solid rgba(255, 255, 255, 0.2);
-      position: relative;
       overflow: hidden;
+      object-fit: cover;
     }
 
-    .avatar::after {
-      content: "";
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .avatar-edit-overlay {
       position: absolute;
-      top: -50%; left: -50%;
-      width: 200%; height: 200%;
-      background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
-      animation: shimmer 3s infinite;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 2rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
     }
 
-    @keyframes shimmer {
-      0% { transform: translateX(-100%) rotate(45deg); }
-      100% { transform: translateX(100%) rotate(45deg); }
+    .avatar-container:hover .avatar-edit-overlay {
+      opacity: 1;
+    }
+
+    .avatar-edit-overlay i {
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
     }
 
     .avatar-section h2 {
@@ -435,6 +461,141 @@
       font-size: 0.8rem;
     }
 
+    /* Modal styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(5px);
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: linear-gradient(145deg, rgba(20, 35, 65, 0.95), rgba(15, 25, 50, 0.98));
+      border-radius: 25px;
+      padding: 30px;
+      max-width: 700px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      animation: modalFadeIn 0.3s;
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-header h3 {
+      color: var(--sbh-light-blue);
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.6);
+      font-size: 1.8rem;
+      cursor: pointer;
+      transition: color 0.3s;
+    }
+
+    .modal-close:hover {
+      color: var(--sbh-accent);
+    }
+
+    .avatar-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .avatar-option {
+      border-radius: 15px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.3s;
+      border: 3px solid transparent;
+      aspect-ratio: 1;
+      background: rgba(255,255,255,0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .avatar-option img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .avatar-option.selected {
+      border-color: var(--sbh-icon-color);
+      transform: scale(1.05);
+      box-shadow: 0 0 15px var(--sbh-icon-color);
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .btn-modal {
+      padding: 12px 30px;
+      border: none;
+      border-radius: 50px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-modal-primary {
+      background: linear-gradient(45deg, var(--sbh-icon-color), #45a049);
+      color: white;
+    }
+
+    .btn-modal-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+    }
+
+    .btn-modal-secondary {
+      background: rgba(255,255,255,0.1);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .btn-modal-secondary:hover {
+      background: rgba(255,255,255,0.2);
+    }
+
     .notification-container {
       position: fixed;
       top: 20px;
@@ -524,11 +685,13 @@
     @media (max-width: 600px) {
       .profile-container { padding: 0 15px; margin: 20px auto; }
       .profile-card { padding: 25px 20px; }
-      .avatar { width: 100px; height: 100px; font-size: 2.5rem; }
+      .avatar-container { width: 100px; height: 100px; }
+      .avatar { font-size: 2.5rem; }
       .buttons { flex-direction: column; }
       .btn { width: 100%; }
       header { padding: 1rem; }
       .mobile-menu { right: 1rem; }
+      .avatar-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
     }
   </style>
 </head>
@@ -566,7 +729,14 @@
   <div class="profile-container">
     <div class="profile-card" data-aos="fade-up">
       <div class="avatar-section">
-        <div class="avatar" id="userAvatar">?</div>
+        <div class="avatar-container" id="avatarContainer" style="cursor: default;">
+          <div class="avatar" id="userAvatar">
+            <!-- Avatar image or letter will be inserted via JS -->
+          </div>
+          <div class="avatar-edit-overlay" id="avatarEditOverlay" style="display: none; pointer-events: none;">
+            <i class="fa-solid fa-camera"></i>
+          </div>
+        </div>
         <h2 id="userDisplayName">Chargement...</h2>
         <div class="member-badge">
           <i class="fa-solid fa-star"></i>
@@ -633,6 +803,23 @@
     </div>
   </div>
 
+  <!-- Modal de sélection d'avatar -->
+  <div class="modal" id="avatarModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-images"></i> Choisissez votre photo de profil</h3>
+        <button class="modal-close" id="closeModalBtn">&times;</button>
+      </div>
+      <div class="avatar-grid" id="avatarGrid">
+        <!-- Les images seront chargées dynamiquement via JS -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal btn-modal-secondary" id="cancelModalBtn">Annuler</button>
+        <button class="btn-modal btn-modal-primary" id="selectAvatarBtn">Choisir</button>
+      </div>
+    </div>
+  </div>
+
   <footer>
     <p>Social Boost Horizon - Tous droits reserves 2025</p>
   </footer>
@@ -661,6 +848,26 @@
     let currentUser = null;
     let originalData = {};
     let isEditMode = false;
+
+    // Liste des photos de profil (URLs)
+    const profilePhotos = [
+      "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/49391629-jeune-homme-avatar-personnage-du-avatar-homme-icone-dessin-anime-illustration-gratuit-vectoriel.jpg",
+      "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/femme%201.png",
+      "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/femme%202.jpg",
+      "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/femme%203.png",
+      "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/femme%204.jpeg",
+      "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/femme%205.jpeg",
+      "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/illustration-du-jeune-homme-souriant_1308-174669.jpg",
+      "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/man-with-beard-avatar-character-isolated-icon-free-vector.jpg",
+      "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/pngtree-man-avatar-image-for-profile-png-image_13001877.png",
+      "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/pngtree-man-avatar-image-for-profile-png-image_13001882.png",
+      "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/figure-detaillee-vieil-homme-tenant-lettre_1077802-376424.jpg"
+    ];
+
+    // Variable pour stocker l'URL temporairement sélectionnée dans le modal
+    let selectedPhotoURL = null;
+    // Variable pour stocker l'URL actuelle (celle dans Firestore)
+    let currentPhotoURL = null;
 
     document.addEventListener('DOMContentLoaded', function() {
       AOS.init({ duration: 800, once: true });
@@ -698,6 +905,41 @@
       document.getElementById('cancelBtn').addEventListener('click', exitEditMode);
       document.getElementById('logoutBtn').addEventListener('click', logout);
       document.getElementById('profileForm').addEventListener('submit', saveProfile);
+
+      // Gestion du modal
+      const modal = document.getElementById('avatarModal');
+      const closeModalBtn = document.getElementById('closeModalBtn');
+      const cancelModalBtn = document.getElementById('cancelModalBtn');
+      const selectAvatarBtn = document.getElementById('selectAvatarBtn');
+      const avatarContainer = document.getElementById('avatarContainer');
+
+      // Ouvrir le modal uniquement en mode édition
+      avatarContainer.addEventListener('click', () => {
+        if (isEditMode) {
+          openAvatarModal();
+        }
+      });
+
+      closeModalBtn.addEventListener('click', closeAvatarModal);
+      cancelModalBtn.addEventListener('click', closeAvatarModal);
+      window.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          closeAvatarModal();
+        }
+      });
+
+      selectAvatarBtn.addEventListener('click', () => {
+        if (selectedPhotoURL) {
+          // Mettre à jour l'affichage temporaire
+          updateAvatarDisplay(selectedPhotoURL);
+          closeAvatarModal();
+        } else {
+          showNotification('Veuillez sélectionner une photo', false);
+        }
+      });
+
+      // Remplir la grille d'avatars
+      populateAvatarGrid();
     });
 
     async function loadUserProfile(user) {
@@ -708,7 +950,6 @@
       const phoneInput = document.getElementById('phone');
 
       const displayName = user.displayName || 'Utilisateur';
-      avatarEl.textContent = displayName.charAt(0).toUpperCase();
       displayNameHeader.textContent = displayName;
       displayNameInput.value = displayName;
       emailInput.value = user.email || '';
@@ -718,16 +959,20 @@
         if (doc.exists) {
           const data = doc.data();
           phoneInput.value = data.phone || '';
+          currentPhotoURL = data.photoURL || null;
           originalData = {
             displayName: displayName,
             email: user.email,
-            phone: data.phone || ''
+            phone: data.phone || '',
+            photoURL: currentPhotoURL
           };
         } else {
+          currentPhotoURL = null;
           originalData = {
             displayName: displayName,
             email: user.email,
-            phone: ''
+            phone: '',
+            photoURL: null
           };
         }
       } catch (err) {
@@ -735,8 +980,23 @@
         originalData = {
           displayName: displayName,
           email: user.email,
-          phone: ''
+          phone: '',
+          photoURL: null
         };
+      }
+
+      // Mettre à jour l'affichage de l'avatar
+      updateAvatarDisplay(currentPhotoURL, displayName);
+    }
+
+    function updateAvatarDisplay(photoURL, displayName) {
+      const avatarEl = document.getElementById('userAvatar');
+      if (photoURL) {
+        avatarEl.innerHTML = `<img src="${photoURL}" alt="Avatar" style="width:100%; height:100%; object-fit:cover;">`;
+      } else {
+        const name = displayName || document.getElementById('userDisplayName').textContent || 'U';
+        avatarEl.innerHTML = name.charAt(0).toUpperCase();
+        avatarEl.style.background = 'linear-gradient(135deg, var(--sbh-gradient-start), var(--sbh-gradient-end))';
       }
     }
 
@@ -750,6 +1010,11 @@
       
       document.getElementById('viewButtons').style.display = 'none';
       document.getElementById('editButtons').style.display = 'flex';
+
+      // Activer le clic sur l'avatar
+      document.getElementById('avatarContainer').style.cursor = 'pointer';
+      document.getElementById('avatarEditOverlay').style.display = 'flex';
+      document.getElementById('avatarEditOverlay').style.pointerEvents = 'none'; // pour ne pas bloquer le clic
     }
 
     function exitEditMode() {
@@ -767,6 +1032,13 @@
       
       document.getElementById('viewButtons').style.display = 'flex';
       document.getElementById('editButtons').style.display = 'none';
+
+      // Désactiver le clic sur l'avatar
+      document.getElementById('avatarContainer').style.cursor = 'default';
+      document.getElementById('avatarEditOverlay').style.display = 'none';
+
+      // Restaurer l'avatar original
+      updateAvatarDisplay(originalData.photoURL, originalData.displayName);
     }
 
     async function saveProfile(e) {
@@ -804,6 +1076,11 @@
       }
 
       try {
+        // Vérifier si la photo a changé
+        const photoChanged = selectedPhotoURL && selectedPhotoURL !== originalData.photoURL;
+        const photoToSave = photoChanged ? selectedPhotoURL : originalData.photoURL;
+
+        // Appel au backend pour mettre à jour les infos (sans la photo)
         const idToken = await currentUser.getIdToken();
         
         const response = await fetch(BACKEND_URL + '/api/update-profile', {
@@ -818,6 +1095,7 @@
             email: newEmail,
             phone: newPhone,
             newPassword: newPassword || undefined
+            // On n'envoie pas photoURL ici, on suppose que le backend ne le gère pas
           })
         });
 
@@ -827,29 +1105,33 @@
           throw new Error(data.error || 'Erreur lors de la mise a jour');
         }
 
-        if (data.noChanges) {
-          showNotification('Aucune modification detectee', false);
-          resetSaveButton();
-          return;
+        // Si la photo a changé, mettre à jour Firestore directement
+        if (photoChanged) {
+          await db.collection('users').doc(currentUser.uid).update({
+            photoURL: photoToSave
+          });
+          currentPhotoURL = photoToSave;
         }
 
+        // Mettre à jour les données originales
         originalData = {
           displayName: newDisplayName,
           email: newEmail,
-          phone: newPhone
+          phone: newPhone,
+          photoURL: photoToSave
         };
 
-        document.getElementById('userAvatar').textContent = newDisplayName.charAt(0).toUpperCase();
         document.getElementById('userDisplayName').textContent = newDisplayName;
         document.getElementById('newPassword').value = '';
+        selectedPhotoURL = null; // Réinitialiser
 
         exitEditMode();
-        showNotification('Profil mis a jour avec succes !', true);
+        showNotification('Profil mis à jour avec succès !', true);
         launchConfetti();
 
         if (newEmail !== currentUser.email || newPassword) {
           setTimeout(() => {
-            showNotification('Vous allez etre redirige vers la connexion...', true);
+            showNotification('Vous allez être redirigé vers la connexion...', true);
             setTimeout(() => {
               auth.signOut().then(() => {
                 window.location.href = 'login.html';
@@ -861,6 +1143,8 @@
       } catch (err) {
         console.error('Erreur sauvegarde:', err);
         showNotification(err.message, false);
+        // Si erreur, on restaure l'avatar original
+        updateAvatarDisplay(originalData.photoURL, originalData.displayName);
       } finally {
         resetSaveButton();
       }
@@ -881,13 +1165,52 @@
     }
 
     function logout() {
-      if (confirm('Voulez-vous vraiment vous deconnecter ?')) {
+      if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
         auth.signOut().then(() => {
           window.location.href = 'login.html';
         }).catch(err => {
-          showNotification('Erreur de deconnexion', false);
+          showNotification('Erreur de déconnexion', false);
         });
       }
+    }
+
+    // Fonctions pour le modal
+    function populateAvatarGrid() {
+      const grid = document.getElementById('avatarGrid');
+      grid.innerHTML = '';
+      profilePhotos.forEach((url, index) => {
+        const option = document.createElement('div');
+        option.className = 'avatar-option';
+        option.dataset.url = url;
+        option.dataset.index = index;
+        option.innerHTML = `<img src="${url}" alt="Avatar ${index+1}" loading="lazy">`;
+        option.addEventListener('click', () => {
+          // Enlever la sélection précédente
+          document.querySelectorAll('.avatar-option').forEach(opt => opt.classList.remove('selected'));
+          option.classList.add('selected');
+          selectedPhotoURL = url;
+        });
+        grid.appendChild(option);
+      });
+    }
+
+    function openAvatarModal() {
+      const modal = document.getElementById('avatarModal');
+      // Pré-sélectionner l'image actuelle si elle existe dans la liste
+      selectedPhotoURL = currentPhotoURL; // Initialiser avec l'actuelle
+      document.querySelectorAll('.avatar-option').forEach(opt => {
+        opt.classList.remove('selected');
+        if (opt.dataset.url === currentPhotoURL) {
+          opt.classList.add('selected');
+        }
+      });
+      modal.classList.add('active');
+    }
+
+    function closeAvatarModal() {
+      const modal = document.getElementById('avatarModal');
+      modal.classList.remove('active');
+      // Ne pas modifier selectedPhotoURL ici, on attend le choix ou l'annulation
     }
 
     function showNotification(message, isSuccess) {
