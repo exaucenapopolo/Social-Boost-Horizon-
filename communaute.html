@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Communauté - Social Boost Horizon</title>
 
-  <!-- Firebase SDK : app + auth + database UNIQUEMENT -->
+  <!-- Firebase SDK : app + auth + database -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
 
   <style>
-    /* ========== VARIABLES & DESIGN SYSTEM ========== */
+    /* ========== VARIABLES & DESIGN SYSTEM (inchangé) ========== */
     :root {
       --primary-color: #1A237E;
       --secondary-color: #283593;
@@ -405,6 +405,97 @@
       color: #ff6b6b !important;
     }
 
+    /* ========== COMMENTAIRES ========== */
+    .comments-section {
+      margin-top: 1rem;
+      border-top: 1px solid var(--border-color);
+      padding-top: 1rem;
+    }
+
+    .comment {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 0.8rem;
+      font-size: 0.9rem;
+    }
+
+    .comment-avatar {
+      width: 30px;
+      height: 30px;
+      background: var(--primary-color);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .comment-content {
+      background: rgba(255,255,255,0.03);
+      padding: 0.5rem 0.8rem;
+      border-radius: var(--radius-md);
+      flex: 1;
+    }
+
+    .comment-author {
+      font-weight: 600;
+      color: var(--accent-color);
+      font-size: 0.8rem;
+      margin-bottom: 0.2rem;
+    }
+
+    .comment-text {
+      color: var(--text-secondary);
+      word-wrap: break-word;
+    }
+
+    .comment-time {
+      font-size: 0.65rem;
+      color: var(--text-tertiary);
+      margin-top: 0.2rem;
+    }
+
+    .add-comment {
+      display: flex;
+      gap: 8px;
+      margin-top: 0.8rem;
+    }
+
+    .add-comment input {
+      flex: 1;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 0.5rem 0.8rem;
+      color: var(--text-primary);
+      font-size: 0.85rem;
+    }
+
+    .add-comment input:focus {
+      outline: none;
+      border-color: var(--accent-color);
+    }
+
+    .add-comment button {
+      background: linear-gradient(135deg, var(--accent-color), var(--accent-dark));
+      border: none;
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .add-comment button:hover {
+      transform: scale(1.05);
+    }
+
     /* ========== MEMBRES EN LIGNE ========== */
     .members-grid {
       display: grid;
@@ -631,6 +722,7 @@
       padding: 1.2rem;
       display: flex;
       gap: 1rem;
+      align-items: center;
     }
 
     .event-date {
@@ -654,6 +746,10 @@
       text-transform: uppercase;
     }
 
+    .event-details {
+      flex: 1;
+    }
+
     .event-details h4 {
       font-size: 1rem;
       margin-bottom: 0.3rem;
@@ -665,6 +761,28 @@
       color: var(--text-tertiary);
       font-size: 0.75rem;
       margin-top: 0.5rem;
+    }
+
+    .join-event-btn {
+      background: transparent;
+      border: 1px solid var(--accent-color);
+      color: var(--accent-color);
+      padding: 0.3rem 1rem;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: var(--transition);
+      margin-top: 0.5rem;
+    }
+
+    .join-event-btn:hover {
+      background: var(--accent-color);
+      color: white;
+    }
+
+    .joined-event {
+      background: var(--accent-color);
+      color: white;
     }
 
     /* ========== TÉMOIGNAGES ========== */
@@ -816,9 +934,9 @@
       <p class="hero-subtitle">
         Échangez avec des milliers de créateurs, partagez vos stratégies et boostez votre réseau.
       </p>
-      <a href="#" class="hero-cta">
+      <button id="joinCommunityBtn" class="hero-cta">
         <i class="fas fa-user-plus"></i> Rejoindre la communauté
-      </a>
+      </button>
     </section>
 
     <!-- ========== STATISTIQUES ========== -->
@@ -956,7 +1074,7 @@
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   <script>
     // ============================================
-    //  CONFIGURATION FIREBASE (Realtime Database uniquement)
+    //  CONFIGURATION FIREBASE (Realtime Database)
     // ============================================
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
@@ -965,11 +1083,11 @@
       storageBucket: "social-boost-horizon.appspot.com",
       messagingSenderId: "43658165639",
       appId: "1:43658165639:web:b8f492dc6a25cd12fc6722",
-      databaseURL: "https://social-boost-horizon-default-rtdb.firebaseio.com/"   // <-- VOTRE URL
+      databaseURL: "https://social-boost-horizon-default-rtdb.firebaseio.com/"
     };
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
-    const db = firebase.database();   // Realtime Database uniquement
+    const db = firebase.database();
 
     // ============================================
     //  INITIALISATION AOS
@@ -987,9 +1105,9 @@
     // ============================================
     async function initializeDefaultData() {
       // --- GROUPES ---
-      const groupsSnap = await db.ref('groups').once('value');
+      const groupsSnap = await db.ref('community/groups').once('value');
       if (!groupsSnap.exists()) {
-        await db.ref('groups').set({
+        await db.ref('community/groups').set({
           group1: { name: "Stratégies Instagram", members: 1250, icon: "fa-instagram", description: "Astuces, algorithmes et retours d'expérience" },
           group2: { name: "Boost TikTok", members: 980, icon: "fa-tiktok", description: "Vidéos virales et croissance express" },
           group3: { name: "Monétisation YouTube", members: 730, icon: "fa-youtube", description: "Gagner sa vie grâce à sa chaîne" },
@@ -1000,21 +1118,21 @@
       }
 
       // --- ÉVÉNEMENTS ---
-      const eventsSnap = await db.ref('events').once('value');
+      const eventsSnap = await db.ref('community/events').once('value');
       if (!eventsSnap.exists()) {
-        await db.ref('events').set({
-          event1: { day: "15", month: "Mai", title: "Webinar : Booster sans se faire bannir", time: "18h", attendees: 45 },
-          event2: { day: "22", month: "Mai", title: "Atelier : Créer des visuels qui convertissent", time: "20h", attendees: 32 },
-          event3: { day: "05", month: "Juin", title: "AMA avec un expert Instagram", time: "19h", attendees: 78 },
-          event4: { day: "12", month: "Juin", title: "Challenge communauté : 1k abonnés en 7j", time: "24h", attendees: 112 },
-          event5: { day: "20", month: "Juin", title: "Live : Analyse de comptes en direct", time: "21h", attendees: 64 }
+        await db.ref('community/events').set({
+          event1: { day: "15", month: "Mai", title: "Webinar : Booster sans se faire bannir", time: "18h", attendees: 45, participants: {} },
+          event2: { day: "22", month: "Mai", title: "Atelier : Créer des visuels qui convertissent", time: "20h", attendees: 32, participants: {} },
+          event3: { day: "05", month: "Juin", title: "AMA avec un expert Instagram", time: "19h", attendees: 78, participants: {} },
+          event4: { day: "12", month: "Juin", title: "Challenge communauté : 1k abonnés en 7j", time: "24h", attendees: 112, participants: {} },
+          event5: { day: "20", month: "Juin", title: "Live : Analyse de comptes en direct", time: "21h", attendees: 64, participants: {} }
         });
       }
 
       // --- TÉMOIGNAGES ---
-      const testimonialsSnap = await db.ref('testimonials').once('value');
+      const testimonialsSnap = await db.ref('community/testimonials').once('value');
       if (!testimonialsSnap.exists()) {
-        await db.ref('testimonials').set({
+        await db.ref('community/testimonials').set({
           t1: { text: "Grâce aux conseils de la communauté, j'ai multiplié mon engagement par 3 en 2 semaines.", author: "Marc D.", role: "Créateur voyage" },
           t2: { text: "Le chat est super réactif, on se sent vraiment entouré.", author: "Léa P.", role: "Beauté" },
           t3: { text: "J'ai découvert des méthodes que je n'aurais jamais trouvé seul. Merci !", author: "Youssef K.", role: "Gaming" },
@@ -1028,71 +1146,115 @@
     // ============================================
     //  AUTHENTIFICATION & PRÉSENCE
     // ============================================
-    auth.onAuthStateChanged(user => {
+    auth.onAuthStateChanged(async (user) => {
       currentUser = user;
       const formContainer = document.getElementById('newPostFormContainer');
       const chatInput = document.getElementById('chatInput');
       const chatSend = document.getElementById('chatSendBtn');
+      const joinBtn = document.getElementById('joinCommunityBtn');
 
       if (user) {
+        // Définir le nom d'affichage
         currentUserName = user.displayName || user.email.split('@')[0];
-        formContainer.style.display = 'block';
-        chatInput.disabled = false;
-        chatSend.disabled = false;
 
-        // Gestion présence en ligne
-        const userStatusRef = db.ref('status/' + user.uid);
+        // Enregistrer le membre dans /community/members/{uid}
+        const memberRef = db.ref(`community/members/${user.uid}`);
+        await memberRef.update({
+          name: currentUserName,
+          email: user.email,
+          lastOnline: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        // Gestion de la présence en ligne via .info/connected
+        const userStatusRef = db.ref(`community/members/${user.uid}/online`);
         const connectedRef = db.ref('.info/connected');
         connectedRef.on('value', (snap) => {
           if (snap.val() === true) {
-            userStatusRef.set({
-              status: 'online',
-              lastOnline: firebase.database.ServerValue.TIMESTAMP,
-              userName: currentUserName
-            });
-            userStatusRef.onDisconnect().set({
-              status: 'offline',
-              lastOnline: firebase.database.ServerValue.TIMESTAMP,
-              userName: currentUserName
-            });
+            userStatusRef.set(true);
+            userStatusRef.onDisconnect().set(false);
           }
         });
+
+        // Activer les contrôles
+        formContainer.style.display = 'block';
+        chatInput.disabled = false;
+        chatSend.disabled = false;
+        joinBtn.style.display = 'none'; // Cacher le bouton rejoindre (déjà membre)
       } else {
         formContainer.style.display = 'none';
         chatInput.disabled = true;
         chatSend.disabled = true;
-        if (currentUser) db.ref('status/' + currentUser.uid).remove();
+        joinBtn.style.display = 'inline-flex';
         currentUser = null;
         currentUserName = "Anonyme";
+      }
+    });
+
+    // Bouton "Rejoindre la communauté" (déclenche la connexion si non connecté)
+    document.getElementById('joinCommunityBtn').addEventListener('click', () => {
+      if (!currentUser) {
+        // Rediriger vers la page de connexion ou ouvrir une modale
+        // Ici on peut simplement rediriger vers login.html
+        window.location.href = "login.html";
       }
     });
 
     // ============================================
     //  STATISTIQUES DYNAMIQUES
     // ============================================
-    db.ref('status').on('value', (snapshot) => {
+    // Membres en ligne
+    db.ref('community/members').on('value', (snapshot) => {
       let online = 0;
-      snapshot.forEach(child => { if (child.val().status === 'online') online++; });
+      snapshot.forEach(child => {
+        if (child.val().online === true) online++;
+      });
       document.getElementById('stat-members').innerText = online;
     });
-    db.ref('chat_messages').on('value', (snapshot) => {
+
+    // Nombre de messages
+    db.ref('community/chat').on('value', (snapshot) => {
       document.getElementById('stat-messages').innerText = snapshot.numChildren() || 0;
     });
-    db.ref('groups').on('value', (snapshot) => {
+
+    // Nombre de groupes
+    db.ref('community/groups').on('value', (snapshot) => {
       document.getElementById('stat-groups').innerText = snapshot.numChildren() || 0;
     });
-    db.ref('events').on('value', (snapshot) => {
+
+    // Nombre d'événements
+    db.ref('community/events').on('value', (snapshot) => {
       document.getElementById('stat-events').innerText = snapshot.numChildren() || 0;
     });
 
     // ============================================
-    //  POSTS (affichage, création, likes)
+    //  POSTS (affichage, création, likes, commentaires)
     // ============================================
     const postsGrid = document.getElementById('postsGrid');
-    db.ref('posts').orderByChild('timestamp').limitToLast(20).on('value', (snapshot) => {
+
+    // Écoute des posts en temps réel
+    db.ref('community/posts').orderByChild('timestamp').limitToLast(20).on('value', async (snapshot) => {
       const posts = [];
-      snapshot.forEach(child => posts.push({ id: child.key, ...child.val() }));
+      const promises = [];
+      snapshot.forEach(child => {
+        const post = { id: child.key, ...child.val() };
+        posts.push(post);
+        // Récupérer les commentaires pour ce post
+        const commentsPromise = db.ref(`community/comments/${child.key}`).once('value').then(commentsSnap => {
+          post.comments = [];
+          commentsSnap.forEach(commentChild => {
+            post.comments.push({ id: commentChild.key, ...commentChild.val() });
+          });
+          // Trier les commentaires par timestamp
+          post.comments.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+        });
+        promises.push(commentsPromise);
+      });
+      await Promise.all(promises);
       posts.reverse(); // plus récents en premier
+      renderPosts(posts);
+    });
+
+    function renderPosts(posts) {
       postsGrid.innerHTML = posts.map(post => `
         <div class="post-card" data-post-id="${post.id}">
           <div class="post-header">
@@ -1108,30 +1270,59 @@
               <i class="${post.likes && post.likes[currentUser?.uid] ? 'fas' : 'far'} fa-heart ${post.likes && post.likes[currentUser?.uid] ? 'liked' : ''}"></i>
               ${post.likesCount || 0}
             </span>
-            <span class="post-stat"><i class="far fa-comment"></i> ${post.commentsCount || 0}</span>
-            <span class="post-stat"><i class="far fa-share-square"></i> ${post.sharesCount || 0}</span>
+            <span class="post-stat comment-toggle" data-post-id="${post.id}">
+              <i class="far fa-comment"></i> ${post.commentsCount || 0}
+            </span>
+            <span class="post-stat"><i class="far fa-share-square"></i> 0</span>
+          </div>
+          <!-- Section commentaires (cachée par défaut) -->
+          <div class="comments-section" id="comments-${post.id}" style="display: none;">
+            ${renderComments(post.comments)}
+            <div class="add-comment">
+              <input type="text" id="comment-input-${post.id}" placeholder="Écrire un commentaire..." maxlength="200">
+              <button class="comment-send" data-post-id="${post.id}"><i class="fas fa-paper-plane"></i></button>
+            </div>
           </div>
         </div>
       `).join('');
-      attachLikeListeners();
-    });
 
+      // Attacher les événements
+      attachLikeListeners();
+      attachCommentToggleListeners();
+      attachCommentSendListeners();
+    }
+
+    function renderComments(comments) {
+      if (!comments || comments.length === 0) return '<p style="color: var(--text-tertiary); font-size:0.8rem;">Aucun commentaire pour le moment.</p>';
+      return comments.map(c => `
+        <div class="comment">
+          <div class="comment-avatar">${c.authorName ? c.authorName.charAt(0) : 'A'}</div>
+          <div class="comment-content">
+            <div class="comment-author">${c.authorName || 'Anonyme'}</div>
+            <div class="comment-text">${escapeHtml(c.content)}</div>
+            <div class="comment-time">${formatTime(c.timestamp)}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Publication d'un nouveau post
     document.getElementById('submitPostBtn').addEventListener('click', async () => {
       const content = document.getElementById('postContentInput').value.trim();
       if (!content || !currentUser) return;
-      await db.ref('posts').push({
+      const newPostRef = db.ref('community/posts').push();
+      await newPostRef.set({
         authorId: currentUser.uid,
         authorName: currentUserName,
         content: content,
         timestamp: firebase.database.ServerValue.TIMESTAMP,
         likesCount: 0,
-        commentsCount: 0,
-        sharesCount: 0,
-        likes: {}
+        commentsCount: 0
       });
       document.getElementById('postContentInput').value = '';
     });
 
+    // Gestion des likes
     function attachLikeListeners() {
       document.querySelectorAll('.like-btn').forEach(btn => {
         btn.removeEventListener('click', handleLike);
@@ -1140,26 +1331,71 @@
     }
     async function handleLike(e) {
       e.preventDefault();
-      if (!currentUser) { alert('Veuillez vous connecter pour aimer un post.'); return; }
+      if (!currentUser) { alert('Veuillez vous connecter.'); return; }
       const postId = this.dataset.postId;
-      const postRef = db.ref('posts/' + postId);
-      const already = await postRef.child('likes/' + currentUser.uid).once('value');
-      if (already.val()) {
-        postRef.update({ [`likes/${currentUser.uid}`]: null, likesCount: firebase.database.ServerValue.increment(-1) });
+      const likeRef = db.ref(`community/likes/${postId}/${currentUser.uid}`);
+      const postRef = db.ref(`community/posts/${postId}`);
+      const snapshot = await likeRef.once('value');
+      if (snapshot.val()) {
+        // Déjà liké -> unlike
+        await likeRef.remove();
+        await postRef.child('likesCount').transaction(current => (current || 1) - 1);
       } else {
-        postRef.update({ [`likes/${currentUser.uid}`]: true, likesCount: firebase.database.ServerValue.increment(1) });
+        await likeRef.set(true);
+        await postRef.child('likesCount').transaction(current => (current || 0) + 1);
       }
+    }
+
+    // Affichage des commentaires (toggle)
+    function attachCommentToggleListeners() {
+      document.querySelectorAll('.comment-toggle').forEach(btn => {
+        btn.removeEventListener('click', toggleComments);
+        btn.addEventListener('click', toggleComments);
+      });
+    }
+    function toggleComments(e) {
+      const postId = this.dataset.postId;
+      const commentsDiv = document.getElementById(`comments-${postId}`);
+      if (commentsDiv.style.display === 'none') {
+        commentsDiv.style.display = 'block';
+      } else {
+        commentsDiv.style.display = 'none';
+      }
+    }
+
+    // Envoi d'un commentaire
+    function attachCommentSendListeners() {
+      document.querySelectorAll('.comment-send').forEach(btn => {
+        btn.removeEventListener('click', sendComment);
+        btn.addEventListener('click', sendComment);
+      });
+    }
+    async function sendComment(e) {
+      const postId = this.dataset.postId;
+      const input = document.getElementById(`comment-input-${postId}`);
+      const content = input.value.trim();
+      if (!content || !currentUser) return;
+      const commentRef = db.ref(`community/comments/${postId}`).push();
+      await commentRef.set({
+        authorId: currentUser.uid,
+        authorName: currentUserName,
+        content: content,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      });
+      // Incrémenter le compteur de commentaires du post
+      await db.ref(`community/posts/${postId}/commentsCount`).transaction(current => (current || 0) + 1);
+      input.value = '';
     }
 
     // ============================================
     //  MEMBRES EN LIGNE
     // ============================================
-    db.ref('status').on('value', (snapshot) => {
+    db.ref('community/members').on('value', (snapshot) => {
       const members = [];
       snapshot.forEach(child => {
         const data = child.val();
-        if (data.status === 'online') {
-          members.push({ name: data.userName || 'Membre', role: 'En ligne', online: true });
+        if (data.online === true) {
+          members.push({ name: data.name || 'Membre', role: 'En ligne', online: true });
         }
       });
       document.getElementById('membersGrid').innerHTML = members.map(m => `
@@ -1179,7 +1415,7 @@
     // ============================================
     //  GROUPES
     // ============================================
-    db.ref('groups').on('value', (snapshot) => {
+    db.ref('community/groups').on('value', (snapshot) => {
       const groups = [];
       snapshot.forEach(child => groups.push(child.val()));
       document.getElementById('groupsGrid').innerHTML = groups.map(g => `
@@ -1194,10 +1430,10 @@
     // ============================================
     //  CHAT
     // ============================================
-    db.ref('chat_messages').orderByChild('timestamp').limitToLast(50).on('value', (snapshot) => {
+    db.ref('community/chat').orderByChild('timestamp').limitToLast(50).on('value', (snapshot) => {
       const msgs = [];
-      snapshot.forEach(child => msgs.push(child.val()));
-      msgs.reverse(); // plus récents en bas
+      snapshot.forEach(child => msgs.push({ id: child.key, ...child.val() }));
+      msgs.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
       document.getElementById('chatMessages').innerHTML = msgs.map(m => `
         <div class="chat-message">
           <div class="chat-message-avatar">${m.userName ? m.userName.charAt(0) : 'A'}</div>
@@ -1214,7 +1450,7 @@
       const input = document.getElementById('chatInput');
       const text = input.value.trim();
       if (!text || !currentUser) return;
-      await db.ref('chat_messages').push({
+      await db.ref('community/chat').push({
         userId: currentUser.uid,
         userName: currentUserName,
         text: text,
@@ -1229,11 +1465,17 @@
     // ============================================
     //  ÉVÉNEMENTS
     // ============================================
-    db.ref('events').on('value', (snapshot) => {
+    db.ref('community/events').on('value', (snapshot) => {
       const events = [];
-      snapshot.forEach(child => events.push(child.val()));
-      document.getElementById('eventsGrid').innerHTML = events.map(e => `
-        <div class="event-card">
+      snapshot.forEach(child => events.push({ id: child.key, ...child.val() }));
+      renderEvents(events);
+    });
+
+    function renderEvents(events) {
+      document.getElementById('eventsGrid').innerHTML = events.map(e => {
+        const isJoined = currentUser && e.participants && e.participants[currentUser.uid];
+        return `
+        <div class="event-card" data-event-id="${e.id}">
           <div class="event-date">
             <div class="event-day">${e.day}</div>
             <div class="event-month">${e.month}</div>
@@ -1244,15 +1486,40 @@
               <span><i class="far fa-clock"></i> ${e.time}</span>
               <span><i class="fas fa-user"></i> ${e.attendees} inscrits</span>
             </div>
+            ${currentUser ? `<button class="join-event-btn ${isJoined ? 'joined-event' : ''}" data-event-id="${e.id}">${isJoined ? '✓ Inscrit' : 'Rejoindre'}</button>` : ''}
           </div>
         </div>
-      `).join('');
-    });
+      `}).join('');
+      attachEventListeners();
+    }
+
+    function attachEventListeners() {
+      document.querySelectorAll('.join-event-btn').forEach(btn => {
+        btn.removeEventListener('click', handleJoinEvent);
+        btn.addEventListener('click', handleJoinEvent);
+      });
+    }
+
+    async function handleJoinEvent(e) {
+      if (!currentUser) return;
+      const eventId = this.dataset.eventId;
+      const eventRef = db.ref(`community/events/${eventId}`);
+      const participantRef = db.ref(`community/events/${eventId}/participants/${currentUser.uid}`);
+      const snapshot = await participantRef.once('value');
+      if (snapshot.val()) {
+        // Déjà inscrit -> se désinscrire
+        await participantRef.remove();
+        await eventRef.child('attendees').transaction(current => (current || 1) - 1);
+      } else {
+        await participantRef.set(true);
+        await eventRef.child('attendees').transaction(current => (current || 0) + 1);
+      }
+    }
 
     // ============================================
     //  TÉMOIGNAGES
     // ============================================
-    db.ref('testimonials').on('value', (snapshot) => {
+    db.ref('community/testimonials').on('value', (snapshot) => {
       const testimonials = [];
       snapshot.forEach(child => testimonials.push(child.val()));
       document.getElementById('testimonialsSlider').innerHTML = testimonials.map(t => `
