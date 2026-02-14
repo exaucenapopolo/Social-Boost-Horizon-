@@ -1076,27 +1076,30 @@
       }
 
       try {
-        // Vérifier si la photo a changé
         const photoChanged = selectedPhotoURL && selectedPhotoURL !== originalData.photoURL;
         const photoToSave = photoChanged ? selectedPhotoURL : originalData.photoURL;
 
-        // Appel au backend pour mettre à jour les infos (sans la photo)
         const idToken = await currentUser.getIdToken();
         
+        const bodyPayload = {
+          userId: currentUser.uid,
+          displayName: newDisplayName,
+          email: newEmail,
+          phone: newPhone,
+          newPassword: newPassword || undefined
+        };
+
+        if (photoChanged) {
+          bodyPayload.photoURL = selectedPhotoURL;
+        }
+
         const response = await fetch(BACKEND_URL + '/api/update-profile', {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + idToken
           },
-          body: JSON.stringify({
-            userId: currentUser.uid,
-            displayName: newDisplayName,
-            email: newEmail,
-            phone: newPhone,
-            newPassword: newPassword || undefined
-            // On n'envoie pas photoURL ici, on suppose que le backend ne le gère pas
-          })
+          body: JSON.stringify(bodyPayload)
         });
 
         const data = await response.json();
@@ -1105,15 +1108,10 @@
           throw new Error(data.error || 'Erreur lors de la mise a jour');
         }
 
-        // Si la photo a changé, mettre à jour Firestore directement
         if (photoChanged) {
-          await db.collection('users').doc(currentUser.uid).update({
-            photoURL: photoToSave
-          });
           currentPhotoURL = photoToSave;
         }
 
-        // Mettre à jour les données originales
         originalData = {
           displayName: newDisplayName,
           email: newEmail,
