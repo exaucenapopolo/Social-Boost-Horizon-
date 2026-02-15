@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Historique Commandes Avancées – Social Boost Horizon</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <style>
+    :root {
+      --adv-bg: #0C0C1D;
+      --adv-surface: #141428;
+      --adv-surface-2: #1C1C3A;
+      --adv-border: rgba(255, 165, 0, 0.15);
+      --adv-primary: #FF8C00;
+      --adv-primary-light: #FFA940;
+      --adv-secondary: #10B981;
+      --adv-accent: #F43F5E;
+      --adv-gold: #F59E0B;
+      --adv-text: #F1F5F9;
+      --adv-text-dim: rgba(241, 245, 249, 0.6);
+      --adv-text-muted: rgba(241, 245, 249, 0.4);
+      --adv-glow: rgba(255, 140, 0, 0.4);
+      --font-heading: 'Space Grotesk', sans-serif;
+      --font-body: 'Inter', sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-body);
+      color: var(--adv-text);
+      background: var(--adv-bg);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .mesh-bg {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+      background:
+        radial-gradient(ellipse at 10% 20%, rgba(255, 140, 0, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 90% 80%, rgba(16, 185, 129, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(244, 63, 94, 0.04) 0%, transparent 60%),
+        var(--adv-bg);
+    }
+
+    .mesh-bg .grid-overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background-image:
+        linear-gradient(rgba(255,140,0,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,140,0,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+
+    .top-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px;
+      background: var(--adv-surface);
+      border-bottom: 1px solid var(--adv-border);
+      position: sticky; top: 0; z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .top-bar .back-btn {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--adv-primary); background: none; border: none;
+      font-size: 0.95rem; cursor: pointer; font-family: var(--font-body);
+      text-decoration: none;
+    }
+
+    .top-bar h1 {
+      font-family: var(--font-heading);
+      font-size: 1.15rem;
+      background: linear-gradient(135deg, var(--adv-primary), var(--adv-gold));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    .top-bar .balance-pill {
+      background: linear-gradient(135deg, rgba(255,140,0,0.15), rgba(245,158,11,0.1));
+      border: 1px solid var(--adv-border);
+      border-radius: 20px; padding: 6px 14px;
+      font-size: 0.85rem; font-weight: 600;
+      color: var(--adv-gold);
+    }
+
+    .container {
+      max-width: 800px; margin: 0 auto; padding: 20px 16px 100px;
+    }
+
+    .stats-row {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: var(--adv-surface);
+      border: 1px solid var(--adv-border);
+      border-radius: 12px; padding: 14px;
+      text-align: center;
+    }
+
+    .stat-card .stat-val {
+      font-family: var(--font-heading);
+      font-size: 1.5rem; font-weight: 700;
+      background: linear-gradient(135deg, var(--adv-primary), var(--adv-gold));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    .stat-card .stat-label {
+      font-size: 0.75rem; color: var(--adv-text-dim); margin-top: 4px;
+    }
+
+    .filter-bar {
+      display: flex; gap: 8px; margin-bottom: 16px;
+      overflow-x: auto; padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .filter-bar::-webkit-scrollbar { display: none; }
+
+    .filter-btn {
+      flex-shrink: 0; padding: 8px 16px;
+      border-radius: 20px; border: 1px solid var(--adv-border);
+      background: var(--adv-surface); color: var(--adv-text-dim);
+      font-size: 0.8rem; cursor: pointer; font-family: var(--font-body);
+      transition: all 0.2s;
+    }
+
+    .filter-btn.active {
+      background: linear-gradient(135deg, var(--adv-primary), var(--adv-gold));
+      color: #000; border-color: transparent; font-weight: 600;
+    }
+
+    .search-box {
+      width: 100%; padding: 10px 14px 10px 40px;
+      background: var(--adv-surface);
+      border: 1px solid var(--adv-border);
+      border-radius: 10px; color: var(--adv-text);
+      font-size: 0.9rem; font-family: var(--font-body);
+      margin-bottom: 16px; outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-box:focus { border-color: var(--adv-primary); }
+
+    .search-wrap {
+      position: relative; margin-bottom: 16px;
+    }
+    .search-wrap i {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: var(--adv-text-muted); font-size: 0.9rem;
+    }
+    .search-wrap .search-box { margin-bottom: 0; }
+
+    .orders-list {
+      display: flex; flex-direction: column; gap: 12px;
+    }
+
+    .order-card {
+      background: var(--adv-surface);
+      border: 1px solid var(--adv-border);
+      border-radius: 14px; padding: 16px;
+      transition: all 0.2s;
+    }
+    .order-card:hover {
+      border-color: rgba(255,140,0,0.3);
+      box-shadow: 0 4px 20px rgba(255,140,0,0.08);
+    }
+
+    .order-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .order-id {
+      font-family: var(--font-heading);
+      font-size: 0.95rem; font-weight: 600;
+      color: var(--adv-primary);
+    }
+
+    .order-status {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 12px; border-radius: 20px;
+      font-size: 0.75rem; font-weight: 600;
+    }
+
+    .status-en-cours { background: rgba(59,130,246,0.15); color: #60A5FA; }
+    .status-termine { background: rgba(16,185,129,0.15); color: #34D399; }
+    .status-en-attente { background: rgba(245,158,11,0.15); color: #FBBF24; }
+    .status-annule { background: rgba(239,68,68,0.15); color: #F87171; }
+    .status-partiel { background: rgba(168,85,247,0.15); color: #C084FC; }
+    .status-traitement { background: rgba(99,102,241,0.15); color: #818CF8; }
+
+    .order-service {
+      font-size: 0.85rem; color: var(--adv-text);
+      margin-bottom: 8px; line-height: 1.4;
+      display: -webkit-box; -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+
+    .order-link {
+      font-size: 0.75rem; color: var(--adv-text-muted);
+      margin-bottom: 10px; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+    }
+    .order-link a {
+      color: var(--adv-primary-light); text-decoration: none;
+    }
+
+    .order-meta {
+      display: flex; justify-content: space-between; align-items: center;
+      padding-top: 10px; border-top: 1px solid var(--adv-border);
+    }
+
+    .order-meta-item {
+      display: flex; flex-direction: column; align-items: center;
+    }
+
+    .order-meta-label {
+      font-size: 0.65rem; color: var(--adv-text-muted); text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .order-meta-value {
+      font-family: var(--font-heading);
+      font-size: 0.9rem; font-weight: 600;
+      color: var(--adv-text);
+    }
+
+    .order-meta-value.price { color: var(--adv-gold); }
+
+    .order-date {
+      font-size: 0.7rem; color: var(--adv-text-muted);
+    }
+
+    .order-actions {
+      display: flex; gap: 8px; margin-top: 10px;
+    }
+
+    .order-action-btn {
+      flex: 1; padding: 8px;
+      border-radius: 8px; border: 1px solid var(--adv-border);
+      background: var(--adv-surface-2); color: var(--adv-text-dim);
+      font-size: 0.75rem; cursor: pointer; font-family: var(--font-body);
+      transition: all 0.2s; display: flex; align-items: center;
+      justify-content: center; gap: 5px;
+    }
+    .order-action-btn:hover {
+      border-color: var(--adv-primary); color: var(--adv-primary);
+    }
+    .order-action-btn:disabled {
+      opacity: 0.4; cursor: not-allowed;
+    }
+    .order-action-btn.refresh-btn:hover { border-color: #60A5FA; color: #60A5FA; }
+    .order-action-btn.refill-btn:hover { border-color: #34D399; color: #34D399; }
+    .order-action-btn.cancel-btn:hover { border-color: #F87171; color: #F87171; }
+
+    .empty-state {
+      text-align: center; padding: 60px 20px;
+    }
+    .empty-state i {
+      font-size: 3rem; color: var(--adv-text-muted); margin-bottom: 16px;
+    }
+    .empty-state h3 {
+      font-family: var(--font-heading);
+      font-size: 1.2rem; color: var(--adv-text-dim); margin-bottom: 8px;
+    }
+    .empty-state p {
+      font-size: 0.85rem; color: var(--adv-text-muted); margin-bottom: 20px;
+    }
+    .empty-state a {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 10px 20px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--adv-primary), var(--adv-gold));
+      color: #000; text-decoration: none; font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .loading-spinner {
+      display: flex; justify-content: center; padding: 40px;
+    }
+    .loading-spinner .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--adv-border);
+      border-top-color: var(--adv-primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .notify-toast {
+      position: fixed; bottom: 30px; left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--adv-surface-2);
+      border: 1px solid var(--adv-border);
+      color: var(--adv-text); padding: 12px 24px;
+      border-radius: 12px; font-size: 0.85rem;
+      z-index: 9999; opacity: 0;
+      transition: all 0.3s ease;
+      max-width: 90%;
+    }
+    .notify-toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    .notify-toast.error { border-color: rgba(239,68,68,0.4); }
+    .notify-toast.success { border-color: rgba(16,185,129,0.4); }
+
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--adv-surface);
+      border-top: 1px solid var(--adv-border);
+      display: flex; justify-content: space-around;
+      padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+      z-index: 100;
+    }
+
+    .bottom-nav a {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 4px; text-decoration: none;
+      color: var(--adv-text-muted); font-size: 0.65rem;
+      transition: color 0.2s;
+    }
+    .bottom-nav a i { font-size: 1.1rem; }
+    .bottom-nav a.active { color: var(--adv-primary); }
+    .bottom-nav a:hover { color: var(--adv-primary-light); }
+
+    @media (max-width: 480px) {
+      .stats-row { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .stat-card { padding: 10px; }
+      .stat-card .stat-val { font-size: 1.2rem; }
+      .order-meta { flex-wrap: wrap; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="mesh-bg"><div class="grid-overlay"></div></div>
+
+  <div class="top-bar">
+    <a href="commande-avancee.html" class="back-btn"><i class="fas fa-arrow-left"></i> Retour</a>
+    <h1>Mes Commandes</h1>
+    <div class="balance-pill" id="balancePill">--</div>
+  </div>
+
+  <div class="container">
+    <div class="stats-row" id="statsRow">
+      <div class="stat-card">
+        <div class="stat-val" id="statTotal">0</div>
+        <div class="stat-label">Total</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="statActive">0</div>
+        <div class="stat-label">En cours</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="statDone">0</div>
+        <div class="stat-label">Terminées</div>
+      </div>
+    </div>
+
+    <div class="filter-bar" id="filterBar">
+      <button class="filter-btn active" data-filter="all">Toutes</button>
+      <button class="filter-btn" data-filter="En cours">En cours</button>
+      <button class="filter-btn" data-filter="En attente">En attente</button>
+      <button class="filter-btn" data-filter="Terminé">Terminées</button>
+      <button class="filter-btn" data-filter="Partiel">Partielles</button>
+      <button class="filter-btn" data-filter="Annulé">Annulées</button>
+    </div>
+
+    <div class="search-wrap">
+      <i class="fas fa-search"></i>
+      <input type="text" class="search-box" id="searchBox" placeholder="Rechercher par ID, service ou lien...">
+    </div>
+
+    <div id="ordersContainer">
+      <div class="loading-spinner"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <a href="dashboard.html"><i class="fas fa-home"></i>Accueil</a>
+    <a href="commande-avancee.html"><i class="fas fa-bolt"></i>Commander</a>
+    <a href="historique-avancee.html" class="active"><i class="fas fa-clock-rotate-left"></i>Historique</a>
+    <a href="recharger.html"><i class="fas fa-wallet"></i>Recharger</a>
+  </div>
+
+  <div class="notify-toast" id="notifyToast"></div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.appspot.com",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('replit') ? '' : 'https://social-boost-exaucenapopolo2.replit.app';
+
+    const CURRENCY_CONFIG = {
+      'cm': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '\u{1F1E8}\u{1F1F2}' },
+      'ga': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '\u{1F1EC}\u{1F1E6}' },
+      'cg': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '\u{1F1E8}\u{1F1EC}' },
+      'td': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '\u{1F1F9}\u{1F1E9}' },
+      'cf': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '\u{1F1E8}\u{1F1EB}' },
+      'gq': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '\u{1F1EC}\u{1F1F6}' },
+      'sn': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '\u{1F1F8}\u{1F1F3}' },
+      'ci': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '\u{1F1E8}\u{1F1EE}' },
+      'ml': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '\u{1F1F2}\u{1F1F1}' },
+      'bf': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '\u{1F1E7}\u{1F1EB}' },
+      'bj': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '\u{1F1E7}\u{1F1EF}' },
+      'tg': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '\u{1F1F9}\u{1F1EC}' },
+      'ne': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '\u{1F1F3}\u{1F1EA}' },
+      'gw': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '\u{1F1EC}\u{1F1FC}' },
+      'cd': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '\u{1F1E8}\u{1F1E9}' },
+      'gh': { code: 'GHS', symbol: 'GH\u20B5', rate: 0.024, flag: '\u{1F1EC}\u{1F1ED}' },
+      'ng': { code: 'NGN', symbol: '\u20A6', rate: 2.44, flag: '\u{1F1F3}\u{1F1EC}' },
+      'ke': { code: 'KES', symbol: 'KSh', rate: 0.20, flag: '\u{1F1F0}\u{1F1EA}' },
+      'ug': { code: 'UGX', symbol: 'USh', rate: 5.64, flag: '\u{1F1FA}\u{1F1EC}' },
+      'tz': { code: 'TZS', symbol: 'TSh', rate: 3.81, flag: '\u{1F1F9}\u{1F1FF}' },
+      'rw': { code: 'RWF', symbol: 'FRw', rate: 1.98, flag: '\u{1F1F7}\u{1F1FC}' },
+      'zm': { code: 'ZMW', symbol: 'ZK', rate: 0.041, flag: '\u{1F1FF}\u{1F1F2}' },
+      'mw': { code: 'MWK', symbol: 'MK', rate: 2.67, flag: '\u{1F1F2}\u{1F1FC}' },
+      'Cameroun': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '\u{1F1E8}\u{1F1F2}' },
+      'RDC': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '\u{1F1E8}\u{1F1E9}' },
+      'RD Congo': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '\u{1F1E8}\u{1F1E9}' },
+      'S\u00e9n\u00e9gal': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '\u{1F1F8}\u{1F1F3}' },
+      'C\u00f4te d\'Ivoire': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '\u{1F1E8}\u{1F1EE}' },
+      'Ghana': { code: 'GHS', symbol: 'GH\u20B5', rate: 0.024, flag: '\u{1F1EC}\u{1F1ED}' },
+      'Nigeria': { code: 'NGN', symbol: '\u20A6', rate: 2.44, flag: '\u{1F1F3}\u{1F1EC}' }
+    };
+
+    let userCurrency = CURRENCY_CONFIG['Cameroun'];
+    let allOrders = [];
+    let currentFilter = 'all';
+
+    function convertPrice(xafAmount) {
+      const local = Math.round(xafAmount * userCurrency.rate);
+      return `${local.toLocaleString('fr-FR')} ${userCurrency.symbol}`;
+    }
+
+    function showToast(msg, type = '') {
+      const t = document.getElementById('notifyToast');
+      t.textContent = msg;
+      t.className = 'notify-toast ' + type + ' show';
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    function getStatusClass(status) {
+      const map = {
+        'En cours': 'status-en-cours',
+        'Terminé': 'status-termine',
+        'En attente': 'status-en-attente',
+        'Annulé': 'status-annule',
+        'Partiel': 'status-partiel',
+        'Traitement': 'status-traitement'
+      };
+      return map[status] || 'status-en-cours';
+    }
+
+    function getStatusIcon(status) {
+      const map = {
+        'En cours': 'fa-spinner fa-spin',
+        'Terminé': 'fa-check-circle',
+        'En attente': 'fa-clock',
+        'Annulé': 'fa-times-circle',
+        'Partiel': 'fa-adjust',
+        'Traitement': 'fa-cog fa-spin'
+      };
+      return map[status] || 'fa-circle';
+    }
+
+    function formatDate(timestamp) {
+      if (!timestamp) return '--';
+      const d = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function renderOrders(orders) {
+      const container = document.getElementById('ordersContainer');
+      if (orders.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-box-open"></i>
+            <h3>Aucune commande</h3>
+            <p>${currentFilter === 'all' ? 'Vous n\'avez pas encore de commandes avancées.' : 'Aucune commande avec ce statut.'}</p>
+            <a href="commande-avancee.html"><i class="fas fa-plus"></i> Passer une commande</a>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = orders.map(order => `
+        <div class="order-card" data-id="${order.orderId}">
+          <div class="order-header">
+            <span class="order-id">${order.orderId}</span>
+            <span class="order-status ${getStatusClass(order.status)}">
+              <i class="fas ${getStatusIcon(order.status)}"></i> ${order.status}
+            </span>
+          </div>
+          <div class="order-service">${order.serviceName || 'Service avancé'}</div>
+          <div class="order-link"><i class="fas fa-link"></i> <a href="${order.link}" target="_blank" rel="noopener">${order.link}</a></div>
+          <div class="order-meta">
+            <div class="order-meta-item">
+              <span class="order-meta-label">Quantité</span>
+              <span class="order-meta-value">${(order.quantity || 0).toLocaleString('fr-FR')}</span>
+            </div>
+            <div class="order-meta-item">
+              <span class="order-meta-label">Prix</span>
+              <span class="order-meta-value price">${convertPrice(order.priceXAF || 0)}</span>
+            </div>
+            <div class="order-meta-item">
+              <span class="order-meta-label">Date</span>
+              <span class="order-date">${formatDate(order.createdAt)}</span>
+            </div>
+          </div>
+          <div class="order-actions">
+            <button class="order-action-btn refresh-btn" onclick="refreshStatus('${order.orderId}')" ${['Terminé','Annulé'].includes(order.status) ? 'disabled' : ''}>
+              <i class="fas fa-sync-alt"></i> Statut
+            </button>
+            <button class="order-action-btn refill-btn" onclick="refillOrder('${order.orderId}')" ${order.status !== 'Terminé' ? 'disabled' : ''}>
+              <i class="fas fa-redo"></i> Recharge
+            </button>
+            <button class="order-action-btn cancel-btn" onclick="cancelOrder('${order.orderId}')" ${['Terminé','Annulé','Partiel'].includes(order.status) ? 'disabled' : ''}>
+              <i class="fas fa-ban"></i> Annuler
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function applyFilters() {
+      let filtered = [...allOrders];
+      if (currentFilter !== 'all') {
+        filtered = filtered.filter(o => o.status === currentFilter);
+      }
+      const search = document.getElementById('searchBox').value.toLowerCase().trim();
+      if (search) {
+        filtered = filtered.filter(o =>
+          (o.orderId || '').toLowerCase().includes(search) ||
+          (o.serviceName || '').toLowerCase().includes(search) ||
+          (o.link || '').toLowerCase().includes(search)
+        );
+      }
+      renderOrders(filtered);
+    }
+
+    function updateStats() {
+      document.getElementById('statTotal').textContent = allOrders.length;
+      document.getElementById('statActive').textContent = allOrders.filter(o => ['En cours','En attente','Traitement'].includes(o.status)).length;
+      document.getElementById('statDone').textContent = allOrders.filter(o => o.status === 'Terminé').length;
+    }
+
+    async function getToken() {
+      const user = auth.currentUser;
+      if (!user) throw new Error('Non connecté');
+      return await user.getIdToken();
+    }
+
+    async function loadOrders() {
+      try {
+        const token = await getToken();
+        const res = await fetch(`${BACKEND_URL}/api/afriqueboost/user-orders`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          allOrders = data.orders;
+          updateStats();
+          applyFilters();
+        } else {
+          throw new Error(data.error);
+        }
+      } catch (err) {
+        document.getElementById('ordersContainer').innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h3>Erreur de chargement</h3>
+            <p>${err.message}</p>
+          </div>`;
+      }
+    }
+
+    async function refreshStatus(orderId) {
+      const btn = event.target.closest('.order-action-btn');
+      const origHTML = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+      btn.disabled = true;
+      try {
+        const token = await getToken();
+        const res = await fetch(`${BACKEND_URL}/api/afriqueboost/order-status/${orderId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`Statut mis à jour: ${data.status}`, 'success');
+          await loadOrders();
+        } else {
+          showToast(data.error || 'Erreur', 'error');
+        }
+      } catch (err) {
+        showToast('Erreur de connexion', 'error');
+      } finally {
+        btn.innerHTML = origHTML;
+        btn.disabled = false;
+      }
+    }
+
+    async function refillOrder(orderId) {
+      if (!confirm('Demander une recharge pour cette commande ?')) return;
+      const btn = event.target.closest('.order-action-btn');
+      const origHTML = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+      btn.disabled = true;
+      try {
+        const token = await getToken();
+        const res = await fetch(`${BACKEND_URL}/api/afriqueboost/refill`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Demande de recharge envoyée !', 'success');
+        } else {
+          showToast(data.error || 'Erreur', 'error');
+        }
+      } catch (err) {
+        showToast('Erreur de connexion', 'error');
+      } finally {
+        btn.innerHTML = origHTML;
+        btn.disabled = false;
+      }
+    }
+
+    async function cancelOrder(orderId) {
+      if (!confirm('Annuler cette commande ? Le montant sera remboursé sur votre solde.')) return;
+      const btn = event.target.closest('.order-action-btn');
+      const origHTML = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+      btn.disabled = true;
+      try {
+        const token = await getToken();
+        const res = await fetch(`${BACKEND_URL}/api/afriqueboost/cancel`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`Commande annulée ! Remboursé: ${convertPrice(data.refundedAmount)}`, 'success');
+          document.getElementById('balancePill').textContent = convertPrice(data.newBalance);
+          await loadOrders();
+        } else {
+          showToast(data.error || 'Erreur', 'error');
+        }
+      } catch (err) {
+        showToast('Erreur de connexion', 'error');
+      } finally {
+        btn.innerHTML = origHTML;
+        btn.disabled = false;
+      }
+    }
+
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.filter;
+        applyFilters();
+      });
+    });
+
+    document.getElementById('searchBox').addEventListener('input', applyFilters);
+
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+      const userDoc = await db.collection('users').doc(user.uid).get();
+      if (userDoc.exists) {
+        const data = userDoc.data();
+        const country = data.country || 'Cameroun';
+        userCurrency = CURRENCY_CONFIG[country] || CURRENCY_CONFIG['Cameroun'];
+        const balance = data.balance || 0;
+        document.getElementById('balancePill').textContent = convertPrice(balance);
+      }
+      loadOrders();
+    });
+  </script>
+</body>
+</html>
