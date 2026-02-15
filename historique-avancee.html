@@ -480,7 +480,12 @@
 
     function formatDate(timestamp) {
       if (!timestamp) return '--';
-      const d = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      let d;
+      if (timestamp.toDate) d = timestamp.toDate();
+      else if (timestamp._seconds) d = new Date(timestamp._seconds * 1000);
+      else if (typeof timestamp === 'string') d = new Date(timestamp);
+      else d = new Date(timestamp);
+      if (isNaN(d.getTime())) return '--';
       return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     }
 
@@ -511,6 +516,10 @@
             <div class="order-meta-item">
               <span class="order-meta-label">Quantité</span>
               <span class="order-meta-value">${(order.quantity || 0).toLocaleString('fr-FR')}</span>
+            </div>
+            <div class="order-meta-item">
+              <span class="order-meta-label">Départ</span>
+              <span class="order-meta-value">${order.startCount != null ? parseInt(order.startCount).toLocaleString('fr-FR') : '--'}</span>
             </div>
             <div class="order-meta-item">
               <span class="order-meta-label">Prix</span>
