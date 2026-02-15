@@ -519,7 +519,11 @@
             </div>
             <div class="order-meta-item">
               <span class="order-meta-label">Départ</span>
-              <span class="order-meta-value">${order.startCount != null ? parseInt(order.startCount).toLocaleString('fr-FR') : '--'}</span>
+              <span class="order-meta-value start-count" data-order="${order.orderId}">${order.startCount != null ? parseInt(order.startCount).toLocaleString('fr-FR') : '--'}</span>
+            </div>
+            <div class="order-meta-item">
+              <span class="order-meta-label">Reste</span>
+              <span class="order-meta-value remains" data-order="${order.orderId}">${order.remains != null ? parseInt(order.remains).toLocaleString('fr-FR') : '--'}</span>
             </div>
             <div class="order-meta-item">
               <span class="order-meta-label">Prix</span>
@@ -609,8 +613,19 @@
         });
         const data = await res.json();
         if (data.success) {
-          showToast(`Statut mis à jour: ${data.status}`, 'success');
-          await loadOrders();
+          const card = document.querySelector(`.order-card[data-id="${orderId}"]`);
+          if (card) {
+            const statusEl = card.querySelector('.order-status');
+            if (statusEl) {
+              statusEl.className = `order-status ${getStatusClass(data.status)}`;
+              statusEl.innerHTML = `<i class="fas ${getStatusIcon(data.status)}"></i> ${data.status}`;
+            }
+            const startEl = card.querySelector(`.start-count[data-order="${orderId}"]`);
+            if (startEl && data.startCount != null) startEl.textContent = parseInt(data.startCount).toLocaleString('fr-FR');
+            const remainsEl = card.querySelector(`.remains[data-order="${orderId}"]`);
+            if (remainsEl && data.remains != null) remainsEl.textContent = parseInt(data.remains).toLocaleString('fr-FR');
+          }
+          showToast(`Statut: ${data.status} | Départ: ${data.startCount || '--'} | Reste: ${data.remains || '--'}`, 'success');
         } else {
           showToast(data.error || 'Erreur', 'error');
         }
