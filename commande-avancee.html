@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Commande Avancée – Social Boost Horizon</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <style>
+    :root {
+      --adv-bg: #0C0C1D;
+      --adv-surface: #141428;
+      --adv-surface-2: #1C1C3A;
+      --adv-border: rgba(255, 165, 0, 0.15);
+      --adv-primary: #FF8C00;
+      --adv-primary-light: #FFA940;
+      --adv-secondary: #10B981;
+      --adv-accent: #F43F5E;
+      --adv-gold: #F59E0B;
+      --adv-text: #F1F5F9;
+      --adv-text-dim: rgba(241, 245, 249, 0.6);
+      --adv-text-muted: rgba(241, 245, 249, 0.4);
+      --adv-glow: rgba(255, 140, 0, 0.4);
+      --font-heading: 'Space Grotesk', sans-serif;
+      --font-body: 'Inter', sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-body);
+      color: var(--adv-text);
+      background: var(--adv-bg);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .mesh-bg {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+      background:
+        radial-gradient(ellipse at 10% 20%, rgba(255, 140, 0, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 90% 80%, rgba(16, 185, 129, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(244, 63, 94, 0.04) 0%, transparent 60%),
+        var(--adv-bg);
+    }
+
+    .mesh-bg .grid-overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background-image:
+        linear-gradient(rgba(255,140,0,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,140,0,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      animation: gridShift 20s linear infinite;
+    }
+    @keyframes gridShift {
+      0% { transform: translate(0, 0); }
+      100% { transform: translate(60px, 60px); }
+    }
+
+    .orb {
+      position: fixed; border-radius: 50%; filter: blur(80px); pointer-events: none; z-index: -1;
+    }
+    .orb-1 {
+      width: 300px; height: 300px; background: rgba(255, 140, 0, 0.1);
+      top: 10%; left: -5%; animation: orbFloat 12s ease-in-out infinite;
+    }
+    .orb-2 {
+      width: 250px; height: 250px; background: rgba(16, 185, 129, 0.08);
+      bottom: 10%; right: -5%; animation: orbFloat 16s ease-in-out infinite reverse;
+    }
+    @keyframes orbFloat {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(40px, -40px); }
+    }
+
+    .top-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, var(--adv-surface), var(--adv-surface-2));
+      border-bottom: 1px solid var(--adv-border);
+      position: sticky; top: 0; z-index: 100;
+      backdrop-filter: blur(20px);
+    }
+    .top-bar .logo-link {
+      display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--adv-text);
+    }
+    .top-bar .logo-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--adv-primary), var(--adv-accent));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700; color: white;
+    }
+    .top-bar .logo-title {
+      font-family: var(--font-heading); font-size: 1rem; font-weight: 700;
+    }
+    .top-bar .logo-title span { color: var(--adv-primary); }
+    .balance-chip {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(255, 140, 0, 0.1); border: 1px solid rgba(255, 140, 0, 0.25);
+      border-radius: 25px; padding: 6px 14px; font-size: 0.85rem; font-weight: 600;
+    }
+    .balance-chip i { color: var(--adv-gold); }
+
+    .page-wrapper { max-width: 1200px; margin: 0 auto; padding: 20px 16px 100px; }
+
+    .hero-section {
+      text-align: center; padding: 30px 0 20px;
+    }
+    .hero-section h1 {
+      font-family: var(--font-heading); font-size: 1.8rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--adv-primary), var(--adv-gold), var(--adv-secondary));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 8px;
+    }
+    .hero-section p { color: var(--adv-text-dim); font-size: 0.9rem; }
+
+    .steps-indicator {
+      display: flex; justify-content: center; gap: 8px; margin: 24px 0;
+    }
+    .step-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--adv-surface-2); border: 2px solid var(--adv-border);
+      transition: all 0.4s ease;
+    }
+    .step-dot.active {
+      background: var(--adv-primary); border-color: var(--adv-primary);
+      box-shadow: 0 0 12px var(--adv-glow);
+      transform: scale(1.3);
+    }
+    .step-dot.done {
+      background: var(--adv-secondary); border-color: var(--adv-secondary);
+    }
+
+    .step-panel {
+      display: none; animation: stepIn 0.4s ease;
+    }
+    .step-panel.active { display: block; }
+    @keyframes stepIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .step-title {
+      font-family: var(--font-heading); font-size: 1.2rem; font-weight: 700;
+      margin-bottom: 16px; display: flex; align-items: center; gap: 10px;
+    }
+    .step-title .step-num {
+      width: 30px; height: 30px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--adv-primary), var(--adv-accent));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem; font-weight: 700;
+    }
+
+    .platforms-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 10px; margin-bottom: 20px;
+    }
+    .platform-card {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      padding: 14px 8px; border-radius: 14px;
+      background: var(--adv-surface); border: 1px solid var(--adv-border);
+      cursor: pointer; transition: all 0.3s ease;
+      font-size: 0.75rem; font-weight: 500; color: var(--adv-text-dim);
+    }
+    .platform-card:hover { border-color: var(--adv-primary); transform: translateY(-3px); }
+    .platform-card.active {
+      border-color: var(--adv-primary); background: rgba(255, 140, 0, 0.1);
+      color: var(--adv-primary); box-shadow: 0 4px 20px rgba(255, 140, 0, 0.15);
+    }
+    .platform-card i { font-size: 1.5rem; }
+    .platform-card .count-badge {
+      font-size: 0.65rem; padding: 2px 6px; border-radius: 10px;
+      background: rgba(255,255,255,0.06);
+    }
+    .platform-card.active .count-badge { background: rgba(255, 140, 0, 0.2); }
+
+    .plat-instagram i { color: #E1306C; }
+    .plat-facebook i { color: #1877F2; }
+    .plat-tiktok i { color: #00f2ea; }
+    .plat-youtube i { color: #FF0000; }
+    .plat-twitter i { color: #1DA1F2; }
+    .plat-telegram i { color: #0088CC; }
+    .plat-whatsapp i { color: #25D366; }
+    .plat-linkedin i { color: #0A66C2; }
+    .plat-spotify i { color: #1DB954; }
+    .plat-twitch i { color: #9146FF; }
+    .plat-discord i { color: #5865F2; }
+    .plat-snapchat i { color: #FFFC00; }
+    .plat-pinterest i { color: #E60023; }
+    .plat-threads i { color: #ffffff; }
+    .plat-soundcloud i { color: #FF5500; }
+    .plat-website i { color: var(--adv-secondary); }
+    .plat-other i { color: var(--adv-text-dim); }
+
+    .search-bar {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--adv-surface); border: 1px solid var(--adv-border);
+      border-radius: 12px; padding: 10px 16px; margin-bottom: 14px;
+    }
+    .search-bar i { color: var(--adv-text-muted); }
+    .search-bar input {
+      flex: 1; background: none; border: none; outline: none;
+      color: var(--adv-text); font-size: 0.9rem; font-family: var(--font-body);
+    }
+    .search-bar input::placeholder { color: var(--adv-text-muted); }
+
+    .categories-scroll {
+      display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px;
+      margin-bottom: 14px; scrollbar-width: none;
+    }
+    .categories-scroll::-webkit-scrollbar { display: none; }
+    .cat-chip {
+      white-space: nowrap; padding: 6px 14px; border-radius: 20px;
+      background: var(--adv-surface); border: 1px solid var(--adv-border);
+      color: var(--adv-text-dim); font-size: 0.8rem; font-weight: 500;
+      cursor: pointer; transition: all 0.3s ease; flex-shrink: 0;
+    }
+    .cat-chip:hover { border-color: var(--adv-primary); }
+    .cat-chip.active {
+      background: var(--adv-primary); border-color: var(--adv-primary);
+      color: white; font-weight: 600;
+    }
+    .cat-chip .chip-count {
+      display: inline-block; margin-left: 4px; padding: 1px 6px;
+      border-radius: 10px; background: rgba(255,255,255,0.1); font-size: 0.7rem;
+    }
+    .cat-chip.active .chip-count { background: rgba(255,255,255,0.25); }
+
+    .services-count {
+      font-size: 0.8rem; color: var(--adv-text-muted); margin-bottom: 12px;
+    }
+
+    .services-list {
+      display: flex; flex-direction: column; gap: 8px;
+      max-height: 55vh; overflow-y: auto; padding-right: 4px;
+    }
+    .services-list::-webkit-scrollbar { width: 4px; }
+    .services-list::-webkit-scrollbar-track { background: transparent; }
+    .services-list::-webkit-scrollbar-thumb { background: var(--adv-border); border-radius: 4px; }
+
+    .svc-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; padding: 12px 16px; border-radius: 12px;
+      background: var(--adv-surface); border: 1px solid var(--adv-border);
+      cursor: pointer; transition: all 0.3s ease;
+    }
+    .svc-row:hover {
+      border-color: var(--adv-primary); background: rgba(255, 140, 0, 0.05);
+      transform: translateX(4px);
+    }
+    .svc-row.selected {
+      border-color: var(--adv-primary); background: rgba(255, 140, 0, 0.1);
+      box-shadow: 0 0 20px rgba(255, 140, 0, 0.1);
+    }
+    .svc-info { flex: 1; min-width: 0; }
+    .svc-name {
+      font-size: 0.85rem; font-weight: 500; color: var(--adv-text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .svc-meta {
+      display: flex; align-items: center; gap: 10px; margin-top: 4px;
+      font-size: 0.72rem; color: var(--adv-text-muted);
+    }
+    .svc-meta .svc-id { color: var(--adv-primary); font-weight: 600; }
+    .svc-badges { display: flex; gap: 4px; }
+    .svc-badge {
+      font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; font-weight: 600;
+    }
+    .badge-refill { background: rgba(16, 185, 129, 0.15); color: var(--adv-secondary); }
+    .badge-cancel { background: rgba(244, 63, 94, 0.15); color: var(--adv-accent); }
+    .svc-price {
+      text-align: right; white-space: nowrap;
+    }
+    .svc-price .price-val {
+      font-size: 0.9rem; font-weight: 700; color: var(--adv-gold);
+    }
+    .svc-price .price-unit {
+      font-size: 0.65rem; color: var(--adv-text-muted); display: block;
+    }
+
+    .order-form-section {
+      background: var(--adv-surface); border: 1px solid var(--adv-border);
+      border-radius: 16px; padding: 24px 20px; margin-top: 10px;
+    }
+    .selected-svc-banner {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; border-radius: 12px; margin-bottom: 20px;
+      background: linear-gradient(135deg, rgba(255,140,0,0.1), rgba(245,158,11,0.05));
+      border: 1px solid rgba(255,140,0,0.2);
+    }
+    .selected-svc-banner .svc-sel-name {
+      font-weight: 600; font-size: 0.9rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%;
+    }
+    .selected-svc-banner .change-btn {
+      font-size: 0.75rem; color: var(--adv-primary); cursor: pointer;
+      background: none; border: 1px solid var(--adv-primary); border-radius: 8px;
+      padding: 4px 12px; font-weight: 600; transition: all 0.3s;
+    }
+    .selected-svc-banner .change-btn:hover {
+      background: var(--adv-primary); color: white;
+    }
+
+    .form-group { margin-bottom: 18px; }
+    .form-group label {
+      display: block; font-size: 0.8rem; font-weight: 600;
+      color: var(--adv-text-dim); margin-bottom: 6px;
+    }
+    .form-input {
+      width: 100%; padding: 12px 16px; border-radius: 10px;
+      background: var(--adv-bg); border: 1px solid var(--adv-border);
+      color: var(--adv-text); font-size: 0.9rem; font-family: var(--font-body);
+      outline: none; transition: border-color 0.3s;
+    }
+    .form-input:focus { border-color: var(--adv-primary); }
+    .form-input::placeholder { color: var(--adv-text-muted); }
+    textarea.form-input { resize: vertical; min-height: 100px; }
+
+    .qty-range {
+      display: flex; gap: 8px; align-items: center; margin-top: 6px;
+      font-size: 0.75rem; color: var(--adv-text-muted);
+    }
+    .qty-range span { color: var(--adv-secondary); font-weight: 600; }
+
+    .remarks-box {
+      display: none; margin-bottom: 16px; padding: 10px 14px; border-radius: 10px;
+      background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2);
+      font-size: 0.78rem; color: var(--adv-gold); line-height: 1.5;
+    }
+    .remarks-box.visible { display: block; }
+
+    .price-summary {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 18px; border-radius: 12px; margin-bottom: 18px;
+      background: linear-gradient(135deg, var(--adv-surface-2), var(--adv-surface));
+      border: 1px solid var(--adv-border);
+    }
+    .price-summary .label { font-size: 0.85rem; color: var(--adv-text-dim); }
+    .price-summary .total-val {
+      font-family: var(--font-heading); font-size: 1.3rem; font-weight: 800;
+      color: var(--adv-gold);
+    }
+
+    .submit-btn {
+      width: 100%; padding: 14px; border: none; border-radius: 12px;
+      font-family: var(--font-heading); font-size: 1rem; font-weight: 700;
+      color: white; cursor: pointer; transition: all 0.3s ease;
+      background: linear-gradient(135deg, var(--adv-primary), var(--adv-accent));
+      box-shadow: 0 4px 20px rgba(255, 140, 0, 0.3);
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 30px rgba(255, 140, 0, 0.4);
+    }
+    .submit-btn:disabled {
+      opacity: 0.5; cursor: not-allowed; transform: none;
+      box-shadow: none;
+    }
+    .submit-btn.loading { pointer-events: none; }
+
+    .empty-state {
+      text-align: center; padding: 40px 20px; color: var(--adv-text-muted);
+    }
+    .empty-state i { font-size: 2.5rem; margin-bottom: 12px; display: block; color: var(--adv-border); }
+    .empty-state h3 { font-family: var(--font-heading); margin-bottom: 6px; color: var(--adv-text-dim); }
+
+    .loader-shimmer {
+      height: 60px; border-radius: 12px; margin-bottom: 8px;
+      background: linear-gradient(90deg, var(--adv-surface) 25%, var(--adv-surface-2) 50%, var(--adv-surface) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .success-overlay {
+      display: none; position: fixed; inset: 0; z-index: 1000;
+      background: rgba(12, 12, 29, 0.95); backdrop-filter: blur(10px);
+      align-items: center; justify-content: center;
+    }
+    .success-overlay.active { display: flex; }
+    .success-card {
+      background: var(--adv-surface); border: 1px solid var(--adv-border);
+      border-radius: 20px; padding: 30px; text-align: center;
+      max-width: 380px; width: 90%; animation: popIn 0.4s ease;
+    }
+    @keyframes popIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .success-card .check-icon {
+      width: 70px; height: 70px; border-radius: 50%; margin: 0 auto 16px;
+      background: linear-gradient(135deg, var(--adv-secondary), #059669);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem; color: white;
+      animation: checkPulse 1s ease infinite;
+    }
+    @keyframes checkPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+      50% { box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); }
+    }
+    .success-card h2 {
+      font-family: var(--font-heading); font-size: 1.3rem; margin-bottom: 12px;
+      color: var(--adv-secondary);
+    }
+    .success-detail {
+      display: flex; justify-content: space-between; padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.85rem;
+    }
+    .success-detail .sd-label { color: var(--adv-text-muted); }
+    .success-detail .sd-value { font-weight: 600; }
+    .success-close-btn {
+      margin-top: 20px; padding: 12px 30px; border: none; border-radius: 10px;
+      background: linear-gradient(135deg, var(--adv-primary), var(--adv-accent));
+      color: white; font-weight: 700; font-size: 0.9rem; cursor: pointer;
+      font-family: var(--font-heading);
+    }
+
+    .notify-toast {
+      position: fixed; top: 20px; right: 20px; z-index: 2000;
+      padding: 14px 20px; border-radius: 12px; max-width: 350px;
+      font-size: 0.85rem; font-weight: 500; color: white;
+      transform: translateX(120%); transition: transform 0.4s ease;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    }
+    .notify-toast.show { transform: translateX(0); }
+    .notify-toast.success { background: linear-gradient(135deg, #10B981, #059669); }
+    .notify-toast.error { background: linear-gradient(135deg, #EF4444, #DC2626); }
+    .notify-toast.info { background: linear-gradient(135deg, var(--adv-primary), var(--adv-accent)); }
+
+    .comments-section { display: none; }
+    .comments-section.active { display: block; }
+    .comments-count-info {
+      font-size: 0.75rem; color: var(--adv-secondary); margin-top: 6px;
+      font-weight: 600;
+    }
+
+    @media (max-width: 600px) {
+      .platforms-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; }
+      .platform-card { padding: 10px 6px; font-size: 0.7rem; }
+      .platform-card i { font-size: 1.2rem; }
+      .hero-section h1 { font-size: 1.4rem; }
+      .svc-name { font-size: 0.8rem; }
+      .order-form-section { padding: 18px 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="mesh-bg"><div class="grid-overlay"></div></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <div class="top-bar">
+    <a href="dashboard.html" class="logo-link">
+      <div class="logo-icon">SB</div>
+      <div class="logo-title"><span>Commande</span> Avancée</div>
+    </a>
+    <div class="balance-chip">
+      <i class="fas fa-wallet"></i>
+      <span id="userBalance">-- FCFA</span>
+    </div>
+  </div>
+
+  <div class="page-wrapper">
+    <div class="hero-section" data-aos="fade-down">
+      <h1>Boostez votre présence</h1>
+      <p>Sélectionnez une plateforme, un service, et passez votre commande</p>
+    </div>
+
+    <div class="steps-indicator" data-aos="fade-up">
+      <div class="step-dot active" data-step="1"></div>
+      <div class="step-dot" data-step="2"></div>
+      <div class="step-dot" data-step="3"></div>
+    </div>
+
+    <div id="step1" class="step-panel active">
+      <div class="step-title"><div class="step-num">1</div> Choisissez une plateforme</div>
+      <div id="platformsGrid" class="platforms-grid"></div>
+
+      <div class="search-bar">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" placeholder="Rechercher un service..." />
+      </div>
+
+      <div id="categoriesScroll" class="categories-scroll"></div>
+      <div id="servicesCount" class="services-count"></div>
+
+      <div id="servicesList" class="services-list">
+        <div class="loader-shimmer"></div>
+        <div class="loader-shimmer"></div>
+        <div class="loader-shimmer"></div>
+        <div class="loader-shimmer"></div>
+      </div>
+    </div>
+
+    <div id="step2" class="step-panel">
+      <div class="step-title"><div class="step-num">2</div> Détails de la commande</div>
+      <div class="order-form-section">
+        <div class="selected-svc-banner">
+          <span class="svc-sel-name" id="selectedSvcName">--</span>
+          <button class="change-btn" id="changeSvcBtn"><i class="fas fa-exchange-alt"></i> Changer</button>
+        </div>
+
+        <div id="remarksBox" class="remarks-box">
+          <i class="fas fa-info-circle"></i> <span id="remarksText"></span>
+        </div>
+
+        <form id="orderForm">
+          <div class="form-group">
+            <label><i class="fas fa-link"></i> Lien de votre publication / profil</label>
+            <input type="url" class="form-input" id="orderLink" placeholder="https://..." required />
+          </div>
+
+          <div class="form-group" id="quantityGroup">
+            <label><i class="fas fa-layer-group"></i> Quantité</label>
+            <input type="number" class="form-input" id="orderQuantity" placeholder="Entrez la quantité" required />
+            <div class="qty-range">
+              Min: <span id="qtyMin">0</span> — Max: <span id="qtyMax">0</span>
+            </div>
+          </div>
+
+          <div class="comments-section" id="commentsSection">
+            <div class="form-group">
+              <label><i class="fas fa-comments"></i> Commentaires personnalisés (1 par ligne)</label>
+              <textarea class="form-input" id="customComments" placeholder="Entrez vos commentaires ici, un par ligne..."></textarea>
+              <div class="comments-count-info">
+                <i class="fas fa-list-ol"></i> <span id="commentsCount">0</span> commentaire(s) saisi(s)
+              </div>
+            </div>
+          </div>
+
+          <div class="price-summary">
+            <span class="label">Prix total</span>
+            <span class="total-val" id="totalPrice">0 FCFA</span>
+          </div>
+
+          <button type="submit" class="submit-btn" id="submitBtn">
+            <i class="fas fa-paper-plane"></i> Passer la commande
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div id="step3" class="step-panel">
+    </div>
+  </div>
+
+  <div class="success-overlay" id="successOverlay">
+    <div class="success-card">
+      <div class="check-icon"><i class="fas fa-check"></i></div>
+      <h2>Commande réussie !</h2>
+      <div class="success-detail"><span class="sd-label">N° Commande</span><span class="sd-value" id="sucOrderId">--</span></div>
+      <div class="success-detail"><span class="sd-label">Quantité</span><span class="sd-value" id="sucQty">--</span></div>
+      <div class="success-detail"><span class="sd-label">Prix</span><span class="sd-value" id="sucPrice">--</span></div>
+      <div class="success-detail"><span class="sd-label">Nouveau solde</span><span class="sd-value" id="sucBalance">--</span></div>
+      <button class="success-close-btn" onclick="closeSuccess()"><i class="fas fa-plus"></i> Nouvelle commande</button>
+    </div>
+  </div>
+
+  <div class="notify-toast" id="notifyToast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  <script>
+    AOS.init({ duration: 500, once: true });
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.appspot.com",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('replit') ? '' : 'https://social-boost-exaucenapopolo2.replit.app';
+
+    const CURRENCY_CONFIG = {
+      'cm': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇲' },
+      'ga': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇬🇦' },
+      'cg': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇬' },
+      'td': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇹🇩' },
+      'cf': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇫' },
+      'gq': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇬🇶' },
+      'sn': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇸🇳' },
+      'ci': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇨🇮' },
+      'ml': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇲🇱' },
+      'bf': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇫' },
+      'bj': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇯' },
+      'tg': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇹🇬' },
+      'ne': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇳🇪' },
+      'gw': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇬🇼' },
+      'cd': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+      'gh': { code: 'GHS', symbol: 'GH₵', rate: 0.024, flag: '🇬🇭' },
+      'ng': { code: 'NGN', symbol: '₦', rate: 2.44, flag: '🇳🇬' },
+      'ke': { code: 'KES', symbol: 'KSh', rate: 0.20, flag: '🇰🇪' },
+      'ug': { code: 'UGX', symbol: 'USh', rate: 5.64, flag: '🇺🇬' },
+      'tz': { code: 'TZS', symbol: 'TSh', rate: 3.81, flag: '🇹🇿' },
+      'rw': { code: 'RWF', symbol: 'FRw', rate: 1.98, flag: '🇷🇼' },
+      'zm': { code: 'ZMW', symbol: 'ZK', rate: 0.041, flag: '🇿🇲' },
+      'mw': { code: 'MWK', symbol: 'MK', rate: 2.67, flag: '🇲🇼' },
+      'Cameroun': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇲' },
+      'RDC': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+      'RD Congo': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+      'Sénégal': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇸🇳' },
+      'Côte d\'Ivoire': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇨🇮' },
+      'Ghana': { code: 'GHS', symbol: 'GH₵', rate: 0.024, flag: '🇬🇭' },
+      'Nigeria': { code: 'NGN', symbol: '₦', rate: 2.44, flag: '🇳🇬' }
+    };
+
+    let userCurrency = CURRENCY_CONFIG['Cameroun'];
+    let allServices = [];
+    let selectedPlatform = null;
+    let selectedCategory = null;
+    let selectedService = null;
+    let userBalance = 0;
+    let userBalanceXAF = 0;
+    let userId = null;
+    let isCustomComments = false;
+
+    const PLATFORMS = {
+      instagram:  { icon: 'fab fa-instagram', label: 'Instagram' },
+      facebook:   { icon: 'fab fa-facebook', label: 'Facebook' },
+      tiktok:     { icon: 'fab fa-tiktok', label: 'TikTok' },
+      youtube:    { icon: 'fab fa-youtube', label: 'YouTube' },
+      twitter:    { icon: 'fab fa-twitter', label: 'Twitter/X' },
+      telegram:   { icon: 'fab fa-telegram', label: 'Telegram' },
+      whatsapp:   { icon: 'fab fa-whatsapp', label: 'WhatsApp' },
+      linkedin:   { icon: 'fab fa-linkedin', label: 'LinkedIn' },
+      spotify:    { icon: 'fab fa-spotify', label: 'Spotify' },
+      twitch:     { icon: 'fab fa-twitch', label: 'Twitch' },
+      discord:    { icon: 'fab fa-discord', label: 'Discord' },
+      snapchat:   { icon: 'fab fa-snapchat', label: 'Snapchat' },
+      pinterest:  { icon: 'fab fa-pinterest', label: 'Pinterest' },
+      threads:    { icon: 'fab fa-threads', label: 'Threads' },
+      soundcloud: { icon: 'fab fa-soundcloud', label: 'SoundCloud' },
+      website:    { icon: 'fas fa-globe', label: 'Web/SEO' },
+      other:      { icon: 'fas fa-ellipsis-h', label: 'Autres' }
+    };
+
+    function convertFromXAF(amountXAF) { return amountXAF * userCurrency.rate; }
+
+    function formatPrice(amountXAF) {
+      const local = convertFromXAF(amountXAF);
+      return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(local) + ' ' + userCurrency.symbol;
+    }
+
+    function notify(msg, type = 'info') {
+      const toast = document.getElementById('notifyToast');
+      toast.textContent = msg;
+      toast.className = 'notify-toast ' + type;
+      setTimeout(() => toast.classList.add('show'), 10);
+      setTimeout(() => toast.classList.remove('show'), 4500);
+    }
+
+    function detectPlatform(service) {
+      const text = ((service.name || '') + ' ' + (service.category || '')).toLowerCase();
+      if (text.includes('instagram') || text.includes('ig ') || text.includes('insta')) return 'instagram';
+      if (text.includes('facebook') || text.includes('fb ')) return 'facebook';
+      if (text.includes('tiktok') || text.includes('tik tok')) return 'tiktok';
+      if (text.includes('youtube') || text.includes('yt ')) return 'youtube';
+      if (text.includes('twitter') || text.includes('x/twitter') || text.includes('tweet')) return 'twitter';
+      if (text.includes('telegram') || text.includes('tg ')) return 'telegram';
+      if (text.includes('whatsapp') || text.includes('whats app')) return 'whatsapp';
+      if (text.includes('linkedin')) return 'linkedin';
+      if (text.includes('spotify')) return 'spotify';
+      if (text.includes('twitch')) return 'twitch';
+      if (text.includes('discord')) return 'discord';
+      if (text.includes('snapchat') || text.includes('snap ')) return 'snapchat';
+      if (text.includes('pinterest')) return 'pinterest';
+      if (text.includes('soundcloud') || text.includes('sound cloud')) return 'soundcloud';
+      if (text.includes('threads')) return 'threads';
+      if (text.includes('website') || text.includes('traffic') || text.includes('trafic') || text.includes('seo')) return 'website';
+      return 'other';
+    }
+
+    function detectServiceType(name) {
+      const n = name.toLowerCase();
+      if (n.includes('view') || n.includes('vue')) return 'Vues';
+      if (n.includes('like') || n.includes('j\'aime')) return 'J\'aime';
+      if (n.includes('follower') || n.includes('subscriber') || n.includes('abonné')) return 'Abonnés';
+      if (n.includes('comment') || n.includes('commentaire')) return 'Commentaires';
+      if (n.includes('share') || n.includes('partage')) return 'Partages';
+      if (n.includes('save') || n.includes('sauvegarde')) return 'Sauvegardes';
+      if (n.includes('reaction') || n.includes('réaction')) return 'Réactions';
+      if (n.includes('retweet')) return 'Retweets';
+      if (n.includes('member') || n.includes('membre')) return 'Membres';
+      return 'Autres';
+    }
+
+    function translateServiceName(name) {
+      const translations = {
+        'Followers': 'Abonnés', 'followers': 'abonnés', 'Likes': 'J\'aime',
+        'likes': 'j\'aime', 'Views': 'Vues', 'views': 'vues',
+        'Comments': 'Commentaires', 'comments': 'commentaires',
+        'Shares': 'Partages', 'shares': 'partages', 'Saves': 'Sauvegardes',
+        'saves': 'sauvegardes', 'Subscribers': 'Abonnés', 'subscribers': 'abonnés',
+        'Real': 'Réel', 'High Quality': 'Haute Qualité', 'Instant': 'Instantané',
+        'Fast': 'Rapide', 'Slow': 'Lent', 'Premium': 'Premium',
+        'Refill': 'Recharge', 'No Drop': 'Sans Chute', 'Lifetime': 'À vie'
+      };
+      let translated = name;
+      for (const [en, fr] of Object.entries(translations)) {
+        translated = translated.replace(new RegExp(en, 'g'), fr);
+      }
+      return translated;
+    }
+
+    function isCustomCommentsService(service) {
+      const nameLower = service.name.toLowerCase();
+      const typeLower = (service.type || '').toLowerCase();
+      const hasCustomInName = nameLower.includes('| custom |') || nameLower.includes('custom comment') ||
+        nameLower.includes('commentaires personnalisés') || nameLower.includes('your comments') || nameLower.includes('vos commentaires');
+      const hasCustomType = typeLower === 'custom comments';
+      const isRandom = nameLower.includes('| random |') || nameLower.includes('random comment');
+      return (hasCustomInName || hasCustomType) && !isRandom;
+    }
+
+    function goToStep(step) {
+      document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('step' + step).classList.add('active');
+      document.querySelectorAll('.step-dot').forEach(d => {
+        const s = parseInt(d.dataset.step);
+        d.classList.toggle('active', s === step);
+        d.classList.toggle('done', s < step);
+      });
+    }
+
+    function buildPlatforms() {
+      const counts = {};
+      allServices.forEach(s => { counts[s.platform] = (counts[s.platform] || 0) + 1; });
+      const grid = document.getElementById('platformsGrid');
+      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      grid.innerHTML = `
+        <div class="platform-card ${!selectedPlatform ? 'active' : ''}" data-platform="">
+          <i class="fas fa-globe-americas"></i>
+          <span>Tous</span>
+          <span class="count-badge">${allServices.length}</span>
+        </div>
+        ${sorted.map(([plat, count]) => {
+          const info = PLATFORMS[plat] || PLATFORMS.other;
+          return `<div class="platform-card plat-${plat} ${selectedPlatform === plat ? 'active' : ''}" data-platform="${plat}">
+            <i class="${info.icon}"></i>
+            <span>${info.label}</span>
+            <span class="count-badge">${count}</span>
+          </div>`;
+        }).join('')}
+      `;
+      grid.querySelectorAll('.platform-card').forEach(card => {
+        card.addEventListener('click', () => {
+          selectedPlatform = card.dataset.platform || null;
+          selectedCategory = null;
+          buildPlatforms();
+          buildCategories();
+          renderFilteredServices();
+        });
+      });
+    }
+
+    function buildCategories() {
+      let filtered = allServices;
+      if (selectedPlatform) filtered = filtered.filter(s => s.platform === selectedPlatform);
+      const cats = {};
+      filtered.forEach(s => { cats[s.serviceType] = (cats[s.serviceType] || 0) + 1; });
+      const sorted = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+      const scroll = document.getElementById('categoriesScroll');
+      scroll.innerHTML = `
+        <div class="cat-chip ${!selectedCategory ? 'active' : ''}" data-cat="">Tous <span class="chip-count">${filtered.length}</span></div>
+        ${sorted.map(([cat, count]) => `<div class="cat-chip ${selectedCategory === cat ? 'active' : ''}" data-cat="${cat}">${cat} <span class="chip-count">${count}</span></div>`).join('')}
+      `;
+      scroll.querySelectorAll('.cat-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          selectedCategory = chip.dataset.cat || null;
+          buildCategories();
+          renderFilteredServices();
+        });
+      });
+    }
+
+    function renderFilteredServices() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      let filtered = allServices;
+      if (selectedPlatform) filtered = filtered.filter(s => s.platform === selectedPlatform);
+      if (selectedCategory) filtered = filtered.filter(s => s.serviceType === selectedCategory);
+      if (search) filtered = filtered.filter(s =>
+        s.name.toLowerCase().includes(search) ||
+        s.translatedName.toLowerCase().includes(search) ||
+        s.category.toLowerCase().includes(search)
+      );
+      document.getElementById('servicesCount').textContent = `${filtered.length} service${filtered.length > 1 ? 's' : ''} disponible${filtered.length > 1 ? 's' : ''}`;
+      const list = document.getElementById('servicesList');
+      if (filtered.length === 0) {
+        list.innerHTML = `<div class="empty-state"><i class="fas fa-search"></i><h3>Aucun service trouvé</h3><p>Essayez de modifier vos filtres</p></div>`;
+        return;
+      }
+      list.innerHTML = filtered.map(s => `
+        <div class="svc-row ${selectedService && selectedService.id === s.id ? 'selected' : ''}" data-id="${s.id}">
+          <div class="svc-info">
+            <div class="svc-name">${s.translatedName}</div>
+            <div class="svc-meta">
+              <span class="svc-id">#${s.id}</span>
+              <span>${s.min.toLocaleString()} - ${s.max.toLocaleString()}</span>
+              <div class="svc-badges">
+                ${s.refill ? '<span class="svc-badge badge-refill">Recharge</span>' : ''}
+                ${s.cancel ? '<span class="svc-badge badge-cancel">Annulable</span>' : ''}
+              </div>
+            </div>
+          </div>
+          <div class="svc-price">
+            <span class="price-val">${formatPrice(s.priceXAF)}</span>
+            <span class="price-unit">${s.isPerOne || s.isPackage ? 'par unité' : 'pour 1000'}</span>
+          </div>
+        </div>
+      `).join('');
+      list.querySelectorAll('.svc-row').forEach(row => {
+        row.addEventListener('click', () => {
+          const id = parseInt(row.dataset.id);
+          selectedService = allServices.find(s => s.id === id);
+          if (selectedService) openOrderForm();
+        });
+      });
+    }
+
+    function openOrderForm() {
+      if (!selectedService) return;
+      document.getElementById('selectedSvcName').textContent = selectedService.translatedName;
+      document.getElementById('qtyMin').textContent = selectedService.min.toLocaleString();
+      document.getElementById('qtyMax').textContent = selectedService.max.toLocaleString();
+      const orderQuantity = document.getElementById('orderQuantity');
+      orderQuantity.min = selectedService.min;
+      orderQuantity.max = selectedService.max;
+      orderQuantity.value = '';
+      document.getElementById('orderLink').value = '';
+      document.getElementById('totalPrice').textContent = '0 ' + userCurrency.symbol;
+
+      if (selectedService.desc && selectedService.desc.trim()) {
+        document.getElementById('remarksText').innerHTML = selectedService.desc;
+        document.getElementById('remarksBox').classList.add('visible');
+      } else {
+        document.getElementById('remarksBox').classList.remove('visible');
+      }
+
+      isCustomComments = isCustomCommentsService(selectedService);
+      const commentsSection = document.getElementById('commentsSection');
+      const quantityGroup = document.getElementById('quantityGroup');
+      if (isCustomComments) {
+        commentsSection.classList.add('active');
+        quantityGroup.style.display = 'none';
+        orderQuantity.removeAttribute('required');
+        document.getElementById('customComments').value = '';
+        document.getElementById('commentsCount').textContent = '0';
+      } else {
+        commentsSection.classList.remove('active');
+        quantityGroup.style.display = 'block';
+        orderQuantity.setAttribute('required', 'required');
+      }
+
+      goToStep(2);
+    }
+
+    document.getElementById('changeSvcBtn').addEventListener('click', () => {
+      goToStep(1);
+      renderFilteredServices();
+    });
+
+    document.getElementById('searchInput').addEventListener('input', renderFilteredServices);
+
+    document.getElementById('customComments').addEventListener('input', function() {
+      const lines = this.value.split('\n').filter(l => l.trim().length > 0);
+      document.getElementById('commentsCount').textContent = lines.length;
+      if (isCustomComments && selectedService) {
+        const isPerUnit = selectedService.isPerOne || selectedService.isPackage;
+        const total = isPerUnit ? selectedService.priceXAF * lines.length : (selectedService.priceXAF / 1000) * lines.length;
+        document.getElementById('totalPrice').textContent = formatPrice(total);
+      }
+    });
+
+    document.getElementById('orderQuantity').addEventListener('input', function() {
+      const qty = parseInt(this.value) || 0;
+      if (selectedService) {
+        const isPerUnit = selectedService.isPerOne || selectedService.isPackage;
+        const total = isPerUnit ? selectedService.priceXAF * qty : (selectedService.priceXAF / 1000) * qty;
+        document.getElementById('totalPrice').textContent = formatPrice(total);
+      }
+    });
+
+    document.getElementById('orderForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!selectedService || !userId) {
+        notify('Service ou utilisateur non sélectionné', 'error');
+        return;
+      }
+      const link = document.getElementById('orderLink').value.trim();
+      let quantity;
+      let comments = null;
+
+      if (isCustomComments) {
+        const lines = document.getElementById('customComments').value.split('\n').filter(l => l.trim().length > 0);
+        quantity = lines.length;
+        comments = lines.join('\n');
+        if (quantity === 0) { notify('Veuillez entrer au moins un commentaire', 'error'); return; }
+      } else {
+        quantity = parseInt(document.getElementById('orderQuantity').value);
+      }
+
+      if (!link.startsWith('http://') && !link.startsWith('https://')) {
+        notify('Le lien doit commencer par http:// ou https://', 'error'); return;
+      }
+      if (quantity < selectedService.min || quantity > selectedService.max) {
+        notify(`Quantité invalide. Min: ${selectedService.min}, Max: ${selectedService.max}`, 'error'); return;
+      }
+
+      const isPerUnit = selectedService.isPerOne || selectedService.isPackage;
+      const orderTotal = isPerUnit ? selectedService.priceXAF * quantity : (selectedService.priceXAF / 1000) * quantity;
+
+      if (orderTotal > userBalance) {
+        const manquant = orderTotal - userBalance;
+        notify(`Solde insuffisant ! Requis: ${formatPrice(orderTotal)} | Disponible: ${formatPrice(userBalance)} | Manque: ${formatPrice(manquant)}`, 'error');
+        return;
+      }
+
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.classList.add('loading');
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Traitement en cours...';
+
+      try {
+        const idToken = await auth.currentUser.getIdToken();
+        const payload = { serviceId: selectedService.id, link, quantity: Math.round(quantity) };
+        if (comments) payload.comments = comments;
+
+        const response = await fetch(`${BACKEND_URL}/api/afriqueboost/order`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error || 'Erreur lors de la commande');
+
+        userBalance = data.newBalance;
+        document.getElementById('userBalance').textContent = formatPrice(userBalance);
+
+        document.getElementById('sucOrderId').textContent = data.orderId;
+        document.getElementById('sucQty').textContent = quantity.toLocaleString();
+        document.getElementById('sucPrice').textContent = formatPrice(orderTotal);
+        document.getElementById('sucBalance').textContent = formatPrice(data.newBalance);
+        document.getElementById('successOverlay').classList.add('active');
+
+      } catch (error) {
+        console.error('Erreur commande:', error);
+        notify(error.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('loading');
+        submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Passer la commande';
+      }
+    });
+
+    function closeSuccess() {
+      document.getElementById('successOverlay').classList.remove('active');
+      selectedService = null;
+      document.getElementById('orderForm').reset();
+      document.getElementById('customComments').value = '';
+      document.getElementById('commentsCount').textContent = '0';
+      goToStep(1);
+      renderFilteredServices();
+    }
+
+    async function loadServices() {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/afriqueboost/services`);
+        const data = await response.json();
+        if (!data.success || !Array.isArray(data.services)) throw new Error('Aucun service disponible');
+
+        allServices = data.services.map(s => ({
+          ...s,
+          platform: detectPlatform(s),
+          serviceType: detectServiceType(s.name),
+          translatedName: translateServiceName(s.name)
+        }));
+
+        console.log(`✅ ${allServices.length} services AfriqueBoost chargés`);
+        buildPlatforms();
+        buildCategories();
+        renderFilteredServices();
+      } catch (error) {
+        console.error('Erreur chargement services:', error);
+        document.getElementById('servicesList').innerHTML = `
+          <div class="empty-state"><i class="fas fa-exclamation-triangle"></i>
+          <h3>Erreur de chargement</h3><p>${error.message}</p></div>`;
+      }
+    }
+
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        userId = user.uid;
+        db.collection('users').doc(userId).onSnapshot((doc) => {
+          if (doc.exists) {
+            const userData = doc.data();
+            userBalanceXAF = userData.balance || 0;
+            userBalance = userBalanceXAF;
+            const country = userData.country || 'Cameroun';
+            if (CURRENCY_CONFIG[country]) userCurrency = CURRENCY_CONFIG[country];
+            else if (CURRENCY_CONFIG[country.toLowerCase()]) userCurrency = CURRENCY_CONFIG[country.toLowerCase()];
+            document.getElementById('userBalance').textContent = formatPrice(userBalanceXAF);
+          }
+        });
+        loadServices();
+      } else {
+        notify('Vous devez être connecté pour accéder à cette page', 'error');
+        setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+      }
+    });
+  </script>
+</body>
+</html>
