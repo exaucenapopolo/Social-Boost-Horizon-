@@ -1116,6 +1116,63 @@
         max-width: 100%;
       }
     }
+
+      .service-description-box {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(6, 182, 212, 0.05));
+        border: 1px solid rgba(139, 92, 246, 0.25);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+        display: none;
+      }
+      .service-description-box.visible { display: block; }
+      .svc-desc-block { font-size: 0.85rem; line-height: 1.6; }
+      .svc-desc-title { font-size: 0.95rem; font-weight: 700; color: var(--auto-secondary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+      .svc-desc-what { color: var(--auto-text-light); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+      .svc-desc-what i { color: var(--auto-success); }
+      .svc-desc-text { color: var(--auto-text-muted); margin-bottom: 12px; }
+      .svc-desc-quality { color: var(--auto-text-light); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+      .svc-desc-quality i { color: var(--auto-primary); }
+      .svc-desc-quality-detail { color: var(--auto-text-muted); font-size: 0.8rem; margin-bottom: 10px; font-style: italic; }
+      .q-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 15px; font-size: 0.73rem; font-weight: 600; }
+      .q-badge i { font-size: 0.68rem; }
+      .q-nodrop { background: rgba(16, 185, 129, 0.15); color: var(--auto-success); }
+      .q-lifetime { background: rgba(6, 182, 212, 0.15); color: var(--auto-secondary); }
+      .q-guaranteed { background: rgba(245, 158, 11, 0.15); color: var(--auto-accent); }
+      .q-refill { background: rgba(139, 92, 246, 0.15); color: var(--auto-primary); }
+      .q-hq { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
+      .q-premium { background: rgba(245, 158, 11, 0.15); color: var(--auto-accent); }
+      .q-real { background: rgba(16, 185, 129, 0.15); color: var(--auto-success); }
+      .q-active { background: rgba(6, 182, 212, 0.15); color: var(--auto-secondary); }
+      .q-instant { background: rgba(239, 68, 68, 0.15); color: var(--auto-error); }
+      .q-fast { background: rgba(245, 158, 11, 0.15); color: var(--auto-accent); }
+      .q-slow { background: rgba(139, 92, 246, 0.15); color: var(--auto-primary); }
+      .svc-desc-advantages { color: var(--auto-text-light); margin-bottom: 10px; }
+      .svc-desc-advantages i { color: var(--auto-primary); }
+      .svc-desc-advantages ul { list-style: none; padding-left: 18px; margin-top: 6px; }
+      .svc-desc-advantages ul li { color: var(--auto-text-muted); margin-bottom: 4px; position: relative; font-size: 0.83rem; }
+      .svc-desc-advantages ul li::before { content: "✓"; color: var(--auto-success); position: absolute; left: -16px; font-weight: bold; }
+      .svc-desc-how { color: var(--auto-text-light); }
+      .svc-desc-how i { color: var(--auto-primary); }
+      .svc-desc-how p { color: var(--auto-text-muted); margin-top: 6px; }
+      .drop-notice {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(239, 68, 68, 0.05));
+        border: 1px solid rgba(245, 158, 11, 0.25);
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 16px;
+        display: none;
+      }
+      .drop-notice.visible { display: block; }
+      .drop-notice-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.85rem; color: var(--auto-accent); }
+      .drop-notice p { color: var(--auto-text-muted); font-size: 0.82rem; margin-bottom: 6px; line-height: 1.5; }
+      .drop-notice-link {
+        display: inline-flex; align-items: center; gap: 6px;
+        color: var(--auto-secondary); text-decoration: none; font-weight: 600; font-size: 0.82rem;
+        padding: 5px 12px; border-radius: 8px; background: rgba(6, 182, 212, 0.1);
+        transition: all 0.3s ease;
+      }
+      .drop-notice-link:hover { background: rgba(6, 182, 212, 0.2); }
   </style>
 </head>
 <body>
@@ -1232,6 +1289,9 @@
         <div id="serviceRemarksText"></div>
       </div>
 
+        <div class="service-description-box" id="serviceDescriptionBox"></div>
+        <div class="drop-notice" id="dropNotice"></div>
+
       <form id="orderForm">
         <div class="form-group">
           <label for="orderLink"><i class="fas fa-link"></i> Lien de la publication</label>
@@ -1314,6 +1374,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  <script src="service-descriptions.js"></script>
   <script>
     AOS.init({ duration: 600, once: true });
 
@@ -1828,6 +1889,15 @@
         serviceRemarks.style.display = 'none';
       }
 
+        const descBox = document.getElementById('serviceDescriptionBox');
+        const dropBox = document.getElementById('dropNotice');
+        if (typeof getServiceDescription === 'function' && selectedService) {
+          descBox.innerHTML = getServiceDescription(selectedService.name || selectedService.translatedName, selectedService.platform || '', selectedService.serviceType || '');
+          descBox.classList.add('visible');
+          dropBox.innerHTML = getDropNotice(selectedService.serviceType || selectedService.name || '');
+          dropBox.classList.add('visible');
+        }
+
       isCustomComments = isCustomCommentsService(selectedService);
       if (isCustomComments) {
         commentsGroup.classList.add('active');
@@ -1857,6 +1927,8 @@
       orderPanel.classList.remove('active');
       orderPanelOverlay.classList.remove('active');
       document.body.style.overflow = '';
+        document.getElementById('serviceDescriptionBox').classList.remove('visible');
+        document.getElementById('dropNotice').classList.remove('visible');
     }
 
     closePanel.addEventListener('click', closeOrderPanel);
