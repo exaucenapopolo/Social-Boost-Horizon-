@@ -1447,6 +1447,23 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="settingConfirmModal">
+    <div class="modal-content" style="max-width: 420px;">
+      <div class="modal-header">
+        <h3 id="settingConfirmTitle">Confirmer le changement</h3>
+        <button class="modal-close" id="closeSettingModalBtn">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <div id="settingConfirmIcon" style="text-align:center; font-size: 2.5rem; margin-bottom: 15px;"></div>
+        <p id="settingConfirmMessage" style="text-align:center; color: rgba(255,255,255,0.85); line-height: 1.6; font-size: 0.95rem;"></p>
+      </div>
+      <div class="modal-footer" style="display:flex; gap:10px;">
+        <button class="btn-modal btn-modal-secondary" id="settingCancelBtn" style="flex:1;">Annuler</button>
+        <button class="btn-modal btn-modal-primary" id="settingConfirmBtn" style="flex:1;">Confirmer</button>
+      </div>
+    </div>
+  </div>
+
   <footer>
     <p>&copy; 2026 Social Boost Horizon - Tous droits reserves</p>
   </footer>
@@ -1454,7 +1471,6 @@
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
   <script>
     const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('replit') ? '' : 'https://social-boost-exaucenapopolo2.replit.app';
@@ -1470,7 +1486,6 @@
 
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
-    const db = firebase.firestore();
 
     let currentUser = null;
     let originalData = {};
@@ -1478,6 +1493,8 @@
     let selectedPhotoURL = null;
     let currentPhotoURL = null;
     let customUploadedURL = null;
+    let currentSettings = {};
+    let pendingSettingChange = null;
 
     const profilePhotos = [
       "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/49391629-jeune-homme-avatar-personnage-du-avatar-homme-icone-dessin-anime-illustration-gratuit-vectoriel.jpg",
@@ -1515,6 +1532,63 @@
       settingDefaultSpeed: 'defaultSpeed',
       settingConfirmOrder: 'confirmOrder',
       settingSoundsAnimations: 'soundsAnimations'
+    };
+
+    const SETTINGS_DESCRIPTIONS = {
+      emailNotifications: {
+        name: 'Notifications par email',
+        icon: '<i class="fa-solid fa-envelope" style="color: #4CAF50;"></i>',
+        onMessage: 'Vous recevrez des notifications par email pour vos commandes, mises a jour de statut et informations importantes de votre compte.',
+        offMessage: 'Vous ne recevrez plus aucune notification par email. Vous risquez de manquer des mises a jour importantes sur vos commandes.'
+      },
+      whatsappNotifications: {
+        name: 'Notifications WhatsApp',
+        icon: '<i class="fa-brands fa-whatsapp" style="color: #25D366;"></i>',
+        onMessage: 'Vous recevrez des alertes WhatsApp quand vos commandes seront terminees ou quand il y aura des mises a jour importantes.',
+        offMessage: 'Vous ne recevrez plus d\'alertes WhatsApp. Les notifications de fin de commande seront desactivees.'
+      },
+      promoNotifications: {
+        name: 'Notifications promotionnelles',
+        icon: '<i class="fa-solid fa-tags" style="color: #FF9800;"></i>',
+        onMessage: 'Vous recevrez nos offres speciales, codes promo et reductions exclusives par email.',
+        offMessage: 'Vous ne recevrez plus nos promotions et offres speciales. Vous pourriez manquer des reductions avantageuses.'
+      },
+      profileVisible: {
+        name: 'Profil visible',
+        icon: '<i class="fa-solid fa-eye" style="color: #2196F3;"></i>',
+        onMessage: 'Votre nom sera visible dans les classements et les statistiques publiques de la plateforme.',
+        offMessage: 'Votre profil sera masque des classements et statistiques publiques. Vous resterez anonyme.'
+      },
+      hideBalance: {
+        name: 'Masquer mon solde',
+        icon: '<i class="fa-solid fa-eye-slash" style="color: #9C27B0;"></i>',
+        onMessage: 'Votre solde sera masque dans l\'en-tete du tableau de bord. Cliquez dessus pour le reveler temporairement.',
+        offMessage: 'Votre solde sera toujours visible dans l\'en-tete du tableau de bord.'
+      },
+      privateHistory: {
+        name: 'Historique prive',
+        icon: '<i class="fa-solid fa-lock" style="color: #FF5722;"></i>',
+        onMessage: 'Vos statistiques de commandes ne seront pas partagees. Votre historique reste strictement prive.',
+        offMessage: 'Vos statistiques de commandes pourront etre visibles par d\'autres utilisateurs de la plateforme.'
+      },
+      defaultSpeed: {
+        name: 'Mode vitesse par defaut',
+        icon: '<i class="fa-solid fa-bolt" style="color: #FFD700;"></i>',
+        onMessage: 'Le mode vitesse sera automatiquement active sur toutes vos nouvelles commandes. Cela ajoute 10% au prix pour un traitement prioritaire.',
+        offMessage: 'Le mode vitesse ne sera pas active par defaut. Vous pourrez toujours l\'activer manuellement sur chaque commande.'
+      },
+      confirmOrder: {
+        name: 'Confirmation avant commande',
+        icon: '<i class="fa-solid fa-shield-halved" style="color: #00BCD4;"></i>',
+        onMessage: 'Un ecran de confirmation s\'affichera avant chaque commande pour verifier les details et eviter les erreurs.',
+        offMessage: 'Les commandes seront passees directement sans ecran de confirmation. Attention aux erreurs de saisie.'
+      },
+      soundsAnimations: {
+        name: 'Sons et animations',
+        icon: '<i class="fa-solid fa-wand-magic-sparkles" style="color: #E91E63;"></i>',
+        onMessage: 'Les effets sonores et animations de confettis seront actives pour une experience plus immersive.',
+        offMessage: 'Les effets sonores et animations seront desactives pour une experience plus sobre et rapide.'
+      }
     };
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -1615,8 +1689,20 @@
       Object.keys(SETTINGS_MAP).forEach(elementId => {
         const el = document.getElementById(elementId);
         if (el) {
-          el.addEventListener('change', () => saveSettings());
+          el.addEventListener('change', (e) => {
+            e.preventDefault();
+            const settingKey = SETTINGS_MAP[elementId];
+            const newValue = el.checked;
+            showSettingConfirmation(settingKey, newValue, el);
+          });
         }
+      });
+
+      document.getElementById('closeSettingModalBtn').addEventListener('click', cancelSettingChange);
+      document.getElementById('settingCancelBtn').addEventListener('click', cancelSettingChange);
+      document.getElementById('settingConfirmBtn').addEventListener('click', confirmSettingChange);
+      window.addEventListener('click', (e) => {
+        if (e.target === document.getElementById('settingConfirmModal')) cancelSettingChange();
       });
     });
 
@@ -1675,22 +1761,13 @@
     async function savePhotoToFirestore(photoURL) {
       try {
         const idToken = await currentUser.getIdToken();
-        const isAvatar = profilePhotos.includes(photoURL);
-
-        if (isAvatar) {
-          const response = await fetch(BACKEND_URL + '/api/update-profile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
-            body: JSON.stringify({ userId: currentUser.uid, photoURL: photoURL })
-          });
-          const data = await response.json();
-          if (!response.ok || !data.success) throw new Error(data.error || 'Erreur');
-        } else {
-          await db.collection('users').doc(currentUser.uid).update({
-            photoURL: photoURL,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-        }
+        const response = await fetch(BACKEND_URL + '/api/update-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+          body: JSON.stringify({ userId: currentUser.uid, photoURL: photoURL })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || 'Erreur');
 
         currentPhotoURL = photoURL;
         originalData.photoURL = photoURL;
@@ -1711,22 +1788,34 @@
       const phoneInput = document.getElementById('phone');
       const countrySelect = document.getElementById('country');
 
-      const displayName = user.displayName || 'Utilisateur';
-      displayNameHeader.textContent = displayName;
+      const fallbackName = user.displayName || 'Utilisateur';
+      displayNameHeader.textContent = fallbackName;
       emailDisplay.textContent = user.email || '';
-      displayNameInput.value = displayName;
+      displayNameInput.value = fallbackName;
       emailInput.value = user.email || '';
 
       try {
-        const doc = await db.collection('users').doc(user.uid).get();
-        if (doc.exists) {
-          const data = doc.data();
+        const idToken = await user.getIdToken();
+        const response = await fetch(BACKEND_URL + '/api/user/profile', {
+          headers: { 'Authorization': 'Bearer ' + idToken }
+        });
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          const data = result.profile;
+
+          const displayName = data.displayName || fallbackName;
+          displayNameHeader.textContent = displayName;
+          emailDisplay.textContent = data.email || '';
+          displayNameInput.value = displayName;
+          emailInput.value = data.email || '';
           phoneInput.value = data.phone || '';
           countrySelect.value = data.country || '';
           currentPhotoURL = data.photoURL || null;
+
           originalData = {
             displayName: displayName,
-            email: user.email,
+            email: data.email,
             phone: data.phone || '',
             country: data.country || '',
             photoURL: currentPhotoURL
@@ -1736,32 +1825,43 @@
           document.getElementById('statBalance').textContent = Math.round(balance).toLocaleString('fr-FR');
 
           if (data.createdAt) {
-            const joinDate = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+            const joinDate = new Date(data.createdAt);
             const months = ['Jan', 'Fev', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aou', 'Sep', 'Oct', 'Nov', 'Dec'];
             document.getElementById('statJoined').textContent = months[joinDate.getMonth()] + ' ' + joinDate.getFullYear();
           }
 
-          const ordersSnap = await db.collection('orders').where('userId', '==', user.uid).get();
-          document.getElementById('statOrders').textContent = ordersSnap.size;
+          document.getElementById('statOrders').textContent = data.totalOrders || 0;
 
           if (data.resellerLevel) {
             const levels = { bronze: 'Revendeur Bronze', silver: 'Revendeur Silver', gold: 'Revendeur Gold', platinum: 'Revendeur Platinum' };
             document.getElementById('memberBadgeText').textContent = levels[data.resellerLevel] || 'Membre actif';
           }
 
-          const meta = user.metadata;
-          if (meta && meta.lastSignInTime) {
-            document.getElementById('lastLoginInfo').textContent = new Date(meta.lastSignInTime).toLocaleString('fr-FR');
+          if (data.lastSignIn) {
+            document.getElementById('lastLoginInfo').textContent = new Date(data.lastSignIn).toLocaleString('fr-FR');
           }
+
+          currentSettings = data.settings || {};
+          applySettingsToUI(currentSettings);
         } else {
-          originalData = { displayName, email: user.email, phone: '', country: '', photoURL: null };
+          originalData = { displayName: fallbackName, email: user.email, phone: '', country: '', photoURL: null };
         }
       } catch (err) {
         console.error('Erreur chargement profil:', err);
-        originalData = { displayName, email: user.email, phone: '', country: '', photoURL: null };
+        originalData = { displayName: fallbackName, email: user.email, phone: '', country: '', photoURL: null };
       }
 
-      updateAvatarDisplay(currentPhotoURL, displayName);
+      updateAvatarDisplay(currentPhotoURL, originalData.displayName);
+    }
+
+    function applySettingsToUI(settings) {
+      Object.keys(SETTINGS_MAP).forEach(elementId => {
+        const key = SETTINGS_MAP[elementId];
+        const el = document.getElementById(elementId);
+        if (el) {
+          el.checked = settings[key] !== undefined ? settings[key] : DEFAULT_SETTINGS[key];
+        }
+      });
     }
 
     function updateAvatarDisplay(photoURL, displayName) {
@@ -1956,35 +2056,74 @@
     }
 
     function loadSettings() {
-      db.collection('users').doc(currentUser.uid).get().then(doc => {
-        const settings = (doc.exists && doc.data().settings) ? doc.data().settings : {};
-        Object.keys(SETTINGS_MAP).forEach(elementId => {
-          const key = SETTINGS_MAP[elementId];
-          const el = document.getElementById(elementId);
-          if (el) {
-            el.checked = settings[key] !== undefined ? settings[key] : DEFAULT_SETTINGS[key];
-          }
-        });
-      });
+      applySettingsToUI(currentSettings);
     }
 
-    function saveSettings() {
-      const settings = {};
+    function showSettingConfirmation(settingKey, newValue, toggleElement) {
+      const desc = SETTINGS_DESCRIPTIONS[settingKey];
+      if (!desc) return;
+
+      pendingSettingChange = { settingKey, newValue, toggleElement };
+
+      const actionText = newValue ? 'Activer' : 'Desactiver';
+      document.getElementById('settingConfirmTitle').textContent = actionText + ' : ' + desc.name;
+      document.getElementById('settingConfirmIcon').innerHTML = desc.icon;
+      document.getElementById('settingConfirmMessage').textContent = newValue ? desc.onMessage : desc.offMessage;
+      document.getElementById('settingConfirmBtn').textContent = newValue ? 'Activer' : 'Desactiver';
+      document.getElementById('settingConfirmBtn').style.background = newValue
+        ? 'linear-gradient(135deg, #4CAF50, #2E7D32)'
+        : 'linear-gradient(135deg, #f44336, #c62828)';
+
+      document.getElementById('settingConfirmModal').classList.add('active');
+    }
+
+    function cancelSettingChange() {
+      if (pendingSettingChange) {
+        pendingSettingChange.toggleElement.checked = !pendingSettingChange.newValue;
+        pendingSettingChange = null;
+      }
+      document.getElementById('settingConfirmModal').classList.remove('active');
+    }
+
+    async function confirmSettingChange() {
+      if (!pendingSettingChange) return;
+
+      const { settingKey, newValue } = pendingSettingChange;
+      document.getElementById('settingConfirmModal').classList.remove('active');
+
+      currentSettings[settingKey] = newValue;
+
+      const fullSettings = {};
       Object.keys(SETTINGS_MAP).forEach(elementId => {
         const key = SETTINGS_MAP[elementId];
         const el = document.getElementById(elementId);
-        if (el) settings[key] = el.checked;
+        if (el) fullSettings[key] = el.checked;
       });
 
-      db.collection('users').doc(currentUser.uid).update({
-        settings: settings,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }).then(() => {
-        showNotification('Parametres sauvegardes', true);
-      }).catch(err => {
-        console.error('Erreur sauvegarde parametres:', err);
-        showNotification('Erreur lors de la sauvegarde', false);
-      });
+      try {
+        const idToken = await currentUser.getIdToken();
+        const response = await fetch(BACKEND_URL + '/api/user/settings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + idToken
+          },
+          body: JSON.stringify({ settings: fullSettings })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || 'Erreur');
+
+        currentSettings = data.settings || fullSettings;
+        const desc = SETTINGS_DESCRIPTIONS[settingKey];
+        showNotification((newValue ? 'Active' : 'Desactive') + ' : ' + desc.name, true);
+      } catch (err) {
+        console.error('Erreur sauvegarde parametre:', err);
+        showNotification('Erreur lors de la sauvegarde du parametre', false);
+        currentSettings[settingKey] = !newValue;
+        applySettingsToUI(currentSettings);
+      }
+
+      pendingSettingChange = null;
     }
 
     async function loadApiKeyInfo() {
