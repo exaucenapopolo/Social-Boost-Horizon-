@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Documentation API - Social Boost Horizon</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <style>
+    :root {
+      --sbh-dark-blue: #0A162B;
+      --sbh-gradient-start: #1e3c72;
+      --sbh-gradient-end: #6a0dad;
+      --sbh-btn-color: #1E90FF;
+      --sbh-icon-color: #4CAF50;
+      --sbh-text-white: #FFFFFF;
+      --sbh-light-blue: #4DA6FF;
+      --sbh-accent: #FF6B6B;
+      --sidebar-width: 280px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Poppins', sans-serif;
+      color: var(--sbh-text-white);
+      background: var(--sbh-dark-blue);
+      min-height: 100vh;
+    }
+    .top-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 1000;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .top-header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .sidebar-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+    .top-header h1 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .top-header h1 i { color: #FFC107; }
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 18px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 50px;
+      color: white;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+    .btn-back:hover { background: rgba(255,255,255,0.25); transform: translateY(-1px); }
+    .sidebar {
+      position: fixed;
+      top: 60px;
+      left: 0;
+      width: var(--sidebar-width);
+      height: calc(100vh - 60px);
+      background: linear-gradient(180deg, rgba(15,25,50,0.98), rgba(10,22,43,0.98));
+      border-right: 1px solid rgba(255,255,255,0.08);
+      overflow-y: auto;
+      padding: 20px 0;
+      z-index: 900;
+      transition: transform 0.3s ease;
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+    .sidebar-section { padding: 0 16px; margin-bottom: 8px; }
+    .sidebar-section-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: rgba(255,255,255,0.4);
+      padding: 8px 16px;
+      font-weight: 600;
+    }
+    .sidebar a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      color: rgba(255,255,255,0.7);
+      text-decoration: none;
+      font-size: 0.88rem;
+      border-radius: 8px;
+      transition: all 0.2s;
+      font-weight: 400;
+    }
+    .sidebar a:hover, .sidebar a.active {
+      background: rgba(30,144,255,0.15);
+      color: var(--sbh-light-blue);
+    }
+    .sidebar a i { width: 20px; text-align: center; font-size: 0.85rem; }
+    .sidebar a .method-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: auto;
+      font-family: monospace;
+    }
+    .method-get { background: rgba(76,175,80,0.2); color: #4CAF50; }
+    .method-post { background: rgba(255,152,0,0.2); color: #FF9800; }
+    .main-content {
+      margin-left: var(--sidebar-width);
+      margin-top: 60px;
+      padding: 40px;
+      max-width: 900px;
+    }
+    .doc-section {
+      margin-bottom: 60px;
+      animation: fadeUp 0.4s ease;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .doc-section h2 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--sbh-text-white);
+    }
+    .doc-section h2 i { color: var(--sbh-light-blue); }
+    .doc-section h3 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin: 24px 0 12px;
+      color: var(--sbh-light-blue);
+    }
+    .doc-section p, .doc-section li {
+      color: rgba(255,255,255,0.8);
+      line-height: 1.8;
+      font-size: 0.95rem;
+    }
+    .doc-section ul { padding-left: 20px; margin: 10px 0; }
+    .doc-section li { margin-bottom: 6px; }
+    .info-card {
+      background: linear-gradient(145deg, rgba(20,35,65,0.8), rgba(15,25,50,0.9));
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      margin: 20px 0;
+    }
+    .base-url-box {
+      background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(30,144,255,0.3);
+      border-radius: 10px;
+      padding: 16px 20px;
+      font-family: 'Courier New', monospace;
+      font-size: 1rem;
+      color: var(--sbh-light-blue);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 12px 0;
+    }
+    .base-url-box .copy-btn {
+      background: rgba(255,255,255,0.1);
+      border: none;
+      color: rgba(255,255,255,0.6);
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 6px;
+      transition: all 0.2s;
+      font-size: 0.9rem;
+    }
+    .base-url-box .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+    .endpoint-card {
+      background: linear-gradient(145deg, rgba(20,35,65,0.8), rgba(15,25,50,0.9));
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 28px;
+      margin: 20px 0;
+    }
+    .endpoint-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .endpoint-method {
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-family: monospace;
+      letter-spacing: 0.5px;
+    }
+    .endpoint-method.get { background: rgba(76,175,80,0.2); color: #4CAF50; border: 1px solid rgba(76,175,80,0.3); }
+    .endpoint-method.post { background: rgba(255,152,0,0.2); color: #FF9800; border: 1px solid rgba(255,152,0,0.3); }
+    .endpoint-path {
+      font-family: 'Courier New', monospace;
+      font-size: 1.05rem;
+      color: var(--sbh-text-white);
+      font-weight: 600;
+    }
+    .endpoint-desc {
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 20px;
+      font-size: 0.95rem;
+    }
+    .params-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 0.88rem;
+    }
+    .params-table th {
+      text-align: left;
+      padding: 10px 14px;
+      background: rgba(30,144,255,0.1);
+      color: var(--sbh-light-blue);
+      font-weight: 600;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .params-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      color: rgba(255,255,255,0.8);
+    }
+    .params-table code {
+      background: rgba(0,0,0,0.3);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      color: #FF9800;
+    }
+    .badge-required {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: rgba(244,67,54,0.2);
+      color: #f44336;
+      font-weight: 600;
+    }
+    .badge-optional {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: rgba(76,175,80,0.2);
+      color: #4CAF50;
+      font-weight: 600;
+    }
+    .code-tabs {
+      display: flex;
+      gap: 0;
+      margin-top: 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .code-tab {
+      padding: 8px 18px;
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.5);
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-bottom: 2px solid transparent;
+    }
+    .code-tab:hover { color: rgba(255,255,255,0.8); }
+    .code-tab.active {
+      color: var(--sbh-light-blue);
+      border-bottom-color: var(--sbh-light-blue);
+    }
+    .code-panels { position: relative; }
+    .code-panel {
+      display: none;
+      position: relative;
+    }
+    .code-panel.active { display: block; }
+    .code-block {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 0 0 10px 10px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      position: relative;
+    }
+    .code-block pre {
+      margin: 0;
+      font-family: 'Courier New', monospace;
+      font-size: 0.82rem;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.85);
+      white-space: pre;
+    }
+    .code-block .copy-code-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.6);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .code-block .copy-code-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+    .code-block .copy-code-btn.copied { background: rgba(76,175,80,0.3); color: #4CAF50; border-color: rgba(76,175,80,0.4); }
+    .syn-str { color: #CE9178; }
+    .syn-key { color: #569CD6; }
+    .syn-num { color: #B5CEA8; }
+    .syn-bool { color: #569CD6; }
+    .syn-comment { color: #6A9955; }
+    .syn-fn { color: #DCDCAA; }
+    .syn-var { color: #9CDCFE; }
+    .syn-op { color: #D4D4D4; }
+    .response-block {
+      background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(76,175,80,0.2);
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin: 12px 0;
+      position: relative;
+    }
+    .response-block pre {
+      margin: 0;
+      font-family: 'Courier New', monospace;
+      font-size: 0.82rem;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.85);
+      white-space: pre;
+    }
+    .response-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #4CAF50;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .error-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+    }
+    .error-table th {
+      text-align: left;
+      padding: 12px 16px;
+      background: rgba(244,67,54,0.1);
+      color: var(--sbh-accent);
+      font-weight: 600;
+      font-size: 0.88rem;
+    }
+    .error-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      color: rgba(255,255,255,0.8);
+      font-size: 0.88rem;
+    }
+    .error-table .error-code {
+      font-family: monospace;
+      font-weight: 700;
+      color: var(--sbh-accent);
+      font-size: 0.95rem;
+    }
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      top: 60px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 899;
+    }
+    @media (max-width: 900px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-overlay.open { display: block; }
+      .sidebar-toggle { display: block; }
+      .main-content { margin-left: 0; padding: 24px 16px; }
+    }
+    @media (max-width: 600px) {
+      .main-content { padding: 20px 12px; }
+      .endpoint-card { padding: 18px 14px; }
+      .doc-section h2 { font-size: 1.4rem; }
+      .params-table { font-size: 0.8rem; }
+      .params-table th, .params-table td { padding: 8px 10px; }
+      .code-block pre { font-size: 0.75rem; }
+      .top-header h1 { font-size: 1rem; }
+      .btn-back span { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="top-header">
+    <div class="top-header-left">
+      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Menu">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+      <h1><i class="fa-solid fa-book"></i> Documentation API</h1>
+    </div>
+    <a href="profil.html" class="btn-back">
+      <i class="fa-solid fa-arrow-left"></i>
+      <span>Retour au profil</span>
+    </a>
+  </div>
+
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Introduction</div>
+      <a href="#introduction"><i class="fa-solid fa-house"></i> Apercu</a>
+      <a href="#authentication"><i class="fa-solid fa-lock"></i> Authentification</a>
+      <a href="#base-url"><i class="fa-solid fa-globe"></i> URL de base</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Endpoints</div>
+      <a href="#balance"><i class="fa-solid fa-wallet"></i> Solde <span class="method-badge method-get">GET</span></a>
+      <a href="#services"><i class="fa-solid fa-list"></i> Services <span class="method-badge method-get">GET</span></a>
+      <a href="#order"><i class="fa-solid fa-cart-plus"></i> Commander <span class="method-badge method-post">POST</span></a>
+      <a href="#order-status"><i class="fa-solid fa-magnifying-glass"></i> Statut <span class="method-badge method-get">GET</span></a>
+      <a href="#orders"><i class="fa-solid fa-clock-rotate-left"></i> Historique <span class="method-badge method-get">GET</span></a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Reference</div>
+      <a href="#errors"><i class="fa-solid fa-triangle-exclamation"></i> Erreurs</a>
+    </div>
+  </nav>
+
+  <main class="main-content">
+
+    <section class="doc-section" id="introduction">
+      <h2><i class="fa-solid fa-rocket"></i> Introduction</h2>
+      <p>L'API Social Boost Horizon vous permet de passer des commandes de services de boost de reseaux sociaux directement depuis votre application.</p>
+      <div class="info-card">
+        <h3><i class="fa-solid fa-coins" style="margin-right:6px"></i> Devise</h3>
+        <p>Tous les prix et montants sont exprimes en <strong>XAF (FCFA)</strong>.</p>
+      </div>
+    </section>
+
+    <section class="doc-section" id="base-url">
+      <h2><i class="fa-solid fa-globe"></i> URL de base</h2>
+      <p>Toutes les requetes API doivent etre envoyees a l'URL suivante :</p>
+      <div class="base-url-box">
+        <span>https://social-boost-exaucenapopolo2.replit.app</span>
+        <button class="copy-btn" onclick="copyText('https://social-boost-exaucenapopolo2.replit.app', this)"><i class="fa-regular fa-copy"></i></button>
+      </div>
+    </section>
+
+    <section class="doc-section" id="authentication">
+      <h2><i class="fa-solid fa-lock"></i> Authentification</h2>
+      <p>Chaque requete doit inclure votre cle API dans le header HTTP <code>X-Api-Key</code>.</p>
+      <p>Vous pouvez generer votre cle API depuis votre <a href="profil.html" style="color:var(--sbh-light-blue)">page de profil</a>.</p>
+      <div class="info-card">
+        <h3>Exemple de header</h3>
+        <div class="base-url-box" style="font-size:0.88rem">
+          <span>X-Api-Key: votre_cle_api_ici</span>
+          <button class="copy-btn" onclick="copyText('X-Api-Key: votre_cle_api_ici', this)"><i class="fa-regular fa-copy"></i></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="doc-section" id="balance">
+      <h2><i class="fa-solid fa-wallet"></i> Verifier le solde</h2>
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="endpoint-method get">GET</span>
+          <span class="endpoint-path">/api/v1/balance</span>
+        </div>
+        <p class="endpoint-desc">Recupere le solde actuel de votre compte.</p>
+
+        <h3>Reponse</h3>
+        <div class="response-block">
+          <div class="response-label"><i class="fa-solid fa-circle-check"></i> 200 OK</div>
+<pre>{
+  <span class="syn-key">"success"</span>: <span class="syn-bool">true</span>,
+  <span class="syn-key">"balance"</span>: <span class="syn-num">15000</span>,
+  <span class="syn-key">"currency"</span>: <span class="syn-str">"XAF"</span>
+}</pre>
+        </div>
+
+        <div class="code-tabs" data-group="balance">
+          <button class="code-tab active" onclick="switchTab(this, 'balance', 'curl')">cURL</button>
+          <button class="code-tab" onclick="switchTab(this, 'balance', 'python')">Python</button>
+          <button class="code-tab" onclick="switchTab(this, 'balance', 'php')">PHP</button>
+          <button class="code-tab" onclick="switchTab(this, 'balance', 'node')">Node.js</button>
+        </div>
+        <div class="code-panels">
+          <div class="code-panel active" data-group="balance" data-lang="curl">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre>curl -X GET https://social-boost-exaucenapopolo2.replit.app/api/v1/balance \
+  -H <span class="syn-str">"X-Api-Key: votre_cle_api"</span></pre>
+            </div>
+          </div>
+          <div class="code-panel" data-group="balance" data-lang="python">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre><span class="syn-key">import</span> <span class="syn-var">requests</span>
+
+<span class="syn-var">url</span> = <span class="syn-str">"https://social-boost-exaucenapopolo2.replit.app/api/v1/balance"</span>
+<span class="syn-var">headers</span> = {<span class="syn-str">"X-Api-Key"</span>: <span class="syn-str">"votre_cle_api"</span>}
+
+<span class="syn-var">response</span> = <span class="syn-var">requests</span>.<span class="syn-fn">get</span>(<span class="syn-var">url</span>, <span class="syn-var">headers</span>=<span class="syn-var">headers</span>)
+<span class="syn-fn">print</span>(<span class="syn-var">response</span>.<span class="syn-fn">json</span>())</pre>
+            </div>
+          </div>
+          <div class="code-panel" data-group="balance" data-lang="php">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre><span class="syn-var">$ch</span> = <span class="syn-fn">curl_init</span>();
+
+<span class="syn-fn">curl_setopt_array</span>(<span class="syn-var">$ch</span>, [
+    <span class="syn-var">CURLOPT_URL</span> => <span class="syn-str">"https://social-boost-exaucenapopolo2.replit.app/api/v1/balance"</span>,
+    <span class="syn-var">CURLOPT_RETURNTRANSFER</span> => <span class="syn-bool">true</span>,
+    <span class="syn-var">CURLOPT_HTTPHEADER</span> => [
+        <span class="syn-str">"X-Api-Key: votre_cle_api"</span>
+    ]
+]);
+
+<span class="syn-var">$response</span> = <span class="syn-fn">curl_exec</span>(<span class="syn-var">$ch</span>);
+<span class="syn-fn">curl_close</span>(<span class="syn-var">$ch</span>);
+
+<span class="syn-fn">echo</span> <span class="syn-var">$response</span>;</pre>
+            </div>
+          </div>
+          <div class="code-panel" data-group="balance" data-lang="node">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre><span class="syn-key">const</span> <span class="syn-var">response</span> = <span class="syn-key">await</span> <span class="syn-fn">fetch</span>(<span class="syn-str">"https://social-boost-exaucenapopolo2.replit.app/api/v1/balance"</span>, {
+    <span class="syn-var">headers</span>: {
+        <span class="syn-str">"X-Api-Key"</span>: <span class="syn-str">"votre_cle_api"</span>
+    }
+});
+
+<span class="syn-key">const</span> <span class="syn-var">data</span> = <span class="syn-key">await</span> <span class="syn-var">response</span>.<span class="syn-fn">json</span>();
+<span class="syn-var">console</span>.<span class="syn-fn">log</span>(<span class="syn-var">data</span>);</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="doc-section" id="services">
+      <h2><i class="fa-solid fa-list"></i> Lister les services</h2>
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="endpoint-method get">GET</span>
+          <span class="endpoint-path">/api/v1/services</span>
+        </div>
+        <p class="endpoint-desc">Recupere la liste de tous les services disponibles.</p>
+
+        <h3>Parametres (query)</h3>
+        <table class="params-table">
+          <thead><tr><th>Parametre</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>provider</code> <span class="badge-optional">optionnel</span></td>
+              <td>string</td>
+              <td>Filtrer par fournisseur : <code>exo</code>, <code>mtp</code> ou <code>smmgen</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Reponse</h3>
+        <div class="response-block">
+          <div class="response-label"><i class="fa-solid fa-circle-check"></i> 200 OK</div>
+<pre>{
+  <span class="syn-key">"success"</span>: <span class="syn-bool">true</span>,
+  <span class="syn-key">"services"</span>: [
+    {
+      <span class="syn-key">"service_id"</span>: <span class="syn-num">1</span>,
+      <span class="syn-key">"name"</span>: <span class="syn-str">"Instagram Followers"</span>,
+      <span class="syn-key">"category"</span>: <span class="syn-str">"Instagram"</span>,
+      <span class="syn-key">"type"</span>: <span class="syn-str">"default"</span>,
+      <span class="syn-key">"price_per_1000"</span>: <span class="syn-num">5000</span>,
+      <span class="syn-key">"min"</span>: <span class="syn-num">100</span>,
+      <span class="syn-key">"max"</span>: <span class="syn-num">10000</span>,
+      <span class="syn-key">"refill"</span>: <span class="syn-bool">true</span>,
+      <span class="syn-key">"cancel"</span>: <span class="syn-bool">false</span>,
+      <span class="syn-key">"description"</span>: <span class="syn-str">"Followers Instagram haute qualite"</span>,
+      <span class="syn-key">"provider"</span>: <span class="syn-str">"exo"</span>
+    }
+  ],
+  <span class="syn-key">"total"</span>: <span class="syn-num">150</span>,
+  <span class="syn-key">"providers"</span>: [<span class="syn-str">"exo"</span>, <span class="syn-str">"mtp"</span>, <span class="syn-str">"smmgen"</span>]
+}</pre>
+        </div>
+
+        <div class="code-tabs" data-group="services">
+          <button class="code-tab active" onclick="switchTab(this, 'services', 'curl')">cURL</button>
+          <button class="code-tab" onclick="switchTab(this, 'services', 'python')">Python</button>
+          <button class="code-tab" onclick="switchTab(this, 'services', 'php')">PHP</button>
+          <button class="code-tab" onclick="switchTab(this, 'services', 'node')">Node.js</button>
+        </div>
+        <div class="code-panels">
+          <div class="code-panel active" data-group="services" data-lang="curl">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre>curl -X GET https://social-boost-exaucenapopolo2.replit.app/api/v1/services \
+  -H <span class="syn-str">"X-Api-Key: votre_cle_api"</span>
+
+curl -X GET <span class="syn-str">"https://social-boost-exaucenapopolo2.replit.app/api/v1/services?provider=exo"</span> \
+  -H <span class="syn-str">"X-Api-Key: votre_cle_api"</span></pre>
+            </div>
+          </div>
+          <div class="code-panel" data-group="services" data-lang="python">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre><span class="syn-key">import</span> <span class="syn-var">requests</span>
+
+<span class="syn-var">url</span> = <span class="syn-str">"https://social-boost-exaucenapopolo2.replit.app/api/v1/services"</span>
+<span class="syn-var">headers</span> = {<span class="syn-str">"X-Api-Key"</span>: <span class="syn-str">"votre_cle_api"</span>}
+<span class="syn-var">params</span> = {<span class="syn-str">"provider"</span>: <span class="syn-str">"exo"</span>}
+
+<span class="syn-var">response</span> = <span class="syn-var">requests</span>.<span class="syn-fn">get</span>(<span class="syn-var">url</span>, <span class="syn-var">headers</span>=<span class="syn-var">headers</span>, <span class="syn-var">params</span>=<span class="syn-var">params</span>)
+<span class="syn-fn">print</span>(<span class="syn-var">response</span>.<span class="syn-fn">json</span>())</pre>
+            </div>
+          </div>
+          <div class="code-panel" data-group="services" data-lang="php">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre><span class="syn-var">$ch</span> = <span class="syn-fn">curl_init</span>();
+
+<span class="syn-fn">curl_setopt_array</span>(<span class="syn-var">$ch</span>, [
+    <span class="syn-var">CURLOPT_URL</span> => <span class="syn-str">"https://social-boost-exaucenapopolo2.replit.app/api/v1/services?provider=exo"</span>,
+    <span class="syn-var">CURLOPT_RETURNTRANSFER</span> => <span class="syn-bool">true</span>,
+    <span class="syn-var">CURLOPT_HTTPHEADER</span> => [
+        <span class="syn-str">"X-Api-Key: votre_cle_api"</span>
+    ]
+]);
+
+<span class="syn-var">$response</span> = <span class="syn-fn">curl_exec</span>(<span class="syn-var">$ch</span>);
+<span class="syn-fn">curl_close</span>(<span class="syn-var">$ch</span>);
+
+<span class="syn-var">$data</span> = <span class="syn-fn">json_decode</span>(<span class="syn-var">$response</span>, <span class="syn-bool">true</span>);
+<span class="syn-fn">print_r</span>(<span class="syn-var">$data</span>);</pre>
+            </div>
+          </div>
+          <div class="code-panel" data-group="services" data-lang="node">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre><span class="syn-key">const</span> <span class="syn-var">response</span> = <span class="syn-key">await</span> <span class="syn-fn">fetch</span>(<span class="syn-str">"https://social-boost-exaucenapopolo2.replit.app/api/v1/services?provider=exo"</span>, {
+    <span class="syn-var">headers</span>: {
+        <span class="syn-str">"X-Api-Key"</span>: <span class="syn-str">"votre_cle_api"</span>
+    }
+});
+
+<span class="syn-key">const</span> <span class="syn-var">data</span> = <span class="syn-key">await</span> <span class="syn-var">response</span>.<span class="syn-fn">json</span>();
+<span class="syn-var">console</span>.<span class="syn-fn">log</span>(<span class="syn-var">data</span>);</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="doc-section" id="order">
+      <h2><i class="fa-solid fa-cart-plus"></i> Passer une commande</h2>
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="endpoint-method post">POST</span>
+          <span class="endpoint-path">/api/v1/order</span>
+        </div>
+        <p class="endpoint-desc">Passe une nouvelle commande de service de boost.</p>
+
+        <h3>Corps de la requete (JSON)</h3>
+        <table class="params-table">
+          <thead><tr><th>Parametre</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>service_id</code> <span class="badge-required">requis</span></td>
+              <td>integer</td>
+              <td>ID du service (obtenu via /api/v1/services)</td>
+            </tr>
+            <tr>
+              <td><code>link</code> <span class="badge-required">requis</span></td>
+              <td>string</td>
+              <td>Lien du profil ou de la publication cible</td>
+            </tr>
+            <tr>
+              <td><code>quantity</code> <span class="badge-required">requis</span></td>
+              <td>integer</td>
+              <td>Quantite souhaitee (entre min et max du service)</td>
+            </tr>
+            <tr>
+              <td><code>comments</code> <span class="badge-optional">optionnel</span></td>
+              <td>string</td>
+              <td>Commentaires personnalises (si le service le supporte)</td>
+            </tr>
+            <tr>
+              <td><code>provider</code> <span class="badge-optional">optionnel</span></td>
+              <td>string</td>
+              <td>Fournisseur : <code>exo</code>, <code>mtp</code> ou <code>smmgen</code> (defaut: <code>exo</code>)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Reponse</h3>
+        <div class="response-block">
+          <div class="response-label"><i class="fa-solid fa-circle-check"></i> 200 OK</div>
+<pre>{
+  <span class="syn-key">"success"</span>: <span class="syn-bool">true</span>,
+  <span class="syn-key">"order_id"</span>: <span class="syn-str">"ORD-1234567890"</span>,
+  <span class="syn-key">"provider_order_id"</span>: <span class="syn-num">98765</span>,
+  <span class="syn-key">"provider"</span>: <span class="syn-str">"exo"</span>,
+  <span class="syn-key">"service"</span>: <span class="syn-str">"Instagram Followers"</span>,
+  <span class="syn-key">"quantity"</span>: <span class="syn-num">1000</span>,
+  <span class="syn-key">"price"</span>: <span class="syn-num">5000</span>,
+  <span class="syn-key">"currency"</span>: <span class="syn-str">"XAF"</span>,
+  <span class="syn-key">"balance"</span>: <span class="syn-num">10000</span>,
+  <span class="syn-key">"status"</span>: <span class="syn-str">"pending"</span>
+}</pre>
+        </div>
+
+        <div class="code-tabs" data-group="order">
+          <button class="code-tab active" onclick="switchTab(this, 'order', 'curl')">cURL</button>
+          <button class="code-tab" onclick="switchTab(this, 'order', 'python')">Python</button>
+          <button class="code-tab" onclick="switchTab(this, 'order', 'php')">PHP</button>
+          <button class="code-tab" onclick="switchTab(this, 'order', 'node')">Node.js</button>
+        </div>
+        <div class="code-panels">
+          <div class="code-panel active" data-group="order" data-lang="curl">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre>curl -X POST https://social-boost-exaucenapopolo2.replit.app/api/v1/order \
+  -H <span class="syn-str">"X-Api-Key: votre_cle_api"</span> \
+  -H <span class="syn-str">"Content-Type: application/json"</span> \
+  -d <span class="syn-str">'{
+    "service_id": 1,
+    "link": "https://instagram.com/username",
+    "quantity": 1000,
+    "provider": "exo"
+  }'</span></pre>
+            </div>
+          </div>
+          <div class="code-panel" data-group="order" data-lang="python">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre><span class="syn-key">import</span> <span class="syn-var">requests</span>
+
+<span class="syn-var">url</span> = <span class="syn-str">"https://social-boost-exaucenapopolo2.replit.app/api/v1/order"</span>
+<span class="syn-var">headers</span> = {
+    <span class="syn-str">"X-Api-Key"</span>: <span class="syn-str">"votre_cle_api"</span>,
+    <span class="syn-str">"Content-Type"</span>: <span class="syn-str">"application/json"</span>
+}
+<span class="syn-var">data</span> = {
+    <span class="syn-str">"service_id"</span>: <span class="syn-num">1</span>,
+    <span class="syn-str">"link"</span>: <span class="syn-str">"https://instagram.com/username"</span>,
+    <span class="syn-str">"quantity"</span>: <span class="syn-num">1000</span>,
+    <span class="syn-str">"provider"</span>: <span class="syn-str">"exo"</span>
+}
+
+<span class="syn-var">response</span> = <span class="syn-var">requests</span>.<span class="syn-fn">post</span>(<span class="syn-var">url</span>, <span class="syn-var">headers</span>=<span class="syn-var">headers</span>, <span class="syn-var">json</span>=<span class="syn-var">data</span>)
+<span class="syn-fn">print</span>(<span class="syn-var">response</span>.<span class="syn-fn">json</span>())</pre>
+            </div>
+          </div>
+          <div class="code-panel" data-group="order" data-lang="php">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre><span class="syn-var">$ch</span> = <span class="syn-fn">curl_init</span>();
+
+<span class="syn-var">$payload</span> = <span class="syn-fn">json_encode</span>([
+    <span class="syn-str">"service_id"</span> => <span class="syn-num">1</span>,
+    <span class="syn-str">"link"</span> => <span class="syn-str">"https://instagram.com/username"</span>,
+    <span class="syn-str">"quantity"</span> => <span class="syn-num">1000</span>,
+    <span class="syn-str">"provider"</span> => <span class="syn-str">"exo"</span>
+]);
+
+<span class="syn-fn">curl_setopt_array</span>(<span class="syn-var">$ch</span>, [
+    <span class="syn-var">CURLOPT_URL</span> => <span class="syn-str">"https://social-boost-exaucenapopolo2.replit.app/api/v1/order"</span>,
+    <span class="syn-var">CURLOPT_RETURNTRANSFER</span> => <span class="syn-bool">true</span>,
+    <span class="syn-var">CURLOPT_POST</span> => <span class="syn-bool">true</span>,
+    <span class="syn-var">CURLOPT_POSTFIELDS</span> => <span class="syn-var">$payload</span>,
+    <span class="syn-var">CURLOPT_HTTPHEADER</span> => [
+        <span class="syn-str">"X-Api-Key: votre_cle_api"</span>,
+        <span class="syn-str">"Content-Type: application/json"</span>
+    ]
+]);
+
+<span class="syn-var">$response</span> = <span class="syn-fn">curl_exec</span>(<span class="syn-var">$ch</span>);
+<span class="syn-fn">curl_close</span>(<span class="syn-var">$ch</span>);
+
+<span class="syn-var">$data</span> = <span class="syn-fn">json_decode</span>(<span class="syn-var">$response</span>, <span class="syn-bool">true</span>);
+<span class="syn-fn">print_r</span>(<span class="syn-var">$data</span>);</pre>
+            </div>
+          </div>
+          <div class="code-panel" data-group="order" data-lang="node">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre><span class="syn-key">const</span> <span class="syn-var">response</span> = <span class="syn-key">await</span> <span class="syn-fn">fetch</span>(<span class="syn-str">"https://social-boost-exaucenapopolo2.replit.app/api/v1/order"</span>, {
+    <span class="syn-var">method</span>: <span class="syn-str">"POST"</span>,
+    <span class="syn-var">headers</span>: {
+        <span class="syn-str">"X-Api-Key"</span>: <span class="syn-str">"votre_cle_api"</span>,
+        <span class="syn-str">"Content-Type"</span>: <span class="syn-str">"application/json"</span>
+    },
+    <span class="syn-var">body</span>: <span class="syn-var">JSON</span>.<span class="syn-fn">stringify</span>({
+        <span class="syn-var">service_id</span>: <span class="syn-num">1</span>,
+        <span class="syn-var">link</span>: <span class="syn-str">"https://instagram.com/username"</span>,
+        <span class="syn-var">quantity</span>: <span class="syn-num">1000</span>,
+        <span class="syn-var">provider</span>: <span class="syn-str">"exo"</span>
+    })
+});
+
+<span class="syn-key">const</span> <span class="syn-var">data</span> = <span class="syn-key">await</span> <span class="syn-var">response</span>.<span class="syn-fn">json</span>();
+<span class="syn-var">console</span>.<span class="syn-fn">log</span>(<span class="syn-var">data</span>);</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="doc-section" id="order-status">
+      <h2><i class="fa-solid fa-magnifying-glass"></i> Statut d'une commande</h2>
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="endpoint-method get">GET</span>
+          <span class="endpoint-path">/api/v1/order/:orderId</span>
+        </div>
+        <p class="endpoint-desc">Recupere le statut et les details d'une commande specifique.</p>
+
+        <h3>Parametres (URL)</h3>
+        <table class="params-table">
+          <thead><tr><th>Parametre</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>orderId</code> <span class="badge-required">requis</span></td>
+              <td>string</td>
+              <td>Identifiant de la commande (ex: ORD-1234567890)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Reponse</h3>
+        <div class="response-block">
+          <div class="response-label"><i class="fa-solid fa-circle-check"></i> 200 OK</div>
+<pre>{
+  <span class="syn-key">"success"</span>: <span class="syn-bool">true</span>,
+  <span class="syn-key">"order"</span>: {
+    <span class="syn-key">"order_id"</span>: <span class="syn-str">"ORD-1234567890"</span>,
+    <span class="syn-key">"service"</span>: <span class="syn-str">"Instagram Followers"</span>,
+    <span class="syn-key">"link"</span>: <span class="syn-str">"https://instagram.com/username"</span>,
+    <span class="syn-key">"quantity"</span>: <span class="syn-num">1000</span>,
+    <span class="syn-key">"price"</span>: <span class="syn-num">5000</span>,
+    <span class="syn-key">"currency"</span>: <span class="syn-str">"XAF"</span>,
+    <span class="syn-key">"status"</span>: <span class="syn-str">"completed"</span>,
+    <span class="syn-key">"provider"</span>: <span class="syn-str">"exo"</span>,
+    <span class="syn-key">"provider_order_id"</span>: <span class="syn-num">98765</span>,
+    <span class="syn-key">"start_count"</span>: <span class="syn-num">500</span>,
+    <span class="syn-key">"remains"</span>: <span class="syn-num">0</span>,
+    <span class="syn-key">"created_at"</span>: <span class="syn-str">"2025-01-15T10:30:00Z"</span>
+  }
+}</pre>
+        </div>
+
+        <div class="code-tabs" data-group="status">
+          <button class="code-tab active" onclick="switchTab(this, 'status', 'curl')">cURL</button>
+          <button class="code-tab" onclick="switchTab(this, 'status', 'python')">Python</button>
+          <button class="code-tab" onclick="switchTab(this, 'status', 'php')">PHP</button>
+          <button class="code-tab" onclick="switchTab(this, 'status', 'node')">Node.js</button>
+        </div>
+        <div class="code-panels">
+          <div class="code-panel active" data-group="status" data-lang="curl">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre>curl -X GET https://social-boost-exaucenapopolo2.replit.app/api/v1/order/ORD-1234567890 \
+  -H <span class="syn-str">"X-Api-Key: votre_cle_api"</span></pre>
+            </div>
+          </div>
+          <div class="code-panel" data-group="status" data-lang="python">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre><span class="syn-key">import</span> <span class="syn-var">requests</span>
+
+<span class="syn-var">order_id</span> = <span class="syn-str">"ORD-1234567890"</span>
+<span class="syn-var">url</span> = <span class="syn-str">f"https://social-boost-exaucenapopolo2.replit.app/api/v1/order/<span class="syn-op">{</span><span class="syn-var">order_id</span><span class="syn-op">}</span>"</span>
+<span class="syn-var">headers</span> = {<span class="syn-str">"X-Api-Key"</span>: <span class="syn-str">"votre_cle_api"</span>}
+
+<span class="syn-var">response</span> = <span class="syn-var">requests</span>.<span class="syn-fn">get</span>(<span class="syn-var">url</span>, <span class="syn-var">headers</span>=<span class="syn-var">headers</span>)
+<span class="syn-fn">print</span>(<span class="syn-var">response</span>.<span class="syn-fn">json</span>())</pre>
+            </div>
+          </div>
+          <div class="code-panel" data-group="status" data-lang="php">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre><span class="syn-var">$orderId</span> = <span class="syn-str">"ORD-1234567890"</span>;
+<span class="syn-var">$ch</span> = <span class="syn-fn">curl_init</span>();
+
+<span class="syn-fn">curl_setopt_array</span>(<span class="syn-var">$ch</span>, [
+    <span class="syn-var">CURLOPT_URL</span> => <span class="syn-str">"https://social-boost-exaucenapopolo2.replit.app/api/v1/order/"</span> . <span class="syn-var">$orderId</span>,
+    <span class="syn-var">CURLOPT_RETURNTRANSFER</span> => <span class="syn-bool">true</span>,
+    <span class="syn-var">CURLOPT_HTTPHEADER</span> => [
+        <span class="syn-str">"X-Api-Key: votre_cle_api"</span>
+    ]
+]);
+
+<span class="syn-var">$response</span> = <span class="syn-fn">curl_exec</span>(<span class="syn-var">$ch</span>);
+<span class="syn-fn">curl_close</span>(<span class="syn-var">$ch</span>);
+
+<span class="syn-var">$data</span> = <span class="syn-fn">json_decode</span>(<span class="syn-var">$response</span>, <span class="syn-bool">true</span>);
+<span class="syn-fn">print_r</span>(<span class="syn-var">$data</span>);</pre>
+            </div>
+          </div>
+          <div class="code-panel" data-group="status" data-lang="node">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre><span class="syn-key">const</span> <span class="syn-var">orderId</span> = <span class="syn-str">"ORD-1234567890"</span>;
+<span class="syn-key">const</span> <span class="syn-var">response</span> = <span class="syn-key">await</span> <span class="syn-fn">fetch</span>(<span class="syn-str">`https://social-boost-exaucenapopolo2.replit.app/api/v1/order/${<span class="syn-var">orderId</span>}`</span>, {
+    <span class="syn-var">headers</span>: {
+        <span class="syn-str">"X-Api-Key"</span>: <span class="syn-str">"votre_cle_api"</span>
+    }
+});
+
+<span class="syn-key">const</span> <span class="syn-var">data</span> = <span class="syn-key">await</span> <span class="syn-var">response</span>.<span class="syn-fn">json</span>();
+<span class="syn-var">console</span>.<span class="syn-fn">log</span>(<span class="syn-var">data</span>);</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="doc-section" id="orders">
+      <h2><i class="fa-solid fa-clock-rotate-left"></i> Historique des commandes</h2>
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="endpoint-method get">GET</span>
+          <span class="endpoint-path">/api/v1/orders</span>
+        </div>
+        <p class="endpoint-desc">Recupere l'historique de vos commandes.</p>
+
+        <h3>Parametres (query)</h3>
+        <table class="params-table">
+          <thead><tr><th>Parametre</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>limit</code> <span class="badge-optional">optionnel</span></td>
+              <td>integer</td>
+              <td>Nombre de commandes a retourner (defaut: 50, max: 200)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Reponse</h3>
+        <div class="response-block">
+          <div class="response-label"><i class="fa-solid fa-circle-check"></i> 200 OK</div>
+<pre>{
+  <span class="syn-key">"success"</span>: <span class="syn-bool">true</span>,
+  <span class="syn-key">"orders"</span>: [
+    {
+      <span class="syn-key">"order_id"</span>: <span class="syn-str">"ORD-1234567890"</span>,
+      <span class="syn-key">"service"</span>: <span class="syn-str">"Instagram Followers"</span>,
+      <span class="syn-key">"quantity"</span>: <span class="syn-num">1000</span>,
+      <span class="syn-key">"price"</span>: <span class="syn-num">5000</span>,
+      <span class="syn-key">"status"</span>: <span class="syn-str">"completed"</span>,
+      <span class="syn-key">"created_at"</span>: <span class="syn-str">"2025-01-15T10:30:00Z"</span>
+    }
+  ],
+  <span class="syn-key">"total"</span>: <span class="syn-num">42</span>
+}</pre>
+        </div>
+
+        <div class="code-tabs" data-group="orders">
+          <button class="code-tab active" onclick="switchTab(this, 'orders', 'curl')">cURL</button>
+          <button class="code-tab" onclick="switchTab(this, 'orders', 'python')">Python</button>
+          <button class="code-tab" onclick="switchTab(this, 'orders', 'php')">PHP</button>
+          <button class="code-tab" onclick="switchTab(this, 'orders', 'node')">Node.js</button>
+        </div>
+        <div class="code-panels">
+          <div class="code-panel active" data-group="orders" data-lang="curl">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre>curl -X GET <span class="syn-str">"https://social-boost-exaucenapopolo2.replit.app/api/v1/orders?limit=100"</span> \
+  -H <span class="syn-str">"X-Api-Key: votre_cle_api"</span></pre>
+            </div>
+          </div>
+          <div class="code-panel" data-group="orders" data-lang="python">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre><span class="syn-key">import</span> <span class="syn-var">requests</span>
+
+<span class="syn-var">url</span> = <span class="syn-str">"https://social-boost-exaucenapopolo2.replit.app/api/v1/orders"</span>
+<span class="syn-var">headers</span> = {<span class="syn-str">"X-Api-Key"</span>: <span class="syn-str">"votre_cle_api"</span>}
+<span class="syn-var">params</span> = {<span class="syn-str">"limit"</span>: <span class="syn-num">100</span>}
+
+<span class="syn-var">response</span> = <span class="syn-var">requests</span>.<span class="syn-fn">get</span>(<span class="syn-var">url</span>, <span class="syn-var">headers</span>=<span class="syn-var">headers</span>, <span class="syn-var">params</span>=<span class="syn-var">params</span>)
+<span class="syn-fn">print</span>(<span class="syn-var">response</span>.<span class="syn-fn">json</span>())</pre>
+            </div>
+          </div>
+          <div class="code-panel" data-group="orders" data-lang="php">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre><span class="syn-var">$ch</span> = <span class="syn-fn">curl_init</span>();
+
+<span class="syn-fn">curl_setopt_array</span>(<span class="syn-var">$ch</span>, [
+    <span class="syn-var">CURLOPT_URL</span> => <span class="syn-str">"https://social-boost-exaucenapopolo2.replit.app/api/v1/orders?limit=100"</span>,
+    <span class="syn-var">CURLOPT_RETURNTRANSFER</span> => <span class="syn-bool">true</span>,
+    <span class="syn-var">CURLOPT_HTTPHEADER</span> => [
+        <span class="syn-str">"X-Api-Key: votre_cle_api"</span>
+    ]
+]);
+
+<span class="syn-var">$response</span> = <span class="syn-fn">curl_exec</span>(<span class="syn-var">$ch</span>);
+<span class="syn-fn">curl_close</span>(<span class="syn-var">$ch</span>);
+
+<span class="syn-var">$data</span> = <span class="syn-fn">json_decode</span>(<span class="syn-var">$response</span>, <span class="syn-bool">true</span>);
+<span class="syn-fn">print_r</span>(<span class="syn-var">$data</span>);</pre>
+            </div>
+          </div>
+          <div class="code-panel" data-group="orders" data-lang="node">
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copier</button>
+<pre><span class="syn-key">const</span> <span class="syn-var">response</span> = <span class="syn-key">await</span> <span class="syn-fn">fetch</span>(<span class="syn-str">"https://social-boost-exaucenapopolo2.replit.app/api/v1/orders?limit=100"</span>, {
+    <span class="syn-var">headers</span>: {
+        <span class="syn-str">"X-Api-Key"</span>: <span class="syn-str">"votre_cle_api"</span>
+    }
+});
+
+<span class="syn-key">const</span> <span class="syn-var">data</span> = <span class="syn-key">await</span> <span class="syn-var">response</span>.<span class="syn-fn">json</span>();
+<span class="syn-var">console</span>.<span class="syn-fn">log</span>(<span class="syn-var">data</span>);</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="doc-section" id="errors">
+      <h2><i class="fa-solid fa-triangle-exclamation"></i> Gestion des erreurs</h2>
+      <p>L'API retourne des codes HTTP standards. En cas d'erreur, la reponse contient un objet JSON avec les details :</p>
+
+      <div class="response-block" style="border-color: rgba(244,67,54,0.3); margin: 20px 0;">
+        <div class="response-label" style="color: #f44336;"><i class="fa-solid fa-circle-xmark"></i> Exemple d'erreur</div>
+<pre>{
+  <span class="syn-key">"success"</span>: <span class="syn-bool">false</span>,
+  <span class="syn-key">"error"</span>: <span class="syn-str">"Cle API manquante ou invalide"</span>
+}</pre>
+      </div>
+
+      <div class="endpoint-card">
+        <h3>Codes d'erreur</h3>
+        <table class="error-table">
+          <thead>
+            <tr><th>Code</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="error-code">401</td>
+              <td>Cle API manquante ou invalide</td>
+            </tr>
+            <tr>
+              <td class="error-code">400</td>
+              <td>Parametres manquants ou invalides, solde insuffisant</td>
+            </tr>
+            <tr>
+              <td class="error-code">404</td>
+              <td>Commande non trouvee</td>
+            </tr>
+            <tr>
+              <td class="error-code">502</td>
+              <td>Erreur fournisseur (la commande est remboursee automatiquement)</td>
+            </tr>
+            <tr>
+              <td class="error-code">500</td>
+              <td>Erreur serveur</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    function switchTab(btn, group, lang) {
+      var tabs = btn.parentElement.querySelectorAll('.code-tab');
+      tabs.forEach(function(t) { t.classList.remove('active'); });
+      btn.classList.add('active');
+
+      var panels = btn.parentElement.nextElementSibling.querySelectorAll('.code-panel[data-group="' + group + '"]');
+      panels.forEach(function(p) {
+        if (p.getAttribute('data-lang') === lang) {
+          p.classList.add('active');
+        } else {
+          p.classList.remove('active');
+        }
+      });
+    }
+
+    function copyCode(btn) {
+      var pre = btn.parentElement.querySelector('pre');
+      var text = pre.textContent || pre.innerText;
+      navigator.clipboard.writeText(text).then(function() {
+        btn.classList.add('copied');
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Copie !';
+        setTimeout(function() {
+          btn.classList.remove('copied');
+          btn.innerHTML = '<i class="fa-regular fa-copy"></i> Copier';
+        }, 2000);
+      });
+    }
+
+    function copyText(text, btn) {
+      navigator.clipboard.writeText(text).then(function() {
+        var orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+        setTimeout(function() { btn.innerHTML = orig; }, 1500);
+      });
+    }
+
+    var toggle = document.getElementById('sidebarToggle');
+    var sidebar = document.getElementById('sidebar');
+    var overlay = document.getElementById('sidebarOverlay');
+
+    toggle.addEventListener('click', function() {
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('open');
+    });
+
+    overlay.addEventListener('click', function() {
+      sidebar.classList.remove('open');
+      overlay.classList.remove('open');
+    });
+
+    var sidebarLinks = sidebar.querySelectorAll('a');
+    sidebarLinks.forEach(function(link) {
+      link.addEventListener('click', function() {
+        if (window.innerWidth <= 900) {
+          sidebar.classList.remove('open');
+          overlay.classList.remove('open');
+        }
+        sidebarLinks.forEach(function(l) { l.classList.remove('active'); });
+        link.classList.add('active');
+      });
+    });
+
+    var sections = document.querySelectorAll('.doc-section');
+    window.addEventListener('scroll', function() {
+      var scrollPos = window.scrollY + 100;
+      sections.forEach(function(section) {
+        if (section.offsetTop <= scrollPos && (section.offsetTop + section.offsetHeight) > scrollPos) {
+          var id = section.getAttribute('id');
+          sidebarLinks.forEach(function(l) {
+            l.classList.remove('active');
+            if (l.getAttribute('href') === '#' + id) {
+              l.classList.add('active');
+            }
+          });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
