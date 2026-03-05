@@ -21,8 +21,11 @@
       --sbh-text-white: #FFFFFF;
       --sbh-light-blue: #4DA6FF;
       --sbh-accent: #FF6B6B;
+      --sbh-text-green: #4CAF50;
       --success-green: #4CAF50;
       --error-red: #f44336;
+      --sbh-card-bg: rgba(17, 32, 58, 0.6);
+      --sbh-card-border: rgba(255, 255, 255, 0.1);
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -64,6 +67,20 @@
       50% { opacity: 0.8; transform: scale(1.1); }
     }
 
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @keyframes slideIn { to { transform: translateX(0); } }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
     header {
       position: sticky;
       top: 0;
@@ -79,6 +96,7 @@
     .logo-text {
       display: flex;
       flex-direction: column;
+      font-family: 'Poppins', sans-serif;
       text-decoration: none;
       line-height: 1.2;
     }
@@ -93,31 +111,31 @@
     .logo-text .boost-line {
       display: flex;
       align-items: center;
-      color: var(--sbh-icon-color);
+      color: var(--sbh-text-green);
       font-size: 1.6rem;
       font-weight: 800;
     }
 
-    .logo-text .boost-line i {
-      margin-right: 6px;
+    .logo-text .boost-line img {
+      height: 1.6rem;
+      margin-right: 0.4rem;
       animation: pulse 2s infinite;
     }
 
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.1); }
+    .header-icons {
+      display: flex;
+      align-items: center;
+      gap: 20px;
     }
 
-    .hamburger-btn {
+    .icon-hamburger {
       font-size: 1.8rem;
       color: var(--sbh-text-white);
       cursor: pointer;
       transition: transform 0.3s;
-      background: none;
-      border: none;
     }
 
-    .hamburger-btn:hover { transform: scale(1.1); }
+    .icon-hamburger:hover { transform: scale(1.1); }
 
     .mobile-menu {
       display: none;
@@ -152,24 +170,27 @@
     .mobile-menu a:hover { background: rgba(30, 60, 114, 0.4); border-radius: 8px; transform: translateX(5px); }
 
     .profile-container {
-      max-width: 600px;
-      margin: 40px auto;
+      max-width: 700px;
+      margin: 30px auto;
       padding: 0 20px;
       flex: 1;
+      width: 100%;
     }
 
-    .profile-card {
+    .profile-header-card {
       background: linear-gradient(145deg, rgba(20, 35, 65, 0.8), rgba(15, 25, 50, 0.9));
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 20px;
       box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
-      padding: 40px 35px;
+      padding: 35px 30px;
       position: relative;
       overflow: hidden;
       backdrop-filter: blur(10px);
+      text-align: center;
+      margin-bottom: 20px;
     }
 
-    .profile-card::before {
+    .profile-header-card::before {
       content: "";
       position: absolute;
       top: 0; left: 0;
@@ -181,7 +202,6 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin-bottom: 30px;
       position: relative;
     }
 
@@ -218,20 +238,18 @@
 
     .avatar-edit-overlay {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       border-radius: 50%;
       background: rgba(0, 0, 0, 0.6);
       display: flex;
       align-items: center;
       justify-content: center;
       color: white;
-      font-size: 2rem;
+      font-size: 1.8rem;
       opacity: 0;
       transition: opacity 0.3s;
-      pointer-events: none;
+      cursor: pointer;
     }
 
     .avatar-container:hover .avatar-edit-overlay {
@@ -242,27 +260,102 @@
       filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
     }
 
-    .avatar-section h2 {
+    .user-display-name {
       margin-top: 15px;
-      font-size: 1.6rem;
+      font-size: 1.5rem;
       font-weight: 700;
-      color: var(--sbh-text-white);
     }
 
-    .avatar-section .member-badge {
-      margin-top: 8px;
+    .user-email-display {
+      color: rgba(255,255,255,0.5);
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+
+    .member-badge {
+      margin-top: 10px;
       padding: 6px 16px;
       background: linear-gradient(90deg, var(--sbh-icon-color), #45a049);
       border-radius: 20px;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       font-weight: 600;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 6px;
     }
 
-    .form-section h3 {
-      font-size: 1.2rem;
+    .section-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      overflow-x: auto;
+      padding-bottom: 5px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .section-tabs::-webkit-scrollbar { display: none; }
+
+    .tab-btn {
+      padding: 10px 20px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 50px;
+      background: rgba(255,255,255,0.05);
+      color: rgba(255,255,255,0.7);
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tab-btn:hover {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      color: white;
+      border-color: transparent;
+      box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3);
+    }
+
+    .tab-btn i { font-size: 0.9rem; }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .section-card {
+      background: linear-gradient(145deg, rgba(20, 35, 65, 0.8), rgba(15, 25, 50, 0.9));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 20px;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+      padding: 30px 25px;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+      margin-bottom: 20px;
+    }
+
+    .section-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 4px;
+      background: linear-gradient(90deg, var(--sbh-gradient-start), var(--sbh-gradient-end), var(--sbh-icon-color));
+    }
+
+    .section-card h3 {
+      font-size: 1.15rem;
       color: var(--sbh-light-blue);
       margin-bottom: 20px;
       display: flex;
@@ -271,7 +364,7 @@
     }
 
     .field {
-      margin-bottom: 22px;
+      margin-bottom: 20px;
       position: relative;
     }
 
@@ -279,51 +372,57 @@
       display: flex;
       align-items: center;
       font-weight: 500;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       color: rgba(255, 255, 255, 0.9);
-      font-size: 0.95rem;
+      font-size: 0.9rem;
     }
 
     .field label i {
       margin-right: 10px;
       color: var(--sbh-light-blue);
-      width: 20px;
+      width: 18px;
     }
 
-    .field input {
+    .field input, .field select {
       width: 100%;
-      padding: 14px 18px;
+      padding: 13px 16px;
       border: 2px solid rgba(255, 255, 255, 0.15);
       border-radius: 12px;
-      font-size: 1rem;
+      font-size: 0.95rem;
       background: rgba(0, 0, 0, 0.25);
       color: var(--sbh-text-white);
       transition: all 0.3s ease;
       font-family: 'Poppins', sans-serif;
     }
 
-    .field input:focus {
+    .field select option {
+      background: #1a2a4a;
+      color: white;
+    }
+
+    .field input:focus, .field select:focus {
       border-color: var(--sbh-btn-color);
       outline: none;
       box-shadow: 0 0 0 4px rgba(30, 144, 255, 0.15);
       background: rgba(0, 0, 0, 0.35);
     }
 
-    .field input[readonly] {
+    .field input[readonly], .field select[disabled] {
       background: rgba(0, 0, 0, 0.15);
       border-color: rgba(255, 255, 255, 0.08);
       cursor: not-allowed;
       opacity: 0.7;
     }
 
-    .field input:not([readonly]) {
+    .field input:not([readonly]),
+    .field select:not([disabled]) {
       border-color: var(--sbh-icon-color);
       background: rgba(0, 0, 0, 0.35);
     }
 
     .toggle-password {
       position: absolute;
-      top: 45px;
+      top: 43px;
       right: 15px;
       cursor: pointer;
       color: rgba(255, 255, 255, 0.6);
@@ -334,7 +433,7 @@
     .toggle-password:hover { color: var(--sbh-light-blue); }
 
     .password-hint {
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       color: rgba(255, 255, 255, 0.5);
       margin-top: 6px;
       display: none;
@@ -342,8 +441,8 @@
 
     .buttons {
       display: flex;
-      gap: 15px;
-      margin-top: 30px;
+      gap: 12px;
+      margin-top: 25px;
     }
 
     .btn {
@@ -351,14 +450,14 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 14px 25px;
+      padding: 13px 22px;
       border: none;
       border-radius: 50px;
       text-decoration: none;
       font-weight: 600;
       transition: all 0.3s ease;
       font-family: 'Montserrat', sans-serif;
-      font-size: 1rem;
+      font-size: 0.95rem;
       cursor: pointer;
       gap: 8px;
     }
@@ -385,11 +484,7 @@
       box-shadow: 0 10px 30px rgba(76, 175, 80, 0.4);
     }
 
-    .btn-save:disabled {
-      opacity: 0.7;
-      cursor: not-allowed;
-      transform: none;
-    }
+    .btn-save:disabled { opacity: 0.7; cursor: not-allowed; }
 
     .btn-cancel {
       background: rgba(255, 255, 255, 0.1);
@@ -423,56 +518,13 @@
       animation: spin 1s linear infinite;
     }
 
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .security-tips {
-      margin-top: 30px;
-      padding: 20px;
-      background: rgba(76, 175, 80, 0.1);
-      border-radius: 15px;
-      border-left: 4px solid var(--sbh-icon-color);
-    }
-
-    .security-tips h4 {
-      color: var(--sbh-icon-color);
-      font-size: 1.1rem;
-      margin-bottom: 15px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .security-tips ul {
-      list-style: none;
-      padding: 0;
-    }
-
-    .security-tips li {
-      padding: 8px 0;
-      color: rgba(255, 255, 255, 0.8);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 0.9rem;
-    }
-
-    .security-tips li i {
-      color: var(--sbh-icon-color);
-      font-size: 0.8rem;
-    }
-
-    /* API Key Section */
     .api-section {
-      margin-top: 30px;
-      padding: 25px;
-      background: rgba(30, 144, 255, 0.08);
-      border-radius: 15px;
-      border-left: 4px solid var(--sbh-btn-color);
+      margin-top: 0;
     }
 
     .api-section h4 {
       color: var(--sbh-btn-color);
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       margin-bottom: 15px;
       display: flex;
       align-items: center;
@@ -505,12 +557,12 @@
     }
 
     .btn-api {
-      padding: 10px 20px;
+      padding: 10px 18px;
       border: none;
       border-radius: 10px;
       font-family: 'Poppins', sans-serif;
       font-weight: 500;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       cursor: pointer;
       transition: all 0.3s ease;
       display: inline-flex;
@@ -550,17 +602,6 @@
 
     .btn-api-docs:hover { background: rgba(255, 193, 7, 0.25); }
 
-    .api-warning {
-      margin-top: 15px;
-      padding: 12px 15px;
-      background: rgba(255, 193, 7, 0.1);
-      border-radius: 8px;
-      border-left: 3px solid #FFC107;
-      font-size: 0.8rem;
-      color: rgba(255, 255, 255, 0.7);
-      display: none;
-    }
-
     .api-new-key-display {
       display: none;
       margin: 15px 0;
@@ -590,14 +631,109 @@
       gap: 5px;
     }
 
-    /* Modal styles */
+    .setting-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .setting-item:last-child { border-bottom: none; }
+
+    .setting-info {
+      flex: 1;
+      margin-right: 15px;
+    }
+
+    .setting-info h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--sbh-text-white);
+      margin-bottom: 4px;
+    }
+
+    .setting-info p {
+      font-size: 0.78rem;
+      color: rgba(255, 255, 255, 0.5);
+      line-height: 1.4;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 52px;
+      height: 28px;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255, 255, 255, 0.15);
+      transition: 0.3s;
+      border-radius: 28px;
+    }
+
+    .toggle-slider::before {
+      content: "";
+      position: absolute;
+      height: 22px;
+      width: 22px;
+      left: 3px;
+      bottom: 3px;
+      background: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background: linear-gradient(45deg, var(--sbh-icon-color), #45a049);
+    }
+
+    .toggle-switch input:checked + .toggle-slider::before {
+      transform: translateX(24px);
+    }
+
+    .photo-upload-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 20px;
+      border: 2px dashed rgba(255, 255, 255, 0.15);
+      border-radius: 15px;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 15px;
+    }
+
+    .photo-upload-area:hover {
+      border-color: var(--sbh-btn-color);
+      background: rgba(30, 144, 255, 0.05);
+    }
+
+    .photo-upload-area i {
+      font-size: 2rem;
+      color: var(--sbh-light-blue);
+    }
+
+    .photo-upload-area p {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.85rem;
+    }
+
     .modal {
       display: none;
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       background: rgba(0, 0, 0, 0.8);
       z-index: 1000;
       align-items: center;
@@ -605,9 +741,7 @@
       backdrop-filter: blur(5px);
     }
 
-    .modal.active {
-      display: flex;
-    }
+    .modal.active { display: flex; }
 
     .modal-content {
       background: linear-gradient(145deg, rgba(20, 35, 65, 0.95), rgba(15, 25, 50, 0.98));
@@ -615,16 +749,11 @@
       padding: 30px;
       max-width: 700px;
       width: 90%;
-      max-height: 80vh;
+      max-height: 85vh;
       overflow-y: auto;
       border: 1px solid rgba(255, 255, 255, 0.1);
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
       animation: modalFadeIn 0.3s;
-    }
-
-    @keyframes modalFadeIn {
-      from { opacity: 0; transform: scale(0.9); }
-      to { opacity: 1; transform: scale(1); }
     }
 
     .modal-header {
@@ -638,7 +767,7 @@
 
     .modal-header h3 {
       color: var(--sbh-light-blue);
-      font-size: 1.5rem;
+      font-size: 1.3rem;
       display: flex;
       align-items: center;
       gap: 10px;
@@ -653,14 +782,42 @@
       transition: color 0.3s;
     }
 
-    .modal-close:hover {
-      color: var(--sbh-accent);
+    .modal-close:hover { color: var(--sbh-accent); }
+
+    .modal-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
     }
+
+    .modal-tab-btn {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.05);
+      color: rgba(255,255,255,0.7);
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-align: center;
+    }
+
+    .modal-tab-btn.active {
+      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      color: white;
+      border-color: transparent;
+    }
+
+    .modal-tab-content { display: none; }
+    .modal-tab-content.active { display: block; }
 
     .avatar-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-      gap: 15px;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 12px;
       margin-bottom: 20px;
     }
 
@@ -686,7 +843,7 @@
     .avatar-option.selected {
       border-color: var(--sbh-icon-color);
       transform: scale(1.05);
-      box-shadow: 0 0 15px var(--sbh-icon-color);
+      box-shadow: 0 0 15px rgba(76, 175, 80, 0.4);
     }
 
     .modal-footer {
@@ -703,6 +860,7 @@
       font-weight: 600;
       cursor: pointer;
       transition: all 0.3s;
+      font-family: 'Poppins', sans-serif;
     }
 
     .btn-modal-primary {
@@ -721,9 +879,7 @@
       border: 1px solid rgba(255,255,255,0.2);
     }
 
-    .btn-modal-secondary:hover {
-      background: rgba(255,255,255,0.2);
-    }
+    .btn-modal-secondary:hover { background: rgba(255,255,255,0.2); }
 
     .notification-container {
       position: fixed;
@@ -747,13 +903,8 @@
       animation: slideIn 0.5s forwards;
     }
 
-    .notification.success {
-      border-left: 5px solid var(--success-green);
-    }
-
-    .notification.error {
-      border-left: 5px solid var(--error-red);
-    }
+    .notification.success { border-left: 5px solid var(--success-green); }
+    .notification.error { border-left: 5px solid var(--error-red); }
 
     .notification-icon {
       font-size: 28px;
@@ -763,16 +914,71 @@
     .notification.success .notification-icon { color: var(--success-green); }
     .notification.error .notification-icon { color: var(--error-red); }
 
-    @keyframes slideIn {
-      to { transform: translateX(0); }
-    }
-
     .confetti {
       position: fixed;
       width: 10px;
       height: 10px;
       pointer-events: none;
       z-index: 99999;
+    }
+
+    .security-tips {
+      padding: 20px;
+      background: rgba(76, 175, 80, 0.08);
+      border-radius: 15px;
+      border-left: 4px solid var(--sbh-icon-color);
+    }
+
+    .security-tips h4 {
+      color: var(--sbh-icon-color);
+      font-size: 1rem;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .security-tips ul { list-style: none; padding: 0; }
+
+    .security-tips li {
+      padding: 6px 0;
+      color: rgba(255, 255, 255, 0.8);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+    }
+
+    .security-tips li i {
+      color: var(--sbh-icon-color);
+      font-size: 0.75rem;
+    }
+
+    .stat-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat-box {
+      flex: 1;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 15px;
+      text-align: center;
+    }
+
+    .stat-box .stat-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--sbh-light-blue);
+    }
+
+    .stat-box .stat-label {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.5);
+      margin-top: 4px;
     }
 
     footer {
@@ -811,16 +1017,41 @@
       font-size: 1.1rem;
     }
 
+    .upload-progress {
+      width: 100%;
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .upload-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--sbh-btn-color), var(--sbh-icon-color));
+      border-radius: 4px;
+      width: 0%;
+      transition: width 0.3s;
+    }
+
     @media (max-width: 600px) {
-      .profile-container { padding: 0 15px; margin: 20px auto; }
-      .profile-card { padding: 25px 20px; }
+      .profile-container { padding: 0 12px; margin: 15px auto; }
+      .profile-header-card { padding: 25px 18px; }
+      .section-card { padding: 22px 18px; }
       .avatar-container { width: 100px; height: 100px; }
       .avatar { font-size: 2.5rem; }
       .buttons { flex-direction: column; }
       .btn { width: 100%; }
-      header { padding: 1rem; }
+      header { padding: 0.8rem 1rem; }
       .mobile-menu { right: 1rem; }
-      .avatar-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
+      .avatar-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+      .section-tabs { gap: 6px; }
+      .tab-btn { padding: 8px 14px; font-size: 0.8rem; }
+      .stat-row { gap: 8px; }
+      .stat-box { padding: 12px 8px; }
+      .stat-box .stat-value { font-size: 1.1rem; }
+      .user-display-name { font-size: 1.3rem; }
     }
   </style>
 </head>
@@ -837,14 +1068,14 @@
     <a href="dashboard.html" class="logo-text">
       <span class="text-social">SOCIAL</span>
       <div class="boost-line">
-        <i class="fa-solid fa-rocket"></i>
+        <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo">
         <span class="text-boost">BOOST</span>
       </div>
       <span class="text-horizon">HORIZON</span>
     </a>
-    <button class="hamburger-btn" id="hamburgerBtn" aria-label="Menu">
-      <i class="fa-solid fa-bars"></i>
-    </button>
+    <div class="header-icons">
+      <i class="fa-solid fa-bars icon-hamburger" id="hamburgerBtn"></i>
+    </div>
     <div class="mobile-menu">
       <a href="dashboard.html"><i class="fa-solid fa-house"></i> Accueil</a>
       <a href="wallet.html"><i class="fa-solid fa-wallet"></i> Mon portefeuille</a>
@@ -856,26 +1087,48 @@
   </header>
 
   <div class="profile-container">
-    <div class="profile-card" data-aos="fade-up">
+    <div class="profile-header-card" data-aos="fade-up">
       <div class="avatar-section">
-        <div class="avatar-container" id="avatarContainer" style="cursor: default;">
-          <div class="avatar" id="userAvatar">
-            <!-- Avatar image or letter will be inserted via JS -->
-          </div>
-          <div class="avatar-edit-overlay" id="avatarEditOverlay" style="display: none; pointer-events: none;">
+        <div class="avatar-container" id="avatarContainer">
+          <div class="avatar" id="userAvatar"></div>
+          <div class="avatar-edit-overlay" id="avatarEditOverlay">
             <i class="fa-solid fa-camera"></i>
           </div>
         </div>
-        <h2 id="userDisplayName">Chargement...</h2>
+        <h2 class="user-display-name" id="userDisplayName">Chargement...</h2>
+        <p class="user-email-display" id="userEmailDisplay"></p>
         <div class="member-badge">
           <i class="fa-solid fa-star"></i>
-          <span>Membre actif</span>
+          <span id="memberBadgeText">Membre actif</span>
         </div>
       </div>
 
-      <div class="form-section">
-        <h3><i class="fa-solid fa-user-pen"></i> Informations du compte</h3>
-        
+      <div class="stat-row" style="margin-top: 20px;">
+        <div class="stat-box">
+          <div class="stat-value" id="statBalance">--</div>
+          <div class="stat-label">Solde (XAF)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" id="statOrders">--</div>
+          <div class="stat-label">Commandes</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" id="statJoined">--</div>
+          <div class="stat-label">Membre depuis</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-tabs" data-aos="fade-up">
+      <button class="tab-btn active" data-tab="info"><i class="fa-solid fa-user"></i> Informations</button>
+      <button class="tab-btn" data-tab="api"><i class="fa-solid fa-code"></i> Developpeur</button>
+      <button class="tab-btn" data-tab="settings"><i class="fa-solid fa-gear"></i> Parametres</button>
+      <button class="tab-btn" data-tab="security"><i class="fa-solid fa-shield-halved"></i> Securite</button>
+    </div>
+
+    <div class="tab-content active" id="tab-info">
+      <div class="section-card" data-aos="fade-up">
+        <h3><i class="fa-solid fa-user-pen"></i> Informations personnelles</h3>
         <form id="profileForm">
           <div class="field">
             <label for="displayName"><i class="fa-solid fa-user"></i> Nom d'utilisateur</label>
@@ -890,6 +1143,33 @@
           <div class="field">
             <label for="phone"><i class="fa-solid fa-phone"></i> Numero de telephone</label>
             <input type="tel" id="phone" placeholder="Ex: +237 6XX XXX XXX" readonly />
+          </div>
+
+          <div class="field">
+            <label for="country"><i class="fa-solid fa-globe-africa"></i> Pays</label>
+            <select id="country" disabled>
+              <option value="">-- Selectionnez votre pays --</option>
+              <option value="bj">Benin (+229)</option>
+              <option value="bf">Burkina Faso (+226)</option>
+              <option value="cm">Cameroun (+237)</option>
+              <option value="ca">Canada (+1)</option>
+              <option value="cf">Centrafrique (+236)</option>
+              <option value="cg">Congo Brazzaville (+242)</option>
+              <option value="ci">Cote d'Ivoire (+225)</option>
+              <option value="ga">Gabon (+241)</option>
+              <option value="ke">Kenya (+254)</option>
+              <option value="mw">Malawi (+265)</option>
+              <option value="ne">Niger (+227)</option>
+              <option value="ng">Nigeria (+234)</option>
+              <option value="ug">Ouganda (+256)</option>
+              <option value="cd">RDC (+243)</option>
+              <option value="rw">Rwanda (+250)</option>
+              <option value="sn">Senegal (+221)</option>
+              <option value="tz">Tanzanie (+255)</option>
+              <option value="tg">Togo (+228)</option>
+              <option value="zm">Zambie (+260)</option>
+              <option value="other">Ailleurs</option>
+            </select>
           </div>
 
           <div class="field">
@@ -919,88 +1199,256 @@
           </div>
         </form>
       </div>
+    </div>
 
-      <div class="api-section" data-aos="fade-up">
-        <h4><i class="fa-solid fa-key"></i> Cle API - Acces Developpeur</h4>
-        <p style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-bottom: 15px;">
-          Utilisez votre cle API pour passer des commandes programmatiquement depuis votre propre site ou application.
-        </p>
-
-        <div id="apiNoKey">
-          <p style="color: rgba(255,255,255,0.5); font-size: 0.85rem; margin-bottom: 15px;">
-            <i class="fa-solid fa-info-circle"></i> Aucune cle API active. Generez-en une pour commencer.
+    <div class="tab-content" id="tab-api">
+      <div class="section-card" data-aos="fade-up">
+        <div class="api-section">
+          <h4><i class="fa-solid fa-key"></i> Cle API - Acces Developpeur</h4>
+          <p style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-bottom: 15px;">
+            Utilisez votre cle API pour passer des commandes programmatiquement depuis votre propre site ou application.
           </p>
-          <button class="btn-api btn-api-generate" id="generateApiKeyBtn">
-            <i class="fa-solid fa-wand-magic-sparkles"></i> Generer une cle API
-          </button>
-        </div>
 
-        <div id="apiHasKey" style="display: none;">
-          <div class="api-key-display">
-            <span class="key-text" id="apiKeyPrefixDisplay">sbh_****...****</span>
-            <span style="color: rgba(255,255,255,0.4); font-size: 0.75rem;" id="apiKeyDate"></span>
+          <div id="apiNoKey">
+            <p style="color: rgba(255,255,255,0.5); font-size: 0.85rem; margin-bottom: 15px;">
+              <i class="fa-solid fa-info-circle"></i> Aucune cle API active. Generez-en une pour commencer.
+            </p>
+            <button class="btn-api btn-api-generate" id="generateApiKeyBtn">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Generer une cle API
+            </button>
           </div>
-          <div class="api-key-actions">
-            <button class="btn-api btn-api-generate" id="regenerateApiKeyBtn">
-              <i class="fa-solid fa-rotate"></i> Regenerer
-            </button>
-            <button class="btn-api btn-api-revoke" id="revokeApiKeyBtn">
-              <i class="fa-solid fa-trash"></i> Revoquer
-            </button>
-            <a href="api-docs.html" class="btn-api btn-api-docs">
-              <i class="fa-solid fa-book"></i> Documentation API
-            </a>
+
+          <div id="apiHasKey" style="display: none;">
+            <div class="api-key-display">
+              <span class="key-text" id="apiKeyPrefixDisplay">sbh_****...****</span>
+              <span style="color: rgba(255,255,255,0.4); font-size: 0.75rem;" id="apiKeyDate"></span>
+            </div>
+            <div class="api-key-actions">
+              <button class="btn-api btn-api-generate" id="regenerateApiKeyBtn">
+                <i class="fa-solid fa-rotate"></i> Regenerer
+              </button>
+              <button class="btn-api btn-api-revoke" id="revokeApiKeyBtn">
+                <i class="fa-solid fa-trash"></i> Revoquer
+              </button>
+              <a href="api-docs.html" class="btn-api btn-api-docs">
+                <i class="fa-solid fa-book"></i> Documentation
+              </a>
+            </div>
+          </div>
+
+          <div class="api-new-key-display" id="apiNewKeyDisplay">
+            <div class="warning-text">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              Copiez votre cle maintenant ! Elle ne sera plus affichee apres actualisation.
+            </div>
+            <div class="key-value" id="apiNewKeyValue"></div>
+            <div class="api-key-actions">
+              <button class="btn-api btn-api-copy" id="copyApiKeyBtn">
+                <i class="fa-solid fa-copy"></i> Copier la cle
+              </button>
+              <a href="api-docs.html" class="btn-api btn-api-docs">
+                <i class="fa-solid fa-book"></i> Documentation
+              </a>
+            </div>
           </div>
         </div>
+      </div>
+    </div>
 
-        <div class="api-new-key-display" id="apiNewKeyDisplay">
-          <div class="warning-text">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-            Copiez votre cle maintenant ! Elle ne sera plus affichee apres actualisation.
+    <div class="tab-content" id="tab-settings">
+      <div class="section-card" data-aos="fade-up">
+        <h3><i class="fa-solid fa-bell"></i> Notifications</h3>
+        <div class="setting-item">
+          <div class="setting-info">
+            <h4>Notifications par email</h4>
+            <p>Recevez des notifications sur vos commandes et mises a jour par email</p>
           </div>
-          <div class="key-value" id="apiNewKeyValue"></div>
-          <div class="api-key-actions">
-            <button class="btn-api btn-api-copy" id="copyApiKeyBtn">
-              <i class="fa-solid fa-copy"></i> Copier la cle
-            </button>
-            <a href="api-docs.html" class="btn-api btn-api-docs">
-              <i class="fa-solid fa-book"></i> Documentation API
-            </a>
+          <label class="toggle-switch">
+            <input type="checkbox" id="settingEmailNotif" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-item">
+          <div class="setting-info">
+            <h4>Notifications WhatsApp</h4>
+            <p>Recevez des alertes sur WhatsApp pour les commandes terminees</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="settingWhatsappNotif" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-item">
+          <div class="setting-info">
+            <h4>Notifications promotionnelles</h4>
+            <p>Recevez nos offres speciales et promotions</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="settingPromoNotif" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="section-card" data-aos="fade-up">
+        <h3><i class="fa-solid fa-eye-slash"></i> Confidentialite</h3>
+        <div class="setting-item">
+          <div class="setting-info">
+            <h4>Profil visible</h4>
+            <p>Les autres utilisateurs peuvent voir votre nom dans les classements</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="settingProfileVisible" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-item">
+          <div class="setting-info">
+            <h4>Masquer mon solde</h4>
+            <p>Masquez votre solde dans l'en-tete du tableau de bord</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="settingHideBalance">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-item">
+          <div class="setting-info">
+            <h4>Historique des commandes prive</h4>
+            <p>Ne pas partager les statistiques de vos commandes</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="settingPrivateHistory" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="section-card" data-aos="fade-up">
+        <h3><i class="fa-solid fa-sliders"></i> Preferences</h3>
+        <div class="setting-item">
+          <div class="setting-info">
+            <h4>Mode vitesse par defaut</h4>
+            <p>Activer automatiquement le mode vitesse sur les nouvelles commandes</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="settingDefaultSpeed">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-item">
+          <div class="setting-info">
+            <h4>Confirmation avant commande</h4>
+            <p>Afficher une confirmation avant de passer chaque commande</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="settingConfirmOrder" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-item">
+          <div class="setting-info">
+            <h4>Sons et animations</h4>
+            <p>Activer les effets sonores et les animations de confettis</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="settingSoundsAnimations" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-security">
+      <div class="section-card" data-aos="fade-up">
+        <div class="security-tips">
+          <h4><i class="fa-solid fa-shield-halved"></i> Conseils de securite</h4>
+          <ul>
+            <li><i class="fa-solid fa-check"></i> Ne partagez jamais votre mot de passe</li>
+            <li><i class="fa-solid fa-check"></i> Utilisez un mot de passe unique et complexe</li>
+            <li><i class="fa-solid fa-check"></i> Changez regulierement votre mot de passe</li>
+            <li><i class="fa-solid fa-check"></i> Verifiez toujours l'URL du site avant de vous connecter</li>
+            <li><i class="fa-solid fa-check"></i> Ne partagez jamais votre cle API publiquement</li>
+            <li><i class="fa-solid fa-check"></i> Revoquez votre cle API si vous suspectez une compromission</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="section-card" data-aos="fade-up">
+        <h3><i class="fa-solid fa-clock-rotate-left"></i> Sessions recentes</h3>
+        <div class="setting-item">
+          <div class="setting-info">
+            <h4>Session actuelle</h4>
+            <p id="sessionInfo">Navigateur web - Connecte maintenant</p>
+          </div>
+          <span style="color: var(--sbh-icon-color); font-size: 0.8rem; font-weight: 600;">Active</span>
+        </div>
+        <div class="setting-item">
+          <div class="setting-info">
+            <h4>Derniere connexion</h4>
+            <p id="lastLoginInfo">Chargement...</p>
           </div>
         </div>
       </div>
 
-      <div class="security-tips">
-        <h4><i class="fa-solid fa-shield-halved"></i> Conseils de securite</h4>
-        <ul>
-          <li><i class="fa-solid fa-check"></i> Ne partagez jamais votre mot de passe</li>
-          <li><i class="fa-solid fa-check"></i> Utilisez un mot de passe unique</li>
-          <li><i class="fa-solid fa-check"></i> Changez regulierement votre mot de passe</li>
-          <li><i class="fa-solid fa-check"></i> Verifiez toujours l'URL du site</li>
-        </ul>
+      <div class="section-card" data-aos="fade-up" style="border-color: rgba(244, 67, 54, 0.2);">
+        <h3 style="color: var(--error-red);"><i class="fa-solid fa-triangle-exclamation"></i> Zone dangereuse</h3>
+        <div class="setting-item">
+          <div class="setting-info">
+            <h4>Deconnexion</h4>
+            <p>Se deconnecter de votre compte sur cet appareil</p>
+          </div>
+          <button class="btn-api btn-api-revoke" id="logoutBtn2" style="flex-shrink: 0;">
+            <i class="fa-solid fa-sign-out-alt"></i> Deconnexion
+          </button>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Modal de sélection d'avatar -->
   <div class="modal" id="avatarModal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3><i class="fa-solid fa-images"></i> Choisissez votre photo de profil</h3>
+        <h3><i class="fa-solid fa-images"></i> Photo de profil</h3>
         <button class="modal-close" id="closeModalBtn">&times;</button>
       </div>
-      <div class="avatar-grid" id="avatarGrid">
-        <!-- Les images seront chargées dynamiquement via JS -->
+      <div class="modal-tabs">
+        <button class="modal-tab-btn active" data-modal-tab="avatars">
+          <i class="fa-solid fa-users"></i> Avatars
+        </button>
+        <button class="modal-tab-btn" data-modal-tab="upload">
+          <i class="fa-solid fa-cloud-arrow-up"></i> Ma photo
+        </button>
+      </div>
+      <div class="modal-tab-content active" id="modalTab-avatars">
+        <p style="color: rgba(255,255,255,0.5); font-size: 0.85rem; margin-bottom: 15px;">Choisissez un avatar parmi notre selection :</p>
+        <div class="avatar-grid" id="avatarGrid"></div>
+      </div>
+      <div class="modal-tab-content" id="modalTab-upload">
+        <p style="color: rgba(255,255,255,0.5); font-size: 0.85rem; margin-bottom: 15px;">Telechargez votre propre photo de profil :</p>
+        <div class="photo-upload-area" id="photoUploadArea">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <p>Cliquez ou glissez une image ici</p>
+          <p style="font-size: 0.75rem; color: rgba(255,255,255,0.4);">JPG, PNG ou WEBP - Max 5 Mo</p>
+        </div>
+        <input type="file" id="customPhotoInput" accept="image/jpeg,image/png,image/webp" style="display: none;">
+        <div class="upload-progress" id="uploadProgress">
+          <div class="upload-progress-bar" id="uploadProgressBar"></div>
+        </div>
+        <div id="customPhotoPreview" style="display: none; text-align: center; margin-top: 15px;">
+          <img id="customPhotoImg" src="" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid var(--sbh-icon-color);">
+          <p style="color: var(--sbh-icon-color); font-size: 0.85rem; margin-top: 8px;"><i class="fa-solid fa-check-circle"></i> Photo prete</p>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn-modal btn-modal-secondary" id="cancelModalBtn">Annuler</button>
-        <button class="btn-modal btn-modal-primary" id="selectAvatarBtn">Choisir</button>
+        <button class="btn-modal btn-modal-primary" id="selectAvatarBtn">Valider</button>
       </div>
     </div>
   </div>
 
   <footer>
-    <p>Social Boost Horizon - Tous droits reserves 2025</p>
+    <p>&copy; 2026 Social Boost Horizon - Tous droits reserves</p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
@@ -1027,8 +1475,10 @@
     let currentUser = null;
     let originalData = {};
     let isEditMode = false;
+    let selectedPhotoURL = null;
+    let currentPhotoURL = null;
+    let customUploadedURL = null;
 
-    // Liste des photos de profil (URLs)
     const profilePhotos = [
       "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/49391629-jeune-homme-avatar-personnage-du-avatar-homme-icone-dessin-anime-illustration-gratuit-vectoriel.jpg",
       "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/femme%201.png",
@@ -1043,10 +1493,29 @@
       "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/figure-detaillee-vieil-homme-tenant-lettre_1077802-376424.jpg"
     ];
 
-    // Variable pour stocker l'URL temporairement sélectionnée dans le modal
-    let selectedPhotoURL = null;
-    // Variable pour stocker l'URL actuelle (celle dans Firestore)
-    let currentPhotoURL = null;
+    const DEFAULT_SETTINGS = {
+      emailNotifications: true,
+      whatsappNotifications: true,
+      promoNotifications: true,
+      profileVisible: true,
+      hideBalance: false,
+      privateHistory: true,
+      defaultSpeed: false,
+      confirmOrder: true,
+      soundsAnimations: true
+    };
+
+    const SETTINGS_MAP = {
+      settingEmailNotif: 'emailNotifications',
+      settingWhatsappNotif: 'whatsappNotifications',
+      settingPromoNotif: 'promoNotifications',
+      settingProfileVisible: 'profileVisible',
+      settingHideBalance: 'hideBalance',
+      settingPrivateHistory: 'privateHistory',
+      settingDefaultSpeed: 'defaultSpeed',
+      settingConfirmOrder: 'confirmOrder',
+      settingSoundsAnimations: 'soundsAnimations'
+    };
 
     document.addEventListener('DOMContentLoaded', function() {
       AOS.init({ duration: 800, once: true });
@@ -1069,68 +1538,182 @@
         togglePwd.classList.toggle('fa-eye-slash');
       });
 
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+          btn.classList.add('active');
+          document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        });
+      });
+
+      document.querySelectorAll('.modal-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.modal-tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.modal-tab-content').forEach(c => c.classList.remove('active'));
+          btn.classList.add('active');
+          document.getElementById('modalTab-' + btn.dataset.modalTab).classList.add('active');
+        });
+      });
+
       auth.onAuthStateChanged(async (user) => {
         if (!user) {
           window.location.href = 'login.html';
           return;
         }
-        
         currentUser = user;
         await loadUserProfile(user);
         loadApiKeyInfo();
+        loadSettings();
         document.getElementById('loadingOverlay').style.display = 'none';
       });
 
       document.getElementById('editBtn').addEventListener('click', enterEditMode);
       document.getElementById('cancelBtn').addEventListener('click', exitEditMode);
       document.getElementById('logoutBtn').addEventListener('click', logout);
+      document.getElementById('logoutBtn2').addEventListener('click', logout);
       document.getElementById('profileForm').addEventListener('submit', saveProfile);
 
-      // Gestion du modal
-      const modal = document.getElementById('avatarModal');
-      const closeModalBtn = document.getElementById('closeModalBtn');
-      const cancelModalBtn = document.getElementById('cancelModalBtn');
-      const selectAvatarBtn = document.getElementById('selectAvatarBtn');
       const avatarContainer = document.getElementById('avatarContainer');
+      avatarContainer.addEventListener('click', () => openAvatarModal());
 
-      // Ouvrir le modal uniquement en mode édition
-      avatarContainer.addEventListener('click', () => {
-        if (isEditMode) {
-          openAvatarModal();
-        }
-      });
-
-      closeModalBtn.addEventListener('click', closeAvatarModal);
-      cancelModalBtn.addEventListener('click', closeAvatarModal);
+      document.getElementById('closeModalBtn').addEventListener('click', closeAvatarModal);
+      document.getElementById('cancelModalBtn').addEventListener('click', closeAvatarModal);
       window.addEventListener('click', (e) => {
-        if (e.target === modal) {
-          closeAvatarModal();
-        }
+        if (e.target === document.getElementById('avatarModal')) closeAvatarModal();
       });
 
-      selectAvatarBtn.addEventListener('click', () => {
-        if (selectedPhotoURL) {
-          // Mettre à jour l'affichage temporaire
-          updateAvatarDisplay(selectedPhotoURL);
+      document.getElementById('selectAvatarBtn').addEventListener('click', () => {
+        const photoToUse = customUploadedURL || selectedPhotoURL;
+        if (photoToUse) {
+          updateAvatarDisplay(photoToUse);
+          selectedPhotoURL = photoToUse;
           closeAvatarModal();
+          savePhotoToFirestore(photoToUse);
         } else {
-          showNotification('Veuillez sélectionner une photo', false);
+          showNotification('Veuillez selectionner une photo ou telecharger la votre', false);
         }
       });
 
-      // Remplir la grille d'avatars
+      const uploadArea = document.getElementById('photoUploadArea');
+      const customInput = document.getElementById('customPhotoInput');
+
+      uploadArea.addEventListener('click', () => customInput.click());
+      uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.style.borderColor = 'var(--sbh-btn-color)'; });
+      uploadArea.addEventListener('dragleave', () => { uploadArea.style.borderColor = 'rgba(255,255,255,0.15)'; });
+      uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.style.borderColor = 'rgba(255,255,255,0.15)';
+        if (e.dataTransfer.files.length > 0) handleCustomPhoto(e.dataTransfer.files[0]);
+      });
+      customInput.addEventListener('change', (e) => {
+        if (e.target.files[0]) handleCustomPhoto(e.target.files[0]);
+      });
+
       populateAvatarGrid();
+
+      Object.keys(SETTINGS_MAP).forEach(elementId => {
+        const el = document.getElementById(elementId);
+        if (el) {
+          el.addEventListener('change', () => saveSettings());
+        }
+      });
     });
 
+    async function handleCustomPhoto(file) {
+      if (file.size > 5 * 1024 * 1024) {
+        showNotification('Le fichier est trop volumineux (max 5 Mo)', false);
+        return;
+      }
+
+      const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        showNotification('Format non supporte. Utilisez JPG, PNG ou WEBP', false);
+        return;
+      }
+
+      const progressDiv = document.getElementById('uploadProgress');
+      const progressBar = document.getElementById('uploadProgressBar');
+      progressDiv.style.display = 'block';
+      progressBar.style.width = '30%';
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', 'afrikdigitalo_upload');
+
+        progressBar.style.width = '60%';
+
+        const res = await fetch('https://api.cloudinary.com/v1_1/do83voiqy/image/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        progressBar.style.width = '90%';
+        const data = await res.json();
+
+        if (data.secure_url) {
+          customUploadedURL = data.secure_url;
+          selectedPhotoURL = null;
+          document.querySelectorAll('.avatar-option').forEach(opt => opt.classList.remove('selected'));
+          document.getElementById('customPhotoPreview').style.display = 'block';
+          document.getElementById('customPhotoImg').src = data.secure_url;
+          progressBar.style.width = '100%';
+          setTimeout(() => { progressDiv.style.display = 'none'; progressBar.style.width = '0%'; }, 500);
+          showNotification('Photo telechargee avec succes !', true);
+        } else {
+          throw new Error('Echec upload');
+        }
+      } catch (err) {
+        console.error('Upload error:', err);
+        progressDiv.style.display = 'none';
+        progressBar.style.width = '0%';
+        showNotification('Erreur lors du telechargement de la photo', false);
+      }
+    }
+
+    async function savePhotoToFirestore(photoURL) {
+      try {
+        const idToken = await currentUser.getIdToken();
+        const isAvatar = profilePhotos.includes(photoURL);
+
+        if (isAvatar) {
+          const response = await fetch(BACKEND_URL + '/api/update-profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+            body: JSON.stringify({ userId: currentUser.uid, photoURL: photoURL })
+          });
+          const data = await response.json();
+          if (!response.ok || !data.success) throw new Error(data.error || 'Erreur');
+        } else {
+          await db.collection('users').doc(currentUser.uid).update({
+            photoURL: photoURL,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
+
+        currentPhotoURL = photoURL;
+        originalData.photoURL = photoURL;
+        showNotification('Photo de profil mise a jour !', true);
+        launchConfetti();
+      } catch (err) {
+        console.error('Erreur sauvegarde photo:', err);
+        showNotification('Erreur lors de la sauvegarde: ' + err.message, false);
+        updateAvatarDisplay(originalData.photoURL, originalData.displayName);
+      }
+    }
+
     async function loadUserProfile(user) {
-      const avatarEl = document.getElementById('userAvatar');
       const displayNameHeader = document.getElementById('userDisplayName');
+      const emailDisplay = document.getElementById('userEmailDisplay');
       const displayNameInput = document.getElementById('displayName');
       const emailInput = document.getElementById('email');
       const phoneInput = document.getElementById('phone');
+      const countrySelect = document.getElementById('country');
 
       const displayName = user.displayName || 'Utilisateur';
       displayNameHeader.textContent = displayName;
+      emailDisplay.textContent = user.email || '';
       displayNameInput.value = displayName;
       emailInput.value = user.email || '';
 
@@ -1139,40 +1722,52 @@
         if (doc.exists) {
           const data = doc.data();
           phoneInput.value = data.phone || '';
+          countrySelect.value = data.country || '';
           currentPhotoURL = data.photoURL || null;
           originalData = {
             displayName: displayName,
             email: user.email,
             phone: data.phone || '',
+            country: data.country || '',
             photoURL: currentPhotoURL
           };
+
+          const balance = data.balance || 0;
+          document.getElementById('statBalance').textContent = Math.round(balance).toLocaleString('fr-FR');
+
+          if (data.createdAt) {
+            const joinDate = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+            const months = ['Jan', 'Fev', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aou', 'Sep', 'Oct', 'Nov', 'Dec'];
+            document.getElementById('statJoined').textContent = months[joinDate.getMonth()] + ' ' + joinDate.getFullYear();
+          }
+
+          const ordersSnap = await db.collection('orders').where('userId', '==', user.uid).get();
+          document.getElementById('statOrders').textContent = ordersSnap.size;
+
+          if (data.resellerLevel) {
+            const levels = { bronze: 'Revendeur Bronze', silver: 'Revendeur Silver', gold: 'Revendeur Gold', platinum: 'Revendeur Platinum' };
+            document.getElementById('memberBadgeText').textContent = levels[data.resellerLevel] || 'Membre actif';
+          }
+
+          const meta = user.metadata;
+          if (meta && meta.lastSignInTime) {
+            document.getElementById('lastLoginInfo').textContent = new Date(meta.lastSignInTime).toLocaleString('fr-FR');
+          }
         } else {
-          currentPhotoURL = null;
-          originalData = {
-            displayName: displayName,
-            email: user.email,
-            phone: '',
-            photoURL: null
-          };
+          originalData = { displayName, email: user.email, phone: '', country: '', photoURL: null };
         }
       } catch (err) {
         console.error('Erreur chargement profil:', err);
-        originalData = {
-          displayName: displayName,
-          email: user.email,
-          phone: '',
-          photoURL: null
-        };
+        originalData = { displayName, email: user.email, phone: '', country: '', photoURL: null };
       }
 
-      // Mettre à jour l'affichage de l'avatar
       updateAvatarDisplay(currentPhotoURL, displayName);
     }
 
     function updateAvatarDisplay(photoURL, displayName) {
       const avatarEl = document.getElementById('userAvatar');
       if (photoURL) {
-        avatarEl.innerHTML = `<img src="${photoURL}" alt="Avatar" style="width:100%; height:100%; object-fit:cover;">`;
+        avatarEl.innerHTML = '<img src="' + photoURL + '" alt="Avatar" style="width:100%; height:100%; object-fit:cover;">';
       } else {
         const name = displayName || document.getElementById('userDisplayName').textContent || 'U';
         avatarEl.innerHTML = name.charAt(0).toUpperCase();
@@ -1185,16 +1780,11 @@
       document.getElementById('displayName').readOnly = false;
       document.getElementById('email').readOnly = false;
       document.getElementById('phone').readOnly = false;
+      document.getElementById('country').disabled = false;
       document.getElementById('newPassword').readOnly = false;
       document.getElementById('passwordHint').style.display = 'block';
-      
       document.getElementById('viewButtons').style.display = 'none';
       document.getElementById('editButtons').style.display = 'flex';
-
-      // Activer le clic sur l'avatar
-      document.getElementById('avatarContainer').style.cursor = 'pointer';
-      document.getElementById('avatarEditOverlay').style.display = 'flex';
-      document.getElementById('avatarEditOverlay').style.pointerEvents = 'none'; // pour ne pas bloquer le clic
     }
 
     function exitEditMode() {
@@ -1202,22 +1792,16 @@
       document.getElementById('displayName').value = originalData.displayName;
       document.getElementById('email').value = originalData.email;
       document.getElementById('phone').value = originalData.phone;
+      document.getElementById('country').value = originalData.country;
       document.getElementById('newPassword').value = '';
-      
       document.getElementById('displayName').readOnly = true;
       document.getElementById('email').readOnly = true;
       document.getElementById('phone').readOnly = true;
+      document.getElementById('country').disabled = true;
       document.getElementById('newPassword').readOnly = true;
       document.getElementById('passwordHint').style.display = 'none';
-      
       document.getElementById('viewButtons').style.display = 'flex';
       document.getElementById('editButtons').style.display = 'none';
-
-      // Désactiver le clic sur l'avatar
-      document.getElementById('avatarContainer').style.cursor = 'default';
-      document.getElementById('avatarEditOverlay').style.display = 'none';
-
-      // Restaurer l'avatar original
       updateAvatarDisplay(originalData.photoURL, originalData.displayName);
     }
 
@@ -1235,6 +1819,7 @@
       const newDisplayName = document.getElementById('displayName').value.trim();
       const newEmail = document.getElementById('email').value.trim();
       const newPhone = document.getElementById('phone').value.trim();
+      const newCountry = document.getElementById('country').value;
       const newPassword = document.getElementById('newPassword').value;
 
       if (!newDisplayName) {
@@ -1256,9 +1841,6 @@
       }
 
       try {
-        const photoChanged = selectedPhotoURL && selectedPhotoURL !== originalData.photoURL;
-        const photoToSave = photoChanged ? selectedPhotoURL : originalData.photoURL;
-
         const idToken = await currentUser.getIdToken();
         
         const bodyPayload = {
@@ -1266,12 +1848,9 @@
           displayName: newDisplayName,
           email: newEmail,
           phone: newPhone,
+          country: newCountry,
           newPassword: newPassword || undefined
         };
-
-        if (photoChanged) {
-          bodyPayload.photoURL = selectedPhotoURL;
-        }
 
         const response = await fetch(BACKEND_URL + '/api/update-profile', {
           method: 'POST',
@@ -1288,32 +1867,27 @@
           throw new Error(data.error || 'Erreur lors de la mise a jour');
         }
 
-        if (photoChanged) {
-          currentPhotoURL = photoToSave;
-        }
-
         originalData = {
           displayName: newDisplayName,
           email: newEmail,
           phone: newPhone,
-          photoURL: photoToSave
+          country: newCountry,
+          photoURL: currentPhotoURL
         };
 
         document.getElementById('userDisplayName').textContent = newDisplayName;
+        document.getElementById('userEmailDisplay').textContent = newEmail;
         document.getElementById('newPassword').value = '';
-        selectedPhotoURL = null; // Réinitialiser
 
         exitEditMode();
-        showNotification('Profil mis à jour avec succès !', true);
+        showNotification('Profil mis a jour avec succes !', true);
         launchConfetti();
 
         if (newEmail !== currentUser.email || newPassword) {
           setTimeout(() => {
-            showNotification('Vous allez être redirigé vers la connexion...', true);
+            showNotification('Vous allez etre redirige vers la connexion...', true);
             setTimeout(() => {
-              auth.signOut().then(() => {
-                window.location.href = 'login.html';
-              });
+              auth.signOut().then(() => { window.location.href = 'login.html'; });
             }, 2000);
           }, 3000);
         }
@@ -1321,21 +1895,15 @@
       } catch (err) {
         console.error('Erreur sauvegarde:', err);
         showNotification(err.message, false);
-        // Si erreur, on restaure l'avatar original
-        updateAvatarDisplay(originalData.photoURL, originalData.displayName);
       } finally {
         resetSaveButton();
       }
     }
 
     function resetSaveButton() {
-      const saveBtn = document.getElementById('saveBtn');
-      const saveSpinner = document.getElementById('saveSpinner');
-      const saveText = document.getElementById('saveText');
-      
-      saveBtn.disabled = false;
-      saveSpinner.style.display = 'none';
-      saveText.innerHTML = '<i class="fa-solid fa-check"></i> Enregistrer';
+      document.getElementById('saveBtn').disabled = false;
+      document.getElementById('saveSpinner').style.display = 'none';
+      document.getElementById('saveText').innerHTML = '<i class="fa-solid fa-check"></i> Enregistrer';
     }
 
     function isValidEmail(email) {
@@ -1343,16 +1911,12 @@
     }
 
     function logout() {
-      if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
-        auth.signOut().then(() => {
-          window.location.href = 'login.html';
-        }).catch(err => {
-          showNotification('Erreur de déconnexion', false);
-        });
+      if (confirm('Voulez-vous vraiment vous deconnecter ?')) {
+        auth.signOut().then(() => { window.location.href = 'login.html'; })
+        .catch(() => showNotification('Erreur de deconnexion', false));
       }
     }
 
-    // Fonctions pour le modal
     function populateAvatarGrid() {
       const grid = document.getElementById('avatarGrid');
       grid.innerHTML = '';
@@ -1360,60 +1924,74 @@
         const option = document.createElement('div');
         option.className = 'avatar-option';
         option.dataset.url = url;
-        option.dataset.index = index;
-        option.innerHTML = `<img src="${url}" alt="Avatar ${index+1}" loading="lazy">`;
+        option.innerHTML = '<img src="' + url + '" alt="Avatar ' + (index+1) + '" loading="lazy">';
         option.addEventListener('click', () => {
-          // Enlever la sélection précédente
           document.querySelectorAll('.avatar-option').forEach(opt => opt.classList.remove('selected'));
           option.classList.add('selected');
           selectedPhotoURL = url;
+          customUploadedURL = null;
+          document.getElementById('customPhotoPreview').style.display = 'none';
         });
         grid.appendChild(option);
       });
     }
 
     function openAvatarModal() {
-      const modal = document.getElementById('avatarModal');
-      // Pré-sélectionner l'image actuelle si elle existe dans la liste
-      selectedPhotoURL = currentPhotoURL; // Initialiser avec l'actuelle
+      customUploadedURL = null;
+      selectedPhotoURL = currentPhotoURL;
+      document.getElementById('customPhotoPreview').style.display = 'none';
       document.querySelectorAll('.avatar-option').forEach(opt => {
         opt.classList.remove('selected');
-        if (opt.dataset.url === currentPhotoURL) {
-          opt.classList.add('selected');
-        }
+        if (opt.dataset.url === currentPhotoURL) opt.classList.add('selected');
       });
-      modal.classList.add('active');
+      document.querySelectorAll('.modal-tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.modal-tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelector('.modal-tab-btn[data-modal-tab="avatars"]').classList.add('active');
+      document.getElementById('modalTab-avatars').classList.add('active');
+      document.getElementById('avatarModal').classList.add('active');
     }
 
     function closeAvatarModal() {
-      const modal = document.getElementById('avatarModal');
-      modal.classList.remove('active');
-      // Ne pas modifier selectedPhotoURL ici, on attend le choix ou l'annulation
+      document.getElementById('avatarModal').classList.remove('active');
     }
 
-    function showNotification(message, isSuccess) {
-      const container = document.getElementById('notificationContainer');
-      const notification = document.createElement('div');
-      notification.className = `notification ${isSuccess ? 'success' : 'error'}`;
-      
-      notification.innerHTML = `
-        <div class="notification-icon">${isSuccess ? '<i class="fa-solid fa-check-circle"></i>' : '<i class="fa-solid fa-times-circle"></i>'}</div>
-        <div class="notification-text">${message}</div>
-      `;
-      
-      container.appendChild(notification);
-      
-      setTimeout(() => {
-        notification.style.animation = 'slideIn 0.5s reverse forwards';
-        setTimeout(() => notification.remove(), 500);
-      }, 4000);
+    function loadSettings() {
+      db.collection('users').doc(currentUser.uid).get().then(doc => {
+        const settings = (doc.exists && doc.data().settings) ? doc.data().settings : {};
+        Object.keys(SETTINGS_MAP).forEach(elementId => {
+          const key = SETTINGS_MAP[elementId];
+          const el = document.getElementById(elementId);
+          if (el) {
+            el.checked = settings[key] !== undefined ? settings[key] : DEFAULT_SETTINGS[key];
+          }
+        });
+      });
+    }
+
+    function saveSettings() {
+      const settings = {};
+      Object.keys(SETTINGS_MAP).forEach(elementId => {
+        const key = SETTINGS_MAP[elementId];
+        const el = document.getElementById(elementId);
+        if (el) settings[key] = el.checked;
+      });
+
+      db.collection('users').doc(currentUser.uid).update({
+        settings: settings,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(() => {
+        showNotification('Parametres sauvegardes', true);
+      }).catch(err => {
+        console.error('Erreur sauvegarde parametres:', err);
+        showNotification('Erreur lors de la sauvegarde', false);
+      });
     }
 
     async function loadApiKeyInfo() {
       try {
         const idToken = await currentUser.getIdToken();
-        const response = await fetch(`${BACKEND_URL}/api/user/api-key-info`, {
-          headers: { 'Authorization': `Bearer ${idToken}` }
+        const response = await fetch(BACKEND_URL + '/api/user/api-key-info', {
+          headers: { 'Authorization': 'Bearer ' + idToken }
         });
         const data = await response.json();
         if (data.success && data.hasApiKey) {
@@ -1421,8 +1999,7 @@
           document.getElementById('apiHasKey').style.display = 'block';
           document.getElementById('apiKeyPrefixDisplay').textContent = data.prefix + '****...****';
           if (data.createdAt) {
-            const date = new Date(data.createdAt);
-            document.getElementById('apiKeyDate').textContent = 'Creee le ' + date.toLocaleDateString('fr-FR');
+            document.getElementById('apiKeyDate').textContent = 'Creee le ' + new Date(data.createdAt).toLocaleDateString('fr-FR');
           }
         } else {
           document.getElementById('apiNoKey').style.display = 'block';
@@ -1439,9 +2016,9 @@
       }
       try {
         const idToken = await currentUser.getIdToken();
-        const response = await fetch(`${BACKEND_URL}/api/user/generate-api-key`, {
+        const response = await fetch(BACKEND_URL + '/api/user/generate-api-key', {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${idToken}`, 'Content-Type': 'application/json' }
+          headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' }
         });
         const data = await response.json();
         if (data.success) {
@@ -1465,9 +2042,9 @@
       if (!confirm('Revoquer votre cle API ? Toutes les integrations utilisant cette cle cesseront de fonctionner.')) return;
       try {
         const idToken = await currentUser.getIdToken();
-        const response = await fetch(`${BACKEND_URL}/api/user/revoke-api-key`, {
+        const response = await fetch(BACKEND_URL + '/api/user/revoke-api-key', {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${idToken}`, 'Content-Type': 'application/json' }
+          headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' }
         });
         const data = await response.json();
         if (data.success) {
@@ -1486,17 +2063,17 @@
     function copyApiKey() {
       const keyText = document.getElementById('apiNewKeyValue').textContent;
       navigator.clipboard.writeText(keyText).then(() => {
-        showNotification('Cle API copiee dans le presse-papiers !', true);
+        showNotification('Cle API copiee !', true);
         const btn = document.getElementById('copyApiKeyBtn');
         btn.innerHTML = '<i class="fa-solid fa-check"></i> Copie !';
         setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copier la cle'; }, 2000);
       }).catch(() => {
-        const textarea = document.createElement('textarea');
-        textarea.value = keyText;
-        document.body.appendChild(textarea);
-        textarea.select();
+        const ta = document.createElement('textarea');
+        ta.value = keyText;
+        document.body.appendChild(ta);
+        ta.select();
         document.execCommand('copy');
-        textarea.remove();
+        ta.remove();
         showNotification('Cle API copiee !', true);
       });
     }
@@ -1506,54 +2083,39 @@
     document.getElementById('revokeApiKeyBtn').addEventListener('click', revokeApiKey);
     document.getElementById('copyApiKeyBtn').addEventListener('click', copyApiKey);
 
+    function showNotification(message, isSuccess) {
+      const container = document.getElementById('notificationContainer');
+      const notification = document.createElement('div');
+      notification.className = 'notification ' + (isSuccess ? 'success' : 'error');
+      notification.innerHTML =
+        '<div class="notification-icon">' + (isSuccess ? '<i class="fa-solid fa-check-circle"></i>' : '<i class="fa-solid fa-times-circle"></i>') + '</div>' +
+        '<div class="notification-text">' + message + '</div>';
+      container.appendChild(notification);
+      setTimeout(() => {
+        notification.style.animation = 'slideIn 0.5s reverse forwards';
+        setTimeout(() => notification.remove(), 500);
+      }, 4000);
+    }
+
     function launchConfetti() {
       const colors = ['#4CAF50', '#1E90FF', '#FF6B6B', '#FFD700', '#9C27B0', '#FF9800'];
-      const confettiCount = 150;
-      
-      for (let i = 0; i < confettiCount; i++) {
+      for (let i = 0; i < 100; i++) {
         setTimeout(() => {
-          const confetti = document.createElement('div');
-          confetti.className = 'confetti';
-          confetti.style.left = Math.random() * 100 + 'vw';
-          confetti.style.top = '-10px';
-          confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-          confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
-          
-          const shapes = ['circle', 'square', 'triangle'];
-          const shape = shapes[Math.floor(Math.random() * shapes.length)];
-          if (shape === 'circle') {
-            confetti.style.borderRadius = '50%';
-          } else if (shape === 'triangle') {
-            confetti.style.width = '0';
-            confetti.style.height = '0';
-            confetti.style.borderLeft = '5px solid transparent';
-            confetti.style.borderRight = '5px solid transparent';
-            confetti.style.borderBottom = '10px solid ' + colors[Math.floor(Math.random() * colors.length)];
-            confetti.style.backgroundColor = 'transparent';
-          }
-          
-          document.body.appendChild(confetti);
-          
-          const animDuration = 3 + Math.random() * 2;
-          const horizontalDrift = (Math.random() - 0.5) * 200;
-          
-          confetti.animate([
-            { 
-              top: '-10px', 
-              transform: `rotate(0deg) translateX(0px)`,
-              opacity: 1
-            },
-            { 
-              top: '100vh', 
-              transform: `rotate(${720 + Math.random() * 360}deg) translateX(${horizontalDrift}px)`,
-              opacity: 0
-            }
-          ], {
-            duration: animDuration * 1000,
-            easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-          });
-          
-          setTimeout(() => confetti.remove(), animDuration * 1000);
+          const c = document.createElement('div');
+          c.className = 'confetti';
+          c.style.left = Math.random() * 100 + 'vw';
+          c.style.top = '-10px';
+          c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+          c.style.transform = 'rotate(' + (Math.random()*360) + 'deg)';
+          if (Math.random() > 0.5) c.style.borderRadius = '50%';
+          document.body.appendChild(c);
+          const dur = 3 + Math.random() * 2;
+          const drift = (Math.random() - 0.5) * 200;
+          c.animate([
+            { top: '-10px', transform: 'rotate(0deg) translateX(0)', opacity: 1 },
+            { top: '100vh', transform: 'rotate(' + (720+Math.random()*360) + 'deg) translateX(' + drift + 'px)', opacity: 0 }
+          ], { duration: dur * 1000, easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)' });
+          setTimeout(() => c.remove(), dur * 1000);
         }, i * 20);
       }
     }
