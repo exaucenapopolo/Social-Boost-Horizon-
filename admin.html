@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Espace Fondateur — Social Boost Horizon</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root {
+  --bg: #0a0b14;
+  --bg2: #10121f;
+  --bg3: #161929;
+  --card: rgba(255,255,255,0.04);
+  --card-border: rgba(255,255,255,0.08);
+  --gold: #f4b942;
+  --gold2: #e8a930;
+  --purple: #7c3aed;
+  --purple2: #6d28d9;
+  --cyan: #06b6d4;
+  --green: #10b981;
+  --red: #ef4444;
+  --orange: #f97316;
+  --text: #f1f5f9;
+  --text2: #94a3b8;
+  --text3: #64748b;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* LOADING SCREEN */
+#loadingScreen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 9999;
+  gap: 20px;
+}
+.loading-logo {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold), var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(244,185,66,0.4)} 50%{transform:scale(1.08);box-shadow:0 0 0 20px rgba(244,185,66,0)} }
+.loading-text { color: var(--gold); font-size: 1.1rem; letter-spacing: 2px; animation: blink 1s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* PARTICLES */
+#particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.particle {
+  position: absolute;
+  width: 2px; height: 2px;
+  border-radius: 50%;
+  background: var(--gold);
+  animation: floatParticle linear infinite;
+  opacity: 0;
+}
+@keyframes floatParticle {
+  0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.6; }
+  90% { opacity: 0.6; }
+  100% { transform: translateY(-10vh) rotate(720deg); opacity: 0; }
+}
+
+/* DENY SCREEN */
+#denyScreen {
+  display: none; position: fixed; inset: 0;
+  background: var(--bg);
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 20px; z-index: 9998;
+}
+.deny-icon { font-size: 5rem; color: var(--red); animation: shake 0.5s ease-in-out 3; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-10px)} 75%{transform:translateX(10px)} }
+
+/* MAIN APP */
+#app { display: none; position: relative; z-index: 1; }
+
+/* HEADER */
+.admin-header {
+  background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(244,185,66,0.08));
+  border-bottom: 1px solid rgba(244,185,66,0.2);
+  padding: 0 30px;
+  position: sticky; top: 0; z-index: 100;
+  backdrop-filter: blur(20px);
+}
+.header-inner {
+  max-width: 1600px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 70px; gap: 20px;
+}
+.header-logo {
+  display: flex; align-items: center; gap: 14px;
+}
+.logo-badge {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, var(--gold), var(--purple));
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem;
+  box-shadow: 0 0 20px rgba(244,185,66,0.3);
+  animation: logoGlow 3s ease-in-out infinite;
+}
+@keyframes logoGlow { 0%,100%{box-shadow:0 0 20px rgba(244,185,66,0.3)} 50%{box-shadow:0 0 35px rgba(244,185,66,0.6)} }
+.logo-texts { display: flex; flex-direction: column; }
+.logo-title { font-size: 0.75rem; font-weight: 700; color: var(--gold); letter-spacing: 1px; text-transform: uppercase; }
+.logo-name { font-size: 1rem; font-weight: 800; color: var(--text); }
+
+.header-nav {
+  display: flex; gap: 4px;
+  background: rgba(255,255,255,0.04);
+  padding: 4px; border-radius: 12px;
+  border: 1px solid var(--card-border);
+}
+.nav-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px; border-radius: 8px;
+  border: none; background: none;
+  color: var(--text2); font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+}
+.nav-btn:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+.nav-btn.active { background: linear-gradient(135deg, rgba(124,58,237,0.3), rgba(244,185,66,0.15)); color: var(--gold); }
+.nav-btn i { font-size: 0.9rem; }
+
+.header-right {
+  display: flex; align-items: center; gap: 12px;
+}
+.admin-badge {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 14px; border-radius: 20px;
+  background: linear-gradient(135deg, rgba(244,185,66,0.15), rgba(124,58,237,0.1));
+  border: 1px solid rgba(244,185,66,0.3);
+  font-size: 0.82rem; font-weight: 700; color: var(--gold);
+}
+.admin-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse2 2s ease-in-out infinite; }
+@keyframes pulse2 { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.refresh-btn {
+  width: 38px; height: 38px; border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--card); color: var(--text2);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.refresh-btn:hover { color: var(--gold); border-color: rgba(244,185,66,0.4); }
+
+/* HERO BANNER */
+.hero-banner {
+  background: linear-gradient(135deg, rgba(124,58,237,0.1), rgba(244,185,66,0.05), rgba(6,182,212,0.05));
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 30px;
+}
+.hero-inner { max-width: 1600px; margin: 0 auto; }
+.hero-title { font-size: 2rem; font-weight: 900; margin-bottom: 4px; }
+.hero-title span { background: linear-gradient(135deg, var(--gold), #fff, var(--gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.hero-sub { color: var(--text2); font-size: 0.95rem; }
+.hero-sub strong { color: var(--cyan); }
+
+/* MAIN CONTENT */
+.main-content { max-width: 1600px; margin: 0 auto; padding: 30px; }
+
+/* SECTIONS */
+.section { display: none; }
+.section.active { display: block; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+/* STAT CARDS */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px; margin-bottom: 30px;
+}
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 16px; padding: 20px;
+  position: relative; overflow: hidden;
+  transition: all 0.3s;
+}
+.stat-card::before {
+  content: ''; position: absolute;
+  inset: 0; border-radius: 16px;
+  background: linear-gradient(135deg, var(--card-accent, rgba(124,58,237,0.08)), transparent);
+  pointer-events: none;
+}
+.stat-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.15); }
+.stat-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; margin-bottom: 14px;
+}
+.stat-label { font-size: 0.78rem; color: var(--text3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.stat-value { font-size: 1.6rem; font-weight: 900; color: var(--text); }
+.stat-sub { font-size: 0.78rem; color: var(--text3); margin-top: 4px; }
+
+/* CARD */
+.card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 16px; padding: 24px;
+  margin-bottom: 20px;
+}
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px;
+}
+.card-title {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 1rem; font-weight: 700; color: var(--text);
+}
+.card-title i { color: var(--gold); }
+
+/* SEARCH BAR */
+.search-bar {
+  display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;
+}
+.search-input {
+  flex: 1; min-width: 200px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--card-border);
+  border-radius: 10px; padding: 10px 16px;
+  color: var(--text); font-size: 0.9rem;
+  outline: none; transition: all 0.2s;
+}
+.search-input:focus { border-color: rgba(244,185,66,0.4); background: rgba(255,255,255,0.07); }
+.search-input::placeholder { color: var(--text3); }
+.filter-select {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--card-border);
+  border-radius: 10px; padding: 10px 14px;
+  color: var(--text); font-size: 0.88rem;
+  outline: none; cursor: pointer;
+}
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 18px; border-radius: 10px;
+  border: none; font-size: 0.88rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-gold { background: linear-gradient(135deg, var(--gold), var(--gold2)); color: #000; }
+.btn-gold:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(244,185,66,0.4); }
+.btn-purple { background: linear-gradient(135deg, var(--purple), var(--purple2)); color: #fff; }
+.btn-purple:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(124,58,237,0.4); }
+.btn-green { background: linear-gradient(135deg, var(--green), #059669); color: #fff; }
+.btn-danger { background: linear-gradient(135deg, var(--red), #dc2626); color: #fff; }
+.btn-ghost { background: rgba(255,255,255,0.06); color: var(--text2); border: 1px solid var(--card-border); }
+.btn-ghost:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+.btn-sm { padding: 6px 12px; font-size: 0.8rem; border-radius: 8px; }
+
+/* TABLE */
+.table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--card-border); }
+table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+thead tr { background: rgba(255,255,255,0.04); }
+th { padding: 12px 16px; text-align: left; color: var(--text3); font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--card-border); white-space: nowrap; }
+td { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+tr { transition: all 0.15s; }
+
+/* BADGES */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 0.75rem; font-weight: 700;
+}
+.badge-gold { background: rgba(244,185,66,0.15); color: var(--gold); }
+.badge-green { background: rgba(16,185,129,0.15); color: var(--green); }
+.badge-red { background: rgba(239,68,68,0.15); color: var(--red); }
+.badge-blue { background: rgba(6,182,212,0.15); color: var(--cyan); }
+.badge-purple { background: rgba(124,58,237,0.15); color: #a78bfa; }
+.badge-orange { background: rgba(249,115,22,0.15); color: var(--orange); }
+.badge-gray { background: rgba(100,116,139,0.15); color: var(--text3); }
+
+/* AVATAR */
+.user-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--purple), var(--cyan));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem; font-weight: 700; color: #fff;
+  flex-shrink: 0;
+}
+.user-cell { display: flex; align-items: center; gap: 10px; }
+.user-info .name { font-weight: 600; color: var(--text); font-size: 0.88rem; }
+.user-info .email { font-size: 0.75rem; color: var(--text3); }
+
+/* PAGINATION */
+.pagination {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 0 0; flex-wrap: wrap; gap: 10px;
+}
+.page-info { color: var(--text3); font-size: 0.85rem; }
+.page-btns { display: flex; gap: 6px; }
+.page-btn {
+  width: 34px; height: 34px; border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--card); color: var(--text2);
+  cursor: pointer; font-size: 0.85rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.page-btn:hover, .page-btn.active { border-color: rgba(244,185,66,0.4); color: var(--gold); background: rgba(244,185,66,0.08); }
+.page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* MODAL */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+  z-index: 1000; align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.open { display: flex; animation: fadeIn 0.2s ease; }
+.modal {
+  background: var(--bg2);
+  border: 1px solid rgba(244,185,66,0.2);
+  border-radius: 20px; width: 100%; max-width: 560px;
+  max-height: 90vh; overflow-y: auto;
+  padding: 30px;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 24px;
+}
+.modal-title { font-size: 1.1rem; font-weight: 800; color: var(--gold); }
+.modal-close { background: none; border: none; color: var(--text3); font-size: 1.2rem; cursor: pointer; padding: 4px; transition: color 0.2s; }
+.modal-close:hover { color: var(--text); }
+
+/* FORM ELEMENTS */
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+.form-input {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--card-border);
+  border-radius: 10px; padding: 10px 14px;
+  color: var(--text); font-size: 0.9rem;
+  outline: none; transition: all 0.2s;
+}
+.form-input:focus { border-color: rgba(244,185,66,0.4); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* USER DETAIL PANEL */
+.user-detail-header {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 24px;
+}
+.user-detail-avatar {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--purple), var(--cyan));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; font-weight: 800; color: #fff;
+  border: 3px solid rgba(244,185,66,0.4);
+}
+.user-detail-info h2 { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; }
+.user-detail-info .uid { font-size: 0.75rem; color: var(--text3); font-family: monospace; }
+
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.info-item { background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 10px; padding: 12px; }
+.info-item .label { font-size: 0.75rem; color: var(--text3); margin-bottom: 4px; }
+.info-item .value { font-size: 0.95rem; font-weight: 600; }
+
+/* BALANCE EDITOR */
+.balance-editor {
+  background: rgba(244,185,66,0.06);
+  border: 1px solid rgba(244,185,66,0.2);
+  border-radius: 14px; padding: 20px; margin-bottom: 20px;
+}
+.balance-current {
+  font-size: 2rem; font-weight: 900; color: var(--gold); margin-bottom: 14px;
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* ORDERS STATUS COLORS */
+.status-completed { color: var(--green); }
+.status-progress { color: var(--cyan); }
+.status-pending { color: var(--warning); }
+.status-cancelled { color: var(--red); }
+.status-partial { color: var(--orange); }
+
+/* NOTIFICATION TOAST */
+.toast {
+  position: fixed; bottom: 30px; right: 30px;
+  background: var(--bg2); border: 1px solid var(--card-border);
+  border-radius: 12px; padding: 14px 20px;
+  display: flex; align-items: center; gap: 12px;
+  z-index: 9000; font-size: 0.9rem;
+  transform: translateY(100px); opacity: 0;
+  transition: all 0.3s ease;
+  max-width: 340px;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-color: rgba(16,185,129,0.3); }
+.toast.error { border-color: rgba(239,68,68,0.3); }
+.toast-icon { font-size: 1.1rem; }
+.toast.success .toast-icon { color: var(--green); }
+.toast.error .toast-icon { color: var(--red); }
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center; padding: 60px 20px;
+  color: var(--text3);
+}
+.empty-state i { font-size: 3rem; margin-bottom: 16px; opacity: 0.3; }
+.empty-state p { font-size: 0.95rem; }
+
+/* PROVIDER BADGE COLORS */
+.prov-exo { background: rgba(6,182,212,0.12); color: #67e8f9; }
+.prov-mtp { background: rgba(124,58,237,0.12); color: #c4b5fd; }
+.prov-smmgen { background: rgba(249,115,22,0.12); color: #fdba74; }
+.prov-afriqueboost { background: rgba(245,158,11,0.12); color: #fcd34d; }
+
+/* PROGRESS BAR */
+.progress-bar { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--purple), var(--gold)); border-radius: 2px; transition: width 1s ease; }
+
+/* TOP USERS PODIUM */
+.podium {
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: 12px; padding: 20px 0; margin-bottom: 10px;
+}
+.podium-item {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  flex: 1; max-width: 160px;
+}
+.podium-rank { font-size: 1.4rem; }
+.podium-name { font-size: 0.8rem; font-weight: 700; text-align: center; color: var(--text2); }
+.podium-balance { font-size: 0.85rem; font-weight: 800; color: var(--gold); }
+.podium-bar {
+  width: 100%; border-radius: 8px 8px 0 0;
+  background: linear-gradient(to top, rgba(244,185,66,0.3), rgba(244,185,66,0.08));
+  border: 1px solid rgba(244,185,66,0.2);
+}
+
+/* LOADING SPINNER INLINE */
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid rgba(255,255,255,0.1);
+  border-top-color: var(--gold);
+  border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .header-nav { display: none; }
+  .main-content { padding: 16px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .info-grid { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+  .hero-banner { padding: 20px 16px; }
+  .hero-title { font-size: 1.4rem; }
+  .mobile-nav {
+    display: flex;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--bg2); border-top: 1px solid var(--card-border);
+    padding: 8px; z-index: 50; justify-content: space-around;
+  }
+  .mobile-nav-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 6px 10px; border-radius: 8px; border: none;
+    background: none; color: var(--text3); font-size: 0.7rem; cursor: pointer;
+  }
+  .mobile-nav-btn i { font-size: 1.1rem; }
+  .mobile-nav-btn.active { color: var(--gold); }
+  body { padding-bottom: 70px; }
+}
+@media (min-width: 769px) { .mobile-nav { display: none; } }
+</style>
+</head>
+<body>
+
+<!-- PARTICLES -->
+<div id="particles"></div>
+
+<!-- LOADING -->
+<div id="loadingScreen">
+  <div class="loading-logo">👑</div>
+  <div class="loading-text">VÉRIFICATION D'ACCÈS...</div>
+</div>
+
+<!-- ACCÈS REFUSÉ -->
+<div id="denyScreen" style="display:none">
+  <div class="deny-icon"><i class="fas fa-ban"></i></div>
+  <h2 style="font-size:1.5rem;color:var(--red)">Accès Refusé</h2>
+  <p style="color:var(--text2);text-align:center;max-width:300px">Cet espace est réservé au fondateur de Social Boost Horizon.</p>
+  <button class="btn btn-ghost" onclick="firebase.auth().signOut().then(()=>location.href='index.html')"><i class="fas fa-arrow-left"></i> Retour</button>
+</div>
+
+<!-- APP -->
+<div id="app">
+
+  <!-- HEADER -->
+  <header class="admin-header">
+    <div class="header-inner">
+      <div class="header-logo">
+        <div class="logo-badge">👑</div>
+        <div class="logo-texts">
+          <div class="logo-title">Espace Fondateur</div>
+          <div class="logo-name">Mr NAPOPOLO EXAUCÉ</div>
+        </div>
+      </div>
+
+      <nav class="header-nav">
+        <button class="nav-btn active" onclick="showSection('dashboard', this)"><i class="fas fa-chart-pie"></i> Dashboard</button>
+        <button class="nav-btn" onclick="showSection('users', this)"><i class="fas fa-users"></i> Utilisateurs</button>
+        <button class="nav-btn" onclick="showSection('orders', this)"><i class="fas fa-box"></i> Commandes</button>
+        <button class="nav-btn" onclick="showSection('payments', this)"><i class="fas fa-credit-card"></i> Paiements</button>
+        <button class="nav-btn" onclick="showSection('withdrawals', this)"><i class="fas fa-hand-holding-usd"></i> Retraits</button>
+      </nav>
+
+      <div class="header-right">
+        <div class="admin-badge">
+          <div class="admin-dot"></div>
+          Fondateur
+        </div>
+        <button class="refresh-btn" onclick="refreshCurrent()" title="Actualiser"><i class="fas fa-sync-alt"></i></button>
+        <button class="btn btn-ghost btn-sm" onclick="logout()"><i class="fas fa-sign-out-alt"></i></button>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <div class="hero-banner">
+    <div class="hero-inner">
+      <div class="hero-title"><span>Espace de Travail du Fondateur</span></div>
+      <div class="hero-sub">Social Boost Horizon · Fondateur : <strong>Mr NAPOPOLO EXAUCÉ</strong> · Accès total à toutes les données</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main-content">
+
+    <!-- DASHBOARD -->
+    <div id="section-dashboard" class="section active">
+      <div class="stats-grid" id="statsGrid">
+        <!-- rempli dynamiquement -->
+        <div class="stat-card" style="--card-accent:rgba(124,58,237,0.1)"><div class="stat-icon" style="background:rgba(124,58,237,0.2);color:#a78bfa"><i class="fas fa-users"></i></div><div class="stat-label">Total Utilisateurs</div><div class="stat-value" id="s-users"><div class="spinner"></div></div></div>
+        <div class="stat-card" style="--card-accent:rgba(16,185,129,0.1)"><div class="stat-icon" style="background:rgba(16,185,129,0.2);color:#6ee7b7"><i class="fas fa-box"></i></div><div class="stat-label">Total Commandes</div><div class="stat-value" id="s-orders"><div class="spinner"></div></div></div>
+        <div class="stat-card" style="--card-accent:rgba(244,185,66,0.1)"><div class="stat-icon" style="background:rgba(244,185,66,0.2);color:var(--gold)"><i class="fas fa-coins"></i></div><div class="stat-label">Recharges Encaissées</div><div class="stat-value" id="s-revenue"><div class="spinner"></div></div><div class="stat-sub">AccountPe + Fapshi</div></div>
+        <div class="stat-card" style="--card-accent:rgba(6,182,212,0.1)"><div class="stat-icon" style="background:rgba(6,182,212,0.2);color:var(--cyan)"><i class="fas fa-clock"></i></div><div class="stat-label">Commandes Aujourd'hui</div><div class="stat-value" id="s-today"><div class="spinner"></div></div></div>
+        <div class="stat-card" style="--card-accent:rgba(249,115,22,0.1)"><div class="stat-icon" style="background:rgba(249,115,22,0.2);color:var(--orange)"><i class="fas fa-crown"></i></div><div class="stat-label">Revendeurs</div><div class="stat-value" id="s-resellers"><div class="spinner"></div></div></div>
+        <div class="stat-card" style="--card-accent:rgba(239,68,68,0.1)"><div class="stat-icon" style="background:rgba(239,68,68,0.2);color:#f87171"><i class="fas fa-wallet"></i></div><div class="stat-label">Soldes Totaux</div><div class="stat-value" id="s-balance"><div class="spinner"></div></div><div class="stat-sub">Tous utilisateurs</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex-wrap:wrap">
+        <!-- Répartition commandes -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i class="fas fa-chart-bar"></i> Répartition Commandes</div>
+          </div>
+          <div id="orderBreakdown" style="display:flex;flex-direction:column;gap:12px">
+            <div class="spinner" style="margin:20px auto"></div>
+          </div>
+        </div>
+
+        <!-- Top 3 soldes -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i class="fas fa-trophy"></i> Top Soldes Utilisateurs</div>
+            <button class="btn btn-ghost btn-sm" onclick="showSection('users',null);setTimeout(()=>loadUsers(),100)"><i class="fas fa-external-link-alt"></i></button>
+          </div>
+          <div id="topUsers" style="display:flex;flex-direction:column;gap:10px">
+            <div class="spinner" style="margin:20px auto"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions rapides -->
+      <div class="card" style="margin-top:20px">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-bolt"></i> Actions Rapides</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px">
+          <button class="btn btn-gold" onclick="showSection('users',null);setTimeout(loadUsers,100)"><i class="fas fa-search"></i> Rechercher utilisateur</button>
+          <button class="btn btn-purple" onclick="showSection('orders',null);setTimeout(loadOrders,100)"><i class="fas fa-list"></i> Voir toutes les commandes</button>
+          <button class="btn btn-ghost" onclick="showSection('payments',null);setTimeout(loadRecharges,100)"><i class="fas fa-credit-card"></i> Voir les paiements</button>
+          <button class="btn btn-ghost" onclick="showSection('withdrawals',null);setTimeout(loadWithdrawals,100)"><i class="fas fa-hand-holding-usd"></i> Voir les retraits</button>
+          <button class="btn btn-ghost" onclick="triggerReport('daily')"><i class="fas fa-paper-plane"></i> Envoyer rapport journalier</button>
+          <button class="btn btn-ghost" onclick="triggerReport('payment')"><i class="fas fa-paper-plane"></i> Rapport paiements</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- UTILISATEURS -->
+    <div id="section-users" class="section">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-users"></i> Gestion des Utilisateurs</div>
+          <div id="userCount" class="badge badge-gold">—</div>
+        </div>
+        <div class="search-bar">
+          <input type="text" class="search-input" id="userSearch" placeholder="Rechercher par nom, email, UID, pays..." oninput="debounce(loadUsers, 400)()">
+          <select class="filter-select" id="userSort" onchange="loadUsers()">
+            <option value="balance">Trier par solde</option>
+            <option value="name">Trier par nom</option>
+            <option value="recent">Trier par récent</option>
+          </select>
+          <button class="btn btn-gold" onclick="loadUsers()"><i class="fas fa-search"></i></button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Utilisateur</th>
+              <th>Pays</th>
+              <th>Solde</th>
+              <th>Type</th>
+              <th>Commandes</th>
+              <th>Actions</th>
+            </tr></thead>
+            <tbody id="usersTableBody">
+              <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text3)"><div class="spinner" style="margin:0 auto"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination" id="usersPagination"></div>
+      </div>
+    </div>
+
+    <!-- COMMANDES -->
+    <div id="section-orders" class="section">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-box"></i> Toutes les Commandes</div>
+          <div id="ordersCount" class="badge badge-purple">—</div>
+        </div>
+        <div class="search-bar">
+          <input type="text" class="search-input" id="orderSearch" placeholder="ID, lien, service, plateforme..." oninput="debounce(loadOrders, 400)()">
+          <select class="filter-select" id="orderCollection" onchange="loadOrders()">
+            <option value="all">Toutes les sources</option>
+            <option value="commandes">Standard (ExoSupplier)</option>
+            <option value="autoOrders">Automatique (MTP/SMMGen)</option>
+            <option value="advancedOrders">Avancé (AfriqueBoost)</option>
+          </select>
+          <select class="filter-select" id="orderStatus" onchange="loadOrders()">
+            <option value="">Tous statuts</option>
+            <option value="En attente">En attente</option>
+            <option value="En cours">En cours</option>
+            <option value="Succès">Succès</option>
+            <option value="Annulé">Annulé</option>
+            <option value="Partiel">Partiel</option>
+          </select>
+          <button class="btn btn-purple" onclick="loadOrders()"><i class="fas fa-search"></i></button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>ID</th>
+              <th>Utilisateur</th>
+              <th>Plateforme</th>
+              <th>Service</th>
+              <th>Qté</th>
+              <th>Coût</th>
+              <th>Statut</th>
+              <th>Fournisseur</th>
+              <th>Date</th>
+              <th>Actions</th>
+            </tr></thead>
+            <tbody id="ordersTableBody">
+              <tr><td colspan="10" style="text-align:center;padding:40px"><div class="spinner" style="margin:0 auto"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination" id="ordersPagination"></div>
+      </div>
+    </div>
+
+    <!-- PAIEMENTS -->
+    <div id="section-payments" class="section">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-credit-card"></i> Recharges & Paiements</div>
+          <div style="display:flex;gap:8px">
+            <select class="filter-select" id="rechargeStatus" onchange="loadRecharges()">
+              <option value="">Tous statuts</option>
+              <option value="validated">Validées</option>
+              <option value="pending">En attente</option>
+              <option value="rejected">Rejetées</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>ID</th>
+              <th>Utilisateur</th>
+              <th>Montant</th>
+              <th>Pays</th>
+              <th>Méthode</th>
+              <th>Statut</th>
+              <th>Date</th>
+              <th>Actions</th>
+            </tr></thead>
+            <tbody id="rechargesTableBody">
+              <tr><td colspan="8" style="text-align:center;padding:40px"><div class="spinner" style="margin:0 auto"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination" id="rechargesPagination"></div>
+      </div>
+    </div>
+
+    <!-- RETRAITS -->
+    <div id="section-withdrawals" class="section">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-hand-holding-usd"></i> Demandes de Retrait</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>ID</th>
+              <th>Utilisateur</th>
+              <th>Montant</th>
+              <th>Méthode</th>
+              <th>Détails</th>
+              <th>Statut</th>
+              <th>Date</th>
+              <th>Actions</th>
+            </tr></thead>
+            <tbody id="withdrawalsTableBody">
+              <tr><td colspan="8" style="text-align:center;padding:40px"><div class="spinner" style="margin:0 auto"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+
+  <!-- MOBILE NAV -->
+  <nav class="mobile-nav">
+    <button class="mobile-nav-btn active" onclick="showSection('dashboard',this)"><i class="fas fa-chart-pie"></i><span>Dashboard</span></button>
+    <button class="mobile-nav-btn" onclick="showSection('users',this)"><i class="fas fa-users"></i><span>Utilisateurs</span></button>
+    <button class="mobile-nav-btn" onclick="showSection('orders',this)"><i class="fas fa-box"></i><span>Commandes</span></button>
+    <button class="mobile-nav-btn" onclick="showSection('payments',this)"><i class="fas fa-credit-card"></i><span>Paiements</span></button>
+    <button class="mobile-nav-btn" onclick="showSection('withdrawals',this)"><i class="fas fa-hand-holding-usd"></i><span>Retraits</span></button>
+  </nav>
+
+</div><!-- /app -->
+
+<!-- MODAL: UTILISATEUR DÉTAIL -->
+<div class="modal-overlay" id="userModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fas fa-user-circle"></i> Détail Utilisateur</div>
+      <button class="modal-close" onclick="closeModal('userModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="userModalContent">Chargement...</div>
+  </div>
+</div>
+
+<!-- MODAL: MODIFIER SOLDE -->
+<div class="modal-overlay" id="balanceModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fas fa-coins"></i> Modifier le Solde</div>
+      <button class="modal-close" onclick="closeModal('balanceModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="balanceModalContent">
+      <div class="balance-editor">
+        <div class="balance-current" id="currentBalanceDisplay">0 FCFA</div>
+        <div class="form-group">
+          <label class="form-label">Opération</label>
+          <select class="form-input" id="balanceOperation">
+            <option value="add">➕ Ajouter au solde</option>
+            <option value="subtract">➖ Soustraire du solde</option>
+            <option value="set">🎯 Définir à un montant exact</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Montant (FCFA)</label>
+          <input type="number" class="form-input" id="balanceAmount" min="0" placeholder="Ex: 5000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Raison (facultatif)</label>
+          <input type="text" class="form-input" id="balanceReason" placeholder="Ex: Correction manuelle, bonus...">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-gold" style="flex:1" onclick="applyBalanceChange()"><i class="fas fa-check"></i> Confirmer</button>
+        <button class="btn btn-ghost" onclick="closeModal('balanceModal')">Annuler</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: STATUT COMMANDE -->
+<div class="modal-overlay" id="orderStatusModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fas fa-edit"></i> Modifier le Statut</div>
+      <button class="modal-close" onclick="closeModal('orderStatusModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div>
+      <p style="color:var(--text2);margin-bottom:16px">Commande : <strong id="orderStatusId"></strong></p>
+      <div class="form-group">
+        <label class="form-label">Nouveau statut</label>
+        <select class="form-input" id="orderStatusSelect">
+          <option value="En attente">⏳ En attente</option>
+          <option value="En cours">🔄 En cours</option>
+          <option value="Succès">✅ Succès</option>
+          <option value="Partiel">🟡 Partiel</option>
+          <option value="Annulé">❌ Annulé</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-purple" style="flex:1" onclick="applyOrderStatus()"><i class="fas fa-check"></i> Confirmer</button>
+        <button class="btn btn-ghost" onclick="closeModal('orderStatusModal')">Annuler</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"><i class="fas fa-check toast-icon"></i><span id="toastMsg"></span></div>
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+  authDomain: "social-boost-horizon.firebaseapp.com",
+  projectId: "social-boost-horizon",
+  storageBucket: "social-boost-horizon.appspot.com",
+  messagingSenderId: "43658165639",
+  appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+
+const ADMIN_EMAIL = 'mcexauofficiel@gmail.com';
+const API = window.location.hostname.includes('replit') ? '' : 'https://social-boost-exaucenapopolo2.replit.app';
+
+let currentUser = null;
+let idToken = null;
+let currentBalanceUserId = null;
+let currentOrderStatusData = null;
+
+// PARTICLES
+function createParticles() {
+  const container = document.getElementById('particles');
+  for (let i = 0; i < 20; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.animationDuration = (8 + Math.random() * 12) + 's';
+    p.style.animationDelay = (Math.random() * 10) + 's';
+    p.style.width = p.style.height = (1 + Math.random() * 2) + 'px';
+    p.style.background = Math.random() > 0.5 ? 'var(--gold)' : 'var(--purple)';
+    container.appendChild(p);
+  }
+}
+createParticles();
+
+// AUTH CHECK
+auth.onAuthStateChanged(async user => {
+  if (!user) {
+    location.href = 'login.html';
+    return;
+  }
+  if (user.email !== ADMIN_EMAIL) {
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('denyScreen').style.display = 'flex';
+    return;
+  }
+  currentUser = user;
+  idToken = await user.getIdToken();
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadDashboard();
+  setInterval(async () => { idToken = await user.getIdToken(true); }, 50 * 60 * 1000);
+});
+
+// API HELPER
+async function api(path, method = 'GET', body = null) {
+  const opts = {
+    method,
+    headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Erreur serveur');
+  return data;
+}
+
+// TOAST
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  const icon = t.querySelector('.toast-icon');
+  document.getElementById('toastMsg').textContent = msg;
+  t.className = 'toast ' + type;
+  icon.className = 'fas ' + (type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle') + ' toast-icon';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// SECTIONS
+let currentSection = 'dashboard';
+function showSection(name, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  currentSection = name;
+
+  if (name === 'users' && !usersLoaded) loadUsers();
+  if (name === 'orders' && !ordersLoaded) loadOrders();
+  if (name === 'payments' && !rechargesLoaded) loadRecharges();
+  if (name === 'withdrawals' && !withdrawalsLoaded) loadWithdrawals();
+}
+
+function refreshCurrent() {
+  if (currentSection === 'dashboard') loadDashboard();
+  else if (currentSection === 'users') loadUsers();
+  else if (currentSection === 'orders') loadOrders();
+  else if (currentSection === 'payments') loadRecharges();
+  else if (currentSection === 'withdrawals') loadWithdrawals();
+  showToast('Données actualisées');
+}
+
+// DEBOUNCE
+function debounce(fn, delay) {
+  let t;
+  return function(...args) { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
+}
+
+// FORMAT
+function fmtNum(n) { return Math.round(n).toLocaleString('fr-FR'); }
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+function initials(name, email) {
+  const n = name || email || '?';
+  return n.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function statusBadge(status) {
+  const s = (status || '').toLowerCase();
+  if (s.includes('succès') || s.includes('terminé') || s.includes('complet')) return `<span class="badge badge-green">✅ ${status}</span>`;
+  if (s.includes('cours') || s.includes('traitement')) return `<span class="badge badge-blue">🔄 ${status}</span>`;
+  if (s.includes('attente')) return `<span class="badge badge-gold">⏳ ${status}</span>`;
+  if (s.includes('annul') || s.includes('cancel')) return `<span class="badge badge-red">❌ ${status}</span>`;
+  if (s.includes('partiel')) return `<span class="badge badge-orange">🟡 ${status}</span>`;
+  if (s.includes('validated') || s.includes('validée')) return `<span class="badge badge-green">✅ Validée</span>`;
+  if (s.includes('pending')) return `<span class="badge badge-gold">⏳ En attente</span>`;
+  if (s.includes('rejected') || s.includes('rejeté')) return `<span class="badge badge-red">❌ Rejetée</span>`;
+  if (s.includes('successful')) return `<span class="badge badge-green">✅ Réussie</span>`;
+  return `<span class="badge badge-gray">${status}</span>`;
+}
+
+function providerBadge(provider, col) {
+  const p = (provider || '').toLowerCase();
+  if (p === 'mtp') return '<span class="badge prov-mtp">M MTP</span>';
+  if (p === 'smmgen') return '<span class="badge prov-smmgen">S SMMGen</span>';
+  if (p === 'afriqueboost') return '<span class="badge prov-afriqueboost">A AfriqueBoost</span>';
+  if (col === 'advancedOrders') return '<span class="badge prov-afriqueboost">A AfriqueBoost</span>';
+  if (col === 'autoOrders') return '<span class="badge prov-mtp">M MTP</span>';
+  return '<span class="badge prov-exo">E ExoSupplier</span>';
+}
+
+// ─── DASHBOARD ───
+async function loadDashboard() {
+  try {
+    const data = await api('/api/admin/stats');
+
+    document.getElementById('s-users').textContent = fmtNum(data.totalUsers);
+    document.getElementById('s-orders').textContent = fmtNum(data.totalOrders);
+    document.getElementById('s-revenue').textContent = fmtNum(data.totalRechargesRevenue) + ' FCFA';
+    document.getElementById('s-today').textContent = fmtNum(data.todayOrders);
+    document.getElementById('s-resellers').textContent = fmtNum(data.resellerCount);
+    document.getElementById('s-balance').textContent = fmtNum(data.totalBalance) + ' FCFA';
+
+    const breakdown = document.getElementById('orderBreakdown');
+    const total = data.totalOrders || 1;
+    const items = [
+      { label: 'Standard ExoSupplier', count: data.commandesCount, color: 'var(--cyan)', icon: 'fa-layer-group' },
+      { label: 'Automatique MTP/SMMGen', count: data.autoOrdersCount, color: '#a78bfa', icon: 'fa-bolt' },
+      { label: 'Avancé AfriqueBoost', count: data.advancedOrdersCount, color: 'var(--gold)', icon: 'fa-star' }
+    ];
+    breakdown.innerHTML = items.map(item => `
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span style="color:var(--text2);font-size:0.85rem"><i class="fas ${item.icon}" style="color:${item.color};margin-right:6px"></i>${item.label}</span>
+          <span style="font-weight:700;color:${item.color}">${fmtNum(item.count)}</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${(item.count/total*100).toFixed(1)}%;background:${item.color}"></div></div>
+      </div>
+    `).join('');
+
+    // Top users
+    await loadTopUsers();
+  } catch (err) {
+    showToast('Erreur dashboard: ' + err.message, 'error');
+  }
+}
+
+async function loadTopUsers() {
+  try {
+    const data = await api('/api/admin/users?sort=balance&limit=5');
+    const container = document.getElementById('topUsers');
+    if (!data.users.length) { container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>Aucun utilisateur</p></div>'; return; }
+    container.innerHTML = data.users.slice(0, 5).map((u, i) => `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px;background:rgba(255,255,255,0.03);border-radius:10px;cursor:pointer" onclick="openUserDetail('${u.id}')">
+        <div style="color:var(--text3);font-size:0.9rem;font-weight:800;width:20px;text-align:center">${['🥇','🥈','🥉','4','5'][i]}</div>
+        <div class="user-avatar" style="width:36px;height:36px;font-size:0.8rem">${initials(u.name, u.email)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.name || u.email || u.id}</div>
+          <div style="font-size:0.75rem;color:var(--text3)">${u.country || '—'} ${u.isReseller ? '👑 Revendeur' : ''}</div>
+        </div>
+        <div style="font-weight:800;color:var(--gold);font-size:0.9rem;white-space:nowrap">${fmtNum(u.balance)} FCFA</div>
+      </div>
+    `).join('');
+  } catch (e) {}
+}
+
+// ─── UTILISATEURS ───
+let usersLoaded = false;
+let usersOffset = 0;
+const usersLimit = 25;
+
+async function loadUsers() {
+  usersLoaded = true;
+  const search = document.getElementById('userSearch')?.value || '';
+  const sort = document.getElementById('userSort')?.value || 'balance';
+  const tbody = document.getElementById('usersTableBody');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px"><div class="spinner" style="margin:0 auto"></div></td></tr>';
+
+  try {
+    const data = await api(`/api/admin/users?search=${encodeURIComponent(search)}&sort=${sort}&limit=${usersLimit}&offset=${usersOffset}`);
+    document.getElementById('userCount').textContent = data.total + ' utilisateurs';
+
+    if (!data.users.length) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><i class="fas fa-search"></i><p>Aucun utilisateur trouvé</p></div></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.users.map(u => `
+      <tr style="cursor:pointer" onclick="openUserDetail('${u.id}')">
+        <td>
+          <div class="user-cell">
+            <div class="user-avatar">${initials(u.name, u.email)}</div>
+            <div class="user-info">
+              <div class="name">${u.name || '—'}</div>
+              <div class="email">${u.email || u.id.slice(0,12)+'...'}</div>
+            </div>
+          </div>
+        </td>
+        <td><span style="font-size:0.85rem;color:var(--text2)">${u.country || '—'}</span></td>
+        <td><strong style="color:var(--gold)">${fmtNum(u.balance)} FCFA</strong></td>
+        <td>${u.isReseller ? `<span class="badge badge-orange">👑 Niv.${u.resellerLevel || '?'}</span>` : '<span class="badge badge-gray">Standard</span>'}</td>
+        <td><span style="color:var(--text2)">${u.weeklyOrderCount || 0} / sem.</span></td>
+        <td onclick="event.stopPropagation()">
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-sm btn-gold" onclick="openBalanceModal('${u.id}', '${u.name || u.email}', ${u.balance})"><i class="fas fa-coins"></i></button>
+            <button class="btn btn-sm btn-ghost" onclick="openUserDetail('${u.id}')"><i class="fas fa-eye"></i></button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    renderPagination('usersPagination', data.total, usersOffset, usersLimit, (off) => { usersOffset = off; loadUsers(); });
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--red);padding:30px"><i class="fas fa-exclamation-circle"></i> ${err.message}</td></tr>`;
+  }
+}
+
+// DÉTAIL UTILISATEUR
+async function openUserDetail(userId) {
+  document.getElementById('userModalContent').innerHTML = '<div class="spinner" style="margin:30px auto"></div>';
+  document.getElementById('userModal').classList.add('open');
+
+  try {
+    const data = await api('/api/admin/user/' + userId);
+    const u = data.user;
+    const nameIn = initials(u.name, u.email);
+    const joinDate = u.createdAt ? new Date(u.createdAt).toLocaleDateString('fr-FR') : '—';
+
+    document.getElementById('userModalContent').innerHTML = `
+      <div class="user-detail-header">
+        <div class="user-detail-avatar">${nameIn}</div>
+        <div class="user-detail-info">
+          <h2>${u.name || 'Sans nom'}</h2>
+          <div style="color:var(--text2);font-size:0.88rem">${u.email}</div>
+          <div class="uid">${u.id}</div>
+        </div>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-item"><div class="label">Solde</div><div class="value" style="color:var(--gold)">${fmtNum(u.balance)} FCFA</div></div>
+        <div class="info-item"><div class="label">Pays</div><div class="value">${u.country || '—'}</div></div>
+        <div class="info-item"><div class="label">Type</div><div class="value">${u.isReseller ? `Revendeur Niv.${u.resellerLevel}` : 'Standard'}</div></div>
+        <div class="info-item"><div class="label">Inscrit le</div><div class="value">${joinDate}</div></div>
+        <div class="info-item"><div class="label">Commandes / sem.</div><div class="value">${u.weeklyOrderCount || 0}</div></div>
+        <div class="info-item"><div class="label">Économies revendeur</div><div class="value">${fmtNum(u.totalSavings || 0)} FCFA</div></div>
+        <div class="info-item"><div class="label">Code Parrainage</div><div class="value" style="font-family:monospace">${u.referralCode || '—'}</div></div>
+        <div class="info-item"><div class="label">Total Commandes</div><div class="value">${data.orderCounts.total}</div></div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+        <button class="btn btn-gold btn-sm" onclick="closeModal('userModal');openBalanceModal('${u.id}','${(u.name||u.email).replace(/'/g,"\\'")}',${u.balance})"><i class="fas fa-coins"></i> Modifier le solde</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleReseller('${u.id}', ${u.isReseller})"><i class="fas fa-crown"></i> ${u.isReseller ? 'Retirer revendeur' : 'Passer revendeur'}</button>
+      </div>
+
+      ${data.orders.length > 0 ? `
+      <div style="font-weight:700;color:var(--text2);font-size:0.82rem;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Dernières commandes</div>
+      <div style="max-height:280px;overflow-y:auto;border-radius:10px;border:1px solid var(--card-border)">
+        <table style="width:100%">
+          ${data.orders.slice(0,10).map(o => `
+          <tr style="font-size:0.82rem">
+            <td style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04)">${o.platform||'—'}</td>
+            <td style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${o.service}">${o.service||'—'}</td>
+            <td style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04);color:var(--gold)">${fmtNum(o.cost)} F</td>
+            <td style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04)">${statusBadge(o.status)}</td>
+            <td style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04);color:var(--text3)">${o.createdAt ? new Date(o.createdAt).toLocaleDateString('fr-FR') : '—'}</td>
+          </tr>
+          `).join('')}
+        </table>
+      </div>` : '<div style="color:var(--text3);text-align:center;padding:20px">Aucune commande</div>'}
+    `;
+  } catch (err) {
+    document.getElementById('userModalContent').innerHTML = `<p style="color:var(--red)">Erreur: ${err.message}</p>`;
+  }
+}
+
+async function toggleReseller(userId, isReseller) {
+  try {
+    await api('/api/admin/user/' + userId + '/update', 'POST', { isReseller: !isReseller });
+    showToast(isReseller ? 'Revendeur retiré' : 'Revendeur activé');
+    openUserDetail(userId);
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ─── SOLDE ───
+function openBalanceModal(userId, name, balance) {
+  currentBalanceUserId = userId;
+  document.getElementById('currentBalanceDisplay').textContent = fmtNum(balance) + ' FCFA actuel — ' + name;
+  document.getElementById('balanceAmount').value = '';
+  document.getElementById('balanceReason').value = '';
+  document.getElementById('balanceModal').classList.add('open');
+}
+
+async function applyBalanceChange() {
+  const amount = parseFloat(document.getElementById('balanceAmount').value);
+  const operation = document.getElementById('balanceOperation').value;
+  const reason = document.getElementById('balanceReason').value;
+
+  if (isNaN(amount) || amount < 0) { showToast('Montant invalide', 'error'); return; }
+  try {
+    const data = await api('/api/admin/user/' + currentBalanceUserId + '/balance', 'POST', { amount, operation, reason });
+    showToast(`✅ Nouveau solde : ${fmtNum(data.newBalance)} FCFA`);
+    closeModal('balanceModal');
+    if (usersLoaded) loadUsers();
+    if (currentSection === 'dashboard') loadDashboard();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ─── COMMANDES ───
+let ordersLoaded = false;
+let ordersOffset = 0;
+const ordersLimit = 30;
+
+async function loadOrders() {
+  ordersLoaded = true;
+  const search = document.getElementById('orderSearch')?.value || '';
+  const col = document.getElementById('orderCollection')?.value || 'all';
+  const status = document.getElementById('orderStatus')?.value || '';
+  const tbody = document.getElementById('ordersTableBody');
+  tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px"><div class="spinner" style="margin:0 auto"></div></td></tr>';
+
+  try {
+    const data = await api(`/api/admin/orders?collection=${col}&search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}&limit=${ordersLimit}&offset=${ordersOffset}`);
+    document.getElementById('ordersCount').textContent = data.total + ' commandes';
+
+    if (!data.orders.length) {
+      tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><i class="fas fa-box"></i><p>Aucune commande trouvée</p></div></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.orders.map(o => {
+      const shortId = o.id.length > 16 ? o.id.slice(0, 14) + '…' : o.id;
+      return `
+      <tr>
+        <td><span style="font-family:monospace;font-size:0.78rem;color:var(--text3)" title="${o.id}">${shortId}</span></td>
+        <td><span style="font-size:0.82rem">${o.userName || o.userId?.slice(0,8)+'…' || '—'}</span></td>
+        <td><span style="font-size:0.82rem">${o.platform||'—'}</span></td>
+        <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${o.service}"><span style="font-size:0.82rem">${o.service||'—'}</span></td>
+        <td><span style="font-size:0.82rem">${fmtNum(o.quantity)}</span></td>
+        <td><strong style="color:var(--gold);font-size:0.85rem">${fmtNum(o.cost)} F</strong></td>
+        <td>${statusBadge(o.status)}</td>
+        <td>${providerBadge(o.provider, o.collection)}</td>
+        <td><span style="font-size:0.78rem;color:var(--text3)">${o.createdAt ? new Date(o.createdAt).toLocaleDateString('fr-FR') : '—'}</span></td>
+        <td>
+          <button class="btn btn-sm btn-ghost" onclick="openOrderStatusModal('${o.id}','${o.collection}','${o.status}')"><i class="fas fa-edit"></i></button>
+        </td>
+      </tr>`;
+    }).join('');
+
+    renderPagination('ordersPagination', data.total, ordersOffset, ordersLimit, (off) => { ordersOffset = off; loadOrders(); });
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--red);padding:30px"><i class="fas fa-exclamation-circle"></i> ${err.message}</td></tr>`;
+  }
+}
+
+function openOrderStatusModal(orderId, col, currentStatus) {
+  currentOrderStatusData = { id: orderId, col };
+  document.getElementById('orderStatusId').textContent = orderId;
+  document.getElementById('orderStatusSelect').value = currentStatus;
+  document.getElementById('orderStatusModal').classList.add('open');
+}
+
+async function applyOrderStatus() {
+  if (!currentOrderStatusData) return;
+  const status = document.getElementById('orderStatusSelect').value;
+  try {
+    await api(`/api/admin/order/${currentOrderStatusData.col}/${currentOrderStatusData.id}/status`, 'POST', { status });
+    showToast('Statut mis à jour : ' + status);
+    closeModal('orderStatusModal');
+    loadOrders();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ─── PAIEMENTS ───
+let rechargesLoaded = false;
+let rechargesOffset = 0;
+const rechargesLimit = 30;
+
+async function loadRecharges() {
+  rechargesLoaded = true;
+  const status = document.getElementById('rechargeStatus')?.value || '';
+  const tbody = document.getElementById('rechargesTableBody');
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px"><div class="spinner" style="margin:0 auto"></div></td></tr>';
+
+  try {
+    const data = await api(`/api/admin/recharges?status=${status}&limit=${rechargesLimit}&offset=${rechargesOffset}`);
+
+    if (!data.recharges.length) {
+      tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-credit-card"></i><p>Aucun paiement trouvé</p></div></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.recharges.map(r => `
+      <tr>
+        <td><span style="font-family:monospace;font-size:0.78rem;color:var(--text3)">${r.id.slice(0,10)}…</span></td>
+        <td><span style="font-size:0.82rem">${r.username || r.userId?.slice(0,10)+'…' || '—'}</span></td>
+        <td><strong style="color:var(--green)">${fmtNum(r.amount)} FCFA</strong></td>
+        <td>${r.country || '—'}</td>
+        <td><span class="badge badge-blue">${r.method || 'AccountPe'}</span></td>
+        <td>${statusBadge(r.status)}</td>
+        <td><span style="font-size:0.78rem;color:var(--text3)">${fmtDate(r.createdAt)}</span></td>
+        <td>
+          ${r.status === 'pending' ? `<button class="btn btn-sm btn-green" onclick="validateRecharge('${r.id}')"><i class="fas fa-check"></i> Valider</button>` : ''}
+          ${r.proofUrl ? `<a href="${r.proofUrl}" target="_blank" class="btn btn-sm btn-ghost"><i class="fas fa-image"></i></a>` : ''}
+        </td>
+      </tr>
+    `).join('');
+
+    renderPagination('rechargesPagination', data.total, rechargesOffset, rechargesLimit, (off) => { rechargesOffset = off; loadRecharges(); });
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--red);padding:30px">${err.message}</td></tr>`;
+  }
+}
+
+async function validateRecharge(rechargeId) {
+  if (!confirm('Confirmer la validation de cette recharge ?')) return;
+  try {
+    const data = await api('/api/admin/recharge/' + rechargeId + '/validate', 'POST', {});
+    showToast(`✅ Recharge validée : +${fmtNum(data.amount)} FCFA crédité`);
+    loadRecharges();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ─── RETRAITS ───
+let withdrawalsLoaded = false;
+
+async function loadWithdrawals() {
+  withdrawalsLoaded = true;
+  const tbody = document.getElementById('withdrawalsTableBody');
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px"><div class="spinner" style="margin:0 auto"></div></td></tr>';
+
+  try {
+    const data = await api('/api/admin/withdrawals');
+
+    if (!data.withdrawals.length) {
+      tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-inbox"></i><p>Aucune demande de retrait</p></div></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.withdrawals.map(w => `
+      <tr>
+        <td><span style="font-family:monospace;font-size:0.78rem;color:var(--text3)">${w.id.slice(0,10)}…</span></td>
+        <td><span style="font-size:0.82rem">${w.userName || w.userId?.slice(0,10)+'…' || '—'}</span></td>
+        <td><strong style="color:var(--orange)">${fmtNum(w.amount)} FCFA</strong></td>
+        <td>${w.method || '—'}</td>
+        <td><span style="font-size:0.78rem;color:var(--text2);max-width:120px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${w.details}">${w.details || '—'}</span></td>
+        <td>${statusBadge(w.status)}</td>
+        <td><span style="font-size:0.78rem;color:var(--text3)">${fmtDate(w.createdAt)}</span></td>
+        <td>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            ${w.status === 'pending' ? `
+            <button class="btn btn-sm btn-green" onclick="updateWithdrawal('${w.id}','completed')"><i class="fas fa-check"></i></button>
+            <button class="btn btn-sm btn-danger" onclick="updateWithdrawal('${w.id}','rejected')"><i class="fas fa-times"></i></button>
+            ` : ''}
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--red);padding:30px">${err.message}</td></tr>`;
+  }
+}
+
+async function updateWithdrawal(id, status) {
+  const action = status === 'completed' ? 'Confirmer le traitement ?' : 'Confirmer le rejet ?';
+  if (!confirm(action)) return;
+  try {
+    await api('/api/admin/withdrawal/' + id + '/status', 'POST', { status });
+    showToast(status === 'completed' ? '✅ Retrait marqué traité' : '❌ Retrait rejeté');
+    loadWithdrawals();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ─── PAGINATION ───
+function renderPagination(containerId, total, offset, limit, onChange) {
+  const container = document.getElementById(containerId);
+  const totalPages = Math.ceil(total / limit);
+  const currentPage = Math.floor(offset / limit);
+
+  container.innerHTML = `
+    <div class="page-info">${offset + 1}–${Math.min(offset + limit, total)} sur ${total}</div>
+    <div class="page-btns">
+      <button class="page-btn" ${currentPage === 0 ? 'disabled' : ''} onclick="(${onChange.toString()})(${offset - limit})"><i class="fas fa-chevron-left"></i></button>
+      <span class="page-btn active">${currentPage + 1} / ${totalPages}</span>
+      <button class="page-btn" ${currentPage >= totalPages - 1 ? 'disabled' : ''} onclick="(${onChange.toString()})(${offset + limit})"><i class="fas fa-chevron-right"></i></button>
+    </div>
+  `;
+}
+
+// ─── RAPPORTS MANUELS ───
+async function triggerReport(type) {
+  const endpoint = type === 'daily' ? '/test-daily-report' : '/test-daily-payment-report';
+  const label = type === 'daily' ? 'rapport journalier des commandes' : 'rapport des paiements';
+  showToast('Envoi du ' + label + '...');
+  try {
+    const res = await fetch(API + endpoint);
+    const data = await res.json();
+    if (data.success) showToast('✅ ' + label + ' envoyé sur WhatsApp !');
+    else showToast('Erreur : ' + (data.error || 'Échec'), 'error');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ─── MODALS ───
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+});
+
+// ─── LOGOUT ───
+function logout() {
+  if (confirm('Se déconnecter ?')) {
+    auth.signOut().then(() => location.href = 'login.html');
+  }
+}
+</script>
+</body>
+</html>
