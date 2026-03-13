@@ -197,6 +197,7 @@ body {
   pointer-events: none;
 }
 .stat-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.15); }
+.stat-card.expandable { cursor: pointer; }
 .stat-icon {
   width: 44px; height: 44px; border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
@@ -205,6 +206,30 @@ body {
 .stat-label { font-size: 0.78rem; color: var(--text3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
 .stat-value { font-size: 1.6rem; font-weight: 900; color: var(--text); }
 .stat-sub { font-size: 0.78rem; color: var(--text3); margin-top: 4px; }
+.stat-row-mini {
+  display: flex; gap: 6px; margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.stat-mini-item { flex: 1; text-align: center; }
+.stat-mini-val { font-size: 0.88rem; font-weight: 800; color: var(--text); }
+.stat-mini-lbl { font-size: 0.63rem; color: var(--text3); text-transform: uppercase; margin-top: 2px; }
+.trend-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 0.7rem; font-weight: 700; padding: 2px 7px;
+  border-radius: 20px; margin-top: 4px;
+}
+.trend-up { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+.trend-down { background: rgba(239,68,68,0.15); color: #f87171; }
+.trend-flat { background: rgba(156,163,175,0.15); color: #9ca3af; }
+.stat-expand-panel {
+  display: none; margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  font-size: 0.82rem; animation: fadeIn 0.2s ease;
+}
+.stat-expand-panel.open { display: block; }
+.sep-line { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.sep-line span:first-child { color: var(--text3); }
+.sep-line span:last-child { font-weight: 700; color: var(--text); }
 
 /* CARD */
 .card {
@@ -618,13 +643,109 @@ tr { transition: all 0.15s; }
     <!-- DASHBOARD -->
     <div id="section-dashboard" class="section active">
       <div class="stats-grid" id="statsGrid">
-        <!-- rempli dynamiquement -->
-        <div class="stat-card" style="--card-accent:rgba(124,58,237,0.1)"><div class="stat-icon" style="background:rgba(124,58,237,0.2);color:#a78bfa"><i class="fas fa-users"></i></div><div class="stat-label">Total Utilisateurs</div><div class="stat-value" id="s-users"><div class="spinner"></div></div></div>
-        <div class="stat-card" style="--card-accent:rgba(16,185,129,0.1)"><div class="stat-icon" style="background:rgba(16,185,129,0.2);color:#6ee7b7"><i class="fas fa-box"></i></div><div class="stat-label">Total Commandes</div><div class="stat-value" id="s-orders"><div class="spinner"></div></div></div>
-        <div class="stat-card" style="--card-accent:rgba(244,185,66,0.1)"><div class="stat-icon" style="background:rgba(244,185,66,0.2);color:var(--gold)"><i class="fas fa-coins"></i></div><div class="stat-label">Recharges Encaissées</div><div class="stat-value" id="s-revenue"><div class="spinner"></div></div><div class="stat-sub">AccountPe + Fapshi</div></div>
-        <div class="stat-card" style="--card-accent:rgba(6,182,212,0.1)"><div class="stat-icon" style="background:rgba(6,182,212,0.2);color:var(--cyan)"><i class="fas fa-clock"></i></div><div class="stat-label">Commandes Aujourd'hui</div><div class="stat-value" id="s-today"><div class="spinner"></div></div></div>
-        <div class="stat-card" style="--card-accent:rgba(249,115,22,0.1)"><div class="stat-icon" style="background:rgba(249,115,22,0.2);color:var(--orange)"><i class="fas fa-crown"></i></div><div class="stat-label">Revendeurs</div><div class="stat-value" id="s-resellers"><div class="spinner"></div></div></div>
-        <div class="stat-card" style="--card-accent:rgba(239,68,68,0.1)"><div class="stat-icon" style="background:rgba(239,68,68,0.2);color:#f87171"><i class="fas fa-wallet"></i></div><div class="stat-label">Soldes Totaux</div><div class="stat-value" id="s-balance"><div class="spinner"></div></div><div class="stat-sub">Tous utilisateurs</div></div>
+
+        <!-- Utilisateurs -->
+        <div class="stat-card expandable" style="--card-accent:rgba(124,58,237,0.1)" onclick="toggleExpand('exp-users')">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div class="stat-icon" style="background:rgba(124,58,237,0.2);color:#a78bfa"><i class="fas fa-users"></i></div>
+            <span id="trend-users" class="trend-badge trend-flat">— vs hier</span>
+          </div>
+          <div class="stat-label">Total Utilisateurs</div>
+          <div class="stat-value" id="s-users"><div class="spinner"></div></div>
+          <div class="stat-row-mini">
+            <div class="stat-mini-item"><div class="stat-mini-val" id="sm-users-today">—</div><div class="stat-mini-lbl">Aujourd'hui</div></div>
+            <div class="stat-mini-item"><div class="stat-mini-val" id="sm-users-yest">—</div><div class="stat-mini-lbl">Hier</div></div>
+            <div class="stat-mini-item"><div class="stat-mini-val" id="sm-users-week">—</div><div class="stat-mini-lbl">Semaine</div></div>
+          </div>
+          <div class="stat-expand-panel" id="exp-users">
+            <div class="sep-line"><span>Nouveaux aujourd'hui</span><span id="exp-users-today">—</span></div>
+            <div class="sep-line"><span>Nouveaux hier</span><span id="exp-users-yest">—</span></div>
+            <div class="sep-line"><span>Nouveaux cette semaine</span><span id="exp-users-week">—</span></div>
+            <div class="sep-line"><span>Total inscrits</span><span id="exp-users-total">—</span></div>
+            <div class="sep-line"><span>Revendeurs actifs</span><span id="exp-users-resellers">—</span></div>
+          </div>
+        </div>
+
+        <!-- Commandes -->
+        <div class="stat-card expandable" style="--card-accent:rgba(16,185,129,0.1)" onclick="toggleExpand('exp-orders')">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div class="stat-icon" style="background:rgba(16,185,129,0.2);color:#6ee7b7"><i class="fas fa-box"></i></div>
+            <span id="trend-orders" class="trend-badge trend-flat">— vs hier</span>
+          </div>
+          <div class="stat-label">Total Commandes</div>
+          <div class="stat-value" id="s-orders"><div class="spinner"></div></div>
+          <div class="stat-row-mini">
+            <div class="stat-mini-item"><div class="stat-mini-val" id="sm-orders-today">—</div><div class="stat-mini-lbl">Aujourd'hui</div></div>
+            <div class="stat-mini-item"><div class="stat-mini-val" id="sm-orders-yest">—</div><div class="stat-mini-lbl">Hier</div></div>
+            <div class="stat-mini-item"><div class="stat-mini-val" id="sm-orders-week">—</div><div class="stat-mini-lbl">Semaine</div></div>
+          </div>
+          <div class="stat-expand-panel" id="exp-orders">
+            <div class="sep-line"><span>Commandes aujourd'hui</span><span id="exp-orders-today">—</span></div>
+            <div class="sep-line"><span>Commandes hier</span><span id="exp-orders-yest">—</span></div>
+            <div class="sep-line"><span>Commandes cette semaine</span><span id="exp-orders-week">—</span></div>
+            <div class="sep-line"><span>Standard (ExoSupplier)</span><span id="exp-orders-cmd">—</span></div>
+            <div class="sep-line"><span>Automatique (MTP/SMMGen)</span><span id="exp-orders-auto">—</span></div>
+            <div class="sep-line"><span>Avancé (AfriqueBoost)</span><span id="exp-orders-adv">—</span></div>
+          </div>
+        </div>
+
+        <!-- Recharges -->
+        <div class="stat-card expandable" style="--card-accent:rgba(244,185,66,0.1)" onclick="toggleExpand('exp-recharges')">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div class="stat-icon" style="background:rgba(244,185,66,0.2);color:var(--gold)"><i class="fas fa-coins"></i></div>
+            <span id="trend-recharges" class="trend-badge trend-flat">— vs hier</span>
+          </div>
+          <div class="stat-label">Recharges Encaissées</div>
+          <div class="stat-value" id="s-revenue"><div class="spinner"></div></div>
+          <div class="stat-row-mini">
+            <div class="stat-mini-item"><div class="stat-mini-val" id="sm-rech-today">—</div><div class="stat-mini-lbl">Aujourd'hui</div></div>
+            <div class="stat-mini-item"><div class="stat-mini-val" id="sm-rech-yest">—</div><div class="stat-mini-lbl">Hier</div></div>
+            <div class="stat-mini-item"><div class="stat-mini-val" id="sm-rech-week">—</div><div class="stat-mini-lbl">Semaine</div></div>
+          </div>
+          <div class="stat-expand-panel" id="exp-recharges">
+            <div class="sep-line"><span>Demandes aujourd'hui</span><span id="exp-rech-today">—</span></div>
+            <div class="sep-line"><span>Demandes hier</span><span id="exp-rech-yest">—</span></div>
+            <div class="sep-line"><span>Demandes cette semaine</span><span id="exp-rech-week">—</span></div>
+            <div class="sep-line"><span>Revenus AccountPe</span><span id="exp-rech-accountpe">—</span></div>
+            <div class="sep-line"><span>Revenus Fapshi</span><span id="exp-rech-fapshi">—</span></div>
+          </div>
+        </div>
+
+        <!-- Revendeurs -->
+        <div class="stat-card expandable" style="--card-accent:rgba(249,115,22,0.1)" onclick="toggleExpand('exp-resellers')">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div class="stat-icon" style="background:rgba(249,115,22,0.2);color:var(--orange)"><i class="fas fa-crown"></i></div>
+          </div>
+          <div class="stat-label">Revendeurs</div>
+          <div class="stat-value" id="s-resellers"><div class="spinner"></div></div>
+          <div class="stat-expand-panel" id="exp-resellers">
+            <div class="sep-line"><span>Total revendeurs actifs</span><span id="exp-res-total">—</span></div>
+            <div style="margin-top:8px"><button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center" onclick="event.stopPropagation();showSection('users',null);setTimeout(()=>{document.getElementById('userSort').value='balance';loadUsers();},100)"><i class="fas fa-external-link-alt"></i> Voir liste revendeurs</button></div>
+          </div>
+        </div>
+
+        <!-- Soldes -->
+        <div class="stat-card" style="--card-accent:rgba(239,68,68,0.1)">
+          <div class="stat-icon" style="background:rgba(239,68,68,0.2);color:#f87171"><i class="fas fa-wallet"></i></div>
+          <div class="stat-label">Soldes Totaux</div>
+          <div class="stat-value" id="s-balance"><div class="spinner"></div></div>
+          <div class="stat-sub">Tous les utilisateurs</div>
+        </div>
+
+        <!-- Parrainages -->
+        <div class="stat-card expandable" style="--card-accent:rgba(168,85,247,0.1)" onclick="toggleExpand('exp-referrals')">
+          <div class="stat-icon" style="background:rgba(168,85,247,0.2);color:#c084fc"><i class="fas fa-user-plus"></i></div>
+          <div class="stat-label">Parrainages</div>
+          <div class="stat-value" id="s-referrals"><div class="spinner"></div></div>
+          <div class="stat-sub" id="s-referrals-sub">filleuls inscrits</div>
+          <div class="stat-expand-panel" id="exp-referrals">
+            <div class="sep-line"><span>Parrains actifs</span><span id="exp-ref-count">—</span></div>
+            <div class="sep-line"><span>Total filleuls</span><span id="exp-ref-filleuls">—</span></div>
+            <div class="sep-line"><span>Bonus distribués</span><span id="exp-ref-bonus">—</span></div>
+            <div style="margin-top:8px"><button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center" onclick="event.stopPropagation();loadReferralsSection()"><i class="fas fa-list"></i> Voir détails parrainages</button></div>
+          </div>
+        </div>
+
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex-wrap:wrap">
@@ -647,6 +768,17 @@ tr { transition: all 0.15s; }
           <div id="topUsers" style="display:flex;flex-direction:column;gap:10px">
             <div class="spinner" style="margin:20px auto"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- Section Parrainages -->
+      <div class="card" id="referrals-section" style="display:none;margin-top:4px">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-user-plus" style="color:#c084fc"></i> Détails Parrainages</div>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('referrals-section').style.display='none'"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="referrals-list">
+          <div class="spinner" style="margin:20px auto"></div>
         </div>
       </div>
 
@@ -1130,23 +1262,89 @@ function providerBadge(provider, col) {
 }
 
 // ─── DASHBOARD ───
+function makeTrendBadge(evolution) {
+  if (evolution === null || evolution === undefined) return null;
+  const pct = Math.abs(Math.round(evolution));
+  if (evolution > 2) return { cls: 'trend-up', icon: 'fa-arrow-up', text: `+${pct}% vs hier` };
+  if (evolution < -2) return { cls: 'trend-down', icon: 'fa-arrow-down', text: `-${pct}% vs hier` };
+  return { cls: 'trend-flat', icon: 'fa-minus', text: `stable vs hier` };
+}
+
+function setTrend(id, evolution) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const t = makeTrendBadge(evolution);
+  if (!t) { el.style.display = 'none'; return; }
+  el.className = 'trend-badge ' + t.cls;
+  el.innerHTML = `<i class="fas ${t.icon}"></i> ${t.text}`;
+}
+
+function setEl(id, val) { const e = document.getElementById(id); if (e) e.textContent = val; }
+
+function toggleExpand(panelId) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  panel.classList.toggle('open');
+}
+
 async function loadDashboard() {
   try {
     const data = await api('/api/admin/stats');
 
-    document.getElementById('s-users').textContent = fmtNum(data.totalUsers);
-    document.getElementById('s-orders').textContent = fmtNum(data.totalOrders);
-    document.getElementById('s-revenue').textContent = fmtNum(data.totalRechargesRevenue) + ' FCFA';
-    document.getElementById('s-today').textContent = fmtNum(data.todayOrders);
-    document.getElementById('s-resellers').textContent = fmtNum(data.resellerCount);
-    document.getElementById('s-balance').textContent = fmtNum(data.totalBalance) + ' FCFA';
+    // ─── Valeurs principales ───
+    setEl('s-users', fmtNum(data.totalUsers));
+    setEl('s-orders', fmtNum(data.totalOrders));
+    setEl('s-revenue', fmtNum(data.totalRechargesRevenue) + ' FCFA');
+    setEl('s-resellers', fmtNum(data.resellerCount));
+    setEl('s-balance', fmtNum(data.totalBalance) + ' FCFA');
 
+    // ─── Utilisateurs ───
+    setTrend('trend-users', data.usersEvolution);
+    setEl('sm-users-today', '+' + fmtNum(data.newUsersToday || 0));
+    setEl('sm-users-yest', '+' + fmtNum(data.newUsersYesterday || 0));
+    setEl('sm-users-week', '+' + fmtNum(data.newUsersWeek || 0));
+    setEl('exp-users-today', '+' + fmtNum(data.newUsersToday || 0));
+    setEl('exp-users-yest', '+' + fmtNum(data.newUsersYesterday || 0));
+    setEl('exp-users-week', '+' + fmtNum(data.newUsersWeek || 0));
+    setEl('exp-users-total', fmtNum(data.totalUsers));
+    setEl('exp-users-resellers', fmtNum(data.resellerCount));
+
+    // ─── Commandes ───
+    setTrend('trend-orders', data.ordersEvolution);
+    setEl('sm-orders-today', fmtNum(data.ordersToday || 0));
+    setEl('sm-orders-yest', fmtNum(data.ordersYesterday || 0));
+    setEl('sm-orders-week', fmtNum(data.ordersWeek || 0));
+    setEl('exp-orders-today', fmtNum(data.ordersToday || 0));
+    setEl('exp-orders-yest', fmtNum(data.ordersYesterday || 0));
+    setEl('exp-orders-week', fmtNum(data.ordersWeek || 0));
+    setEl('exp-orders-cmd', fmtNum(data.commandesCount || 0));
+    setEl('exp-orders-auto', fmtNum(data.autoOrdersCount || 0));
+    setEl('exp-orders-adv', fmtNum(data.advancedOrdersCount || 0));
+
+    // ─── Recharges ───
+    setTrend('trend-recharges', data.rechargesEvolution);
+    setEl('sm-rech-today', fmtNum(data.rechargesToday || 0));
+    setEl('sm-rech-yest', fmtNum(data.rechargesYesterday || 0));
+    setEl('sm-rech-week', fmtNum(data.rechargesWeek || 0));
+    setEl('exp-rech-today', fmtNum(data.rechargesToday || 0) + ' demandes');
+    setEl('exp-rech-yest', fmtNum(data.rechargesYesterday || 0) + ' demandes');
+    setEl('exp-rech-week', fmtNum(data.rechargesWeek || 0) + ' demandes');
+    setEl('exp-rech-accountpe', fmtNum(data.rechargesRevenue || 0) + ' FCFA');
+    setEl('exp-rech-fapshi', fmtNum(data.fapshiRevenue || 0) + ' FCFA');
+
+    // ─── Revendeurs ───
+    setEl('exp-res-total', fmtNum(data.resellerCount));
+
+    // ─── Parrainages (chargement rapide des stats) ───
+    loadReferralsMini();
+
+    // ─── Répartition commandes ───
     const breakdown = document.getElementById('orderBreakdown');
     const total = data.totalOrders || 1;
     const items = [
-      { label: 'Standard ExoSupplier', count: data.commandesCount, color: 'var(--cyan)', icon: 'fa-layer-group' },
-      { label: 'Automatique MTP/SMMGen', count: data.autoOrdersCount, color: '#a78bfa', icon: 'fa-bolt' },
-      { label: 'Avancé AfriqueBoost', count: data.advancedOrdersCount, color: 'var(--gold)', icon: 'fa-star' }
+      { label: 'Standard ExoSupplier', count: data.commandesCount || 0, color: 'var(--cyan)', icon: 'fa-layer-group' },
+      { label: 'Automatique MTP/SMMGen', count: data.autoOrdersCount || 0, color: '#a78bfa', icon: 'fa-bolt' },
+      { label: 'Avancé AfriqueBoost', count: data.advancedOrdersCount || 0, color: 'var(--gold)', icon: 'fa-star' }
     ];
     breakdown.innerHTML = items.map(item => `
       <div>
@@ -1158,10 +1356,75 @@ async function loadDashboard() {
       </div>
     `).join('');
 
-    // Top users
     await loadTopUsers();
   } catch (err) {
     showToast('Erreur dashboard: ' + err.message, 'error');
+  }
+}
+
+async function loadReferralsMini() {
+  try {
+    const data = await api('/api/admin/referrals');
+    setEl('s-referrals', fmtNum(data.totalFilleuls));
+    setEl('s-referrals-sub', 'filleul' + (data.totalFilleuls > 1 ? 's' : '') + ' inscrits');
+    setEl('exp-ref-count', fmtNum(data.totalReferrers));
+    setEl('exp-ref-filleuls', fmtNum(data.totalFilleuls));
+    setEl('exp-ref-bonus', fmtNum(data.totalReferralBonus) + ' FCFA');
+  } catch (e) {
+    setEl('s-referrals', '—');
+  }
+}
+
+async function loadReferralsSection() {
+  const section = document.getElementById('referrals-section');
+  const list = document.getElementById('referrals-list');
+  section.style.display = 'block';
+  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  list.innerHTML = '<div class="spinner" style="margin:20px auto"></div>';
+  try {
+    const data = await api('/api/admin/referrals');
+    if (!data.referrers.length) {
+      list.innerHTML = '<div class="empty-state"><i class="fas fa-user-plus"></i><p>Aucun parrainage enregistré</p></div>';
+      return;
+    }
+    list.innerHTML = `
+      <div style="display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap">
+        <div style="flex:1;min-width:120px;padding:14px;background:rgba(168,85,247,0.08);border-radius:10px;text-align:center">
+          <div style="font-size:1.4rem;font-weight:900;color:#c084fc">${fmtNum(data.totalReferrers)}</div>
+          <div style="font-size:0.75rem;color:var(--text3);margin-top:2px">Parrains actifs</div>
+        </div>
+        <div style="flex:1;min-width:120px;padding:14px;background:rgba(16,185,129,0.08);border-radius:10px;text-align:center">
+          <div style="font-size:1.4rem;font-weight:900;color:#6ee7b7">${fmtNum(data.totalFilleuls)}</div>
+          <div style="font-size:0.75rem;color:var(--text3);margin-top:2px">Filleuls inscrits</div>
+        </div>
+        <div style="flex:1;min-width:120px;padding:14px;background:rgba(244,185,66,0.08);border-radius:10px;text-align:center">
+          <div style="font-size:1.4rem;font-weight:900;color:var(--gold)">${fmtNum(data.totalReferralBonus)}</div>
+          <div style="font-size:0.75rem;color:var(--text3);margin-top:2px">Bonus distribués (FCFA)</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${data.referrers.map(r => `
+          <div style="padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:${r.filleuls.length ? '10px' : '0'}">
+              <div class="user-avatar" style="width:36px;height:36px;font-size:0.8rem">${initials(r.name, r.email)}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:700;font-size:0.9rem">${r.name || r.email}</div>
+                <div style="font-size:0.75rem;color:var(--text3)">${r.email} · Code: <code style="color:#c084fc">${r.referralCode || '—'}</code></div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-weight:800;color:var(--gold);font-size:0.9rem">${fmtNum(r.referralBalance)} FCFA</div>
+                <div style="font-size:0.72rem;color:var(--text3)">${r.filleuls.length} filleul${r.filleuls.length > 1 ? 's' : ''}</div>
+              </div>
+            </div>
+            ${r.filleuls.length ? `
+              <div style="border-top:1px solid rgba(255,255,255,0.05);padding-top:8px;display:flex;flex-wrap:wrap;gap:6px">
+                ${r.filleuls.map(f => `<span style="font-size:0.75rem;padding:3px 8px;background:rgba(168,85,247,0.1);color:#c084fc;border-radius:20px">${f.name || f.email}</span>`).join('')}
+              </div>` : ''}
+          </div>
+        `).join('')}
+      </div>`;
+  } catch (err) {
+    list.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Erreur: ${err.message}</p></div>`;
   }
 }
 
