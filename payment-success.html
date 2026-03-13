@@ -160,56 +160,87 @@
   </div>
 
   <script>
+    const BACKEND_URL = window.location.hostname.includes('replit')
+      ? ''
+      : 'https://social-boost-exaucenapopolo2.replit.app';
+
+    // 1. Lire txid depuis l'URL (?txid=...) en priorité — envoyé par AccountPe via return_url
+    const urlParams = new URLSearchParams(window.location.search);
+    const txidFromUrl = urlParams.get('txid');
+
+    // 2. Fallback : localStorage sauvegardé avant la redirection vers AccountPe
     const pendingPayment = localStorage.getItem('pendingPayment');
-    
-    if (pendingPayment) {
-      const paymentData = JSON.parse(pendingPayment);
-      
-      document.getElementById('amountDisplay').innerHTML = 
-        `${paymentData.amount.toLocaleString('fr-FR')} <span>FCFA</span>`;
-      
-      checkPaymentStatus(paymentData.transactionId);
+    const txidFromStorage = pendingPayment ? JSON.parse(pendingPayment).transactionId : null;
+    const amountFromStorage = pendingPayment ? JSON.parse(pendingPayment).amount : null;
+
+    const transactionId = txidFromUrl || txidFromStorage;
+
+    if (transactionId) {
+      if (amountFromStorage) {
+        document.getElementById('amountDisplay').innerHTML =
+          `${Number(amountFromStorage).toLocaleString('fr-FR')} <span>FCFA</span>`;
+      }
+      checkPaymentStatus(transactionId);
     } else {
-      document.getElementById('statusText').textContent = 'Aucun paiement en attente';
+      document.getElementById('statusText').textContent = 'Aucun paiement en attente.';
       document.getElementById('spinner').style.display = 'none';
     }
 
     async function checkPaymentStatus(transactionId) {
       let attempts = 0;
       const maxAttempts = 30;
-      
+
       const check = async () => {
         try {
-          const response = await fetch(`/confirm/${transactionId}`);
+          const response = await fetch(`${BACKEND_URL}/confirm/${transactionId}`);
           const data = await response.json();
-          
+
           if (data.isPaid) {
             localStorage.removeItem('pendingPayment');
+
             document.getElementById('spinner').style.display = 'none';
-            document.getElementById('statusText').textContent = 'Paiement confirmé! Solde mis à jour.';
+            document.getElementById('statusText').textContent = 'Paiement confirmé ! Solde mis à jour.';
             document.getElementById('statusText').classList.add('confirmed');
             document.querySelector('.success-icon i').className = 'fas fa-check-double';
-            document.querySelector('h1').textContent = 'Paiement confirmé!';
+            document.querySelector('h1').textContent = 'Paiement confirmé !';
+
+            // Redirection automatique vers le dashboard après 3 secondes
+            let countdown = 3;
+            const countdownEl = document.createElement('p');
+            countdownEl.style.cssText = 'color:rgba(255,255,255,0.7);font-size:0.95rem;margin-top:10px;';
+            countdownEl.textContent = `Redirection vers le tableau de bord dans ${countdown}s...`;
+            document.getElementById('statusBox').appendChild(countdownEl);
+
+            const timer = setInterval(() => {
+              countdown--;
+              if (countdown > 0) {
+                countdownEl.textContent = `Redirection vers le tableau de bord dans ${countdown}s...`;
+              } else {
+                clearInterval(timer);
+                window.location.href = 'dashboard.html';
+              }
+            }, 1000);
+
             return;
           }
-          
+
           attempts++;
           if (attempts < maxAttempts) {
             setTimeout(check, 3000);
           } else {
             document.getElementById('spinner').style.display = 'none';
-            document.getElementById('statusText').textContent = 
-              'Le paiement peut prendre quelques minutes. Votre solde sera mis à jour automatiquement.';
+            document.getElementById('statusText').textContent =
+              'Votre solde sera mis à jour automatiquement dans quelques minutes.';
           }
         } catch (error) {
-          console.error('Erreur:', error);
+          console.error('Erreur vérification:', error);
           attempts++;
           if (attempts < maxAttempts) {
             setTimeout(check, 5000);
           }
         }
       };
-      
+
       check();
     }
   </script>
