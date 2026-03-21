@@ -327,6 +327,32 @@
     .review-date { font-size: 0.72rem; color: var(--text-muted); margin-top: 1px; }
     .review-stars { color: var(--gold); font-size: 0.82rem; margin-left: auto; flex-shrink: 0; }
     .review-text { font-size: 0.83rem; color: rgba(255,255,255,0.8); line-height: 1.55; }
+    .review-reactions {
+      display: flex; align-items: center; gap: 10px;
+      margin-top: 10px; padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .reaction-label { font-size: 0.73rem; color: var(--text-muted); margin-right: 2px; }
+    .reaction-btn {
+      display: flex; align-items: center; gap: 5px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px; padding: 5px 12px;
+      cursor: pointer; font-size: 0.78rem; color: var(--text-muted);
+      transition: all 0.2s; user-select: none;
+    }
+    .reaction-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .reaction-btn.liked { background: rgba(0,212,255,0.15); border-color: rgba(0,212,255,0.4); color: var(--cyan); }
+    .reaction-btn.disliked { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.3); color: #ef4444; }
+    .reaction-btn i { font-size: 0.8rem; }
+    .download-count-badge {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(0,188,212,0.1); border: 1px solid rgba(0,188,212,0.2);
+      border-radius: 20px; padding: 6px 14px;
+      font-size: 0.82rem; color: var(--cyan);
+      margin-top: 8px; width: fit-content;
+    }
+    .download-count-badge i { font-size: 0.8rem; }
     .no-reviews {
       text-align: center; color: var(--text-muted);
       padding: 30px 0; font-size: 0.9rem;
@@ -641,6 +667,10 @@
         <div class="rating-big-num" id="avgRating">—</div>
         <div class="rating-big-stars" id="avgStars">☆☆☆☆☆</div>
         <div class="rating-big-count" id="totalReviews">Chargement...</div>
+        <div class="download-count-badge" id="downloadCountBadge" style="display:none;">
+          <i class="fas fa-download"></i>
+          <span id="downloadCountText">1 000+ téléchargements</span>
+        </div>
       </div>
       <div class="rating-bars" id="ratingBars">
         <div class="rating-bar-row"><span class="rating-bar-label">5</span><div class="rating-bar-track"><div class="rating-bar-fill" id="bar5" style="width:0%"></div></div><span class="rating-bar-count" id="cnt5">0</span></div>
@@ -745,6 +775,20 @@
       btn.classList.add('loading');
       btn.innerHTML = '<div class="spinner"></div><div>Préparation du téléchargement...<span class="btn-sub">Quelques secondes</span></div>';
     }
+    /* Compteur de téléchargements côté serveur */
+    fetch(BACKEND + '/api/app-download-track', { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.downloadCount) {
+          const badge = document.getElementById('downloadCountBadge');
+          const txt = document.getElementById('downloadCountText');
+          if (badge && txt) {
+            txt.textContent = formatDownloadCount(data.downloadCount) + ' téléchargements';
+            badge.style.display = 'flex';
+          }
+        }
+      })
+      .catch(() => {});
     setTimeout(() => {
       window.location.href = BACKEND + '/telecharger-app';
       setTimeout(() => {
@@ -757,6 +801,12 @@
         }
       }, 4000);
     }, 600);
+  }
+
+  function formatDownloadCount(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace('.0','') + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace('.0','') + ' K';
+    return n.toString();
   }
 
   /* ── SYSTÈME D'AVIS ── */
@@ -796,6 +846,15 @@
     document.getElementById('avgStars').textContent = starsHtml(avg);
     document.getElementById('totalReviews').textContent = total > 0 ? `${total} avis` : 'Aucun avis';
 
+    /* Compteur téléchargements */
+    const dlCount = stats.downloadCount || 0;
+    const badge = document.getElementById('downloadCountBadge');
+    const txt = document.getElementById('downloadCountText');
+    if (badge && txt && dlCount > 0) {
+      txt.textContent = formatDownloadCount(dlCount) + ' téléchargements';
+      badge.style.display = 'flex';
+    }
+
     /* Hero stars */
     document.getElementById('heroStars').textContent = starsHtml(avg > 0 ? avg : 5);
     document.getElementById('heroRatingText').textContent = avg > 0
@@ -820,7 +879,12 @@
     list.innerHTML = reviews.map(r => {
       const initial = (r.name || 'U')[0].toUpperCase();
       const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
-      return `<div class="review-card">
+      const myReaction = localStorage.getItem('reaction_' + r.id) || '';
+      const likedClass = myReaction === 'like' ? ' liked' : '';
+      const dislikedClass = myReaction === 'dislike' ? ' disliked' : '';
+      const likes = r.likes || 0;
+      const dislikes = r.dislikes || 0;
+      return `<div class="review-card" id="card_${r.id}">
         <div class="review-header">
           <div class="review-avatar">${initial}</div>
           <div class="review-meta">
@@ -830,8 +894,54 @@
           <div class="review-stars">${stars}</div>
         </div>
         ${r.comment ? `<div class="review-text">${escHtml(r.comment)}</div>` : ''}
+        <div class="review-reactions">
+          <span class="reaction-label">Utile ?</span>
+          <button class="reaction-btn${likedClass}" id="like_${r.id}" onclick="reactToReview('${r.id}','like',this)">
+            <i class="fas fa-thumbs-up"></i> <span id="likeCount_${r.id}">${likes}</span>
+          </button>
+          <button class="reaction-btn${dislikedClass}" id="dislike_${r.id}" onclick="reactToReview('${r.id}','dislike',this)">
+            <i class="fas fa-thumbs-down"></i> <span id="dislikeCount_${r.id}">${dislikes}</span>
+          </button>
+        </div>
       </div>`;
     }).join('');
+  }
+
+  async function reactToReview(reviewId, reaction, btn) {
+    const storageKey = 'reaction_' + reviewId;
+    const existing = localStorage.getItem(storageKey);
+    /* Si déjà voté pareil, on ignore */
+    if (existing === reaction) return;
+    btn.style.opacity = '0.5';
+    btn.style.pointerEvents = 'none';
+    try {
+      const res = await fetch(BACKEND + '/api/app-review-reaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewId, reaction })
+      });
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem(storageKey, reaction);
+        /* Mettre à jour les compteurs affichés */
+        const likeSpan = document.getElementById('likeCount_' + reviewId);
+        const dislikeSpan = document.getElementById('dislikeCount_' + reviewId);
+        if (likeSpan) likeSpan.textContent = data.likes;
+        if (dislikeSpan) dislikeSpan.textContent = data.dislikes;
+        /* Mettre à jour les classes visuelles */
+        const likeBtn = document.getElementById('like_' + reviewId);
+        const dislikeBtn = document.getElementById('dislike_' + reviewId);
+        if (likeBtn) likeBtn.classList.toggle('liked', reaction === 'like');
+        if (dislikeBtn) dislikeBtn.classList.toggle('disliked', reaction === 'dislike');
+        /* Si on change de réaction, retirer l'ancienne */
+        if (existing && existing !== reaction) {
+          const oldBtn = document.getElementById(existing + '_' + reviewId);
+          if (oldBtn) oldBtn.classList.remove(existing === 'like' ? 'liked' : 'disliked');
+        }
+      }
+    } catch (e) { /* silencieux */ }
+    btn.style.opacity = '';
+    btn.style.pointerEvents = '';
   }
 
   function escHtml(s) {
