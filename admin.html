@@ -792,8 +792,7 @@ tr { transition: all 0.15s; }
           <button class="btn btn-purple" onclick="showSection('orders',null);setTimeout(loadOrders,100)"><i class="fas fa-list"></i> Voir toutes les commandes</button>
           <button class="btn btn-ghost" onclick="showSection('payments',null);setTimeout(loadRecharges,100)"><i class="fas fa-credit-card"></i> Voir les paiements</button>
           <button class="btn btn-ghost" onclick="showSection('withdrawals',null);setTimeout(loadWithdrawals,100)"><i class="fas fa-hand-holding-usd"></i> Voir les retraits</button>
-          <button class="btn btn-ghost" onclick="triggerReport('daily')"><i class="fas fa-paper-plane"></i> Envoyer rapport journalier</button>
-          <button class="btn btn-ghost" onclick="triggerReport('payment')"><i class="fas fa-paper-plane"></i> Rapport paiements</button>
+          <button class="btn btn-ghost" onclick="showReportPanel()"><i class="fas fa-chart-bar"></i> Rapports WhatsApp</button>
         </div>
       </div>
     </div>
@@ -1031,7 +1030,47 @@ tr { transition: all 0.15s; }
 <!-- TOAST -->
 <div class="toast" id="toast"><i class="fas fa-check toast-icon"></i><span id="toastMsg"></span></div>
 
-<!-- FIREBASE -->
+<!-- MODAL: PANEL RAPPORTS WHATSAPP -->
+<div class="modal-overlay" id="reportPanelModal">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fas fa-chart-bar"></i> Rapports WhatsApp</div>
+      <button class="modal-close" onclick="closeModal('reportPanelModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="reportPanelMsg" style="display:none;padding:10px 14px;border-radius:10px;margin-bottom:16px;font-size:0.88rem;background:rgba(244,185,66,0.1);color:#f4b942;border:1px solid rgba(244,185,66,0.25)"></div>
+    <div style="display:grid;gap:18px">
+      <!-- Commandes -->
+      <div style="background:rgba(139,92,246,0.07);border:1px solid rgba(139,92,246,0.2);border-radius:14px;padding:16px">
+        <div style="font-size:0.82rem;font-weight:700;color:#a78bfa;margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em">📦 Commandes</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <button class="btn btn-ghost" style="font-size:0.78rem;padding:7px 12px" onclick="triggerReport('daily')"><i class="fas fa-calendar-day"></i> Journalier</button>
+          <button class="btn btn-ghost" style="font-size:0.78rem;padding:7px 12px" onclick="triggerReport('weekly')"><i class="fas fa-calendar-week"></i> Hebdomadaire</button>
+          <button class="btn btn-ghost" style="font-size:0.78rem;padding:7px 12px" onclick="triggerReport('monthly')"><i class="fas fa-calendar-alt"></i> Mensuel</button>
+        </div>
+      </div>
+      <!-- Paiements -->
+      <div style="background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);border-radius:14px;padding:16px">
+        <div style="font-size:0.82rem;font-weight:700;color:#4ade80;margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em">💰 Paiements</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <button class="btn btn-ghost" style="font-size:0.78rem;padding:7px 12px" onclick="triggerReport('payment')"><i class="fas fa-calendar-day"></i> Journalier</button>
+          <button class="btn btn-ghost" style="font-size:0.78rem;padding:7px 12px" onclick="triggerReport('weeklyPayment')"><i class="fas fa-calendar-week"></i> Hebdomadaire</button>
+          <button class="btn btn-ghost" style="font-size:0.78rem;padding:7px 12px" onclick="triggerReport('monthlyPayment')"><i class="fas fa-calendar-alt"></i> Mensuel</button>
+        </div>
+      </div>
+      <!-- Cadeaux -->
+      <div style="background:rgba(251,146,60,0.07);border:1px solid rgba(251,146,60,0.2);border-radius:14px;padding:16px">
+        <div style="font-size:0.82rem;font-weight:700;color:#fb923c;margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em">🎁 Cadeaux de bienvenue</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <button class="btn btn-ghost" style="font-size:0.78rem;padding:7px 12px" onclick="triggerReport('gift')"><i class="fas fa-calendar-day"></i> Journalier</button>
+          <button class="btn btn-ghost" style="font-size:0.78rem;padding:7px 12px" onclick="triggerReport('weeklyGift')"><i class="fas fa-calendar-week"></i> Hebdomadaire</button>
+          <button class="btn btn-ghost" style="font-size:0.78rem;padding:7px 12px" onclick="triggerReport('monthlyGift')"><i class="fas fa-calendar-alt"></i> Mensuel</button>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:0.75rem;color:var(--text3);text-align:center;margin-top:16px">Les rapports sont envoyés sur votre WhatsApp admin via Twilio.</p>
+  </div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
@@ -1770,16 +1809,41 @@ function renderPagination(containerId, total, offset, limit, onChange) {
 }
 
 // ─── RAPPORTS MANUELS ───
+function showReportPanel() {
+  const msgEl = document.getElementById('reportPanelMsg');
+  if (msgEl) { msgEl.style.display = 'none'; msgEl.textContent = ''; }
+  document.getElementById('reportPanelModal').classList.add('open');
+}
+
 async function triggerReport(type) {
-  const endpoint = type === 'daily' ? '/test-daily-report' : '/test-daily-payment-report';
-  const label = type === 'daily' ? 'rapport journalier des commandes' : 'rapport des paiements';
-  showToast('Envoi du ' + label + '...');
+  const map = {
+    daily:          { endpoint: '/test-daily-report',           label: 'Rapport journalier commandes' },
+    weekly:         { endpoint: '/test-weekly-report',          label: 'Rapport hebdomadaire commandes' },
+    monthly:        { endpoint: '/test-monthly-report',         label: 'Rapport mensuel commandes' },
+    payment:        { endpoint: '/test-daily-payment-report',   label: 'Rapport journalier paiements' },
+    weeklyPayment:  { endpoint: '/test-weekly-payment-report',  label: 'Rapport hebdomadaire paiements' },
+    monthlyPayment: { endpoint: '/test-monthly-payment-report', label: 'Rapport mensuel paiements' },
+    gift:           { endpoint: '/test-daily-gift-report',      label: 'Rapport journalier cadeaux' },
+    weeklyGift:     { endpoint: '/test-weekly-gift-report',     label: 'Rapport hebdomadaire cadeaux' },
+    monthlyGift:    { endpoint: '/test-monthly-gift-report',    label: 'Rapport mensuel cadeaux' }
+  };
+  const { endpoint, label } = map[type] || map['daily'];
+  const msgEl = document.getElementById('reportPanelMsg');
+  if (msgEl) { msgEl.style.display = 'block'; msgEl.textContent = '⏳ Envoi du ' + label + '...'; }
   try {
     const res = await fetch(API + endpoint);
     const data = await res.json();
-    if (data.success) showToast('✅ ' + label + ' envoyé sur WhatsApp !');
-    else showToast('Erreur : ' + (data.error || 'Échec'), 'error');
-  } catch (err) { showToast(err.message, 'error'); }
+    if (data.success) {
+      if (msgEl) msgEl.textContent = '✅ ' + label + ' envoyé sur WhatsApp !';
+      showToast('✅ ' + label + ' envoyé !');
+    } else {
+      if (msgEl) { msgEl.textContent = '❌ Erreur : ' + (data.error || 'Échec'); msgEl.style.color = '#f87171'; }
+      showToast('Erreur : ' + (data.error || 'Échec'), 'error');
+    }
+  } catch (err) {
+    if (msgEl) { msgEl.textContent = '❌ ' + err.message; msgEl.style.color = '#f87171'; }
+    showToast(err.message, 'error');
+  }
 }
 
 // ─── MODALS ───

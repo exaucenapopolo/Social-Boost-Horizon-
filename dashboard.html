@@ -1300,6 +1300,16 @@
       margin-bottom: 0 !important;
     }
 
+    /* Sélecteur code pays WhatsApp */
+    .wa-phone-row { display: flex; gap: 6px; margin-bottom: 10px; }
+    .wa-code-select {
+      flex-shrink: 0; width: 110px; background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
+      color: #fff; font-size: 0.8rem; padding: 8px 6px; outline: none; cursor: pointer;
+    }
+    .wa-code-select:focus { border-color: #25D366; }
+    .wa-phone-input { flex: 1; margin-bottom: 0 !important; }
+
     .whatsapp-btn {
       display: inline-flex;
       align-items: center;
@@ -2955,6 +2965,52 @@
         localStorage.setItem(`welcomeModalShown_${userId}`, 'true');
       }
 
+      // Indicatifs de pays pour WhatsApp (options HTML pré-générées)
+      const WA_COUNTRY_CODES = `
+        <option value="+237">🇨🇲 +237</option>
+        <option value="+221">🇸🇳 +221</option>
+        <option value="+225">🇨🇮 +225</option>
+        <option value="+223">🇲🇱 +223</option>
+        <option value="+226">🇧🇫 +226</option>
+        <option value="+224">🇬🇳 +224</option>
+        <option value="+228">🇹🇬 +228</option>
+        <option value="+229">🇧🇯 +229</option>
+        <option value="+243">🇨🇩 +243</option>
+        <option value="+242">🇨🇬 +242</option>
+        <option value="+241">🇬🇦 +241</option>
+        <option value="+236">🇨🇫 +236</option>
+        <option value="+235">🇹🇩 +235</option>
+        <option value="+234">🇳🇬 +234</option>
+        <option value="+233">🇬🇭 +233</option>
+        <option value="+27">🇿🇦 +27</option>
+        <option value="+212">🇲🇦 +212</option>
+        <option value="+216">🇹🇳 +216</option>
+        <option value="+213">🇩🇿 +213</option>
+        <option value="+20">🇪🇬 +20</option>
+        <option value="+33">🇫🇷 +33</option>
+        <option value="+32">🇧🇪 +32</option>
+        <option value="+41">🇨🇭 +41</option>
+        <option value="+1">🇺🇸 +1</option>
+        <option value="+44">🇬🇧 +44</option>
+      `.trim();
+
+      // Vérification anti-fraude côté serveur avant affichage du modal
+      async function checkGiftEligibility(userId) {
+        try {
+          const user = auth.currentUser;
+          if (!user) return false;
+          const token = await user.getIdToken();
+          const response = await fetch(`${BACKEND_URL}/api/check-gift-eligibility`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await response.json();
+          return data.eligible !== false;
+        } catch (err) {
+          console.error('Eligibility check error:', err);
+          return true; // fail-open
+        }
+      }
+
       // Fonction pour afficher le modal de bienvenue
       function showWelcomeModal() {
         welcomeModal.style.display = "block";
@@ -2980,11 +3036,11 @@
               giftContent.classList.add('gift-money');
               break;
             case 'likes':
-              giftContent.innerHTML = '<i class="fas fa-heart"></i><p>50 Likes</p>';
+              giftContent.innerHTML = '<i class="fas fa-heart"></i><p>25 Likes</p>';
               giftContent.classList.add('gift-likes');
               break;
             case 'tiktok':
-              giftContent.innerHTML = '<i class="fab fa-tiktok"></i><p>5000 vues</p>';
+              giftContent.innerHTML = '<i class="fab fa-tiktok"></i><p>1000 vues</p>';
               giftContent.classList.add('gift-tiktok');
               break;
           }
@@ -3062,9 +3118,15 @@
             const balance = userData.balance || 0;
             updateBalanceDisplay(balance);
             
-            // Vérifier si l'utilisateur est nouveau
+            // Vérifier si l'utilisateur est nouveau (localStorage) puis anti-fraude serveur
             if (isNewUser(userId)) {
-              showWelcomeModal();
+              checkGiftEligibility(userId).then(eligible => {
+                if (eligible) {
+                  showWelcomeModal();
+                } else {
+                  markAsReturningUser(userId); // Ne plus afficher le modal pour ce compte
+                }
+              });
             }
           } else {
             console.log("Aucun document utilisateur trouvé! Récupération des infos...");
@@ -3160,21 +3222,15 @@
                 giftMessage = `
                   <div class="gift-message">
                     <h3>🎉 Félicitations !</h3>
-                    <p>Vous avez gagné <strong>25 FCFA</strong> à créditer sur votre solde.</p>
-                    <p>Veuillez remplir les informations ci-dessous :</p>
-                    <input type="email" 
-                           class="email-input" 
-                           placeholder="Votre adresse e-mail" 
-                           id="userEmailInput"
-                           required>
-                    <input type="tel" 
-                           class="whatsapp-input" 
-                           placeholder="Votre numéro WhatsApp (ex: +237...)" 
-                           id="userWhatsAppMoney"
-                           required>
-                    <p class="whatsapp-hint"><i class="fab fa-whatsapp"></i> Nous vous contacterons sur WhatsApp une fois votre crédit ajouté</p>
+                    <p>Vous avez gagné <strong>25 FCFA</strong> crédités sur votre solde !</p>
+                    <p style="font-size:0.82rem;color:rgba(255,255,255,0.6);margin-bottom:10px;">Entrez votre numéro WhatsApp pour confirmation :</p>
+                    <div class="wa-phone-row">
+                      <select class="wa-code-select" id="waCodeMoney">${WA_COUNTRY_CODES}</select>
+                      <input type="tel" class="whatsapp-input wa-phone-input" placeholder="6XXXXXXXX" id="userWhatsAppMoney" maxlength="15">
+                    </div>
+                    <p class="whatsapp-hint"><i class="fab fa-whatsapp"></i> Entrez votre <strong>vrai</strong> numéro WhatsApp — nous vous enverrons la confirmation</p>
                     <div class="modal-actions">
-                      <button class="email-submit-btn" id="submitEmail">Envoyer</button>
+                      <button class="email-submit-btn" id="submitEmail">Recevoir mon crédit</button>
                     </div>
                   </div>
                 `;
@@ -3183,8 +3239,8 @@
               case 'likes':
                 giftMessage = `
                   <div class="gift-message">
-                    <h3>❤️ 50 Likes gratuits !</h3>
-                    <p>Boostez une de vos publications avec 50 likes !</p>
+                    <h3>❤️ 25 Likes gratuits !</h3>
+                    <p>Boostez une de vos publications avec 25 likes livrés automatiquement !</p>
                     <p>Choisissez votre plateforme :</p>
                     <div class="platform-selector">
                       <button class="platform-btn tiktok" data-platform="TikTok" title="TikTok">
@@ -3199,19 +3255,14 @@
                     </div>
                     <div class="link-input-container" id="likesLinkContainer">
                       <p id="platformLabel">Collez le lien de votre publication :</p>
-                      <input type="url" 
-                             class="post-link-input" 
-                             placeholder="Lien de votre publication..." 
-                             id="postLinkInput"
-                             required>
-                      <input type="tel" 
-                             class="whatsapp-input" 
-                             placeholder="Votre numéro WhatsApp (ex: +237...)" 
-                             id="userWhatsAppLikes"
-                             required>
-                      <p class="whatsapp-hint"><i class="fab fa-whatsapp"></i> Nous vous contacterons quand vos likes seront livrés</p>
+                      <input type="url" class="post-link-input" placeholder="Lien de votre publication..." id="postLinkInput" required>
+                      <div class="wa-phone-row">
+                        <select class="wa-code-select" id="waCodeLikes">${WA_COUNTRY_CODES}</select>
+                        <input type="tel" class="whatsapp-input wa-phone-input" placeholder="6XXXXXXXX" id="userWhatsAppLikes" maxlength="15">
+                      </div>
+                      <p class="whatsapp-hint"><i class="fab fa-whatsapp"></i> Entrez votre <strong>vrai</strong> numéro WhatsApp — livraison automatique en cours</p>
                       <div class="modal-actions">
-                        <button class="tiktok-submit-btn" id="submitLikes">Demander mes likes</button>
+                        <button class="tiktok-submit-btn" id="submitLikes">Recevoir mes likes</button>
                       </div>
                     </div>
                   </div>
@@ -3221,22 +3272,17 @@
               case 'tiktok':
                 giftMessage = `
                   <div class="gift-message">
-                    <h3>🎬 5000 vues TikTok !</h3>
-                    <p>Boostez votre vidéo TikTok avec 5000 vues réelles et engageantes !</p>
+                    <h3>🎬 1 000 vues TikTok !</h3>
+                    <p>Boostez votre vidéo TikTok avec 1 000 vues livrées automatiquement !</p>
                     <p>Collez le lien de votre vidéo TikTok ci-dessous :</p>
-                    <input type="url" 
-                           class="tiktok-link-input" 
-                           placeholder="https://www.tiktok.com/..." 
-                           id="tiktokLinkInput"
-                           required>
-                    <input type="tel" 
-                           class="whatsapp-input" 
-                           placeholder="Votre numéro WhatsApp (ex: +237...)" 
-                           id="userWhatsAppTikTok"
-                           required>
-                    <p class="whatsapp-hint"><i class="fab fa-whatsapp"></i> Nous vous contacterons quand vos vues seront livrées</p>
+                    <input type="url" class="tiktok-link-input" placeholder="https://www.tiktok.com/..." id="tiktokLinkInput" required>
+                    <div class="wa-phone-row">
+                      <select class="wa-code-select" id="waCodeTikTok">${WA_COUNTRY_CODES}</select>
+                      <input type="tel" class="whatsapp-input wa-phone-input" placeholder="6XXXXXXXX" id="userWhatsAppTikTok" maxlength="15">
+                    </div>
+                    <p class="whatsapp-hint"><i class="fab fa-whatsapp"></i> Entrez votre <strong>vrai</strong> numéro WhatsApp — livraison automatique en cours</p>
                     <div class="modal-actions">
-                      <button class="tiktok-submit-btn" id="submitTikTok">Demander mes vues</button>
+                      <button class="tiktok-submit-btn" id="submitTikTok">Recevoir mes vues</button>
                     </div>
                   </div>
                 `;
@@ -3246,69 +3292,60 @@
             giftResult.innerHTML = giftMessage;
             createConfetti();
             
-            // Fonction pour envoyer la notification cadeau via Twilio
-            async function sendGiftNotification(type, details) {
+            // Fonction pour réclamer le cadeau via le serveur (avec auth + anti-fraude)
+            async function claimGift(type, details) {
               try {
-                const response = await fetch(`${BACKEND_URL}/api/send-gift-notification`, {
+                const user = auth.currentUser;
+                if (!user) return { success: false, error: 'Non connecté' };
+                const token = await user.getIdToken();
+                const response = await fetch(`${BACKEND_URL}/api/claim-welcome-gift`, {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    giftType: type,
-                    userInfo: {
-                      username: currentUserData?.username || currentUserData?.displayName || 'Non défini',
-                      email: currentUserData?.email || 'Non défini',
-                      country: currentUserData?.country || 'Non défini',
-                      phone: currentUserData?.phone || 'Non défini',
-                      createdAt: currentUserData?.createdAt?.toDate?.() || currentUserData?.createdAt || null
-                    },
-                    giftDetails: details
-                  })
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                  body: JSON.stringify({ giftType: type, ...details })
                 });
-                const result = await response.json();
-                return result.success;
+                return await response.json();
               } catch (err) {
-                console.error('Erreur envoi notification:', err);
-                return false;
+                console.error('Erreur claimGift:', err);
+                return { success: false, error: err.message };
               }
+            }
+
+            function getWhatsApp(codeId, phoneId) {
+              const code = document.getElementById(codeId)?.value || '+237';
+              const phone = document.getElementById(phoneId)?.value?.trim() || '';
+              return code + phone;
+            }
+
+            function showGiftSuccess(msg1, msg2) {
+              giftResult.innerHTML = `
+                <div class="gift-message">
+                  <h3>✅ ${msg1}</h3>
+                  <p>${msg2}</p>
+                  <div class="modal-actions">
+                    <button class="modal-btn btn-primary" id="closeGiftBtn">Fermer</button>
+                  </div>
+                </div>
+              `;
+              document.getElementById('closeGiftBtn')?.addEventListener('click', () => { welcomeModal.style.display = 'none'; });
+            }
+
+            function showGiftError(msg) {
+              giftResult.innerHTML += `<p style="color:#f87171;font-size:0.82rem;margin-top:8px;">⚠️ ${msg}</p>`;
             }
 
             switch(giftType) {
               case 'money':
                 document.getElementById('submitEmail').addEventListener('click', async function() {
-                  const userEmail = document.getElementById('userEmailInput').value;
-                  const userWhatsApp = document.getElementById('userWhatsAppMoney').value;
-                  
-                  if (!userEmail) {
-                    alert('Veuillez entrer votre adresse e-mail.');
-                    return;
+                  const whatsapp = getWhatsApp('waCodeMoney', 'userWhatsAppMoney');
+                  if (!whatsapp || whatsapp.length < 8) { alert('Veuillez entrer votre numéro WhatsApp.'); return; }
+                  this.disabled = true; this.textContent = 'Traitement...';
+                  const result = await claimGift('money', { whatsapp });
+                  if (result.success) {
+                    showGiftSuccess('25 FCFA crédités !', 'Votre solde a été mis à jour automatiquement. Vérifiez votre tableau de bord.');
+                  } else {
+                    this.disabled = false; this.textContent = 'Recevoir mon crédit';
+                    showGiftError(result.error || 'Une erreur est survenue.');
                   }
-                  if (!userWhatsApp) {
-                    alert('Veuillez entrer votre numéro WhatsApp.');
-                    return;
-                  }
-
-                  this.disabled = true;
-                  this.textContent = 'Envoi en cours...';
-
-                  await sendGiftNotification('money', {
-                    email: userEmail,
-                    whatsapp: userWhatsApp
-                  });
-
-                  giftResult.innerHTML = `
-                    <div class="gift-message">
-                      <h3>✅ Demande envoyée !</h3>
-                      <p>Votre demande de crédit de 25 FCFA a été transmise à notre équipe.</p>
-                      <p>Nous vous contacterons sur WhatsApp une fois votre solde crédité.</p>
-                      <div class="modal-actions">
-                        <button class="modal-btn btn-primary" id="closeAfterEmail">Fermer</button>
-                      </div>
-                    </div>
-                  `;
-
-                  document.getElementById('closeAfterEmail').addEventListener('click', () => {
-                    welcomeModal.style.display = 'none';
-                  });
                 });
                 break;
                 
@@ -3317,7 +3354,6 @@
                 const platformBtns = document.querySelectorAll('.platform-btn');
                 const linkContainer = document.getElementById('likesLinkContainer');
                 const platformLabel = document.getElementById('platformLabel');
-                
                 platformBtns.forEach(btn => {
                   btn.addEventListener('click', function() {
                     platformBtns.forEach(b => b.classList.remove('selected'));
@@ -3327,86 +3363,39 @@
                     linkContainer.classList.add('active');
                   });
                 });
-                
                 document.getElementById('submitLikes').addEventListener('click', async function() {
                   const postLink = document.getElementById('postLinkInput').value;
-                  const userWhatsApp = document.getElementById('userWhatsAppLikes').value;
-                  
-                  if (!selectedPlatform) {
-                    alert('Veuillez sélectionner une plateforme.');
-                    return;
+                  const whatsapp = getWhatsApp('waCodeLikes', 'userWhatsAppLikes');
+                  if (!selectedPlatform) { alert('Veuillez sélectionner une plateforme.'); return; }
+                  if (!postLink) { alert('Veuillez coller le lien de votre publication.'); return; }
+                  if (!whatsapp || whatsapp.length < 8) { alert('Veuillez entrer votre numéro WhatsApp.'); return; }
+                  this.disabled = true; this.textContent = 'Envoi en cours...';
+                  const result = await claimGift('likes', { platform: selectedPlatform, link: postLink, whatsapp });
+                  if (result.success) {
+                    const msg = result.autoDelivered ? 'Vos likes sont en cours de livraison !' : 'Demande transmise à notre équipe.';
+                    showGiftSuccess(`25 likes ${selectedPlatform} !`, msg + ' Nous vous contacterons sur WhatsApp à la confirmation.');
+                  } else {
+                    this.disabled = false; this.textContent = 'Recevoir mes likes';
+                    showGiftError(result.error || 'Une erreur est survenue.');
                   }
-                  if (!postLink) {
-                    alert('Veuillez coller le lien de votre publication.');
-                    return;
-                  }
-                  if (!userWhatsApp) {
-                    alert('Veuillez entrer votre numéro WhatsApp.');
-                    return;
-                  }
-                  
-                  this.disabled = true;
-                  this.textContent = 'Envoi en cours...';
-                  
-                  await sendGiftNotification('likes', {
-                    platform: selectedPlatform,
-                    link: postLink,
-                    whatsapp: userWhatsApp
-                  });
-                  
-                  giftResult.innerHTML = `
-                    <div class="gift-message">
-                      <h3>✅ Demande envoyée !</h3>
-                      <p>Votre demande de 50 likes ${selectedPlatform} a été transmise à notre équipe.</p>
-                      <p>Nous vous contacterons sur WhatsApp une fois vos likes livrés.</p>
-                      <div class="modal-actions">
-                        <button class="modal-btn btn-primary" id="closeAfterLikes">Fermer</button>
-                      </div>
-                    </div>
-                  `;
-                  
-                  document.getElementById('closeAfterLikes').addEventListener('click', () => {
-                    welcomeModal.style.display = 'none';
-                  });
                 });
                 break;
                 
               case 'tiktok':
                 document.getElementById('submitTikTok').addEventListener('click', async function() {
                   const tiktokLink = document.getElementById('tiktokLinkInput').value;
-                  const userWhatsApp = document.getElementById('userWhatsAppTikTok').value;
-                  
-                  if (!tiktokLink) {
-                    alert('Veuillez coller un lien TikTok valide.');
-                    return;
+                  const whatsapp = getWhatsApp('waCodeTikTok', 'userWhatsAppTikTok');
+                  if (!tiktokLink) { alert('Veuillez coller un lien TikTok valide.'); return; }
+                  if (!whatsapp || whatsapp.length < 8) { alert('Veuillez entrer votre numéro WhatsApp.'); return; }
+                  this.disabled = true; this.textContent = 'Envoi en cours...';
+                  const result = await claimGift('tiktok', { link: tiktokLink, whatsapp });
+                  if (result.success) {
+                    const msg = result.autoDelivered ? 'Vos vues sont en cours de livraison !' : 'Demande transmise à notre équipe.';
+                    showGiftSuccess('1 000 vues TikTok !', msg + ' Nous vous contacterons sur WhatsApp à la confirmation.');
+                  } else {
+                    this.disabled = false; this.textContent = 'Recevoir mes vues';
+                    showGiftError(result.error || 'Une erreur est survenue.');
                   }
-                  if (!userWhatsApp) {
-                    alert('Veuillez entrer votre numéro WhatsApp.');
-                    return;
-                  }
-                  
-                  this.disabled = true;
-                  this.textContent = 'Envoi en cours...';
-                  
-                  await sendGiftNotification('tiktok', {
-                    link: tiktokLink,
-                    whatsapp: userWhatsApp
-                  });
-                  
-                  giftResult.innerHTML = `
-                    <div class="gift-message">
-                      <h3>✅ Demande envoyée !</h3>
-                      <p>Votre demande de 5000 vues TikTok a été transmise à notre équipe.</p>
-                      <p>Nous vous contacterons sur WhatsApp une fois vos vues livrées.</p>
-                      <div class="modal-actions">
-                        <button class="modal-btn btn-primary" id="closeAfterTikTok">Fermer</button>
-                      </div>
-                    </div>
-                  `;
-                  
-                  document.getElementById('closeAfterTikTok').addEventListener('click', () => {
-                    welcomeModal.style.display = 'none';
-                  });
                 });
                 break;
             }
