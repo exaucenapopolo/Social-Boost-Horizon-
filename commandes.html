@@ -167,6 +167,7 @@
     .stat-processing i { color: #FFB800; }
     .stat-pending i { color: #FF9800; }
     .stat-cancelled i { color: #FF6B6B; }
+    .stat-amount i { color: var(--gold); }
 
     /* Filtres & contrôles */
     .controls-bar {
@@ -271,14 +272,26 @@
     }
     .detail-item {
       background: rgba(255,255,255,0.03); border-radius: 12px; padding: 12px;
+      position: relative;
     }
     .detail-label {
       font-size: 0.7rem; color: var(--text-light); text-transform: uppercase;
       letter-spacing: 0.5px; margin-bottom: 4px;
     }
-    .detail-value { font-weight: 500; font-size: 0.9rem; word-break: break-word; }
+    .detail-value { font-weight: 500; font-size: 0.9rem; word-break: break-word; display: flex; align-items: center; gap: 5px; }
     .detail-value a { color: var(--light-blue); text-decoration: none; }
     .detail-value a:hover { text-decoration: underline; }
+    .copy-btn {
+      background: none; border: none; color: var(--text-light); cursor: pointer;
+      padding: 2px 5px; font-size: 0.8rem; opacity: 0.6; transition: 0.2s;
+      display: inline-flex; align-items: center;
+    }
+    .copy-btn:hover { opacity: 1; color: var(--gold); }
+    .copied-tooltip {
+      position: absolute; top: -25px; right: 0; background: var(--gold);
+      color: #000; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;
+      pointer-events: none; opacity: 0; transition: opacity 0.2s;
+    }
 
     .comments-section {
       background: rgba(76,175,80,0.05); border: 1px solid rgba(76,175,80,0.2);
@@ -356,7 +369,7 @@
       <div class="stat-card stat-total">
         <i class="fas fa-shopping-cart"></i>
         <div class="stat-value" id="totalOrders">0</div>
-        <div class="stat-label">Total</div>
+        <div class="stat-label">Total commandes</div>
       </div>
       <div class="stat-card stat-completed">
         <i class="fas fa-check-circle"></i>
@@ -377,6 +390,11 @@
         <i class="fas fa-times-circle"></i>
         <div class="stat-value" id="cancelledOrders">0</div>
         <div class="stat-label">Annulées</div>
+      </div>
+      <div class="stat-card stat-amount">
+        <i class="fas fa-coins"></i>
+        <div class="stat-value" id="totalAmount">0</div>
+        <div class="stat-label">Total des montants</div>
       </div>
     </div>
 
@@ -449,7 +467,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
   <script>
-    // ========== SCRIPT ORIGINAL (INTACT) ==========
+    // ========== SCRIPT ORIGINAL (INTACT) + AJOUTS COPIE & TOTAL ==========
     document.addEventListener("DOMContentLoaded", function () {
       if (typeof AOS !== 'undefined') {
         AOS.init({ duration: 800, once: true, offset: 100 });
@@ -521,10 +539,23 @@
         return `${converted.toLocaleString('fr-FR')} ${symbol}`;
       }
 
+      // Fonction utilitaire de copie
+      function copyToClipboard(text, element) {
+        navigator.clipboard.writeText(text).then(() => {
+          // Afficher tooltip
+          const tooltip = element.querySelector('.copied-tooltip');
+          if (tooltip) {
+            tooltip.style.opacity = '1';
+            setTimeout(() => { tooltip.style.opacity = '0'; }, 1500);
+          }
+        }).catch(err => console.error('Erreur copie:', err));
+      }
+
       if (currencySelect) {
         currencySelect.addEventListener('change', function() {
           selectedCountry = this.value;
           displayOrders();
+          updateTotalAmount();
         });
       }
 
@@ -540,6 +571,7 @@
       const processingOrdersElem = document.getElementById('processingOrders');
       const pendingOrdersElem = document.getElementById('pendingOrders');
       const cancelledOrdersElem = document.getElementById('cancelledOrders');
+      const totalAmountElem = document.getElementById('totalAmount');
 
       let currentUid = null;
       let allOrders = [];
@@ -590,6 +622,7 @@
           });
         }
         displayOrders();
+        updateTotalAmount();
       }
 
       function calculateProgress(order) {
@@ -622,6 +655,16 @@
         return status || 'En attente';
       }
 
+      function updateTotalAmount() {
+        if (!totalAmountElem) return;
+        const ordersToSum = currentFilter === 'all' ? allOrders : displayedOrders;
+        const totalXAF = ordersToSum.reduce((sum, order) => {
+          const cost = order.totalCost != null ? order.totalCost : (order.finalCost != null ? order.finalCost : (order.originalPrice != null ? order.originalPrice : 0));
+          return sum + Number(cost);
+        }, 0);
+        totalAmountElem.textContent = formatAmount(totalXAF);
+      }
+
       function displayOrders() {
         if (!ordersList) return;
         const ordersToShow = displayedOrders.slice(0, currentDisplayLimit);
@@ -629,6 +672,7 @@
         if (ordersToShow.length === 0) {
           ordersList.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-light);"><i class="fas fa-inbox" style="font-size:3rem;opacity:0.3;"></i><p>Aucune commande trouvée</p></div>`;
           loadMoreContainer.style.display = 'none';
+          updateTotalAmount();
           return;
         }
 
@@ -677,6 +721,14 @@
           
           let customComments = order.customComments || order.commentaires || order.commentaires_personnalises || order.comments || '';
 
+          // Bouton copie générique (utilisé plusieurs fois)
+          const copyBtn = (text) => `
+            <button class="copy-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${text.replace(/'/g, "\\'")}').then(() => { const tooltip = this.nextElementSibling; if(tooltip) { tooltip.style.opacity = '1'; setTimeout(() => tooltip.style.opacity = '0', 1500); } })" title="Copier">
+              <i class="far fa-copy"></i>
+            </button>
+            <span class="copied-tooltip">Copié !</span>
+          `;
+
           html += `
             <div class="order-card" data-docid="${docId}">
               <div class="order-card-header">
@@ -699,16 +751,68 @@
               </div>
               <div class="order-details">
                 <div class="details-grid">
-                  <div class="detail-item"><div class="detail-label">ID</div><div class="detail-value">${orderId}</div></div>
-                  <div class="detail-item"><div class="detail-label">Date</div><div class="detail-value">${dateStr}</div></div>
-                  <div class="detail-item"><div class="detail-label">Plateforme</div><div class="detail-value">${platform || 'N/A'}</div></div>
-                  <div class="detail-item"><div class="detail-label">Service</div><div class="detail-value">${service}</div></div>
-                  <div class="detail-item"><div class="detail-label">Qualité</div><div class="detail-value">${quality}</div></div>
-                  <div class="detail-item"><div class="detail-label">Quantité</div><div class="detail-value">${quantity.toLocaleString('fr-FR')}</div></div>
-                  <div class="detail-item"><div class="detail-label">Montant</div><div class="detail-value">${formatAmount(totalCost)}</div></div>
-                  ${link ? `<div class="detail-item"><div class="detail-label">Lien</div><div class="detail-value"><a href="${link}" target="_blank">Voir</a></div></div>` : ''}
-                  <div class="detail-item"><div class="detail-label">Statut</div><div class="detail-value"><span class="order-status-badge ${statusClass}">${statusLabel}</span></div></div>
-                  ${contact ? `<div class="detail-item"><div class="detail-label">Contact</div><div class="detail-value">${contact}</div></div>` : ''}
+                  <div class="detail-item">
+                    <div class="detail-label">ID commande</div>
+                    <div class="detail-value">
+                      ${orderId}
+                      <button class="copy-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${orderId.replace(/'/g, "\\'")}').then(() => { const t = this.nextElementSibling; if(t) { t.style.opacity = '1'; setTimeout(() => t.style.opacity = '0', 1500); } })" title="Copier"><i class="far fa-copy"></i></button>
+                      <span class="copied-tooltip">Copié !</span>
+                    </div>
+                  </div>
+                  <div class="detail-item">
+                    <div class="detail-label">Date</div>
+                    <div class="detail-value">
+                      ${dateStr}
+                      <button class="copy-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${dateStr.replace(/'/g, "\\'")}').then(() => { const t = this.nextElementSibling; if(t) { t.style.opacity = '1'; setTimeout(() => t.style.opacity = '0', 1500); } })" title="Copier"><i class="far fa-copy"></i></button>
+                      <span class="copied-tooltip">Copié !</span>
+                    </div>
+                  </div>
+                  <div class="detail-item">
+                    <div class="detail-label">Plateforme</div>
+                    <div class="detail-value">${platform || 'N/A'}</div>
+                  </div>
+                  <div class="detail-item">
+                    <div class="detail-label">Service</div>
+                    <div class="detail-value">
+                      ${service}
+                      <button class="copy-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${service.replace(/'/g, "\\'")}').then(() => { const t = this.nextElementSibling; if(t) { t.style.opacity = '1'; setTimeout(() => t.style.opacity = '0', 1500); } })" title="Copier"><i class="far fa-copy"></i></button>
+                      <span class="copied-tooltip">Copié !</span>
+                    </div>
+                  </div>
+                  <div class="detail-item">
+                    <div class="detail-label">Qualité</div>
+                    <div class="detail-value">${quality}</div>
+                  </div>
+                  <div class="detail-item">
+                    <div class="detail-label">Quantité</div>
+                    <div class="detail-value">${quantity.toLocaleString('fr-FR')}</div>
+                  </div>
+                  <div class="detail-item">
+                    <div class="detail-label">Montant</div>
+                    <div class="detail-value">${formatAmount(totalCost)}</div>
+                  </div>
+                  ${link ? `
+                  <div class="detail-item">
+                    <div class="detail-label">Lien</div>
+                    <div class="detail-value">
+                      <a href="${link}" target="_blank" onclick="event.stopPropagation();">Voir</a>
+                      <button class="copy-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${link.replace(/'/g, "\\'")}').then(() => { const t = this.nextElementSibling; if(t) { t.style.opacity = '1'; setTimeout(() => t.style.opacity = '0', 1500); } })" title="Copier le lien"><i class="far fa-copy"></i></button>
+                      <span class="copied-tooltip">Copié !</span>
+                    </div>
+                  </div>` : ''}
+                  <div class="detail-item">
+                    <div class="detail-label">Statut</div>
+                    <div class="detail-value"><span class="order-status-badge ${statusClass}">${statusLabel}</span></div>
+                  </div>
+                  ${contact ? `
+                  <div class="detail-item">
+                    <div class="detail-label">Contact</div>
+                    <div class="detail-value">
+                      ${contact}
+                      <button class="copy-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${contact.replace(/'/g, "\\'")}').then(() => { const t = this.nextElementSibling; if(t) { t.style.opacity = '1'; setTimeout(() => t.style.opacity = '0', 1500); } })" title="Copier"><i class="far fa-copy"></i></button>
+                      <span class="copied-tooltip">Copié !</span>
+                    </div>
+                  </div>` : ''}
                   ${isExoOrder ? `
                   <div class="detail-item"><div class="detail-label">Départ</div><div class="detail-value">${(order.startCount||0).toLocaleString('fr-FR')}</div></div>
                   <div class="detail-item"><div class="detail-label">Livrés</div><div class="detail-value" style="color:#4CAF50;">${delivered.toLocaleString('fr-FR')}</div></div>
@@ -737,21 +841,17 @@
 
         // Toggle détails
         document.querySelectorAll('.order-card').forEach(card => {
-          const header = card.querySelector('.order-card-header');
           const icon = card.querySelector('.toggle-icon');
           const details = card.querySelector('.order-details');
-          const toggle = () => {
-            const isOpen = details.classList.contains('open');
-            details.classList.toggle('open');
-            icon.className = isOpen ? 'fas fa-chevron-down toggle-icon' : 'fas fa-chevron-up toggle-icon';
-          };
           card.addEventListener('click', (e) => {
             if (e.target.closest('button') || e.target.closest('a')) return;
-            toggle();
+            details.classList.toggle('open');
+            icon.className = details.classList.contains('open') ? 'fas fa-chevron-up toggle-icon' : 'fas fa-chevron-down toggle-icon';
           });
         });
 
         loadMoreContainer.style.display = displayedOrders.length > currentDisplayLimit ? 'block' : 'none';
+        updateTotalAmount();
       }
 
       function updateStats(orders) {
@@ -765,6 +865,7 @@
         processingOrdersElem.textContent = processing;
         pendingOrdersElem.textContent = pending;
         cancelledOrdersElem.textContent = cancelled;
+        updateTotalAmount();
       }
 
       async function fetchOrders() {
