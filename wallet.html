@@ -59,7 +59,7 @@
       flex-direction: column;
     }
 
-    /* Fond animé distinctif (hexagones + lueurs vert/or) */
+    /* Fond animé distinctif */
     .bg-animation {
       position: fixed;
       top: 0;
@@ -195,7 +195,7 @@
       transform: translateX(5px);
     }
 
-    /* ===== CONTENU ===== */
+    /* ===== CONTENU PRINCIPAL ===== */
     main {
       flex: 1;
       max-width: 1100px;
@@ -469,7 +469,7 @@
     .status-pending { background: rgba(255,184,0,0.2); color: var(--wallet-secondary); }
     .status-failed { background: rgba(255,107,107,0.2); color: #FF6B6B; }
 
-    /* Modale dépôt */
+    /* Modales (transfert, retrait) restaurées */
     .modal {
       display: none;
       position: fixed;
@@ -487,10 +487,12 @@
       border: 1px solid var(--wallet-primary);
       border-radius: 24px;
       padding: 30px;
-      max-width: 420px;
+      max-width: 450px;
       width: 100%;
       text-align: center;
       animation: modalIn 0.3s ease;
+      max-height: 90vh;
+      overflow-y: auto;
     }
     @keyframes modalIn {
       from { opacity: 0; transform: scale(0.9); }
@@ -521,19 +523,72 @@
       background: rgba(0,212,170,0.1);
       border-color: var(--wallet-primary);
     }
+    .modal-option.selected {
+      border-color: var(--wallet-primary);
+      background: rgba(0,212,170,0.15);
+    }
     .modal-option i {
       font-size: 1.8rem;
       color: var(--wallet-primary);
     }
-    .modal-close {
+    .modal-close, .modal-confirm {
       background: transparent;
       border: 1px solid rgba(255,255,255,0.2);
       color: #fff;
-      padding: 10px 24px;
-      border-radius: 20px;
+      padding: 12px 28px;
+      border-radius: 50px;
       cursor: pointer;
-      margin-top: 10px;
+      font-weight: 600;
+      transition: 0.3s;
     }
+    .modal-close { background: transparent; }
+    .modal-confirm {
+      background: linear-gradient(135deg, var(--wallet-primary), #028a6b);
+      border: none;
+    }
+    .modal-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+    .modal-confirm:hover:not(:disabled) { transform: translateY(-2px); }
+    .modal-actions {
+      display: flex; gap: 12px; justify-content: center; margin-top: 20px;
+    }
+
+    /* Formulaire retrait */
+    .form-group {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-light);
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      color: #fff;
+      font-size: 0.95rem;
+      transition: 0.3s;
+    }
+    .form-group input:focus, .form-group select:focus {
+      border-color: var(--wallet-primary);
+      outline: none;
+    }
+    .form-note {
+      background: rgba(255,184,0,0.1);
+      border: 1px solid rgba(255,184,0,0.3);
+      border-radius: 12px;
+      padding: 12px;
+      margin: 15px 0;
+      font-size: 0.85rem;
+      display: flex;
+      gap: 10px;
+    }
+    .form-note i { color: var(--wallet-secondary); }
 
     footer {
       background: rgba(8,14,26,0.9);
@@ -548,6 +603,33 @@
       color: var(--wallet-primary);
       text-decoration: none;
     }
+    .wallet-notification {
+      position: fixed;
+      top: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(10,22,43,0.95);
+      backdrop-filter: blur(10px);
+      color: #fff;
+      padding: 14px 28px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.95rem;
+      z-index: 200;
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      transform: translateX(-50%) translateY(-20px);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .wallet-notification.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    .wallet-notification.success { border-left: 4px solid var(--wallet-primary); }
+    .wallet-notification.error { border-left: 4px solid #FF6B6B; }
   </style>
 </head>
 <body>
@@ -575,7 +657,6 @@
     </div>
   </header>
 
-  <!-- solde principal -->
   <main>
     <div class="page-title" data-aos="fade-up">
       <h1><i class="fa-solid fa-coins"></i> Mon Portefeuille</h1>
@@ -642,7 +723,125 @@
     </div>
   </main>
 
-  <!-- Modale de dépôt -->
+  <!-- ===== MODALES (TRANSFERT & RETRAIT) ===== -->
+  <!-- Modale Transfert -->
+  <div class="modal" id="transferModal">
+    <div class="modal-box">
+      <div class="modal-header" style="margin-bottom:20px;">
+        <h3><i class="fa-solid fa-arrow-right-arrow-left"></i> Transférer vos fonds</h3>
+        <p id="transferAmount" style="color:var(--text-light);">0 FCFA disponible</p>
+      </div>
+      <div class="modal-options">
+        <div class="modal-option" data-target="main">
+          <div class="modal-option-icon" style="color: var(--wallet-primary);">
+            <i class="fa-solid fa-coins"></i>
+          </div>
+          <div class="modal-option-text">
+            <h4>Solde Principal</h4>
+            <p>Utilisez vos fonds pour passer des commandes</p>
+          </div>
+        </div>
+        <div class="modal-option" data-target="withdrawal">
+          <div class="modal-option-icon" style="color: var(--wallet-secondary);">
+            <i class="fa-solid fa-money-bill-transfer"></i>
+          </div>
+          <div class="modal-option-text">
+            <h4>Solde de Retrait</h4>
+            <p>Retirez vos gains en espèces</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-close" id="closeTransferModal">Annuler</button>
+        <button class="modal-confirm" id="confirmTransfer" disabled>Confirmer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modale Retrait -->
+  <div class="modal" id="withdrawModal">
+    <div class="modal-box">
+      <div class="modal-header" style="margin-bottom:20px;">
+        <h3><i class="fa-solid fa-money-bill-wave"></i> Demande de Retrait</h3>
+        <p id="withdrawAvailable" style="color:var(--text-light);">0 FCFA disponible</p>
+      </div>
+      
+      <div class="form-group">
+        <label><i class="fa-solid fa-user"></i> Nom complet</label>
+        <input type="text" id="withdrawName" placeholder="Ex: Jean Dupont" required>
+      </div>
+
+      <div class="form-group">
+        <label><i class="fa-solid fa-phone"></i> Numéro de compte Mobile Money</label>
+        <input type="tel" id="withdrawAccount" placeholder="Ex: 699853665" required>
+      </div>
+
+      <div class="form-group">
+        <label><i class="fa-brands fa-whatsapp"></i> Numéro WhatsApp</label>
+        <input type="tel" id="withdrawWhatsapp" placeholder="Ex: 699853665" required>
+      </div>
+
+      <div class="form-group">
+        <label><i class="fa-solid fa-money-check-alt"></i> Montant à retirer (min 1000 FCFA)</label>
+        <input type="number" id="withdrawAmount" placeholder="Ex: 5000" min="1000" required>
+      </div>
+
+      <div class="form-group">
+        <label><i class="fa-solid fa-credit-card"></i> Méthode de paiement</label>
+        <select id="withdrawMethod" required>
+          <option value="">-- Choisir une méthode --</option>
+          <optgroup label="Cameroun">
+            <option value="MTN Mobile Money (Cameroun)">MTN Mobile Money</option>
+            <option value="Orange Money (Cameroun)">Orange Money</option>
+          </optgroup>
+          <optgroup label="Autres pays CEMAC">
+            <option value="MTN Mobile Money (Gabon)">MTN Mobile Money (Gabon)</option>
+            <option value="Airtel Money (Gabon)">Airtel Money (Gabon)</option>
+            <option value="MTN Mobile Money (Congo)">MTN Mobile Money (Congo)</option>
+            <option value="Airtel Money (Congo)">Airtel Money (Congo)</option>
+          </optgroup>
+          <optgroup label="Afrique de l'Ouest">
+            <option value="Orange Money (Senegal)">Orange Money (Sénégal)</option>
+            <option value="Wave (Senegal)">Wave (Sénégal)</option>
+            <option value="Orange Money (Cote d'Ivoire)">Orange Money (Côte d'Ivoire)</option>
+            <option value="MTN Mobile Money (Cote d'Ivoire)">MTN Mobile Money (Côte d'Ivoire)</option>
+            <option value="Orange Money (Mali)">Orange Money (Mali)</option>
+            <option value="Orange Money (Burkina Faso)">Orange Money (Burkina Faso)</option>
+            <option value="MTN Mobile Money (Benin)">MTN Mobile Money (Bénin)</option>
+            <option value="Flooz (Togo)">Flooz (Togo)</option>
+            <option value="TMoney (Togo)">TMoney (Togo)</option>
+          </optgroup>
+          <optgroup label="Afrique de l'Est">
+            <option value="M-Pesa (Kenya)">M-Pesa (Kenya)</option>
+            <option value="M-Pesa (Tanzania)">M-Pesa (Tanzanie)</option>
+            <option value="MTN Mobile Money (Uganda)">MTN Mobile Money (Ouganda)</option>
+            <option value="Airtel Money (Uganda)">Airtel Money (Ouganda)</option>
+            <option value="MTN Mobile Money (Rwanda)">MTN Mobile Money (Rwanda)</option>
+          </optgroup>
+          <optgroup label="Autres">
+            <option value="MTN Mobile Money (Ghana)">MTN Mobile Money (Ghana)</option>
+            <option value="Vodafone Cash (Ghana)">Vodafone Cash (Ghana)</option>
+            <option value="Airtel Money (Nigeria)">Airtel Money (Nigeria)</option>
+            <option value="MTN Mobile Money (Zambia)">MTN Mobile Money (Zambie)</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <div class="form-note">
+        <i class="fa-solid fa-info-circle"></i>
+        <span>Votre demande sera traitée manuellement. Nous vous contacterons via WhatsApp pour confirmer et effectuer le transfert. Délai: 24-48h ouvrables.</span>
+      </div>
+
+      <div class="modal-actions">
+        <button class="modal-close" id="closeWithdrawModal">Annuler</button>
+        <button class="modal-confirm" id="confirmWithdraw" style="background: linear-gradient(135deg, var(--wallet-secondary), #cc8800); color:#000;">
+          <i class="fa-solid fa-paper-plane"></i> Envoyer la demande
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modale Dépôt -->
   <div class="modal" id="depositModal">
     <div class="modal-box">
       <h3><i class="fa-solid fa-wallet"></i> Mode de paiement</h3>
@@ -664,47 +863,12 @@
     </div>
   </div>
 
-  <!-- Modales de transfert et retrait (conservées intactes) -->
-  <div class="transfer-modal" id="transferModal" style="display:none;">
-    <!-- le contenu original est conservé mais caché, on garde la modale originale ci-dessous -->
-  </div>
-  <div class="withdraw-modal" id="withdrawModal" style="display:none;">
-    <!-- idem -->
-  </div>
-  <!-- On conserve le code HTML original des modales pour ne pas casser le JS -->
-  <!-- Inséré plus bas avec style display:none pour éviter conflit -->
+  <!-- Notification -->
+  <div class="wallet-notification" id="walletNotification"></div>
 
   <footer>
     <p>© 2026 Social Boost Horizon · <a href="dashboard.html">Assistance</a> · <a href="privacy.html">Confidentialité</a></p>
   </footer>
-
-  <!-- Notifications -->
-  <div class="wallet-notification" id="walletNotification"></div>
-
-  <!-- Conservation des modales originales (cachées) pour que le JS fonctionne -->
-  <div style="display:none;" aria-hidden="true">
-    <!-- Transfer modal original -->
-    <div id="transferModalOriginal">
-      <div class="modal-content">
-        <div class="modal-header"><h3>Transferer</h3><p id="transferAmount"></p></div>
-        <div class="modal-options">
-          <div class="modal-option" data-target="main">...</div>
-          <div class="modal-option" data-target="withdrawal">...</div>
-        </div>
-        <button class="modal-close" id="closeModal">Annuler</button>
-        <button class="modal-confirm" id="confirmTransfer">Confirmer</button>
-      </div>
-    </div>
-    <!-- Withdraw modal original -->
-    <div id="withdrawModalOriginal">
-      <div class="modal-content">
-        <div class="modal-header"><h3>Retrait</h3><p id="withdrawAvailable"></p></div>
-        <div class="form-group">...</div>
-        <button class="modal-close" id="closeWithdrawModal">Annuler</button>
-        <button class="modal-confirm withdraw-confirm" id="confirmWithdraw">Envoyer</button>
-      </div>
-    </div>
-  </div>
 
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
@@ -713,7 +877,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
   <script>
-    // ========== SCRIPT ORIGINAL (INTACT) ==========
     document.addEventListener("DOMContentLoaded", function () {
       if (typeof AOS !== 'undefined') {
         AOS.init({ duration: 800, once: true, offset: 100 });
@@ -808,25 +971,25 @@
         });
       }
 
-      const logoutBtn = document.getElementById('logoutBtn');
-      const transferBtn = document.getElementById('transferFunds');
-      const withdrawBtn = document.getElementById('withdrawFunds');
-      const balanceEl = document.getElementById('balance'); // caché mais présent
+      // Éléments UI
+      const balanceEl = document.getElementById('balance'); // pas utilisé mais présent
       const mainBalEl = document.getElementById('mainBalance');
       const referralBalEl = document.getElementById('referralBalance');
       const withdrawalBalEl = document.getElementById('withdrawalBalance');
       const activityList = document.getElementById('activityList');
       const walletNotification = document.getElementById('walletNotification');
       
-      // Transfer modal (original elements)
-      const transferModalOrig = document.getElementById('transferModalOriginal');
-      const closeModalBtn = document.getElementById('closeModal');
+      const transferBtn = document.getElementById('transferFunds');
+      const withdrawBtn = document.getElementById('withdrawFunds');
+      
+      // Modales
+      const transferModal = document.getElementById('transferModal');
+      const closeTransferModalBtn = document.getElementById('closeTransferModal');
       const confirmTransferBtn = document.getElementById('confirmTransfer');
       const transferAmountEl = document.getElementById('transferAmount');
-      const modalOptions = document.querySelectorAll('#transferModalOriginal .modal-option');
-      
-      // Withdraw modal (original elements)
-      const withdrawModalOrig = document.getElementById('withdrawModalOriginal');
+      const modalOptions = document.querySelectorAll('#transferModal .modal-option');
+
+      const withdrawModal = document.getElementById('withdrawModal');
       const closeWithdrawModalBtn = document.getElementById('closeWithdrawModal');
       const confirmWithdrawBtn = document.getElementById('confirmWithdraw');
       const withdrawAvailableEl = document.getElementById('withdrawAvailable');
@@ -850,12 +1013,7 @@
         }, 5000);
       }
 
-      if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-          auth.signOut().then(() => window.location.href = 'login.html');
-        });
-      }
-
+      // Auth
       auth.onAuthStateChanged(user => {
         if (!user) {
           window.location.href = 'login.html';
@@ -883,7 +1041,6 @@
           const withBal = data.withdrawalBalance || 0;
           currentReferralBalance = refBal;
           currentWithdrawalBalance = withBal;
-          if (balanceEl) balanceEl.textContent = `Solde : ${formatAmount(bal)}`;
           if (mainBalEl) mainBalEl.innerHTML = formatAmount(bal);
           if (referralBalEl) referralBalEl.innerHTML = formatAmount(refBal);
           if (withdrawalBalEl) withdrawalBalEl.innerHTML = formatAmount(withBal);
@@ -893,12 +1050,12 @@
         loadActivities();
       });
 
-      // Transfer modal logic
+      // Transfert
       if (transferBtn) {
         transferBtn.addEventListener('click', () => {
           if (!currentUid || currentReferralBalance <= 0) return;
           transferAmountEl.textContent = formatAmount(currentReferralBalance) + ' disponible';
-          transferModalOrig.style.display = 'flex';
+          transferModal.classList.add('active');
           selectedTransferTarget = null;
           modalOptions.forEach(opt => opt.classList.remove('selected'));
           confirmTransferBtn.disabled = true;
@@ -914,56 +1071,52 @@
         });
       });
 
-      if (closeModalBtn) {
-        closeModalBtn.addEventListener('click', () => {
-          transferModalOrig.style.display = 'none';
-        });
-      }
+      closeTransferModalBtn.addEventListener('click', () => {
+        transferModal.classList.remove('active');
+      });
 
-      if (confirmTransferBtn) {
-        confirmTransferBtn.addEventListener('click', async () => {
-          if (!currentUid || !selectedTransferTarget) return;
-          confirmTransferBtn.disabled = true;
-          confirmTransferBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-          try {
-            const userRef = db.collection('users').doc(currentUid);
-            await db.runTransaction(async tx => {
-              const doc = await tx.get(userRef);
-              const data = doc.data();
-              const refBal = data.referralBalance || 0;
-              if (refBal <= 0) throw new Error('Aucun solde a transferer');
-              if (selectedTransferTarget === 'main') {
-                tx.update(userRef, {
-                  balance: (data.balance || 0) + refBal,
-                  referralBalance: 0
-                });
-              } else {
-                tx.update(userRef, {
-                  withdrawalBalance: (data.withdrawalBalance || 0) + refBal,
-                  referralBalance: 0
-                });
-              }
-              const txColRef = db.collection('fapshiTransactions').doc();
-              tx.set(txColRef, {
-                userId: currentUid,
-                date: firebase.firestore.FieldValue.serverTimestamp(),
-                type: "Transfert",
-                label: selectedTransferTarget === 'main' ? "Transfert vers solde principal" : "Transfert vers solde de retrait",
-                amount: refBal
+      confirmTransferBtn.addEventListener('click', async () => {
+        if (!currentUid || !selectedTransferTarget) return;
+        confirmTransferBtn.disabled = true;
+        confirmTransferBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        try {
+          const userRef = db.collection('users').doc(currentUid);
+          await db.runTransaction(async tx => {
+            const doc = await tx.get(userRef);
+            const data = doc.data();
+            const refBal = data.referralBalance || 0;
+            if (refBal <= 0) throw new Error('Aucun solde à transférer');
+            if (selectedTransferTarget === 'main') {
+              tx.update(userRef, {
+                balance: (data.balance || 0) + refBal,
+                referralBalance: 0
               });
+            } else {
+              tx.update(userRef, {
+                withdrawalBalance: (data.withdrawalBalance || 0) + refBal,
+                referralBalance: 0
+              });
+            }
+            const txColRef = db.collection('fapshiTransactions').doc();
+            tx.set(txColRef, {
+              userId: currentUid,
+              date: firebase.firestore.FieldValue.serverTimestamp(),
+              type: "Transfert",
+              label: selectedTransferTarget === 'main' ? "Transfert vers solde principal" : "Transfert vers solde de retrait",
+              amount: refBal
             });
-            transferModalOrig.style.display = 'none';
-            showWalletNotification('Transfert reussi!', 'success');
-            loadActivities();
-          } catch (err) {
-            showWalletNotification('Erreur: ' + err.message, 'error');
-          }
-          confirmTransferBtn.disabled = false;
-          confirmTransferBtn.innerHTML = 'Confirmer';
-        });
-      }
+          });
+          transferModal.classList.remove('active');
+          showWalletNotification('Transfert réussi!', 'success');
+          loadActivities();
+        } catch (err) {
+          showWalletNotification('Erreur: ' + err.message, 'error');
+        }
+        confirmTransferBtn.disabled = false;
+        confirmTransferBtn.innerHTML = 'Confirmer';
+      });
 
-      // Withdraw modal logic
+      // Retrait
       if (withdrawBtn) {
         withdrawBtn.addEventListener('click', () => {
           if (!currentUid || currentWithdrawalBalance < 1000) return;
@@ -976,64 +1129,71 @@
               withdrawWhatsappInput.value = currentUserData.phone;
             }
           }
-          withdrawModalOrig.style.display = 'flex';
+          withdrawModal.classList.add('active');
         });
       }
 
-      if (closeWithdrawModalBtn) {
-        closeWithdrawModalBtn.addEventListener('click', () => {
-          withdrawModalOrig.style.display = 'none';
-        });
-      }
+      closeWithdrawModalBtn.addEventListener('click', () => {
+        withdrawModal.classList.remove('active');
+      });
 
-      if (confirmWithdrawBtn) {
-        confirmWithdrawBtn.addEventListener('click', async () => {
-          const name = withdrawNameInput.value.trim();
-          const account = withdrawAccountInput.value.trim();
-          const whatsapp = withdrawWhatsappInput.value.trim();
-          const amount = parseInt(withdrawAmountInput.value) || 0;
-          const method = withdrawMethodSelect.value;
-          if (!name || !account || !whatsapp || amount < 1000 || amount > currentWithdrawalBalance || !method) {
-            showWalletNotification('Veuillez remplir tous les champs correctement', 'error');
-            return;
+      confirmWithdrawBtn.addEventListener('click', async () => {
+        const name = withdrawNameInput.value.trim();
+        const account = withdrawAccountInput.value.trim();
+        const whatsapp = withdrawWhatsappInput.value.trim();
+        const amount = parseInt(withdrawAmountInput.value) || 0;
+        const method = withdrawMethodSelect.value;
+
+        if (!name || !account || !whatsapp || amount < 1000 || amount > currentWithdrawalBalance || !method) {
+          showWalletNotification('Veuillez remplir tous les champs correctement', 'error');
+          return;
+        }
+        confirmWithdrawBtn.disabled = true;
+        confirmWithdrawBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Envoi...';
+        try {
+          const idToken = await auth.currentUser.getIdToken();
+          const response = await fetch(BACKEND_URL + '/api/withdraw-request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+            body: JSON.stringify({
+              userId: currentUid,
+              fullName: name,
+              accountNumber: account,
+              whatsappNumber: whatsapp,
+              amount: amount,
+              paymentMethod: method,
+              username: currentUserData?.username || 'N/A',
+              email: currentUserData?.email || 'N/A'
+            })
+          });
+          const result = await response.json();
+          if (result.success) {
+            withdrawModal.classList.remove('active');
+            showWalletNotification('Demande de retrait envoyée!', 'success');
+            withdrawNameInput.value = '';
+            withdrawAccountInput.value = '';
+            withdrawWhatsappInput.value = '';
+            withdrawAmountInput.value = '';
+            withdrawMethodSelect.value = '';
+            loadActivities();
+          } else {
+            throw new Error(result.error || 'Erreur');
           }
-          confirmWithdrawBtn.disabled = true;
-          confirmWithdrawBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Envoi...';
-          try {
-            const idToken = await auth.currentUser.getIdToken();
-            const response = await fetch(BACKEND_URL + '/api/withdraw-request', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-              body: JSON.stringify({
-                userId: currentUid, fullName: name, accountNumber: account,
-                whatsappNumber: whatsapp, amount: amount, paymentMethod: method,
-                username: currentUserData?.username || 'N/A', email: currentUserData?.email || 'N/A'
-              })
-            });
-            const result = await response.json();
-            if (result.success) {
-              withdrawModalOrig.style.display = 'none';
-              showWalletNotification('Demande envoyee!', 'success');
-              withdrawNameInput.value = withdrawAccountInput.value = withdrawWhatsappInput.value = '';
-              withdrawAmountInput.value = ''; withdrawMethodSelect.value = '';
-              loadActivities();
-            } else {
-              throw new Error(result.error || 'Erreur');
-            }
-          } catch (err) {
-            showWalletNotification('Erreur: ' + err.message, 'error');
-          }
-          confirmWithdrawBtn.disabled = false;
-          confirmWithdrawBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Envoyer la demande';
-        });
-      }
+        } catch (err) {
+          showWalletNotification('Erreur: ' + err.message, 'error');
+        }
+        confirmWithdrawBtn.disabled = false;
+        confirmWithdrawBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Envoyer la demande';
+      });
 
+      // Chargement activités
       async function loadActivities() {
         if (!currentUid) return;
         activityList.innerHTML = '<div style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
         try {
           const allTransactions = [];
           const queryLimit = 100;
+
           const transSnapshot = await db.collection('fapshiTransactions').where('userId', '==', currentUid).limit(queryLimit).get();
           transSnapshot.forEach(doc => {
             const data = doc.data();
@@ -1042,6 +1202,7 @@
             else if (data.date?.toDate) ts = data.date.toDate().getTime();
             allTransactions.push({ __id: doc.id, __ts: ts, __type: 'transaction', ...data });
           });
+
           const rechargesSnapshot = await db.collection('recharges').where('userId', '==', currentUid).limit(queryLimit).get();
           rechargesSnapshot.forEach(doc => {
             const data = doc.data();
@@ -1049,6 +1210,7 @@
             if (data.createdAt?.toDate) ts = data.createdAt.toDate().getTime();
             allTransactions.push({ __id: doc.id, __ts: ts, __type: 'recharge', ...data });
           });
+
           const referralsSnapshot = await db.collection('users').doc(currentUid).collection('referrals').limit(queryLimit).get();
           const refereePromises = [];
           referralsSnapshot.forEach(doc => {
@@ -1059,10 +1221,17 @@
             const promise = refereeUid 
               ? db.collection('users').doc(refereeUid).get().then(d => d.exists ? d.data().username : null).catch(() => null)
               : Promise.resolve(null);
-            refereePromises.push(promise.then(username => ({ __id: doc.id, __ts: ts, __type: 'referral_bonus', __refereeUsername: username, ...data })));
+            refereePromises.push(promise.then(username => ({
+              __id: doc.id,
+              __ts: ts,
+              __type: 'referral_bonus',
+              __refereeUsername: username,
+              ...data
+            })));
           });
           const referralBonuses = await Promise.all(refereePromises);
           allTransactions.push(...referralBonuses);
+
           if (allTransactions.length === 0) {
             activityList.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fa-solid fa-inbox" style="font-size:2rem;opacity:0.3;"></i><p>Aucune activité</p></div>';
             return;
@@ -1070,35 +1239,58 @@
           allTransactions.sort((a, b) => b.__ts - a.__ts);
           const recent = allTransactions.slice(0, 20);
           activityList.innerHTML = '';
+
           recent.forEach(item => {
             const div = document.createElement('div');
             div.className = 'activity-item';
-            let iconClass = 'recharge', iconName = 'fa-arrow-down', label = 'Transaction', amountClass = 'positive', statusClass = 'status-success', statusText = 'Succès', amount = 0, typeClass = 'type-recharge';
+            let iconClass = 'recharge', iconName = 'fa-arrow-down', label = 'Transaction',
+                amountClass = 'positive', statusClass = 'status-success', statusText = 'Succès',
+                amount = 0, typeClass = 'type-recharge';
+
             if (item.__type === 'transaction') {
               amount = item.amount || 0;
               label = item.label || item.type || 'Transaction';
-              if ((item.type||'').toLowerCase().includes('transfert')) { iconClass = 'transfert'; iconName = 'fa-arrow-right-arrow-left'; typeClass = 'type-transfert'; }
-              else if ((item.type||'').toLowerCase().includes('retrait')) { iconClass = 'retrait'; iconName = 'fa-arrow-up'; amountClass = 'negative'; typeClass = 'type-retrait'; }
-              const status = (item.status||'').toLowerCase();
-              if (status.includes('pending')) { statusClass = 'status-pending'; statusText = 'En attente'; typeClass = 'type-pending'; }
-              else if (status.includes('failed')) { statusClass = 'status-failed'; statusText = 'Échoué'; typeClass = 'type-failed'; }
+              if ((item.type || '').toLowerCase().includes('transfert')) {
+                iconClass = 'transfert'; iconName = 'fa-arrow-right-arrow-left'; typeClass = 'type-transfert';
+              } else if ((item.type || '').toLowerCase().includes('retrait')) {
+                iconClass = 'retrait'; iconName = 'fa-arrow-up'; amountClass = 'negative'; typeClass = 'type-retrait';
+              }
+              const status = (item.status || '').toLowerCase();
+              if (status.includes('pending')) {
+                statusClass = 'status-pending'; statusText = 'En attente'; typeClass = 'type-pending';
+              } else if (status.includes('failed')) {
+                statusClass = 'status-failed'; statusText = 'Échoué'; typeClass = 'type-failed';
+              }
             } else if (item.__type === 'recharge') {
               amount = item.amount || item.montant || 0;
               label = `Recharge ${item.method || 'Mobile Money'}`;
-              const status = (item.status||'').toLowerCase();
-              if (status === 'pending') { statusClass = 'status-pending'; statusText = 'En attente'; typeClass = 'type-pending'; }
-              else if (status === 'validated') { statusClass = 'status-success'; statusText = 'Validé'; }
+              const status = (item.status || '').toLowerCase();
+              if (status === 'pending') {
+                statusClass = 'status-pending'; statusText = 'En attente'; typeClass = 'type-pending';
+              } else if (status === 'validated') {
+                statusClass = 'status-success'; statusText = 'Validé';
+              }
             } else if (item.__type === 'referral_bonus') {
               amount = item.bonus || item.amount || 0;
               label = `Bonus parrainage (${item.__refereeUsername || 'un ami'})`;
               iconClass = 'bonus'; iconName = 'fa-gift'; typeClass = 'type-bonus';
             }
-            const dateStr = item.__ts ? new Date(item.__ts).toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : 'Date inconnue';
+
+            const dateStr = item.__ts ? new Date(item.__ts).toLocaleDateString('fr-FR', {
+              day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            }) : 'Date inconnue';
+
             div.classList.add(typeClass);
             div.innerHTML = `
               <div class="activity-icon ${iconClass}"><i class="fa-solid ${iconName}"></i></div>
-              <div class="activity-content"><div class="activity-label">${label}</div><div class="activity-date">${dateStr}</div></div>
-              <div class="activity-right"><div class="activity-amount ${amountClass}">${amountClass === 'positive' ? '+' : '-'}${formatAmount(Math.abs(amount))}</div><span class="activity-status ${statusClass}">${statusText}</span></div>
+              <div class="activity-content">
+                <div class="activity-label">${label}</div>
+                <div class="activity-date">${dateStr}</div>
+              </div>
+              <div class="activity-right">
+                <div class="activity-amount ${amountClass}">${amountClass === 'positive' ? '+' : '-'}${formatAmount(Math.abs(amount))}</div>
+                <span class="activity-status ${statusClass}">${statusText}</span>
+              </div>
             `;
             activityList.appendChild(div);
           });
@@ -1106,33 +1298,14 @@
           activityList.innerHTML = `<div style="text-align:center;padding:20px;color:#FF6B6B;">Erreur: ${err.message}</div>`;
         }
       }
-    });
-  </script>
 
-  <!-- Script additionnel pour la modale de dépôt et ajustements -->
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      // Gestion de la modale de dépôt
+      // Modale de dépôt
       const depositBtn = document.getElementById('depositMainBtn');
       const depositModal = document.getElementById('depositModal');
-      const closeDeposit = document.getElementById('closeDepositModal');
-      const depositCameroon = document.getElementById('depositCameroon');
-      const depositInternational = document.getElementById('depositInternational');
-
-      if (depositBtn && depositModal) {
-        depositBtn.addEventListener('click', () => {
-          depositModal.classList.add('active');
-        });
-        closeDeposit.addEventListener('click', () => {
-          depositModal.classList.remove('active');
-        });
-        depositCameroon.addEventListener('click', () => {
-          window.location.href = 'fonds.html';
-        });
-        depositInternational.addEventListener('click', () => {
-          window.location.href = 'paid.html';
-        });
-      }
+      document.getElementById('closeDepositModal').addEventListener('click', () => depositModal.classList.remove('active'));
+      document.getElementById('depositCameroon').addEventListener('click', () => window.location.href = 'fonds.html');
+      document.getElementById('depositInternational').addEventListener('click', () => window.location.href = 'paid.html');
+      depositBtn.addEventListener('click', () => depositModal.classList.add('active'));
     });
   </script>
 </body>
