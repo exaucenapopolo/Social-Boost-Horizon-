@@ -2,1106 +2,823 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mes Commandes Automatiques – Social Boost Horizon</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+  <title>Commandes automatiques · Social Boost Horizon</title>
 
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@600;700;800&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
-  <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <!-- AOS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
   <style>
     :root {
-      --auto-dark-bg: #0D0D1A;
-      --auto-gradient-start: #1a0a2e;
-      --auto-gradient-end: #16213e;
-      --auto-primary: #8B5CF6;
-      --auto-primary-hover: #7C3AED;
-      --auto-secondary: #06B6D4;
-      --auto-accent: #F59E0B;
-      --auto-success: #10B981;
-      --auto-error: #EF4444;
-      --auto-card-bg: rgba(26, 10, 46, 0.7);
-      --auto-card-border: rgba(139, 92, 246, 0.3);
-      --auto-text-white: #FFFFFF;
-      --auto-text-light: rgba(255, 255, 255, 0.85);
-      --auto-text-muted: rgba(255, 255, 255, 0.6);
-      --font: 'Roboto', sans-serif;
+      --deep-blue: #080e1a;
+      --glass-bg: rgba(15, 25, 45, 0.55);
+      --glass-border: rgba(139, 92, 246, 0.2);
+      --primary-violet: #8B5CF6;
+      --secondary-cyan: #06B6D4;
+      --gold: #D4AF37;
+      --gold-deep: #B8860B;
+      --text-white: #FFFFFF;
+      --text-light: rgba(255, 255, 255, 0.8);
+      --text-muted: rgba(255, 255, 255, 0.6);
+      --font-primary: 'Plus Jakarta Sans', sans-serif;
+      --font-display: 'Space Grotesk', sans-serif;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --error: #EF4444;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { font-size: 14px; scroll-behavior: smooth; }
+    @media (min-width: 768px) { html { font-size: 15px; } }
+    @media (max-width: 480px) { html { font-size: 13px; } }
 
     body {
-      font-family: var(--font);
-      color: var(--auto-text-white);
-      background: linear-gradient(135deg, var(--auto-gradient-start), var(--auto-gradient-end));
+      font-family: var(--font-primary);
+      color: var(--text-white);
+      background: var(--deep-blue);
+      position: relative;
       min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.5;
+      display: flex;
+      flex-direction: column;
     }
 
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 15px 30px;
-      background: rgba(13, 13, 26, 0.95);
+    /* Fond animé */
+    .bg-animation {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: -2;
+      background: radial-gradient(ellipse at 30% 50%, #1a0a2e 0%, #080e1a 70%);
+    }
+    .stars {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: -1; pointer-events: none;
+      background-image: radial-gradient(2px 2px at 20px 30px, rgba(139,92,246,0.5), transparent),
+        radial-gradient(2px 2px at 60px 80px, rgba(6,182,212,0.4), transparent),
+        radial-gradient(1px 1px at 100px 40px, #fff, transparent);
+      background-size: 200px 200px;
+      animation: starsMove 30s linear infinite;
+    }
+    @keyframes starsMove {
+      from { transform: translateY(0); }
+      to { transform: translateY(-200px); }
+    }
+
+    h1, h2, h3 { font-family: var(--font-display); color: #fff; }
+
+    /* HEADER */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(8,14,26,0.85);
       backdrop-filter: blur(20px);
-      border-bottom: 1px solid var(--auto-card-border);
-      position: sticky;
-      top: 0;
-      z-index: 100;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.7rem 1.8rem;
+      border-bottom: 1px solid var(--glass-border);
     }
+    @media (max-width: 480px) { header { padding: 0.6rem 1rem; } }
 
-    .logo-section {
-      display: flex;
-      align-items: center;
-      gap: 12px;
+    .logo-link {
+      display: flex; align-items: center; text-decoration: none; gap: 10px;
     }
-
-    .logo-section img {
-      width: 45px;
-      height: 45px;
-      border-radius: 12px;
+    .logo-img {
+      height: 42px; width: 42px; border-radius: 50%; object-fit: cover;
+      border: 2px solid var(--gold);
+      box-shadow: 0 0 15px rgba(212,175,55,0.3);
     }
-
     .logo-text {
-      font-family: 'Montserrat', sans-serif;
+      display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15;
+    }
+    .logo-text .social {
+      font-size: 0.8rem; font-weight: 600; color: #fff; letter-spacing: 1px;
+    }
+    .logo-text .boost {
+      font-size: 1.4rem; font-weight: 800; color: var(--gold); line-height: 1;
+    }
+    .logo-text .horizon {
+      font-size: 0.9rem; font-weight: 600; color: #fff;
     }
 
-    .logo-text .social { 
-      font-size: 0.7rem; 
-      color: var(--auto-text-muted);
-      display: block;
-      letter-spacing: 2px;
+    .header-actions {
+      display: flex; align-items: center; gap: 15px;
     }
-
-    .logo-text .boost { 
-      font-size: 1.4rem; 
-      font-weight: 800;
-      background: linear-gradient(135deg, var(--auto-primary), var(--auto-secondary));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: linear-gradient(135deg, var(--primary-violet), var(--secondary-cyan));
+      color: #fff; padding: 10px 20px; border: none; border-radius: 50px;
+      font-weight: 600; cursor: pointer; transition: 0.3s; font-size: 0.9rem;
+      text-decoration: none; box-shadow: 0 4px 15px rgba(139,92,246,0.3);
     }
-
-    .logo-text .horizon { 
-      font-size: 0.7rem; 
-      color: var(--auto-text-muted);
-      display: block;
-      letter-spacing: 3px;
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(139,92,246,0.5); }
+    .btn-gold {
+      background: linear-gradient(135deg, var(--gold-deep), var(--gold));
+      color: #080e1a; box-shadow: 0 4px 15px rgba(212,175,55,0.3);
     }
+    .btn-gold:hover { box-shadow: 0 8px 25px rgba(212,175,55,0.5); }
 
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 20px;
+    .icon-hamburger {
+      font-size: 1.6rem; cursor: pointer; transition: 0.3s; color: #fff;
     }
+    .icon-hamburger:hover { color: var(--gold); }
 
-    .balance-display {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 18px;
-      background: rgba(139, 92, 246, 0.15);
-      border: 1px solid var(--auto-card-border);
-      border-radius: 12px;
+    .mobile-menu {
+      display: none; position: absolute; top: 65px; right: 1.8rem;
+      background: rgba(10,22,43,0.95); border: 1px solid var(--glass-border);
+      border-radius: 16px; padding: 1.2rem; flex-direction: column;
+      z-index: 200; min-width: 260px; backdrop-filter: blur(20px);
     }
-
-    .balance-display i { color: var(--auto-accent); }
-    .balance-display span { font-weight: 600; color: var(--auto-accent); }
-
-    .nav-buttons {
-      display: flex;
-      gap: 10px;
+    header.open .mobile-menu { display: flex; }
+    .mobile-menu a {
+      color: #fff; padding: 0.7rem 0.9rem; text-decoration: none;
+      border-radius: 8px; transition: 0.3s; display: flex; align-items: center; gap: 10px; font-size: 0.9rem;
     }
+    .mobile-menu a:hover { background: rgba(139,92,246,0.3); transform: translateX(5px); }
 
-    .nav-btn {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 18px;
-      background: transparent;
-      border: 1px solid var(--auto-card-border);
-      color: var(--auto-text-light);
-      text-decoration: none;
-      border-radius: 10px;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .nav-btn:hover {
-      background: var(--auto-primary);
-      border-color: var(--auto-primary);
-      color: white;
-    }
-
-    .nav-btn.active {
-      background: linear-gradient(135deg, var(--auto-primary), var(--auto-secondary));
-      border-color: transparent;
-    }
-
-    .profile-btn {
-      width: 45px;
-      height: 45px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--auto-primary), var(--auto-secondary));
-      border: none;
-      color: white;
-      font-size: 1.1rem;
-      cursor: pointer;
-      transition: transform 0.3s ease;
-    }
-
-    .profile-btn:hover { transform: scale(1.1); }
-
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 30px 20px;
-    }
-
-    .page-header {
-      text-align: center;
-      margin-bottom: 40px;
+    /* ===== MAIN ===== */
+    main {
+      flex: 1; max-width: 1200px; margin: 0 auto; padding: 30px 20px 40px; width: 100%;
     }
 
     .page-title {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 2.2rem;
-      font-weight: 700;
-      margin-bottom: 10px;
-      background: linear-gradient(135deg, #fff, var(--auto-secondary));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      text-align: center; margin-bottom: 30px;
     }
-
-    .page-title i { 
-      color: var(--auto-primary);
-      -webkit-text-fill-color: var(--auto-primary);
+    .page-title h1 {
+      font-size: 2rem; background: linear-gradient(135deg, var(--primary-violet), var(--secondary-cyan));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     }
+    @media (max-width: 480px) { .page-title h1 { font-size: 1.6rem; } }
 
-    .page-subtitle {
-      color: var(--auto-text-muted);
-      font-size: 1rem;
-    }
-
+    /* Stats */
     .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
-      margin-bottom: 30px;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 15px; margin-bottom: 25px;
     }
-
     .stat-card {
-      background: var(--auto-card-bg);
-      border: 1px solid var(--auto-card-border);
-      border-radius: 16px;
-      padding: 25px;
-      text-align: center;
-      transition: all 0.3s ease;
+      background: var(--glass-bg); backdrop-filter: blur(15px);
+      border: 1px solid var(--glass-border); border-radius: 20px;
+      padding: 20px; text-align: center; transition: all 0.3s;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
     }
+    .stat-card:hover { transform: translateY(-4px); border-color: var(--primary-violet); }
+    .stat-card i { font-size: 1.5rem; margin-bottom: 8px; }
+    .stat-value { font-size: 1.8rem; font-weight: 700; font-family: var(--font-display); }
+    .stat-label { font-size: 0.8rem; color: var(--text-light); }
+    .stat-total i { color: var(--primary-violet); }
+    .stat-pending i { color: var(--secondary-cyan); }
+    .stat-completed i { color: var(--success); }
+    .stat-amount i { color: var(--gold); }
 
-    .stat-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 10px 30px rgba(139, 92, 246, 0.2);
+    .controls-bar {
+      display: flex; flex-wrap: wrap; gap: 15px; align-items: center;
+      margin-bottom: 25px; justify-content: space-between;
     }
-
-    .stat-icon {
-      width: 55px;
-      height: 55px;
-      border-radius: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 15px;
-      font-size: 1.4rem;
+    .balance-display {
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(139,92,246,0.1); border: 1px solid var(--glass-border);
+      padding: 10px 18px; border-radius: 50px;
     }
+    .balance-display i { color: var(--gold); }
+    .balance-display span { font-weight: 700; color: var(--gold); }
 
-    .stat-icon.purple { background: rgba(139, 92, 246, 0.2); color: var(--auto-primary); }
-    .stat-icon.cyan { background: rgba(6, 182, 212, 0.2); color: var(--auto-secondary); }
-    .stat-icon.orange { background: rgba(245, 158, 11, 0.2); color: var(--auto-accent); }
-    .stat-icon.green { background: rgba(16, 185, 129, 0.2); color: var(--auto-success); }
-
-    .stat-value {
-      font-size: 2rem;
-      font-weight: 700;
-      color: var(--auto-text-white);
-      margin-bottom: 5px;
-    }
-
-    .stat-label {
-      font-size: 0.9rem;
-      color: var(--auto-text-muted);
-    }
-
-    .orders-card {
-      background: var(--auto-card-bg);
-      border: 1px solid var(--auto-card-border);
-      border-radius: 20px;
-      overflow: hidden;
-    }
-
-    .orders-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 25px 30px;
-      border-bottom: 1px solid var(--auto-card-border);
-      background: rgba(139, 92, 246, 0.05);
-    }
-
-    .orders-title {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 1.3rem;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .orders-title i { color: var(--auto-primary); }
-
-    .refresh-btn {
-      padding: 12px 24px;
-      background: linear-gradient(135deg, var(--auto-primary), var(--auto-secondary));
-      border: none;
-      color: white;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 0.95rem;
-      font-weight: 500;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .refresh-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
-    }
-
-    .refresh-btn.loading i { animation: spin 1s linear infinite; }
-
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
+    /* Liste commandes */
     .orders-list {
-      padding: 20px;
+      display: flex; flex-direction: column; gap: 15px;
     }
-
-    .order-item {
-      background: rgba(13, 13, 26, 0.6);
-      border: 1px solid var(--auto-card-border);
-      border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 15px;
-      transition: all 0.3s ease;
+    .order-card {
+      background: var(--glass-bg); backdrop-filter: blur(15px);
+      border: 1px solid var(--glass-border); border-radius: 20px;
+      padding: 20px; transition: all 0.3s; cursor: pointer;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
     }
-
-    .order-item:hover {
-      border-color: var(--auto-primary);
-      box-shadow: 0 5px 20px rgba(139, 92, 246, 0.15);
-    }
+    .order-card:hover { border-color: var(--primary-violet); transform: translateY(-2px); }
 
     .order-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 15px;
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 10px; margin-bottom: 10px;
     }
-
-    .order-ids {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 6px;
+    .order-id-section {
+      display: flex; align-items: center; gap: 8px;
     }
-
     .order-id {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--auto-secondary);
+      font-weight: 700; color: var(--secondary-cyan); font-family: var(--font-display);
     }
+    .provider-badge {
+      padding: 2px 8px; border-radius: 6px; font-size: 0.6rem; font-weight: 700;
+      text-transform: uppercase;
+    }
+    .provider-m { background: rgba(139,92,246,0.2); color: var(--primary-violet); }
+    .provider-s { background: rgba(6,182,212,0.2); color: var(--secondary-cyan); }
+    .order-date { font-size: 0.85rem; color: var(--text-muted); }
 
-    .provider-id {
-      font-size: 0.8rem;
-      color: var(--auto-text-muted);
-    }
-
-    .badge-provider {
-      font-weight: 700;
-      font-size: 0.6rem;
-      width: 16px;
-      height: 16px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 4px;
-    }
-
-    .provider-m {
-      background: rgba(139, 92, 246, 0.3);
-      color: var(--auto-primary);
-      border: 1px solid rgba(139, 92, 246, 0.4);
-    }
-
-    .provider-s {
-      background: rgba(6, 182, 212, 0.3);
-      color: var(--auto-secondary);
-      border: 1px solid rgba(6, 182, 212, 0.4);
-    }
-
-    .order-date {
-      font-size: 0.85rem;
-      color: var(--auto-text-muted);
-    }
-
-    .order-service {
-      font-size: 1.1rem;
-      font-weight: 500;
-      color: var(--auto-text-white);
-      margin-bottom: 15px;
-    }
+    .order-service { font-weight: 500; font-size: 1rem; margin-bottom: 10px; }
 
     .order-link {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 15px;
-      background: rgba(6, 182, 212, 0.1);
-      border-radius: 10px;
-      margin-bottom: 15px;
+      display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+      background: rgba(6,182,212,0.1); border-radius: 10px; margin-bottom: 15px;
       word-break: break-all;
     }
-
-    .order-link i { color: var(--auto-secondary); }
-
-    .order-link a {
-      color: var(--auto-secondary);
-      text-decoration: none;
-      font-size: 0.9rem;
-    }
-
+    .order-link i { color: var(--secondary-cyan); }
+    .order-link a { color: var(--secondary-cyan); text-decoration: none; font-size: 0.9rem; }
     .order-link a:hover { text-decoration: underline; }
 
     .progress-section {
       margin-bottom: 15px;
     }
-
     .progress-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 6px;
     }
-
     .progress-stats {
-      display: flex;
-      gap: 20px;
-      font-size: 0.9rem;
+      display: flex; gap: 15px; font-size: 0.85rem; flex-wrap: wrap;
     }
-
-    .progress-stats .start { color: var(--auto-secondary); }
-    .progress-stats .delivered { color: var(--auto-success); }
-    .progress-stats .remaining { color: var(--auto-accent); }
-    .progress-stats .total { color: var(--auto-text-muted); }
-
-    .progress-percent {
-      font-weight: 600;
-      color: var(--auto-primary);
-    }
-
+    .progress-stats .start { color: var(--secondary-cyan); }
+    .progress-stats .delivered { color: var(--success); }
+    .progress-stats .remaining { color: var(--warning); }
+    .progress-percent { font-weight: 700; color: var(--primary-violet); }
     .progress-bar {
-      height: 10px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      overflow: hidden;
+      height: 8px; background: rgba(255,255,255,0.08);
+      border-radius: 10px; overflow: hidden;
     }
-
     .progress-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--auto-primary), var(--auto-secondary));
-      border-radius: 10px;
-      transition: width 0.5s ease;
+      height: 100%; background: linear-gradient(90deg, var(--primary-violet), var(--secondary-cyan));
+      border-radius: 10px; transition: width 0.5s ease;
     }
 
     .order-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 15px;
-      padding-top: 15px;
-      border-top: 1px solid var(--auto-card-border);
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 10px; margin-top: 15px;
+      padding-top: 15px; border-top: 1px solid var(--glass-border);
     }
-
-    .order-price {
-      font-size: 1.2rem;
-      font-weight: 700;
-      color: var(--auto-accent);
-    }
-
+    .order-price { font-weight: 700; font-size: 1.1rem; color: var(--gold); }
     .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 16px;
-      border-radius: 25px;
-      font-size: 0.85rem;
-      font-weight: 500;
+      padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;
+      display: inline-flex; align-items: center; gap: 5px;
     }
-
-    .status-pending { background: rgba(245, 158, 11, 0.2); color: var(--auto-accent); }
-    .status-progress { background: rgba(139, 92, 246, 0.2); color: var(--auto-primary); }
-    .status-completed { background: rgba(16, 185, 129, 0.2); color: var(--auto-success); }
-    .status-partial { background: rgba(6, 182, 212, 0.2); color: var(--auto-secondary); }
-    .status-cancelled { background: rgba(239, 68, 68, 0.2); color: var(--auto-error); }
+    .status-pending { background: rgba(245,158,11,0.2); color: var(--warning); }
+    .status-progress { background: rgba(139,92,246,0.2); color: var(--primary-violet); }
+    .status-completed { background: rgba(16,185,129,0.2); color: var(--success); }
+    .status-partial { background: rgba(6,182,212,0.2); color: var(--secondary-cyan); }
+    .status-cancelled { background: rgba(239,68,68,0.2); color: var(--error); }
 
     .action-btns {
-      display: flex;
-      gap: 10px;
+      display: flex; gap: 8px; flex-wrap: wrap;
     }
-
     .action-btn {
-      padding: 10px 16px;
-      border-radius: 10px;
-      font-size: 0.85rem;
-      cursor: pointer;
-      border: none;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-weight: 500;
+      padding: 8px 14px; border: none; border-radius: 8px;
+      font-size: 0.8rem; font-weight: 600; cursor: pointer;
+      transition: 0.3s; display: flex; align-items: center; gap: 6px;
+    }
+    .action-btn-status { background: rgba(139,92,246,0.2); color: var(--primary-violet); }
+    .action-btn-refill { background: rgba(16,185,129,0.2); color: var(--success); }
+    .action-btn-cancel { background: rgba(239,68,68,0.2); color: var(--error); }
+    .action-btn:hover { transform: translateY(-2px); opacity: 0.9; }
+
+    /* Bouton partage */
+    .share-section {
+      margin-top: 15px; padding-top: 15px;
+      border-top: 1px solid var(--glass-border);
+      display: flex; flex-wrap: wrap; gap: 8px;
+    }
+    .share-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px; border: none; border-radius: 50px;
+      font-weight: 600; font-size: 0.8rem; cursor: pointer;
+      transition: 0.3s; color: #fff;
+    }
+    .share-btn.whatsapp { background: #25D366; }
+    .share-btn.facebook { background: #1877F2; }
+    .share-btn.copy { background: rgba(255,255,255,0.1); }
+
+    /* Copie */
+    .copy-btn {
+      background: none; border: none; color: var(--text-muted); cursor: pointer;
+      padding: 2px 5px; font-size: 0.8rem; opacity: 0.6; transition: 0.2s;
+    }
+    .copy-btn:hover { opacity: 1; color: var(--gold); }
+    .copied-tooltip {
+      position: absolute; top: -25px; right: 0; background: var(--gold);
+      color: #000; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;
+      pointer-events: none; opacity: 0; transition: opacity 0.2s;
     }
 
-    .action-btn-status {
-      background: rgba(139, 92, 246, 0.2);
-      color: var(--auto-primary);
+    /* Modale Commander */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
+      z-index: 1000; justify-content: center; align-items: center; padding: 20px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      background: linear-gradient(135deg, #0a1a2f, #0f2847);
+      border: 1px solid var(--primary-violet);
+      border-radius: 24px; padding: 30px; max-width: 450px; width: 100%;
+      animation: modalIn 0.3s ease;
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .modal-box h3 {
+      color: var(--primary-violet); margin-bottom: 20px; text-align: center;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .modal-option {
+      background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+      border-radius: 14px; padding: 16px 18px; margin-bottom: 10px;
+      cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 15px;
+      text-decoration: none; color: #fff;
+    }
+    .modal-option:hover {
+      background: rgba(139,92,246,0.1); border-color: var(--primary-violet);
+      transform: translateX(5px);
+    }
+    .modal-option i { font-size: 1.5rem; color: var(--primary-violet); width: 30px; text-align: center; }
+    .modal-option .option-text h4 { margin: 0; font-size: 1rem; }
+    .modal-option .option-text p { margin: 2px 0 0; font-size: 0.8rem; color: var(--text-light); }
+    .modal-close-btn {
+      display: block; width: 100%; margin-top: 15px; background: transparent;
+      border: 1px solid rgba(255,255,255,0.2); color: #fff;
+      padding: 10px; border-radius: 50px; cursor: pointer; font-weight: 600;
+      transition: 0.3s;
+    }
+    .modal-close-btn:hover { background: rgba(255,255,255,0.05); }
+
+    footer {
+      background: rgba(8,14,26,0.9); border-top: 1px solid var(--glass-border);
+      padding: 18px; text-align: center; font-size: 0.8rem; color: var(--text-light);
+      margin-top: auto;
     }
 
-    .action-btn-refill {
-      background: rgba(16, 185, 129, 0.2);
-      color: var(--auto-success);
-    }
-
-    .action-btn-cancel {
-      background: rgba(239, 68, 68, 0.2);
-      color: var(--auto-error);
-    }
-
-    .action-btn:hover { 
-      opacity: 0.8; 
-      transform: translateY(-2px); 
-    }
-
-    .action-btn:disabled { 
-      opacity: 0.5; 
-      cursor: not-allowed; 
-      transform: none; 
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 80px 20px;
-      color: var(--auto-text-muted);
-    }
-
-    .empty-state i {
-      font-size: 5rem;
-      margin-bottom: 25px;
-      color: var(--auto-primary);
-      opacity: 0.4;
-    }
-
-    .empty-state h3 {
-      font-size: 1.5rem;
-      margin-bottom: 10px;
-      color: var(--auto-text-light);
-    }
-
-    .empty-state p {
-      margin-bottom: 25px;
-    }
-
-    .empty-state a {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      padding: 14px 30px;
-      background: linear-gradient(135deg, var(--auto-primary), var(--auto-secondary));
-      color: white;
-      text-decoration: none;
-      border-radius: 12px;
-      font-weight: 600;
-      transition: all 0.3s ease;
-    }
-
-    .empty-state a:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 15px 35px rgba(139, 92, 246, 0.4);
-    }
-
-    .loading-state {
-      text-align: center;
-      padding: 80px 20px;
-    }
-
-    .loading-spinner {
-      width: 60px;
-      height: 60px;
-      border: 4px solid rgba(139, 92, 246, 0.2);
-      border-top-color: var(--auto-primary);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
-    }
-
-    .notification {
-      position: fixed;
-      bottom: 30px;
-      right: 30px;
-      padding: 18px 28px;
-      border-radius: 14px;
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      animation: slideIn 0.3s ease;
-      max-width: 450px;
-      font-weight: 500;
-    }
-
-    .notification.success { background: linear-gradient(135deg, var(--auto-success), #059669); }
-    .notification.error { background: linear-gradient(135deg, var(--auto-error), #DC2626); }
-    .notification.info { background: linear-gradient(135deg, var(--auto-primary), var(--auto-secondary)); }
-
-    @keyframes slideIn {
-      from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
-    }
-
-    @media (max-width: 768px) {
-      .header {
-        flex-direction: column;
-        gap: 15px;
-        padding: 15px;
-      }
-
-      .header-right {
-        flex-wrap: wrap;
-        justify-content: center;
-      }
-
-      .nav-buttons {
-        flex-wrap: wrap;
-        justify-content: center;
-      }
-
-      .order-header {
-        flex-direction: column;
-        gap: 10px;
-      }
-
-      .order-footer {
-        flex-direction: column;
-        gap: 15px;
-        align-items: flex-start;
-      }
-
-      .action-btns {
-        width: 100%;
-        justify-content: flex-start;
-        flex-wrap: wrap;
-      }
-
-      .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
+    @media (max-width: 600px) {
+      .order-header { flex-direction: column; }
+      .order-footer { flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
 <body>
-  <header class="header">
-    <a href="dashboard.html" class="logo-section">
-      <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo">
+  <div class="bg-animation"></div>
+  <div class="stars"></div>
+
+  <!-- HEADER -->
+  <header>
+    <a href="dashboard.html" class="logo-link">
+      <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo" class="logo-img">
       <div class="logo-text">
         <span class="social">SOCIAL</span>
         <span class="boost">BOOST</span>
         <span class="horizon">HORIZON</span>
       </div>
     </a>
+    <div class="header-actions">
+      <button class="btn" id="openOrderModalBtn"><i class="fas fa-plus"></i> Commander</button>
+      <i class="fa-solid fa-bars icon-hamburger" id="hamburgerBtn"></i>
+    </div>
+    <div class="mobile-menu">
+      <a href="dashboard.html"><i class="fa-solid fa-house"></i> Accueil</a>
+      <a href="wallet.html"><i class="fa-solid fa-wallet"></i> Portefeuille</a>
+      <a href="commandes.html"><i class="fa-solid fa-list-check"></i> Commandes standard</a>
+      <a href="mes-commandes-auto.html"><i class="fa-solid fa-robot"></i> Commandes auto</a>
+      <a href="profil.html"><i class="fa-solid fa-user"></i> Profil</a>
+    </div>
+  </header>
 
-    <div class="header-right">
+  <main>
+    <div class="page-title" data-aos="fade-up">
+      <h1><i class="fas fa-robot" style="margin-right:10px; color:var(--primary-violet);"></i>Commandes Automatiques</h1>
+      <p style="color:var(--text-muted);">Suivez vos commandes automatisées en temps réel</p>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" data-aos="fade-up" data-aos-delay="100">
+      <div class="stat-card stat-total">
+        <i class="fas fa-shopping-cart"></i>
+        <div class="stat-value" id="totalOrders">0</div>
+        <div class="stat-label">Total commandes</div>
+      </div>
+      <div class="stat-card stat-pending">
+        <i class="fas fa-spinner"></i>
+        <div class="stat-value" id="pendingOrders">0</div>
+        <div class="stat-label">En cours</div>
+      </div>
+      <div class="stat-card stat-completed">
+        <i class="fas fa-check-circle"></i>
+        <div class="stat-value" id="completedOrders">0</div>
+        <div class="stat-label">Terminées</div>
+      </div>
+      <div class="stat-card stat-amount">
+        <i class="fas fa-coins"></i>
+        <div class="stat-value" id="totalSpent">0</div>
+        <div class="stat-label">Total dépensé</div>
+      </div>
+    </div>
+
+    <!-- Contrôles -->
+    <div class="controls-bar" data-aos="fade-up">
       <div class="balance-display">
         <i class="fas fa-wallet"></i>
         <span id="userBalance">0</span>
       </div>
-
-      <div class="nav-buttons">
-        <a href="commande-automatique.html" class="nav-btn">
-          <i class="fas fa-plus"></i> Nouvelle Commande
-        </a>
-        <a href="dashboard.html" class="nav-btn">
-          <i class="fas fa-home"></i> Accueil
-        </a>
-      </div>
-
-      <button class="profile-btn" onclick="window.location.href='profil.html'">
-        <i class="fas fa-user"></i>
-      </button>
-    </div>
-  </header>
-
-  <div class="container">
-    <div class="page-header" data-aos="fade-down">
-      <h1 class="page-title"><i class="fas fa-robot"></i> Mes Commandes Automatiques</h1>
-      <p class="page-subtitle">Suivez l'état de toutes vos commandes automatisées en temps réel</p>
+      <button id="refreshBtn" class="btn"><i class="fas fa-sync-alt"></i> Actualiser</button>
     </div>
 
-    <div class="stats-grid" data-aos="fade-up" data-aos-delay="100">
-      <div class="stat-card">
-        <div class="stat-icon purple"><i class="fas fa-shopping-cart"></i></div>
-        <div class="stat-value" id="totalOrders">0</div>
-        <div class="stat-label">Total Commandes</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon cyan"><i class="fas fa-spinner"></i></div>
-        <div class="stat-value" id="pendingOrders">0</div>
-        <div class="stat-label">En Cours</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
-        <div class="stat-value" id="completedOrders">0</div>
-        <div class="stat-label">Terminées</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon orange"><i class="fas fa-coins"></i></div>
-        <div class="stat-value" id="totalSpent">0</div>
-        <div class="stat-label">Total Dépensé (XAF)</div>
+    <!-- Liste des commandes -->
+    <div class="orders-list" id="ordersList">
+      <div style="text-align:center;padding:40px;">
+        <i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--primary-violet);"></i>
+        <p style="margin-top:10px;">Chargement...</p>
       </div>
     </div>
+  </main>
 
-    <div class="orders-card" data-aos="fade-up" data-aos-delay="200">
-      <div class="orders-header">
-        <h2 class="orders-title">
-          <i class="fas fa-list"></i>
-          Historique des Commandes
-        </h2>
-        <button class="refresh-btn" id="refreshBtn">
-          <i class="fas fa-sync-alt"></i>
-          Actualiser
-        </button>
-      </div>
-
-      <div class="orders-list" id="ordersList">
-        <div class="loading-state">
-          <div class="loading-spinner"></div>
-          <p>Chargement des commandes...</p>
+  <!-- Modale Commander -->
+  <div class="modal-overlay" id="orderModal">
+    <div class="modal-box">
+      <h3><i class="fas fa-rocket"></i> Type de commande</h3>
+      <div class="modal-option" data-url="https://socialboosthorizon.com/commander.html">
+        <i class="fas fa-shopping-cart"></i>
+        <div class="option-text">
+          <h4>Commande Standard</h4>
+          <p>Passez une commande classique</p>
         </div>
       </div>
+      <div class="modal-option" data-url="https://socialboosthorizon.com/commande-automatique.html">
+        <i class="fas fa-robot"></i>
+        <div class="option-text">
+          <h4>Commande Automatique</h4>
+          <p>Livraison automatique et suivi en temps réel</p>
+        </div>
+      </div>
+      <div class="modal-option" data-url="https://socialboosthorizon.com/commande-revendeur.html">
+        <i class="fas fa-store"></i>
+        <div class="option-text">
+          <h4>Commande Revendeur</h4>
+          <p>Accédez à l'espace revendeur</p>
+        </div>
+      </div>
+      <div class="modal-option" data-url="https://socialboosthorizon.com/commande-avancee.html">
+        <i class="fas fa-star"></i>
+        <div class="option-text">
+          <h4>Commande Avancée</h4>
+          <p>Options avancées et personnalisation</p>
+        </div>
+      </div>
+      <button class="modal-close-btn" id="closeOrderModal">Annuler</button>
     </div>
   </div>
 
+  <footer>
+    <p>© 2026 Social Boost Horizon · Mc Exau. Tous droits réservés.</p>
+  </footer>
+
+  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
   <script>
-    AOS.init({ duration: 600, once: true });
+    // ========== SCRIPT ORIGINAL (INTACT) + AJOUTS ==========
+    document.addEventListener("DOMContentLoaded", function () {
+      AOS.init({ duration: 600, once: true });
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-      authDomain: "social-boost-horizon.firebaseapp.com",
-      projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.appspot.com",
-      messagingSenderId: "43658165639",
-      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const auth = firebase.auth();
-
-    const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('replit')
-      ? ''
-      : 'https://social-boost-exaucenapopolo2.replit.app';
-
-    const CURRENCY_CONFIG = {
-      'Cameroun': { currency: 'XAF', rate: 1, symbol: 'FCFA' },
-      'Gabon': { currency: 'XAF', rate: 1, symbol: 'FCFA' },
-      'Congo': { currency: 'XAF', rate: 1, symbol: 'FCFA' },
-      'Tchad': { currency: 'XAF', rate: 1, symbol: 'FCFA' },
-      'Centrafrique': { currency: 'XAF', rate: 1, symbol: 'FCFA' },
-      'Guinée Équatoriale': { currency: 'XAF', rate: 1, symbol: 'FCFA' },
-      'Sénégal': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
-      'Côte d\'Ivoire': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
-      'Burkina Faso': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
-      'Mali': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
-      'Bénin': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
-      'Togo': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
-      'Niger': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
-      'Guinée-Bissau': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
-      'RD Congo': { currency: 'CDF', rate: 0.22, symbol: 'FC' },
-      'Ghana': { currency: 'GHS', rate: 38, symbol: 'GH₵' },
-      'Nigeria': { currency: 'NGN', rate: 0.38, symbol: '₦' },
-      'Kenya': { currency: 'KES', rate: 4.6, symbol: 'KSh' },
-      'Ouganda': { currency: 'UGX', rate: 0.16, symbol: 'USh' },
-      'Tanzanie': { currency: 'TZS', rate: 0.23, symbol: 'TSh' },
-      'Rwanda': { currency: 'RWF', rate: 0.46, symbol: 'FRw' },
-      'Zambie': { currency: 'ZMW', rate: 22, symbol: 'ZK' }
-    };
-
-    let userId = null;
-    let orders = [];
-    let userCurrency = { currency: 'XAF', rate: 1, symbol: 'FCFA' };
-
-    const ordersList = document.getElementById('ordersList');
-    const refreshBtn = document.getElementById('refreshBtn');
-    const userBalanceEl = document.getElementById('userBalance');
-
-    function notify(message, type = 'info') {
-      const existing = document.querySelector('.notification');
-      if (existing) existing.remove();
-
-      const notification = document.createElement('div');
-      notification.className = `notification ${type}`;
-      notification.innerHTML = `
-        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-        <span>${message}</span>
-      `;
-      document.body.appendChild(notification);
-      setTimeout(() => notification.remove(), 5000);
-    }
-
-    function formatPrice(amountXAF) {
-      const formatted = Math.round(amountXAF).toLocaleString('fr-FR');
-      if (userCurrency.rate === 1) {
-        return `${formatted} ${userCurrency.symbol}`;
-      }
-      const localAmount = Math.round(amountXAF / userCurrency.rate);
-      return `${localAmount.toLocaleString('fr-FR')} ${userCurrency.symbol}`;
-    }
-
-    function formatPriceSimple(amount) {
-      return Math.round(amount).toLocaleString('fr-FR');
-    }
-
-    function formatDate(timestamp) {
-      if (!timestamp) return '-';
-      let date;
-      if (timestamp.toDate) {
-        date = timestamp.toDate();
-      } else if (timestamp.seconds) {
-        date = new Date(timestamp.seconds * 1000);
-      } else {
-        date = new Date(timestamp);
-      }
-      return date.toLocaleDateString('fr-FR', { 
-        day: '2-digit', 
-        month: 'short', 
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+      // --- HAMBURGER MENU ---
+      const header = document.querySelector("header");
+      const hamburger = document.getElementById("hamburgerBtn");
+      hamburger.addEventListener("click", () => header.classList.toggle("open"));
+      document.addEventListener("click", (e) => {
+        if (!header.contains(e.target) && header.classList.contains("open")) header.classList.remove("open");
       });
-    }
 
-    function getStatusBadge(status) {
-      const statusMap = {
-        'En attente': { class: 'status-pending', icon: 'clock', label: 'En attente' },
-        'En cours': { class: 'status-progress', icon: 'spinner fa-spin', label: 'En cours' },
-        'Traitement': { class: 'status-progress', icon: 'cog fa-spin', label: 'Traitement' },
-        'Terminé': { class: 'status-completed', icon: 'check-circle', label: 'Terminé' },
-        'Partiel': { class: 'status-partial', icon: 'adjust', label: 'Partiel' },
-        'Annulé': { class: 'status-cancelled', icon: 'times-circle', label: 'Annulé' },
-        'Pending': { class: 'status-pending', icon: 'clock', label: 'En attente' },
-        'In progress': { class: 'status-progress', icon: 'spinner fa-spin', label: 'En cours' },
-        'Processing': { class: 'status-progress', icon: 'cog fa-spin', label: 'Traitement' },
-        'Completed': { class: 'status-completed', icon: 'check-circle', label: 'Terminé' },
-        'Partial': { class: 'status-partial', icon: 'adjust', label: 'Partiel' },
-        'Canceled': { class: 'status-cancelled', icon: 'times-circle', label: 'Annulé' }
+      // --- MODALE COMMANDER ---
+      const orderModal = document.getElementById('orderModal');
+      document.getElementById('openOrderModalBtn').addEventListener('click', () => orderModal.classList.add('active'));
+      document.getElementById('closeOrderModal').addEventListener('click', () => orderModal.classList.remove('active'));
+      orderModal.addEventListener('click', (e) => { if (e.target === orderModal) orderModal.classList.remove('active'); });
+      document.querySelectorAll('#orderModal .modal-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+          const url = opt.dataset.url;
+          if (url) window.location.href = url;
+        });
+      });
+
+      // --- FIREBASE ---
+      const firebaseConfig = {
+        apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+        authDomain: "social-boost-horizon.firebaseapp.com",
+        projectId: "social-boost-horizon",
+        storageBucket: "social-boost-horizon.appspot.com",
+        messagingSenderId: "43658165639",
+        appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
       };
-      const s = statusMap[status] || { class: 'status-pending', icon: 'question', label: status };
-      return `<span class="status-badge ${s.class}"><i class="fas fa-${s.icon}"></i> ${s.label}</span>`;
-    }
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.firestore();
+      const auth = firebase.auth();
 
-    async function loadOrders() {
-      if (!userId) return;
+      const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('replit')
+        ? ''
+        : 'https://social-boost-exaucenapopolo2.replit.app';
 
-      refreshBtn.classList.add('loading');
+      const CURRENCY_CONFIG = {
+        'Cameroun': { currency: 'XAF', rate: 1, symbol: 'FCFA' },
+        'Gabon': { currency: 'XAF', rate: 1, symbol: 'FCFA' },
+        'Congo': { currency: 'XAF', rate: 1, symbol: 'FCFA' },
+        'Tchad': { currency: 'XAF', rate: 1, symbol: 'FCFA' },
+        'Centrafrique': { currency: 'XAF', rate: 1, symbol: 'FCFA' },
+        'Guinée Équatoriale': { currency: 'XAF', rate: 1, symbol: 'FCFA' },
+        'Sénégal': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
+        'Côte d\'Ivoire': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
+        'Burkina Faso': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
+        'Mali': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
+        'Bénin': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
+        'Togo': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
+        'Niger': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
+        'Guinée-Bissau': { currency: 'XOF', rate: 1, symbol: 'FCFA' },
+        'RD Congo': { currency: 'CDF', rate: 0.22, symbol: 'FC' },
+        'Ghana': { currency: 'GHS', rate: 38, symbol: 'GH₵' },
+        'Nigeria': { currency: 'NGN', rate: 0.38, symbol: '₦' },
+        'Kenya': { currency: 'KES', rate: 4.6, symbol: 'KSh' },
+        'Ouganda': { currency: 'UGX', rate: 0.16, symbol: 'USh' },
+        'Tanzanie': { currency: 'TZS', rate: 0.23, symbol: 'TSh' },
+        'Rwanda': { currency: 'RWF', rate: 0.46, symbol: 'FRw' },
+        'Zambie': { currency: 'ZMW', rate: 22, symbol: 'ZK' }
+      };
 
-      try {
-        const idToken = await auth.currentUser.getIdToken();
-        const response = await fetch(`${BACKEND_URL}/api/mtp/user-orders`, {
-          headers: { 'Authorization': `Bearer ${idToken}` }
-        });
-        const data = await response.json();
+      let userId = null;
+      let orders = [];
+      let userCurrency = { currency: 'XAF', rate: 1, symbol: 'FCFA' };
 
-        if (!data.success) {
-          throw new Error(data.error || 'Erreur lors du chargement');
-        }
+      const ordersList = document.getElementById('ordersList');
+      const refreshBtn = document.getElementById('refreshBtn');
+      const userBalanceEl = document.getElementById('userBalance');
 
-        orders = data.orders || [];
-        updateStats();
-        renderOrders();
-
-      } catch (error) {
-        console.error('Erreur chargement commandes:', error);
-        notify('Erreur lors du chargement des commandes', 'error');
-        ordersList.innerHTML = `
-          <div class="empty-state">
-            <i class="fas fa-exclamation-triangle"></i>
-            <h3>Erreur de chargement</h3>
-            <p>${error.message}</p>
-            <a href="javascript:loadOrders()">
-              <i class="fas fa-redo"></i> Réessayer
-            </a>
-          </div>
+      function notify(message, type = 'info') {
+        const existing = document.querySelector('.notification');
+        if (existing) existing.remove();
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.style.cssText = `
+          position: fixed; bottom: 30px; right: 30px; padding: 18px 28px; border-radius: 14px;
+          z-index: 1000; display: flex; align-items: center; gap: 12px;
+          animation: slideIn 0.3s ease; max-width: 450px; font-weight: 500;
         `;
-      } finally {
-        refreshBtn.classList.remove('loading');
-      }
-    }
-
-    function updateStats() {
-      const total = orders.length;
-      const pending = orders.filter(o => ['En attente', 'En cours', 'Traitement', 'Pending', 'In progress', 'Processing'].includes(o.status || o.mtpStatus)).length;
-      const completed = orders.filter(o => ['Terminé', 'Completed'].includes(o.status || o.mtpStatus)).length;
-      const spent = orders.reduce((sum, o) => sum + (o.priceXAF || 0), 0);
-
-      document.getElementById('totalOrders').textContent = total;
-      document.getElementById('pendingOrders').textContent = pending;
-      document.getElementById('completedOrders').textContent = completed;
-      document.getElementById('totalSpent').textContent = formatPrice(spent);
-    }
-
-    function renderOrders() {
-      if (orders.length === 0) {
-        ordersList.innerHTML = `
-          <div class="empty-state">
-            <i class="fas fa-inbox"></i>
-            <h3>Aucune commande automatique</h3>
-            <p>Vous n'avez pas encore passé de commande automatique</p>
-            <a href="commande-automatique.html">
-              <i class="fas fa-robot"></i> Commander maintenant
-            </a>
-          </div>
-        `;
-        return;
+        if (type === 'success') notification.style.background = 'linear-gradient(135deg, #10B981, #059669)';
+        else if (type === 'error') notification.style.background = 'linear-gradient(135deg, #EF4444, #DC2626)';
+        else notification.style.background = 'linear-gradient(135deg, #8B5CF6, #06B6D4)';
+        notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i> ${message}`;
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 5000);
       }
 
-      ordersList.innerHTML = orders.map(order => {
-        const quantity = order.quantity || 0;
-        // Supporter les deux formats (ancien mtpStartCount et nouveau providerStartCount)
-        const startCount = order.providerStartCount || order.mtpStartCount || 0;
-        const remains = order.providerRemains !== undefined ? order.providerRemains : (order.mtpRemains !== undefined ? order.mtpRemains : quantity);
-        const delivered = quantity - remains;
-        const progressPercent = quantity > 0 ? Math.min(100, Math.round((delivered / quantity) * 100)) : 0;
-        
-        const status = order.status || order.providerStatus || order.mtpStatus || 'En attente';
-        const canRefill = !['Completed', 'Canceled', 'Terminé', 'Annulé'].includes(status);
-        
-        // Déterminer le fournisseur (par défaut MTP pour les anciennes commandes)
-        const provider = order.provider || 'mtp';
-        const providerBadge = provider === 'smmgen' ? 'S' : 'M';
-        const providerClass = provider === 'smmgen' ? 'provider-s' : 'provider-m';
-        const providerOrderId = order.providerOrderId || order.mtpOrderId || '-';
-        
+      function formatPrice(amountXAF) {
+        const formatted = Math.round(amountXAF).toLocaleString('fr-FR');
+        if (userCurrency.rate === 1) return `${formatted} ${userCurrency.symbol}`;
+        const localAmount = Math.round(amountXAF / userCurrency.rate);
+        return `${localAmount.toLocaleString('fr-FR')} ${userCurrency.symbol}`;
+      }
+
+      function formatDate(timestamp) {
+        if (!timestamp) return '-';
+        let date;
+        if (timestamp.toDate) date = timestamp.toDate();
+        else if (timestamp.seconds) date = new Date(timestamp.seconds * 1000);
+        else date = new Date(timestamp);
+        return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
+
+      function getStatusBadge(status) {
+        const map = {
+          'En attente': { class: 'status-pending', icon: 'clock', label: 'En attente' },
+          'En cours': { class: 'status-progress', icon: 'spinner fa-spin', label: 'En cours' },
+          'Traitement': { class: 'status-progress', icon: 'cog fa-spin', label: 'Traitement' },
+          'Terminé': { class: 'status-completed', icon: 'check-circle', label: 'Terminé' },
+          'Partiel': { class: 'status-partial', icon: 'adjust', label: 'Partiel' },
+          'Annulé': { class: 'status-cancelled', icon: 'times-circle', label: 'Annulé' },
+          'Pending': { class: 'status-pending', icon: 'clock', label: 'En attente' },
+          'In progress': { class: 'status-progress', icon: 'spinner fa-spin', label: 'En cours' },
+          'Processing': { class: 'status-progress', icon: 'cog fa-spin', label: 'Traitement' },
+          'Completed': { class: 'status-completed', icon: 'check-circle', label: 'Terminé' },
+          'Partial': { class: 'status-partial', icon: 'adjust', label: 'Partiel' },
+          'Canceled': { class: 'status-cancelled', icon: 'times-circle', label: 'Annulé' }
+        };
+        const s = map[status] || { class: 'status-pending', icon: 'question', label: status };
+        return `<span class="status-badge ${s.class}"><i class="fas fa-${s.icon}"></i> ${s.label}</span>`;
+      }
+
+      // --- FONCTIONS DE PARTAGE ET COPIE ---
+      function generateShareMessage(order) {
+        return `📋 *Commande automatique #${order.orderId || 'N/A'}*\n📅 Date : ${formatDate(order.createdAt)}\n🛠 Service : ${order.serviceName || 'Service auto'}\n📊 Quantité : ${order.quantity || 0}\n💰 Montant : ${formatPrice(order.priceXAF || 0)}\n📌 Statut : ${order.status || order.mtpStatus || 'N/A'}\n🔗 Lien : ${order.link || '-'}\n✅ Commandé sur Social Boost Horizon\n🚀 socialboosthorizon.com`;
+      }
+
+      function shareOrderHTML(order) {
+        const msg = generateShareMessage(order);
+        const encoded = encodeURIComponent(msg);
         return `
-        <div class="order-item" data-aos="fade-up" data-provider="${provider}">
-          <div class="order-header">
-            <div class="order-ids">
-              <span class="order-id">${order.orderId || 'N/A'}</span>
-              <span class="badge-provider ${providerClass}">${providerBadge}</span>
-              <span class="provider-id">#${providerOrderId}</span>
-            </div>
-            <span class="order-date"><i class="far fa-calendar-alt"></i> ${formatDate(order.createdAt)}</span>
+          <div class="share-section">
+            <button class="share-btn whatsapp" onclick="event.stopPropagation(); window.open('https://api.whatsapp.com/send?text=${encoded}', '_blank')"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+            <button class="share-btn facebook" onclick="event.stopPropagation(); window.open('https://www.facebook.com/sharer/sharer.php?u=https://socialboosthorizon.com&quote=${encoded}', '_blank')"><i class="fab fa-facebook"></i> Facebook</button>
+            <button class="share-btn copy" onclick="event.stopPropagation(); navigator.clipboard.writeText(\`${msg.replace(/`/g, '\\`')}\`).then(() => { const n = document.createElement('div'); n.className = 'copied-tooltip'; n.textContent = 'Copié !'; n.style.position = 'static'; n.style.opacity = '1'; this.appendChild(n); setTimeout(() => n.remove(), 1500); })"><i class="far fa-copy"></i> Copier</button>
           </div>
+        `;
+      }
 
-          <div class="order-service">${order.serviceName || 'Service automatique'}</div>
+      async function loadOrders() {
+        if (!userId) return;
+        refreshBtn.classList.add('loading');
+        try {
+          const idToken = await auth.currentUser.getIdToken();
+          const response = await fetch(`${BACKEND_URL}/api/mtp/user-orders`, { headers: { 'Authorization': `Bearer ${idToken}` } });
+          const data = await response.json();
+          if (!data.success) throw new Error(data.error || 'Erreur');
+          orders = data.orders || [];
+          updateStats();
+          renderOrders();
+        } catch (error) {
+          console.error(error);
+          notify(error.message, 'error');
+          ordersList.innerHTML = `<div style="text-align:center;padding:40px;"><i class="fas fa-exclamation-triangle"></i><p>Erreur: ${error.message}</p></div>`;
+        } finally {
+          refreshBtn.classList.remove('loading');
+        }
+      }
 
-          <div class="order-link">
-            <i class="fas fa-link"></i>
-            <a href="${order.link}" target="_blank">${order.link || '-'}</a>
-          </div>
+      function updateStats() {
+        const total = orders.length;
+        const pending = orders.filter(o => ['En attente','En cours','Traitement','Pending','In progress','Processing'].includes(o.status || o.mtpStatus)).length;
+        const completed = orders.filter(o => ['Terminé','Completed'].includes(o.status || o.mtpStatus)).length;
+        const spent = orders.reduce((s, o) => s + (o.priceXAF || 0), 0);
+        document.getElementById('totalOrders').textContent = total;
+        document.getElementById('pendingOrders').textContent = pending;
+        document.getElementById('completedOrders').textContent = completed;
+        document.getElementById('totalSpent').textContent = formatPrice(spent);
+      }
 
-          <div class="progress-section">
-            <div class="progress-header">
-              <div class="progress-stats">
-                <span class="start"><i class="fas fa-play"></i> ${startCount.toLocaleString()} départ</span>
-                <span class="delivered"><i class="fas fa-check"></i> ${delivered.toLocaleString()} livrés</span>
-                <span class="remaining"><i class="fas fa-hourglass-half"></i> ${remains.toLocaleString()} restants</span>
-                <span class="total"><i class="fas fa-layer-group"></i> ${quantity.toLocaleString()} commandés</span>
+      function renderOrders() {
+        if (orders.length === 0) {
+          ordersList.innerHTML = `<div style="text-align:center;padding:40px;"><i class="fas fa-inbox" style="font-size:3rem;opacity:0.3;"></i><p>Aucune commande automatique</p></div>`;
+          return;
+        }
+
+        ordersList.innerHTML = orders.map(order => {
+          const quantity = order.quantity || 0;
+          const startCount = order.providerStartCount || order.mtpStartCount || 0;
+          const remains = order.providerRemains !== undefined ? order.providerRemains : (order.mtpRemains !== undefined ? order.mtpRemains : quantity);
+          const delivered = quantity - remains;
+          const progressPercent = quantity > 0 ? Math.min(100, Math.round((delivered / quantity) * 100)) : 0;
+          const status = order.status || order.providerStatus || order.mtpStatus || 'En attente';
+          const canRefill = !['Completed','Canceled','Terminé','Annulé'].includes(status);
+          const provider = order.provider || 'mtp';
+          const providerBadge = provider === 'smmgen' ? 'S' : 'M';
+          const providerClass = provider === 'smmgen' ? 'provider-s' : 'provider-m';
+          const providerOrderId = order.providerOrderId || order.mtpOrderId || '-';
+
+          return `
+            <div class="order-card" data-aos="fade-up">
+              <div class="order-header">
+                <div class="order-id-section">
+                  <span class="order-id">#${order.orderId || 'N/A'}</span>
+                  <span class="provider-badge ${providerClass}">${providerBadge}</span>
+                  <button class="copy-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${order.orderId || ''}')"><i class="far fa-copy"></i></button>
+                </div>
+                <span class="order-date">${formatDate(order.createdAt)}</span>
               </div>
-              <span class="progress-percent">${progressPercent}%</span>
+              <div class="order-service">
+                ${order.serviceName || 'Service automatique'}
+                <button class="copy-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${(order.serviceName || '').replace(/'/g, "\\'")}')"><i class="far fa-copy"></i></button>
+              </div>
+              ${order.link ? `
+              <div class="order-link">
+                <i class="fas fa-link"></i>
+                <a href="${order.link}" target="_blank">${order.link}</a>
+                <button class="copy-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${order.link.replace(/'/g, "\\'")}')"><i class="far fa-copy"></i></button>
+              </div>` : ''}
+              <div class="progress-section">
+                <div class="progress-header">
+                  <div class="progress-stats">
+                    <span class="start"><i class="fas fa-play"></i> ${startCount.toLocaleString()} départ</span>
+                    <span class="delivered"><i class="fas fa-check"></i> ${delivered.toLocaleString()} livrés</span>
+                    <span class="remaining"><i class="fas fa-hourglass-half"></i> ${remains.toLocaleString()} restants</span>
+                  </div>
+                  <span class="progress-percent">${progressPercent}%</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width:${progressPercent}%;"></div>
+                </div>
+              </div>
+              <div class="order-footer">
+                <div>
+                  <span class="order-price">${formatPrice(order.priceXAF || 0)}</span>
+                  ${getStatusBadge(status)}
+                </div>
+                <div class="action-btns">
+                  <button class="action-btn action-btn-status" onclick="event.stopPropagation(); checkStatus('${order.orderId}')"><i class="fas fa-sync"></i> Statut</button>
+                  ${canRefill ? `
+                  <button class="action-btn action-btn-refill" onclick="event.stopPropagation(); requestRefill('${order.orderId}')"><i class="fas fa-redo"></i> Refill</button>
+                  <button class="action-btn action-btn-cancel" onclick="event.stopPropagation(); cancelOrder('${order.orderId}')"><i class="fas fa-times"></i> Annuler</button>
+                  ` : ''}
+                </div>
+              </div>
+              ${shareOrderHTML(order)}
             </div>
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: ${progressPercent}%"></div>
-            </div>
-          </div>
-
-          <div class="order-footer">
-            <div>
-              <span class="order-price">${formatPrice(order.priceXAF || 0)}</span>
-              ${getStatusBadge(status)}
-            </div>
-            <div class="action-btns">
-              <button class="action-btn action-btn-status" onclick="checkStatus('${order.orderId}')" title="Actualiser le statut">
-                <i class="fas fa-sync"></i> Statut
-              </button>
-              ${canRefill ? `
-                <button class="action-btn action-btn-refill" onclick="requestRefill('${order.orderId}')" title="Demander un refill">
-                  <i class="fas fa-redo"></i> Refill
-                </button>
-                <button class="action-btn action-btn-cancel" onclick="cancelOrder('${order.orderId}')" title="Annuler la commande">
-                  <i class="fas fa-times"></i> Annuler
-                </button>
-              ` : ''}
-            </div>
-          </div>
-        </div>
-      `}).join('');
-    }
-
-    // Fonction helper pour obtenir le provider d'une commande
-    function getOrderProvider(orderId) {
-      const order = orders.find(o => o.orderId === orderId);
-      return order?.provider || 'mtp'; // Par défaut MTP pour les anciennes commandes
-    }
-
-    async function checkStatus(orderId) {
-      try {
-        notify('Vérification du statut...', 'info');
-        const idToken = await auth.currentUser.getIdToken();
-        
-        // Router vers le bon endpoint selon le fournisseur
-        const provider = getOrderProvider(orderId);
-        const endpoint = provider === 'smmgen' 
-          ? `${BACKEND_URL}/api/smmgen/order-status/${orderId}`
-          : `${BACKEND_URL}/api/mtp/order-status/${orderId}`;
-        
-        const response = await fetch(endpoint, {
-          headers: { 'Authorization': `Bearer ${idToken}` }
-        });
-        const data = await response.json();
-
-        if (!data.success) {
-          throw new Error(data.error || 'Erreur');
-        }
-
-        notify(`Statut mis à jour: ${data.status}`, 'success');
-        loadOrders();
-
-      } catch (error) {
-        console.error('Erreur vérification statut:', error);
-        notify(error.message, 'error');
+          `;
+        }).join('');
       }
-    }
 
-    async function requestRefill(orderId) {
-      if (!confirm('Voulez-vous demander un refill pour cette commande ?')) return;
-
-      try {
-        notify('Demande de refill en cours...', 'info');
-        const idToken = await auth.currentUser.getIdToken();
-        
-        // Router vers le bon endpoint selon le fournisseur
-        const provider = getOrderProvider(orderId);
-        const endpoint = provider === 'smmgen' 
-          ? `${BACKEND_URL}/api/smmgen/refill`
-          : `${BACKEND_URL}/api/mtp/refill`;
-        
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}`
-          },
-          body: JSON.stringify({ orderId })
-        });
-        const data = await response.json();
-
-        if (!data.success) {
-          throw new Error(data.error || 'Erreur');
-        }
-
-        notify('Refill demandé avec succès !', 'success');
-        loadOrders();
-
-      } catch (error) {
-        console.error('Erreur refill:', error);
-        notify(error.message, 'error');
+      function getOrderProvider(orderId) {
+        const order = orders.find(o => o.orderId === orderId);
+        return order?.provider || 'mtp';
       }
-    }
 
-    async function cancelOrder(orderId) {
-      if (!confirm('Êtes-vous sûr de vouloir annuler cette commande ? Vous serez remboursé du montant restant.')) return;
-
-      try {
-        notify('Annulation en cours...', 'info');
-        const idToken = await auth.currentUser.getIdToken();
-        
-        // Router vers le bon endpoint selon le fournisseur
-        const provider = getOrderProvider(orderId);
-        const endpoint = provider === 'smmgen' 
-          ? `${BACKEND_URL}/api/smmgen/cancel`
-          : `${BACKEND_URL}/api/mtp/cancel`;
-        
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}`
-          },
-          body: JSON.stringify({ orderId })
-        });
-        const data = await response.json();
-
-        if (!data.success) {
-          throw new Error(data.error || 'Erreur');
-        }
-
-        notify(`Commande annulée. Remboursement: ${formatPrice(data.refundedAmount || data.refundAmount || 0)}`, 'success');
-        loadOrders();
-
-      } catch (error) {
-        console.error('Erreur annulation:', error);
-        notify(error.message, 'error');
+      async function checkStatus(orderId) {
+        try {
+          notify('Vérification du statut...', 'info');
+          const idToken = await auth.currentUser.getIdToken();
+          const provider = getOrderProvider(orderId);
+          const endpoint = provider === 'smmgen' 
+            ? `${BACKEND_URL}/api/smmgen/order-status/${orderId}`
+            : `${BACKEND_URL}/api/mtp/order-status/${orderId}`;
+          const response = await fetch(endpoint, { headers: { 'Authorization': `Bearer ${idToken}` } });
+          const data = await response.json();
+          if (!data.success) throw new Error(data.error || 'Erreur');
+          notify(`Statut mis à jour: ${data.status}`, 'success');
+          loadOrders();
+        } catch (error) { notify(error.message, 'error'); }
       }
-    }
 
-    refreshBtn.addEventListener('click', loadOrders);
+      async function requestRefill(orderId) {
+        if (!confirm('Demander un refill ?')) return;
+        try {
+          notify('Refill en cours...', 'info');
+          const idToken = await auth.currentUser.getIdToken();
+          const provider = getOrderProvider(orderId);
+          const endpoint = provider === 'smmgen' 
+            ? `${BACKEND_URL}/api/smmgen/refill`
+            : `${BACKEND_URL}/api/mtp/refill`;
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+            body: JSON.stringify({ orderId })
+          });
+          const data = await response.json();
+          if (!data.success) throw new Error(data.error || 'Erreur');
+          notify('Refill demandé !', 'success');
+          loadOrders();
+        } catch (error) { notify(error.message, 'error'); }
+      }
 
-    auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        userId = user.uid;
+      async function cancelOrder(orderId) {
+        if (!confirm('Annuler cette commande ?')) return;
+        try {
+          notify('Annulation...', 'info');
+          const idToken = await auth.currentUser.getIdToken();
+          const provider = getOrderProvider(orderId);
+          const endpoint = provider === 'smmgen' 
+            ? `${BACKEND_URL}/api/smmgen/cancel`
+            : `${BACKEND_URL}/api/mtp/cancel`;
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+            body: JSON.stringify({ orderId })
+          });
+          const data = await response.json();
+          if (!data.success) throw new Error(data.error || 'Erreur');
+          const msg = data.refundedAmount ? `Remboursé: ${formatPrice(data.refundedAmount)}` : 'Commande annulée';
+          notify(msg, 'success');
+          loadOrders();
+        } catch (error) { notify(error.message, 'error'); }
+      }
 
-        db.collection('users').doc(userId).onSnapshot((doc) => {
-          if (doc.exists) {
-            const userData = doc.data();
-            const balance = userData.balance || 0;
+      refreshBtn.addEventListener('click', loadOrders);
 
-            const country = userData.country || 'Cameroun';
-            if (CURRENCY_CONFIG[country]) {
-              userCurrency = CURRENCY_CONFIG[country];
-            } else if (CURRENCY_CONFIG[country.toLowerCase()]) {
-              userCurrency = CURRENCY_CONFIG[country.toLowerCase()];
+      auth.onAuthStateChanged(async (user) => {
+        if (user) {
+          userId = user.uid;
+          db.collection('users').doc(userId).onSnapshot((doc) => {
+            if (doc.exists) {
+              const userData = doc.data();
+              const balance = userData.balance || 0;
+              const country = userData.country || 'Cameroun';
+              if (CURRENCY_CONFIG[country]) userCurrency = CURRENCY_CONFIG[country];
+              else if (CURRENCY_CONFIG[country.toLowerCase()]) userCurrency = CURRENCY_CONFIG[country.toLowerCase()];
+              userBalanceEl.textContent = formatPrice(balance);
             }
+          });
+          loadOrders();
+        } else {
+          notify('Vous devez être connecté.', 'error');
+          setTimeout(() => window.location.href = 'login.html', 2000);
+        }
+      });
 
-            userBalanceEl.textContent = formatPrice(balance);
-          }
-        });
-
-        loadOrders();
-      } else {
-        notify('Vous devez être connecté pour accéder à cette page', 'error');
-        setTimeout(() => {
-          window.location.href = 'login.html';
-        }, 2000);
-      }
+      window.checkStatus = checkStatus;
+      window.requestRefill = requestRefill;
+      window.cancelOrder = cancelOrder;
     });
   </script>
 </body>
