@@ -187,6 +187,18 @@
     .balance-display i { color: var(--gold); }
     .balance-display span { font-weight: 700; color: var(--gold); }
 
+    /* Style pour les selects dans la barre de contrôle */
+    .controls-bar select {
+      background: rgba(10,22,43,0.8);
+      border: 1px solid var(--glass-border);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-family: var(--font-primary);
+    }
+
     /* Liste commandes */
     .orders-list {
       display: flex; flex-direction: column; gap: 15px;
@@ -425,7 +437,17 @@
         <i class="fas fa-wallet"></i>
         <span id="userBalance">0</span>
       </div>
-      <button id="refreshBtn" class="btn"><i class="fas fa-sync-alt"></i> Actualiser</button>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <!-- Nouveau : sélecteur de tri -->
+        <select id="sortSelect">
+          <option value="date-desc" selected>Date (récent en premier)</option>
+          <option value="date-asc">Date (ancien en premier)</option>
+          <option value="amount-desc">Montant (élevé en premier)</option>
+          <option value="amount-asc">Montant (faible en premier)</option>
+          <option value="status">Statut</option>
+        </select>
+        <button id="refreshBtn" class="btn"><i class="fas fa-sync-alt"></i> Actualiser</button>
+      </div>
     </div>
 
     <!-- Liste des commandes -->
@@ -484,7 +506,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
   <script>
-    // ========== SCRIPT ORIGINAL (INTACT) + AJOUTS ==========
+    // ========== SCRIPT ORIGINAL (INTACT) + AJOUTS (TRI) ==========
     document.addEventListener("DOMContentLoaded", function () {
       AOS.init({ duration: 600, once: true });
 
@@ -552,11 +574,14 @@
 
       let userId = null;
       let orders = [];
+      let sortedOrders = []; // Nouveau tableau trié
+      let currentSort = 'date-desc'; // Tri par défaut
       let userCurrency = { currency: 'XAF', rate: 1, symbol: 'FCFA' };
 
       const ordersList = document.getElementById('ordersList');
       const refreshBtn = document.getElementById('refreshBtn');
       const userBalanceEl = document.getElementById('userBalance');
+      const sortSelect = document.getElementById('sortSelect');
 
       function notify(message, type = 'info') {
         const existing = document.querySelector('.notification');
@@ -611,6 +636,49 @@
         return `<span class="status-badge ${s.class}"><i class="fas fa-${s.icon}"></i> ${s.label}</span>`;
       }
 
+      // --- FONCTIONS DE TRI ---
+      function sortOrders(sortOption) {
+        const sorted = [...orders];
+        switch (sortOption) {
+          case 'date-desc':
+            sorted.sort((a, b) => {
+              const da = a.createdAt ? new Date(a.createdAt.seconds ? a.createdAt.seconds * 1000 : a.createdAt) : new Date(0);
+              const db = b.createdAt ? new Date(b.createdAt.seconds ? b.createdAt.seconds * 1000 : b.createdAt) : new Date(0);
+              return db - da;
+            });
+            break;
+          case 'date-asc':
+            sorted.sort((a, b) => {
+              const da = a.createdAt ? new Date(a.createdAt.seconds ? a.createdAt.seconds * 1000 : a.createdAt) : new Date(0);
+              const db = b.createdAt ? new Date(b.createdAt.seconds ? b.createdAt.seconds * 1000 : b.createdAt) : new Date(0);
+              return da - db;
+            });
+            break;
+          case 'amount-desc':
+            sorted.sort((a, b) => (b.priceXAF || 0) - (a.priceXAF || 0));
+            break;
+          case 'amount-asc':
+            sorted.sort((a, b) => (a.priceXAF || 0) - (b.priceXAF || 0));
+            break;
+          case 'status':
+            const statusPriority = {
+              'En attente': 1, 'Pending': 1,
+              'En cours': 2, 'In progress': 2, 'Traitement': 2, 'Processing': 2,
+              'Partiel': 3, 'Partial': 3,
+              'Terminé': 4, 'Completed': 4,
+              'Annulé': 5, 'Canceled': 5
+            };
+            sorted.sort((a, b) => {
+              const sa = statusPriority[a.status || a.providerStatus || a.mtpStatus || ''] || 99;
+              const sb = statusPriority[b.status || b.providerStatus || b.mtpStatus || ''] || 99;
+              return sa - sb;
+            });
+            break;
+          default: break;
+        }
+        sortedOrders = sorted;
+      }
+
       // --- FONCTIONS DE PARTAGE ET COPIE ---
       function generateShareMessage(order) {
         return `📋 *Commande automatique #${order.orderId || 'N/A'}*\n📅 Date : ${formatDate(order.createdAt)}\n🛠 Service : ${order.serviceName || 'Service auto'}\n📊 Quantité : ${order.quantity || 0}\n💰 Montant : ${formatPrice(order.priceXAF || 0)}\n📌 Statut : ${order.status || order.mtpStatus || 'N/A'}\n🔗 Lien : ${order.link || '-'}\n✅ Commandé sur Social Boost Horizon\n🚀 socialboosthorizon.com`;
@@ -637,6 +705,7 @@
           const data = await response.json();
           if (!data.success) throw new Error(data.error || 'Erreur');
           orders = data.orders || [];
+          sortOrders(currentSort); // Applique le tri actuel
           updateStats();
           renderOrders();
         } catch (error) {
@@ -660,12 +729,13 @@
       }
 
       function renderOrders() {
-        if (orders.length === 0) {
+        const ordersToRender = sortedOrders; // Utilise le tableau trié
+        if (ordersToRender.length === 0) {
           ordersList.innerHTML = `<div style="text-align:center;padding:40px;"><i class="fas fa-inbox" style="font-size:3rem;opacity:0.3;"></i><p>Aucune commande automatique</p></div>`;
           return;
         }
 
-        ordersList.innerHTML = orders.map(order => {
+        ordersList.innerHTML = ordersToRender.map(order => {
           const quantity = order.quantity || 0;
           const startCount = order.providerStartCount || order.mtpStartCount || 0;
           const remains = order.providerRemains !== undefined ? order.providerRemains : (order.mtpRemains !== undefined ? order.mtpRemains : quantity);
@@ -793,6 +863,13 @@
           loadOrders();
         } catch (error) { notify(error.message, 'error'); }
       }
+
+      // Écouteur du changement de tri
+      sortSelect.addEventListener('change', function () {
+        currentSort = this.value;
+        sortOrders(currentSort);
+        renderOrders();
+      });
 
       refreshBtn.addEventListener('click', loadOrders);
 
