@@ -1,1177 +1,2004 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes"/>
-  <title>Mes commandes · Social Boost Horizon</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Commander Boost – Social Boost Horizon</title>
 
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js">
+    </script>
 
-  <!-- AOS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
+    <!-- Google Fonts : modernes, identiques au dashboard -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- AOS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
 
-  <style>
-    :root {
-      --deep-blue: #080e1a;
-      --dark-blue: #0A162B;
-      --grad-start: #1e3c72;
-      --grad-end: #6a0dad;
-      --btn-blue: #1E90FF;
-      --light-blue: #4DA6FF;
-      --gold: #D4AF37;
-      --gold-deep: #B8860B;
-      --glass-bg: rgba(15, 25, 45, 0.55);
-      --glass-border: rgba(255, 255, 255, 0.08);
-      --card-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-      --text-white: #FFFFFF;
-      --text-light: rgba(255, 255, 255, 0.8);
-      --font-primary: 'Plus Jakarta Sans', sans-serif;
-      --font-display: 'Space Grotesk', sans-serif;
-      --green: #4CAF50;
-    }
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html { font-size: 14px; scroll-behavior: smooth; }
-    @media (min-width: 768px) { html { font-size: 15px; } }
-    @media (max-width: 480px) { html { font-size: 13px; } }
+    <style>
+        :root {
+            --sbh-deep-blue: #080e1a;
+            --sbh-dark-blue: #0A162B;
+            --sbh-gradient-start: #1e3c72;
+            --sbh-gradient-end: #6a0dad;
+            --sbh-btn-color: #1E90FF;
+            --sbh-light-blue: #4DA6FF;
+            --sbh-gold: #D4AF37;
+            --sbh-gold-deep: #B8860B;
+            --glass-bg: rgba(15, 25, 45, 0.55);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --card-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            --font-primary: 'Plus Jakarta Sans', sans-serif;
+            --font-display: 'Space Grotesk', sans-serif;
+            --success-green: #22c55e;
+            --accent-pink: #ff6b9d;
+            --accent-cyan: #00d4ff;
+            --text-white: #FFFFFF;
+            --text-light: rgba(255, 255, 255, 0.85);
+            --text-muted: rgba(255, 255, 255, 0.6);
+            --radius-sm: 12px;
+            --radius-md: 18px;
+            --radius-lg: 24px;
+            --radius-xl: 28px;
+            --transition-fast: 0.2s ease;
+            --transition-smooth: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
 
-    body {
-      font-family: var(--font-primary);
-      color: #fff;
-      background: var(--deep-blue);
-      position: relative;
-      min-height: 100vh;
-      overflow-x: hidden;
-      line-height: 1.5;
-      display: flex;
-      flex-direction: column;
-    }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html {
+            font-size: 14px;
+            scroll-behavior: smooth;
+        }
+        @media (min-width: 768px) {
+            html {
+                font-size: 15px;
+            }
+        }
+        @media (max-width: 480px) {
+            html {
+                font-size: 13px;
+            }
+        }
 
-    /* Fond animé */
-    .bg-animation {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      z-index: -2;
-      background: radial-gradient(ellipse at 30% 40%, #1a2a4a 0%, #080e1a 70%);
-    }
-    .stars {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      z-index: -1; pointer-events: none;
-      background-image: radial-gradient(2px 2px at 20px 30px, rgba(212,175,55,0.4), transparent),
-        radial-gradient(2px 2px at 40px 70px, rgba(212,175,55,0.3), transparent),
-        radial-gradient(1px 1px at 90px 40px, #fff, transparent),
-        radial-gradient(1px 1px at 130px 80px, rgba(77,166,255,0.5), transparent),
-        radial-gradient(2px 2px at 160px 120px, rgba(212,175,55,0.4), transparent),
-        radial-gradient(1px 1px at 200px 50px, #fff, transparent);
-      background-size: 400px 200px;
-      animation: starsMove 40s linear infinite;
-    }
-    @keyframes starsMove {
-      from { transform: translateY(0); }
-      to { transform: translateY(-200px); }
-    }
+        body {
+            font-family: var(--font-primary);
+            color: var(--text-white);
+            background: var(--sbh-deep-blue);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.5;
+            position: relative;
+        }
 
-    h1, h2, h3 { font-family: var(--font-display); color: #fff; }
+        /* Fond animé */
+        .background-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+            background: radial-gradient(ellipse at 20% 50%, #0f2040 0%, #080e1a 70%);
+        }
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background-image:
+                linear-gradient(rgba(77, 166, 255, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(77, 166, 255, 0.04) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+        }
 
-    /* HEADER */
-    header {
-      position: sticky; top: 0; z-index: 100;
-      background: rgba(8,14,26,0.85);
-      backdrop-filter: blur(20px);
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 0.7rem 1.8rem;
-      border-bottom: 1px solid var(--glass-border);
-    }
-    @media (max-width: 480px) { header { padding: 0.6rem 1rem; } }
+        /* Particules flottantes */
+        .floating-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--sbh-light-blue);
+            animation: float 16s infinite linear;
+            opacity: 0.25;
+        }
+        .particle:nth-child(1) {
+            left: 10%;
+            animation-delay: 0s;
+            background: var(--accent-cyan);
+        }
+        .particle:nth-child(2) {
+            left: 30%;
+            animation-delay: 4s;
+            background: var(--accent-pink);
+        }
+        .particle:nth-child(3) {
+            left: 50%;
+            animation-delay: 7s;
+            background: var(--sbh-gold);
+        }
+        .particle:nth-child(4) {
+            left: 70%;
+            animation-delay: 10s;
+            background: var(--success-green);
+        }
+        .particle:nth-child(5) {
+            left: 90%;
+            animation-delay: 13s;
+            background: var(--sbh-light-blue);
+        }
+        @keyframes float {
+            0% {
+                transform: translateY(105vh) scale(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.4;
+            }
+            50% {
+                opacity: 0.6;
+            }
+            90% {
+                opacity: 0.2;
+            }
+            100% {
+                transform: translateY(-10vh) scale(1.2);
+                opacity: 0;
+            }
+        }
 
-    .logo-link {
-      display: flex; align-items: center; text-decoration: none; gap: 10px;
-    }
-    .logo-img {
-      height: 42px; width: 42px; border-radius: 50%; object-fit: cover;
-      border: 2px solid var(--gold);
-      box-shadow: 0 0 15px rgba(212,175,55,0.3);
-    }
-    @media (max-width: 480px) { .logo-img { height: 36px; width: 36px; } }
-    .logo-text {
-      display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15;
-    }
-    .logo-text .social {
-      font-size: 0.8rem; font-weight: 600; color: #fff; letter-spacing: 1px;
-    }
-    .logo-text .boost {
-      font-size: 1.4rem; font-weight: 800; color: var(--gold); line-height: 1;
-    }
-    @media (max-width: 480px) { .logo-text .boost { font-size: 1.2rem; } }
-    .logo-text .horizon {
-      font-size: 0.9rem; font-weight: 600; color: #fff;
-    }
+        /* ===== HEADER ===== */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(8, 14, 26, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.7rem 1.8rem;
+            border-bottom: 1px solid var(--glass-border);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+        @media (max-width: 480px) {
+            header {
+                padding: 0.6rem 1rem;
+            }
+        }
 
-    .header-actions {
-      display: flex; align-items: center; gap: 15px;
-    }
-    .icon-hamburger {
-      font-size: 1.6rem; cursor: pointer; transition: 0.3s; color: #fff;
-    }
-    .icon-hamburger:hover { color: var(--gold); }
+        .logo-link {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            gap: 10px;
+        }
+        .logo-img {
+            height: 42px;
+            width: 42px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--sbh-gold);
+            box-shadow: 0 0 18px rgba(212, 175, 55, 0.3);
+            animation: logoPulse 3s ease-in-out infinite;
+        }
+        @keyframes logoPulse {
+            0%,
+            100% {
+                box-shadow: 0 0 18px rgba(212, 175, 55, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 28px rgba(212, 175, 55, 0.55);
+            }
+        }
+        @media (max-width: 480px) {
+            .logo-img {
+                height: 36px;
+                width: 36px;
+            }
+        }
+        .logo-text {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            line-height: 1.15;
+            font-family: var(--font-display);
+        }
+        .logo-text .social {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #fff;
+            letter-spacing: 1.5px;
+        }
+        .logo-text .boost {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--sbh-gold);
+            line-height: 1;
+            letter-spacing: -0.5px;
+        }
+        @media (max-width: 480px) {
+            .logo-text .boost {
+                font-size: 1.2rem;
+            }
+        }
+        .logo-text .horizon {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #fff;
+            letter-spacing: 1px;
+        }
 
-    .mobile-menu {
-      display: none; position: absolute; top: 65px; right: 1.8rem;
-      background: rgba(10,22,43,0.95); border: 1px solid var(--glass-border);
-      border-radius: 16px; padding: 1.2rem; flex-direction: column;
-      z-index: 200; min-width: 260px; backdrop-filter: blur(20px);
-    }
-    header.open .mobile-menu { display: flex; }
-    .mobile-menu a {
-      color: #fff; padding: 0.7rem 0.9rem; text-decoration: none;
-      border-radius: 8px; transition: 0.3s; display: flex; align-items: center; gap: 10px; font-size: 0.9rem;
-    }
-    .mobile-menu a:hover { background: rgba(30,60,114,0.5); transform: translateX(5px); }
+        .header-icons {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .icon-hamburger {
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: var(--transition-fast);
+            color: var(--text-white);
+            padding: 8px;
+            border-radius: 10px;
+        }
+        .icon-hamburger:hover {
+            color: var(--sbh-gold);
+            background: rgba(255, 255, 255, 0.05);
+        }
 
-    /* ===== MAIN ===== */
-    main {
-      flex: 1; max-width: 1200px; margin: 0 auto; padding: 30px 20px 40px; width: 100%;
-    }
+        .mobile-menu {
+            display: none;
+            position: absolute;
+            top: 65px;
+            right: 1.8rem;
+            background: rgba(10, 22, 43, 0.96);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            padding: 1rem;
+            flex-direction: column;
+            z-index: 200;
+            min-width: 260px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+        header.open .mobile-menu {
+            display: flex;
+        }
+        .mobile-menu a {
+            color: #fff;
+            padding: 0.7rem 1rem;
+            text-decoration: none;
+            border-radius: 10px;
+            transition: var(--transition-fast);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .mobile-menu a:hover {
+            background: rgba(30, 60, 114, 0.5);
+            transform: translateX(5px);
+        }
+        .mobile-menu a i {
+            width: 20px;
+            color: var(--sbh-light-blue);
+            text-align: center;
+        }
 
-    .page-title {
-      text-align: center; margin-bottom: 30px;
-    }
-    .page-title h1 {
-      font-size: 2rem; background: linear-gradient(135deg, var(--light-blue), var(--gold));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-    }
-    @media (max-width: 480px) { .page-title h1 { font-size: 1.6rem; } }
+        /* ===== BOUTONS GÉNÉRIQUES ===== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: linear-gradient(135deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+            color: #fff;
+            padding: 0.65rem 1.5rem;
+            border: none;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: var(--transition-smooth);
+            font-size: 0.9rem;
+            box-shadow: 0 4px 18px rgba(30, 144, 255, 0.3);
+            letter-spacing: 0.4px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            font-family: var(--font-primary);
+        }
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(30, 144, 255, 0.5);
+        }
+        .btn:active {
+            transform: translateY(-1px);
+        }
+        .btn-gold {
+            background: linear-gradient(135deg, var(--sbh-gold-deep), var(--sbh-gold));
+            color: #080e1a;
+            box-shadow: 0 4px 18px rgba(212, 175, 55, 0.3);
+            font-weight: 700;
+        }
+        .btn-gold:hover {
+            box-shadow: 0 12px 30px rgba(212, 175, 55, 0.5);
+        }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--sbh-light-blue);
+            box-shadow: none;
+            color: #fff;
+        }
+        .btn-outline:hover {
+            background: var(--sbh-light-blue);
+            border-color: var(--sbh-light-blue);
+            color: #fff;
+        }
+        .btn-sm {
+            padding: 0.45rem 1.1rem;
+            font-size: 0.8rem;
+            border-radius: 30px;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
 
-    /* Stats */
-    .stats-grid {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 15px; margin-bottom: 25px;
-    }
-    .stat-card {
-      background: var(--glass-bg); backdrop-filter: blur(15px);
-      border: 1px solid var(--glass-border); border-radius: 20px;
-      padding: 20px; text-align: center; transition: all 0.3s;
-      box-shadow: var(--card-shadow);
-    }
-    .stat-card:hover { transform: translateY(-4px); border-color: var(--gold); }
-    .stat-card i { font-size: 1.5rem; margin-bottom: 8px; }
-    .stat-value { font-size: 1.8rem; font-weight: 700; font-family: var(--font-display); }
-    .stat-label { font-size: 0.8rem; color: var(--text-light); }
-    .stat-total i { color: var(--light-blue); }
-    .stat-completed i { color: var(--green); }
-    .stat-processing i { color: #FFB800; }
-    .stat-pending i { color: #FF9800; }
-    .stat-cancelled i { color: #FF6B6B; }
-    .stat-amount i { color: var(--gold); }
+        /* ===== BANNIÈRE APP ===== */
+        .app-promo-banner {
+            margin: 15px 20px;
+            background: rgba(34, 197, 94, 0.07);
+            border: 1px solid rgba(34, 197, 94, 0.22);
+            border-radius: var(--radius-lg);
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            color: #fff;
+            text-decoration: none;
+            transition: var(--transition-smooth);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+        .app-promo-banner:hover {
+            background: rgba(34, 197, 94, 0.14);
+            border-color: #22c55e;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(34, 197, 94, 0.15);
+        }
+        @media (max-width: 480px) {
+            .app-promo-banner {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
 
-    /* Filtres & contrôles */
-    .controls-bar {
-      display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
-      margin-bottom: 25px; justify-content: space-between;
-    }
-    .filters {
-      display: flex; flex-wrap: wrap; gap: 8px;
-    }
-    .filter-btn {
-      background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
-      color: var(--text-light); padding: 8px 16px; border-radius: 20px;
-      cursor: pointer; font-weight: 500; font-size: 0.85rem; transition: 0.3s;
-    }
-    .filter-btn:hover, .filter-btn.active {
-      background: rgba(77,166,255,0.15); border-color: var(--light-blue); color: #fff;
-    }
-    .control-group {
-      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    }
-    .currency-selector select, .limit-selector select, .sort-selector select {
-      background: rgba(10,22,43,0.8); border: 1px solid var(--glass-border);
-      color: #fff; padding: 8px 12px; border-radius: 10px; font-size: 0.85rem;
-      cursor: pointer; font-family: var(--font-primary);
-    }
-    .btn {
-      display: inline-flex; align-items: center; gap: 8px;
-      background: linear-gradient(135deg, var(--grad-start), var(--btn-blue));
-      color: #fff; padding: 10px 20px; border: none; border-radius: 50px;
-      font-weight: 600; cursor: pointer; transition: 0.3s; font-size: 0.9rem;
-      text-decoration: none; box-shadow: 0 4px 15px rgba(30,144,255,0.3);
-    }
-    .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(30,144,255,0.5); }
-    .btn-gold {
-      background: linear-gradient(135deg, var(--gold-deep), var(--gold));
-      color: #080e1a; box-shadow: 0 4px 15px rgba(212,175,55,0.3);
-    }
-    .btn-gold:hover { box-shadow: 0 8px 25px rgba(212,175,55,0.5); }
+        /* ===== COMPTEUR SERVICES ===== */
+        .services-count {
+            text-align: center;
+            padding: 16px 20px;
+            margin: 15px 20px;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--card-shadow);
+        }
+        .services-count .count {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--sbh-gold);
+            font-family: var(--font-display);
+        }
+        .services-count .label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
 
-    /* Liste des commandes */
-    .orders-list {
-      display: flex; flex-direction: column; gap: 12px;
-    }
-    .order-card {
-      background: var(--glass-bg); backdrop-filter: blur(15px);
-      border: 1px solid var(--glass-border); border-radius: 20px;
-      padding: 20px; transition: all 0.3s; cursor: pointer;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-    }
-    .order-card:hover { border-color: var(--light-blue); transform: translateY(-2px); }
-    .order-card-header {
-      display: flex; justify-content: space-between; align-items: center;
-      flex-wrap: wrap; gap: 10px;
-    }
-    .order-id {
-      font-weight: 700; font-size: 1rem; color: var(--light-blue);
-      font-family: var(--font-display);
-    }
-    .order-meta {
-      display: flex; align-items: center; gap: 15px; flex-wrap: wrap;
-      font-size: 0.85rem; color: var(--text-light);
-    }
-    .order-platform i { margin-right: 5px; }
-    .order-status-badge {
-      padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;
-      text-transform: uppercase;
-    }
-    .status-completed { background: rgba(76,175,80,0.2); color: #4CAF50; }
-    .status-processing { background: rgba(255,184,0,0.2); color: #FFB800; }
-    .status-pending { background: rgba(255,152,0,0.2); color: #FF9800; }
-    .status-cancelled { background: rgba(255,107,107,0.2); color: #FF6B6B; }
+        /* ===== PLATEFORMES ===== */
+        .platforms-section {
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 0 15px;
+        }
+        .platforms-title {
+            text-align: center;
+            margin-bottom: 14px;
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .platforms-title i {
+            color: var(--sbh-light-blue);
+        }
+        .platforms {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 16px 12px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: var(--radius-xl);
+            overflow-x: auto;
+            flex-wrap: wrap;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--card-shadow);
+        }
+        .platform-icon {
+            width: 56px;
+            height: 56px;
+            cursor: pointer;
+            border-radius: 16px;
+            padding: 8px;
+            transition: var(--transition-smooth);
+            position: relative;
+            background: rgba(255, 255, 255, 0.03);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid transparent;
+            flex-shrink: 0;
+        }
+        .platform-icon img {
+            width: 36px;
+            height: 36px;
+            filter: brightness(0.75);
+            transition: var(--transition-smooth);
+        }
+        .platform-icon:hover {
+            transform: translateY(-6px);
+            background: rgba(30, 60, 114, 0.3);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+        .platform-icon:hover img {
+            filter: brightness(1);
+        }
+        .platform-icon.active {
+            background: linear-gradient(135deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+            box-shadow: 0 8px 28px rgba(30, 144, 255, 0.45);
+            transform: translateY(-6px);
+            border-color: transparent;
+        }
+        .platform-icon.active img {
+            filter: brightness(1.2);
+        }
+        .platform-icon .platform-name {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity var(--transition-smooth);
+            font-weight: 500;
+        }
+        .platform-icon:hover .platform-name,
+        .platform-icon.active .platform-name {
+            opacity: 1;
+        }
+        @media (max-width: 480px) {
+            .platform-icon {
+                width: 48px;
+                height: 48px;
+                border-radius: 14px;
+            }
+            .platform-icon img {
+                width: 30px;
+                height: 30px;
+            }
+            .platforms {
+                gap: 6px;
+                padding: 12px 8px;
+            }
+        }
 
-    .progress-bar-container {
-      display: flex; align-items: center; gap: 10px; margin-top: 15px;
-    }
-    .progress-bar {
-      flex: 1; height: 8px; background: rgba(255,255,255,0.08);
-      border-radius: 10px; overflow: hidden;
-    }
-    .progress-fill {
-      height: 100%; border-radius: 10px; transition: width 0.5s ease;
-      background: linear-gradient(90deg, var(--light-blue), var(--gold));
-    }
-    .progress-percent {
-      font-weight: 700; font-size: 0.9rem; min-width: 45px; text-align: right;
-      font-family: var(--font-display);
-    }
+        /* ===== CONTENU PRINCIPAL ===== */
+        .content {
+            max-width: 700px;
+            width: 95%;
+            margin: 30px auto;
+            padding: 30px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--card-shadow);
+        }
+        @media (max-width: 480px) {
+            .content {
+                padding: 20px 16px;
+                margin: 15px;
+                border-radius: var(--radius-lg);
+            }
+        }
 
-    .order-details {
-      display: none; margin-top: 20px; padding-top: 15px;
-      border-top: 1px solid var(--glass-border);
-      animation: fadeSlide 0.3s ease;
-    }
-    @keyframes fadeSlide {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .order-details.open { display: block; }
-    .details-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 12px; margin-bottom: 15px;
-    }
-    .detail-item {
-      background: rgba(255,255,255,0.03); border-radius: 12px; padding: 12px;
-      position: relative;
-    }
-    .detail-label {
-      font-size: 0.7rem; color: var(--text-light); text-transform: uppercase;
-      letter-spacing: 0.5px; margin-bottom: 4px;
-    }
-    .detail-value { font-weight: 500; font-size: 0.9rem; word-break: break-word; display: flex; align-items: center; gap: 5px; }
-    .detail-value a { color: var(--light-blue); text-decoration: none; }
-    .detail-value a:hover { text-decoration: underline; }
-    .copy-btn {
-      background: none; border: none; color: var(--text-light); cursor: pointer;
-      padding: 2px 5px; font-size: 0.8rem; opacity: 0.6; transition: 0.2s;
-      display: inline-flex; align-items: center;
-    }
-    .copy-btn:hover { opacity: 1; color: var(--gold); }
-    .copied-tooltip {
-      position: absolute; top: -25px; right: 0; background: var(--gold);
-      color: #000; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;
-      pointer-events: none; opacity: 0; transition: opacity 0.2s;
-    }
+        .page-title {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .page-title h2 {
+            font-family: var(--font-display);
+            font-size: 1.7rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #fff, var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .page-title .new-badge {
+            display: inline-block;
+            background: var(--accent-pink);
+            color: white;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            margin-left: 8px;
+            animation: badgePulse 1.8s ease-in-out infinite;
+            letter-spacing: 0.5px;
+            -webkit-text-fill-color: white;
+        }
+        @keyframes badgePulse {
+            0%,
+            100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.08);
+                box-shadow: 0 0 20px rgba(255, 107, 157, 0.5);
+            }
+        }
 
-    .comments-section {
-      background: rgba(76,175,80,0.05); border: 1px solid rgba(76,175,80,0.2);
-      border-radius: 12px; padding: 12px; margin-top: 12px;
-    }
-    .comments-title {
-      font-weight: 600; color: var(--green); margin-bottom: 8px;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .comments-content { font-style: italic; color: var(--text-light); font-size: 0.9rem; }
+        /* Solde */
+        .balance-display {
+            text-align: center;
+            padding: 18px 20px;
+            margin-bottom: 24px;
+            background: rgba(34, 197, 94, 0.06);
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(34, 197, 94, 0.18);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+        .balance-display span {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+        .balance-display .balance-amount {
+            display: block;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--success-green);
+            margin-top: 4px;
+            font-family: var(--font-display);
+        }
 
-    /* Bouton Partager amélioré */
-    .share-section {
-      margin-top: 15px; padding-top: 15px;
-      border-top: 1px solid var(--glass-border);
-      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-    }
-    .share-btn {
-      display: inline-flex; align-items: center; gap: 8px;
-      background: linear-gradient(135deg, #25D366, #128C7E);
-      color: #fff; padding: 10px 18px; border: none; border-radius: 50px;
-      cursor: pointer; font-weight: 600; font-size: 0.85rem;
-      transition: 0.3s; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
-    }
-    .share-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(37, 211, 102, 0.5); }
-    .share-btn.facebook {
-      background: linear-gradient(135deg, #1877F2, #0C5DC7);
-      box-shadow: 0 4px 15px rgba(24, 119, 242, 0.3);
-    }
-    .share-btn.copy-share {
-      background: linear-gradient(135deg, var(--grad-start), var(--btn-blue));
-      box-shadow: 0 4px 15px rgba(30,144,255,0.3);
-    }
+        /* Formulaire */
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-light);
+            font-size: 0.9rem;
+            letter-spacing: 0.3px;
+        }
+        .form-group label i {
+            margin-right: 8px;
+            color: var(--sbh-light-blue);
+            width: 18px;
+            text-align: center;
+        }
+        .form-group select,
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 13px 16px;
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            border-radius: var(--radius-sm);
+            background: rgba(10, 22, 43, 0.7);
+            color: var(--text-white);
+            font-size: 0.95rem;
+            transition: var(--transition-smooth);
+            font-family: var(--font-primary);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+        .form-group select:focus,
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--sbh-light-blue);
+            box-shadow: 0 0 22px rgba(77, 166, 255, 0.2);
+            background: rgba(15, 30, 55, 0.8);
+        }
+        .form-group select option {
+            background: #0f1a2e;
+            color: #fff;
+        }
 
-    .exo-actions {
-      display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;
-    }
-    .exo-btn {
-      padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer;
-      font-weight: 600; font-size: 0.8rem; display: flex; align-items: center; gap: 6px;
-      transition: 0.3s; color: #fff;
-    }
-    .exo-btn:hover { transform: translateY(-2px); }
-    .exo-btn.status { background: linear-gradient(135deg, #8B5CF6, #7C3AED); }
-    .exo-btn.refill { background: linear-gradient(135deg, #10B981, #059669); }
-    .exo-btn.cancel { background: linear-gradient(135deg, #EF4444, #DC2626); }
+        /* Catégories */
+        .category-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+        .category-btn {
+            padding: 9px 18px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 30px;
+            background: transparent;
+            color: var(--text-light);
+            cursor: pointer;
+            font-weight: 500;
+            transition: var(--transition-smooth);
+            font-size: 0.85rem;
+            font-family: var(--font-primary);
+            letter-spacing: 0.3px;
+        }
+        .category-btn:hover {
+            border-color: var(--sbh-light-blue);
+            background: rgba(77, 166, 255, 0.08);
+            color: #fff;
+        }
+        .category-btn.active {
+            background: linear-gradient(135deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+            border-color: transparent;
+            color: white;
+            box-shadow: 0 6px 22px rgba(30, 144, 255, 0.4);
+            font-weight: 600;
+        }
+        .category-btn i {
+            margin-right: 5px;
+        }
 
-    .load-more {
-      text-align: center; margin-top: 20px;
-    }
+        /* Infos service */
+        .service-info {
+            background: rgba(77, 166, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            padding: 18px 20px;
+            margin-bottom: 18px;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+        .service-info .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .service-info .info-row:last-child {
+            margin-bottom: 0;
+        }
+        .service-info .info-label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+        .service-info .info-value {
+            font-weight: 600;
+            color: var(--text-white);
+            font-size: 0.9rem;
+        }
+        .price-highlight {
+            font-size: 1.5rem !important;
+            color: var(--success-green) !important;
+            font-family: var(--font-display);
+        }
 
-    /* Modale Commander */
-    .modal-overlay {
-      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
-      z-index: 1000; justify-content: center; align-items: center; padding: 20px;
-    }
-    .modal-overlay.active { display: flex; }
-    .modal-box {
-      background: linear-gradient(135deg, #0a1a2f, #0f2847);
-      border: 1px solid var(--gold);
-      border-radius: 24px; padding: 30px; max-width: 450px; width: 100%;
-      animation: modalIn 0.3s ease;
-    }
-    @keyframes modalIn {
-      from { opacity: 0; transform: scale(0.9); }
-      to { opacity: 1; transform: scale(1); }
-    }
-    .modal-box h3 {
-      color: var(--gold); margin-bottom: 20px; text-align: center;
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-    }
-    .modal-option {
-      background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
-      border-radius: 14px; padding: 16px 18px; margin-bottom: 10px;
-      cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 15px;
-      text-decoration: none; color: #fff;
-    }
-    .modal-option:hover {
-      background: rgba(212,175,55,0.1); border-color: var(--gold);
-      transform: translateX(5px);
-    }
-    .modal-option i { font-size: 1.5rem; color: var(--gold); width: 30px; text-align: center; }
-    .modal-option .option-text h4 { margin: 0; font-size: 1rem; }
-    .modal-option .option-text p { margin: 2px 0 0; font-size: 0.8rem; color: var(--text-light); }
-    .modal-close-btn {
-      display: block; width: 100%; margin-top: 15px; background: transparent;
-      border: 1px solid rgba(255,255,255,0.2); color: #fff;
-      padding: 10px; border-radius: 50px; cursor: pointer; font-weight: 600;
-      transition: 0.3s;
-    }
-    .modal-close-btn:hover { background: rgba(255,255,255,0.05); }
+        .quantity-error {
+            color: var(--accent-pink);
+            font-size: 0.8rem;
+            margin-top: 8px;
+            display: none;
+        }
+        .comments-count {
+            color: var(--sbh-light-blue);
+            font-size: 0.85rem;
+            margin-top: 8px;
+            font-weight: 500;
+        }
 
-    footer {
-      background: rgba(8,14,26,0.9); border-top: 1px solid var(--glass-border);
-      padding: 18px; text-align: center; font-size: 0.8rem; color: var(--text-light);
-      margin-top: auto;
-    }
+        /* Section contact */
+        .contact-section {
+            margin-top: 22px;
+            padding-top: 22px;
+            border-top: 1px solid var(--glass-border);
+        }
+        .contact-fields {
+            display: none;
+            margin-top: 10px;
+        }
+        .contact-fields.active {
+            display: block;
+        }
 
-    @media (max-width: 600px) {
-      .order-card { padding: 15px; }
-      .details-grid { grid-template-columns: 1fr 1fr; }
-      .share-section { flex-direction: column; align-items: stretch; }
-      .share-btn { justify-content: center; }
-    }
-  </style>
+        /* Bouton submit */
+        .btn-submit {
+            width: 100%;
+            padding: 16px;
+            margin-top: 22px;
+            background: linear-gradient(135deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+            color: white;
+            font-size: 1.05rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 10px 30px rgba(30, 144, 255, 0.35);
+            letter-spacing: 0.5px;
+            font-family: var(--font-primary);
+        }
+        .btn-submit:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 16px 40px rgba(30, 144, 255, 0.5);
+        }
+        .btn-submit:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 6px 18px rgba(30, 144, 255, 0.2);
+        }
+        .btn-submit .spinner {
+            display: none;
+        }
+        .btn-submit.loading .spinner {
+            display: inline-block;
+        }
+        .btn-submit.loading .btn-text {
+            display: none;
+        }
+
+        /* Bouton conseils */
+        .boost-tips-btn {
+            width: 100%;
+            padding: 14px;
+            margin-top: 12px;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: #080e1a;
+            font-size: 0.95rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-decoration: none;
+            box-shadow: 0 6px 22px rgba(245, 158, 11, 0.3);
+            letter-spacing: 0.3px;
+        }
+        .boost-tips-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(245, 158, 11, 0.45);
+        }
+        .boost-tips-btn i {
+            font-size: 1.1rem;
+        }
+
+        /* Bouton historique */
+        .history-btn-inline {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 22px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--glass-border);
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            transition: var(--transition-smooth);
+            font-size: 0.9rem;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+        .history-btn-inline:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--sbh-light-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(77, 166, 255, 0.2);
+        }
+        .history-btn-inline i {
+            color: var(--sbh-light-blue);
+        }
+
+        /* Description service */
+        .service-description-box {
+            background: rgba(77, 166, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: var(--radius-md);
+            padding: 16px 18px;
+            margin-bottom: 18px;
+            display: none;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+        .service-description-box.visible {
+            display: block;
+        }
+        .svc-desc-block {
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+        .svc-desc-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--sbh-light-blue);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .svc-desc-what {
+            color: var(--text-light);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.83rem;
+        }
+        .svc-desc-what i {
+            color: var(--success-green);
+        }
+        .svc-desc-text {
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            font-size: 0.82rem;
+        }
+        .svc-desc-quality {
+            color: var(--text-light);
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            font-size: 0.82rem;
+        }
+        .svc-desc-quality i {
+            color: var(--sbh-light-blue);
+        }
+        .svc-desc-quality-detail {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            margin-bottom: 10px;
+            font-style: italic;
+        }
+        .q-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .q-nodrop {
+            background: rgba(34, 197, 94, 0.12);
+            color: #22c55e;
+        }
+        .q-lifetime {
+            background: rgba(0, 212, 255, 0.12);
+            color: #00d4ff;
+        }
+        .q-guaranteed {
+            background: rgba(245, 158, 11, 0.12);
+            color: #f59e0b;
+        }
+        .q-refill {
+            background: rgba(139, 92, 246, 0.12);
+            color: #8B5CF6;
+        }
+        .q-hq {
+            background: rgba(236, 72, 153, 0.12);
+            color: #ec4899;
+        }
+        .q-premium {
+            background: rgba(245, 158, 11, 0.12);
+            color: #f59e0b;
+        }
+        .q-real {
+            background: rgba(34, 197, 94, 0.12);
+            color: #22c55e;
+        }
+        .q-active {
+            background: rgba(0, 212, 255, 0.12);
+            color: #00d4ff;
+        }
+        .q-instant {
+            background: rgba(255, 107, 157, 0.12);
+            color: #ff6b9d;
+        }
+        .q-fast {
+            background: rgba(245, 158, 11, 0.12);
+            color: #f59e0b;
+        }
+        .q-slow {
+            background: rgba(139, 92, 246, 0.12);
+            color: #8B5CF6;
+        }
+        .svc-desc-advantages {
+            color: var(--text-light);
+            margin-bottom: 10px;
+            font-size: 0.83rem;
+        }
+        .svc-desc-advantages i {
+            color: var(--sbh-light-blue);
+        }
+        .svc-desc-advantages ul {
+            list-style: none;
+            padding-left: 20px;
+            margin-top: 5px;
+        }
+        .svc-desc-advantages ul li {
+            color: var(--text-muted);
+            margin-bottom: 3px;
+            position: relative;
+            font-size: 0.8rem;
+        }
+        .svc-desc-advantages ul li::before {
+            content: "✓";
+            color: var(--success-green);
+            position: absolute;
+            left: -18px;
+            font-weight: bold;
+        }
+        .svc-desc-target {
+            color: var(--text-light);
+            margin-bottom: 8px;
+            padding: 8px 12px;
+            background: rgba(139, 92, 246, 0.06);
+            border-radius: 8px;
+            font-size: 0.82rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .svc-desc-target i {
+            color: var(--sbh-light-blue);
+        }
+        .svc-desc-link-info {
+            color: var(--text-light);
+            margin-bottom: 8px;
+            padding: 8px 12px;
+            background: rgba(0, 212, 255, 0.06);
+            border-radius: 8px;
+            font-size: 0.82rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .svc-desc-link-info i {
+            color: #00d4ff;
+            margin-top: 2px;
+        }
+        .svc-desc-warning {
+            color: #f59e0b;
+            margin-top: 8px;
+            padding: 10px 12px;
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .svc-desc-warning i {
+            color: #f59e0b;
+            margin-top: 2px;
+        }
+        .svc-desc-how {
+            color: var(--text-light);
+            font-size: 0.83rem;
+        }
+        .svc-desc-how i {
+            color: var(--sbh-light-blue);
+        }
+        .svc-desc-how p {
+            color: var(--text-muted);
+            margin-top: 5px;
+            font-size: 0.8rem;
+        }
+        .drop-notice {
+            background: rgba(245, 158, 11, 0.06);
+            border: 1px solid rgba(245, 158, 11, 0.18);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            margin-bottom: 18px;
+            display: none;
+            font-size: 0.83rem;
+        }
+        .drop-notice.visible {
+            display: block;
+        }
+        .drop-notice-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            color: #f59e0b;
+            font-weight: 600;
+        }
+        .drop-notice p {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-bottom: 6px;
+            line-height: 1.5;
+        }
+        .drop-notice-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--sbh-light-blue);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.82rem;
+            padding: 6px 14px;
+            border-radius: 8px;
+            background: rgba(77, 166, 255, 0.08);
+            transition: var(--transition-smooth);
+        }
+        .drop-notice-link:hover {
+            background: rgba(77, 166, 255, 0.18);
+        }
+
+        /* Notification overlay */
+        .notification-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .notification-box {
+            background: rgba(20, 30, 50, 0.95);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            padding: 35px 30px;
+            max-width: 420px;
+            width: 90%;
+            text-align: center;
+            animation: modalSlideIn 0.4s ease;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
+        }
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(40px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        .notification-icon {
+            font-size: 3.5rem;
+            margin-bottom: 16px;
+        }
+        .notification-message {
+            color: var(--text-light);
+            margin-bottom: 22px;
+            line-height: 1.7;
+            font-size: 0.95rem;
+        }
+        .notification-message a {
+            color: var(--sbh-light-blue);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .notification-close {
+            padding: 12px 35px;
+            background: linear-gradient(135deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: var(--transition-smooth);
+            font-family: var(--font-primary);
+        }
+        .notification-close:hover {
+            transform: scale(1.04);
+            box-shadow: 0 8px 25px rgba(30, 144, 255, 0.4);
+        }
+        .notification-overlay.success .notification-box {
+            border-color: var(--success-green);
+        }
+        .notification-overlay.error .notification-box {
+            border-color: var(--accent-pink);
+        }
+
+        /* Squelette de chargement */
+        .loading-skeleton {
+            background: linear-gradient(90deg,
+                    rgba(255, 255, 255, 0.03) 25%,
+                    rgba(255, 255, 255, 0.07) 50%,
+                    rgba(255, 255, 255, 0.03) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.6s infinite;
+            border-radius: 12px;
+        }
+        @keyframes shimmer {
+            0% {
+                background-position: 200% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
+        }
+
+        /* ===== FOOTER ===== */
+        footer {
+            background: rgba(8, 14, 26, 0.9);
+            border-top: 1px solid var(--glass-border);
+            padding: 2rem 1rem 1.2rem;
+            margin-top: 40px;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+        .footer-content {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .footer-content a {
+            color: var(--sbh-light-blue);
+            text-decoration: none;
+            transition: var(--transition-fast);
+        }
+        .footer-content a:hover {
+            color: #fff;
+            text-decoration: underline;
+        }
+        .footer-content .separator {
+            color: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1e3c72">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Social Boost">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="apple-touch-startup-image" href="/icons/splash-1125x2436.png">
 </head>
 <body>
-  <div class="bg-animation"></div>
-  <div class="stars"></div>
-
-  <!-- HEADER -->
-  <header>
-    <a href="dashboard.html" class="logo-link">
-      <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo" class="logo-img">
-      <div class="logo-text">
-        <span class="social">SOCIAL</span>
-        <span class="boost">BOOST</span>
-        <span class="horizon">HORIZON</span>
-      </div>
-    </a>
-    <div class="header-actions">
-      <button class="btn" id="openOrderModalBtn" style="padding:8px 16px; font-size:0.8rem;"><i class="fas fa-plus"></i> Commander</button>
-      <i class="fa-solid fa-bars icon-hamburger" id="hamburgerBtn"></i>
-    </div>
-    <div class="mobile-menu">
-      <a href="dashboard.html"><i class="fa-solid fa-house"></i> Accueil</a>
-      <a href="wallet.html"><i class="fa-solid fa-wallet"></i> Portefeuille</a>
-      <a href="commandes.html"><i class="fa-solid fa-list-check"></i> Mes commandes</a>
-      <a href="services.html"><i class="fa-solid fa-rocket"></i> Services</a>
-      <a href="profil.html"><i class="fa-solid fa-user"></i> Profil</a>
-    </div>
-  </header>
-
-  <main>
-    <div class="page-title" data-aos="fade-up">
-      <h1><i class="fas fa-clipboard-list" style="margin-right:10px;"></i>Mes commandes</h1>
+    <div class="bg-grid"></div>
+    <div class="background-animation"></div>
+    <div class="floating-particles">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
     </div>
 
-    <!-- Stats -->
-    <div class="stats-grid" data-aos="fade-up" data-aos-delay="100">
-      <div class="stat-card stat-total">
-        <i class="fas fa-shopping-cart"></i>
-        <div class="stat-value" id="totalOrders">0</div>
-        <div class="stat-label">Total commandes</div>
-      </div>
-      <div class="stat-card stat-completed">
-        <i class="fas fa-check-circle"></i>
-        <div class="stat-value" id="completedOrders">0</div>
-        <div class="stat-label">Terminées</div>
-      </div>
-      <div class="stat-card stat-processing">
-        <i class="fas fa-sync-alt"></i>
-        <div class="stat-value" id="processingOrders">0</div>
-        <div class="stat-label">En cours</div>
-      </div>
-      <div class="stat-card stat-pending">
-        <i class="fas fa-clock"></i>
-        <div class="stat-value" id="pendingOrders">0</div>
-        <div class="stat-label">En attente</div>
-      </div>
-      <div class="stat-card stat-cancelled">
-        <i class="fas fa-times-circle"></i>
-        <div class="stat-value" id="cancelledOrders">0</div>
-        <div class="stat-label">Annulées</div>
-      </div>
-      <div class="stat-card stat-amount">
-        <i class="fas fa-coins"></i>
-        <div class="stat-value" id="totalAmount">0</div>
-        <div class="stat-label">Total des montants</div>
-      </div>
-    </div>
-
-    <!-- Contrôles -->
-    <div class="controls-bar" data-aos="fade-up">
-      <div class="filters">
-        <button class="filter-btn active" data-filter="all">Toutes</button>
-        <button class="filter-btn" data-filter="completed">Terminées</button>
-        <button class="filter-btn" data-filter="processing">En cours</button>
-        <button class="filter-btn" data-filter="pending">En attente</button>
-        <button class="filter-btn" data-filter="cancelled">Annulées</button>
-      </div>
-      <div class="control-group">
-        <div class="sort-selector">
-          <select id="sortSelect">
-            <option value="date-desc" selected>Date (récent en premier)</option>
-            <option value="date-asc">Date (ancien en premier)</option>
-            <option value="amount-desc">Montant (élevé en premier)</option>
-            <option value="amount-asc">Montant (faible en premier)</option>
-            <option value="status">Statut</option>
-          </select>
-        </div>
-        <div class="currency-selector">
-          <select id="currencySelect">
-            <option value="CM">Cameroun (FCFA)</option>
-            <option value="SN">Sénégal (FCFA)</option>
-            <option value="CI">Côte d'Ivoire (FCFA)</option>
-            <option value="BF">Burkina Faso (FCFA)</option>
-            <option value="ML">Mali (FCFA)</option>
-            <option value="BJ">Bénin (FCFA)</option>
-            <option value="TG">Togo (FCFA)</option>
-            <option value="NE">Niger (FCFA)</option>
-            <option value="GA">Gabon (FCFA)</option>
-            <option value="CG">Congo (FCFA)</option>
-            <option value="CD">RD Congo (CDF)</option>
-            <option value="GH">Ghana (GHS)</option>
-            <option value="NG">Nigeria (NGN)</option>
-            <option value="KE">Kenya (KES)</option>
-            <option value="UG">Ouganda (UGX)</option>
-            <option value="TZ">Tanzanie (TZS)</option>
-            <option value="RW">Rwanda (RWF)</option>
-            <option value="ZM">Zambie (ZMW)</option>
-          </select>
-        </div>
-        <div class="limit-selector">
-          <select id="limitSelect">
-            <option value="10">10 par page</option>
-            <option value="15">15 par page</option>
-            <option value="20">20 par page</option>
-            <option value="30">30 par page</option>
-            <option value="50" selected>50 par page</option>
-          </select>
-        </div>
-        <button id="refreshBtn" class="btn"><i class="fas fa-sync-alt"></i> Rafraîchir</button>
-      </div>
-    </div>
-
-    <!-- Liste des commandes -->
-    <div class="orders-list" id="ordersList" data-aos="fade-up" data-aos-delay="200">
-      <div style="text-align:center;padding:40px;">
-        <i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--light-blue);"></i>
-        <p style="margin-top:10px;">Chargement...</p>
-      </div>
-    </div>
-
-    <div class="load-more" id="loadMoreContainer" style="display:none;">
-      <button id="loadMoreBtn" class="btn btn-gold"><i class="fas fa-chevron-down"></i> Voir plus</button>
-    </div>
-  </main>
-
-  <!-- Modale Commander -->
-  <div class="modal-overlay" id="orderModal">
-    <div class="modal-box">
-      <h3><i class="fas fa-rocket"></i> Type de commande</h3>
-      <div class="modal-option" data-url="https://socialboosthorizon.com/commander.html">
-        <i class="fas fa-shopping-cart"></i>
-        <div class="option-text">
-          <h4>Commande Standard</h4>
-          <p>Passez une commande classique</p>
-        </div>
-      </div>
-      <div class="modal-option" data-url="https://socialboosthorizon.com/commande-automatique.html">
-        <i class="fas fa-robot"></i>
-        <div class="option-text">
-          <h4>Commande Automatique</h4>
-          <p>Livraison automatique et suivi en temps réel</p>
-        </div>
-      </div>
-      <div class="modal-option" data-url="https://socialboosthorizon.com/commande-revendeur.html">
-        <i class="fas fa-store"></i>
-        <div class="option-text">
-          <h4>Commande Revendeur</h4>
-          <p>Accédez à l'espace revendeur</p>
-        </div>
-      </div>
-      <div class="modal-option" data-url="https://socialboosthorizon.com/commande-avancee.html">
-        <i class="fas fa-star"></i>
-        <div class="option-text">
-          <h4>Commande Avancée</h4>
-          <p>Options avancées et personnalisation</p>
-        </div>
-      </div>
-      <button class="modal-close-btn" id="closeOrderModal">Annuler</button>
-    </div>
-  </div>
-
-  <footer>
-    <p>© 2026 Social Boost Horizon · Mc Exau. Tous droits réservés.</p>
-  </footer>
-
-  <!-- Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-
-  <script>
-    // ========== SCRIPT ORIGINAL (INTACT) + AJOUTS (tri) ==========
-    document.addEventListener("DOMContentLoaded", function () {
-      if (typeof AOS !== 'undefined') {
-        AOS.init({ duration: 800, once: true, offset: 100 });
-      }
-
-      // --- HAMBURGER MENU ---
-      (function initHamburgerMenu() {
-        const header = document.querySelector("header");
-        const hamburger = document.getElementById("hamburgerBtn");
-        if (!header || !hamburger) return;
-        hamburger.addEventListener("click", () => header.classList.toggle("open"));
-        document.addEventListener("click", (e) => {
-          if (!header.contains(e.target) && header.classList.contains("open")) header.classList.remove("open");
-        });
-      })();
-
-      // --- MODALE COMMANDER ---
-      const orderModal = document.getElementById('orderModal');
-      const openOrderModalBtn = document.getElementById('openOrderModalBtn');
-      const closeOrderModalBtn = document.getElementById('closeOrderModal');
-
-      if (openOrderModalBtn && orderModal) {
-        openOrderModalBtn.addEventListener('click', () => orderModal.classList.add('active'));
-        closeOrderModalBtn.addEventListener('click', () => orderModal.classList.remove('active'));
-        orderModal.addEventListener('click', (e) => { if (e.target === orderModal) orderModal.classList.remove('active'); });
-
-        document.querySelectorAll('#orderModal .modal-option').forEach(opt => {
-          opt.addEventListener('click', () => {
-            const url = opt.dataset.url;
-            if (url) window.location.href = url;
-          });
-        });
-      }
-
-      // --- FIREBASE CONFIG ---
-      const firebaseConfig = {
-        apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-        authDomain: "social-boost-horizon.firebaseapp.com",
-        projectId: "social-boost-horizon",
-        storageBucket: "social-boost-horizon.appspot.com",
-        messagingSenderId: "43658165639",
-        appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
-      };
-      if (typeof firebase === 'undefined') { console.error("Firebase SDK non chargé."); return; }
-      if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
-      const auth = firebase.auth();
-      const db = firebase.firestore();
-
-      const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('replit')
-        ? '' : 'https://social-boost-exaucenapopolo2.replit.app';
-
-      const COUNTRIES_CONFIG = {
-        CM: { name: 'Cameroun', currency: 'XAF', symbol: 'FCFA', rate: 1 },
-        SN: { name: 'Sénégal', currency: 'XOF', symbol: 'FCFA', rate: 1 },
-        CI: { name: 'Côte d\'Ivoire', currency: 'XOF', symbol: 'FCFA', rate: 1 },
-        BF: { name: 'Burkina Faso', currency: 'XOF', symbol: 'FCFA', rate: 1 },
-        ML: { name: 'Mali', currency: 'XOF', symbol: 'FCFA', rate: 1 },
-        BJ: { name: 'Bénin', currency: 'XOF', symbol: 'FCFA', rate: 1 },
-        TG: { name: 'Togo', currency: 'XOF', symbol: 'FCFA', rate: 1 },
-        NE: { name: 'Niger', currency: 'XOF', symbol: 'FCFA', rate: 1 },
-        GA: { name: 'Gabon', currency: 'XAF', symbol: 'FCFA', rate: 1 },
-        CG: { name: 'Congo', currency: 'XAF', symbol: 'FCFA', rate: 1 },
-        CD: { name: 'RD Congo', currency: 'CDF', symbol: 'CDF', rate: 4.35 },
-        GH: { name: 'Ghana', currency: 'GHS', symbol: 'GHS', rate: 0.025 },
-        NG: { name: 'Nigeria', currency: 'NGN', symbol: 'NGN', rate: 2.65 },
-        KE: { name: 'Kenya', currency: 'KES', symbol: 'KES', rate: 0.22 },
-        UG: { name: 'Ouganda', currency: 'UGX', symbol: 'UGX', rate: 6.25 },
-        TZ: { name: 'Tanzanie', currency: 'TZS', symbol: 'TZS', rate: 4.2 },
-        RW: { name: 'Rwanda', currency: 'RWF', symbol: 'RWF', rate: 2.15 },
-        ZM: { name: 'Zambie', currency: 'ZMW', symbol: 'ZMW', rate: 0.045 }
-      };
-
-      let selectedCountry = 'CM';
-      const currencySelect = document.getElementById('currencySelect');
-      
-      function convertFromXAF(amountXAF) {
-        const config = COUNTRIES_CONFIG[selectedCountry];
-        if (!config) return amountXAF;
-        return Math.round(amountXAF * config.rate);
-      }
-      
-      function getCurrencySymbol() {
-        return COUNTRIES_CONFIG[selectedCountry]?.symbol || 'FCFA';
-      }
-      
-      function formatAmount(amountXAF) {
-        const converted = convertFromXAF(amountXAF);
-        const symbol = getCurrencySymbol();
-        return `${converted.toLocaleString('fr-FR')} ${symbol}`;
-      }
-
-      // --- FONCTION DE PARTAGE ---
-      function generateShareMessage(orderData) {
-        const lines = [];
-        lines.push(`📋 *Commande #${orderData.orderId}*`);
-        lines.push(`📅 Date : ${orderData.dateStr}`);
-        lines.push(`🌐 Plateforme : ${orderData.platform || 'N/A'}`);
-        lines.push(`🛠 Service : ${orderData.service}`);
-        lines.push(`⭐ Qualité : ${orderData.quality}`);
-        lines.push(`📊 Quantité : ${orderData.quantity}`);
-        lines.push(`💰 Montant : ${orderData.formattedAmount}`);
-        lines.push(`📌 Statut : ${orderData.statusLabel}`);
-        if (orderData.link) lines.push(`🔗 Lien : ${orderData.link}`);
-        if (orderData.contact) lines.push(`📞 Contact : ${orderData.contact}`);
-        if (orderData.comments) lines.push(`💬 Commentaires : ${orderData.comments}`);
-        lines.push('');
-        lines.push(`✅ Commande lancée sur Social Boost Horizon`);
-        lines.push(`🚀 socialboosthorizon.com`);
-
-        return lines.join('\n');
-      }
-
-      function shareOrder(orderData) {
-        const message = generateShareMessage(orderData);
-        const encoded = encodeURIComponent(message);
-
-        // Créer les boutons de partage dans la section share
-        return `
-          <div class="share-section">
-            <button class="share-btn" onclick="event.stopPropagation(); window.open('https://api.whatsapp.com/send?text=${encoded}', '_blank')" title="Partager sur WhatsApp">
-              <i class="fab fa-whatsapp"></i> WhatsApp
-            </button>
-            <button class="share-btn facebook" onclick="event.stopPropagation(); window.open('https://www.facebook.com/sharer/sharer.php?u=https://socialboosthorizon.com&quote=${encoded}', '_blank')" title="Partager sur Facebook">
-              <i class="fab fa-facebook"></i> Facebook
-            </button>
-            <button class="share-btn copy-share" onclick="event.stopPropagation(); navigator.clipboard.writeText(\`${message.replace(/`/g, '\\`')}\`).then(() => { const notif = document.createElement('div'); notif.className = 'copied-tooltip'; notif.textContent = 'Copié !'; notif.style.position = 'static'; notif.style.opacity = '1'; this.appendChild(notif); setTimeout(() => notif.remove(), 1500); })" title="Copier le message">
-              <i class="far fa-copy"></i> Copier
-            </button>
-          </div>
-        `;
-      }
-
-      if (currencySelect) {
-        currencySelect.addEventListener('change', function() {
-          selectedCountry = this.value;
-          displayOrders();
-          updateTotalAmount();
-        });
-      }
-
-      const refreshBtn = document.getElementById('refreshBtn');
-      const ordersList = document.getElementById('ordersList');
-      const filterButtons = document.querySelectorAll('.filter-btn');
-      const limitSelect = document.getElementById('limitSelect');
-      const loadMoreBtn = document.getElementById('loadMoreBtn');
-      const loadMoreContainer = document.getElementById('loadMoreContainer');
-      const sortSelect = document.getElementById('sortSelect');
-      
-      const totalOrdersElem = document.getElementById('totalOrders');
-      const completedOrdersElem = document.getElementById('completedOrders');
-      const processingOrdersElem = document.getElementById('processingOrders');
-      const pendingOrdersElem = document.getElementById('pendingOrders');
-      const cancelledOrdersElem = document.getElementById('cancelledOrders');
-      const totalAmountElem = document.getElementById('totalAmount');
-
-      let currentUid = null;
-      let allOrders = [];
-      let displayedOrders = [];
-      let currentDisplayLimit = 50;
-      let currentFilter = 'all';
-      let currentSort = 'date-desc'; // tri par défaut
-
-      auth.onAuthStateChanged(user => {
-        if (!user) { window.location.href = 'login.html'; }
-        else { currentUid = user.uid; fetchOrders(); }
-      });
-
-      filterButtons.forEach(button => {
-        button.addEventListener('click', function() {
-          filterButtons.forEach(btn => btn.classList.remove('active'));
-          this.classList.add('active');
-          currentFilter = this.getAttribute('data-filter');
-          filterOrders(currentFilter);
-        });
-      });
-
-      if (limitSelect) {
-        limitSelect.addEventListener('change', function() {
-          currentDisplayLimit = parseInt(this.value);
-          displayOrders();
-        });
-      }
-
-      if (sortSelect) {
-        sortSelect.addEventListener('change', function() {
-          currentSort = this.value;
-          applySortAndDisplay();
-        });
-      }
-
-      if (loadMoreBtn) {
-        loadMoreBtn.addEventListener('click', function() {
-          currentDisplayLimit += parseInt(limitSelect.value);
-          displayOrders();
-        });
-      }
-
-      function applySortAndDisplay() {
-        sortOrders(currentSort);
-        displayOrders();
-        updateTotalAmount();
-      }
-
-      function filterOrders(filter) {
-        if (!ordersList) return;
-        if (filter === 'all') {
-          displayedOrders = [...allOrders];
-        } else {
-          displayedOrders = allOrders.filter(order => {
-            const status = (order.status || '').toLowerCase();
-            if (filter === 'completed') return status.includes('succes') || status.includes('succès');
-            if (filter === 'processing') return status.includes('en cours');
-            if (filter === 'pending') return status.includes('en attente');
-            if (filter === 'cancelled') return status.includes('annul') || status.includes('rembours');
-            return false;
-          });
-        }
-        applySortAndDisplay();
-      }
-
-      function sortOrders(sortOption) {
-        if (!displayedOrders) return;
-        switch (sortOption) {
-          case 'date-desc':
-            displayedOrders.sort((a, b) => {
-              const da = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate() : new Date(a.createdAt)) : new Date(0);
-              const db = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate() : new Date(b.createdAt)) : new Date(0);
-              return db - da;
-            });
-            break;
-          case 'date-asc':
-            displayedOrders.sort((a, b) => {
-              const da = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate() : new Date(a.createdAt)) : new Date(0);
-              const db = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate() : new Date(b.createdAt)) : new Date(0);
-              return da - db;
-            });
-            break;
-          case 'amount-desc':
-            displayedOrders.sort((a, b) => {
-              const amountA = a.totalCost != null ? a.totalCost : (a.finalCost != null ? a.finalCost : (a.originalPrice != null ? a.originalPrice : 0));
-              const amountB = b.totalCost != null ? b.totalCost : (b.finalCost != null ? b.finalCost : (b.originalPrice != null ? b.originalPrice : 0));
-              return amountB - amountA;
-            });
-            break;
-          case 'amount-asc':
-            displayedOrders.sort((a, b) => {
-              const amountA = a.totalCost != null ? a.totalCost : (a.finalCost != null ? a.finalCost : (a.originalPrice != null ? a.originalPrice : 0));
-              const amountB = b.totalCost != null ? b.totalCost : (b.finalCost != null ? b.finalCost : (b.originalPrice != null ? b.originalPrice : 0));
-              return amountA - amountB;
-            });
-            break;
-          case 'status':
-            const statusOrder = {
-              'terminée': 1, 'en cours': 2, 'en attente': 3, 'annulée': 4
-            };
-            displayedOrders.sort((a, b) => {
-              const statusA = getStatusText(a.status || '').toLowerCase();
-              const statusB = getStatusText(b.status || '').toLowerCase();
-              return (statusOrder[statusA] || 99) - (statusOrder[statusB] || 99);
-            });
-            break;
-          default:
-            break;
-        }
-      }
-
-      function calculateProgress(order) {
-        const status = (order.status || '').toLowerCase();
-        if (status.includes('succes') || status.includes('succès')) return 100;
-        if (status.includes('annul') || status.includes('rembours')) return 0;
-        if (order.isAutoOrder && order.exoOrderId) {
-          const quantity = order.quantity || 0;
-          const remains = order.exoRemains !== undefined ? order.exoRemains : quantity;
-          if (quantity > 0) return Math.min(100, Math.round(((quantity - remains) / quantity) * 100));
-        }
-        return 0;
-      }
-
-      function getStatusClass(status) {
-        const s = (status || '').toLowerCase();
-        if (s.includes('succes') || s.includes('succès')) return 'status-completed';
-        if (s.includes('en cours')) return 'status-processing';
-        if (s.includes('en attente')) return 'status-pending';
-        if (s.includes('annul') || s.includes('rembours')) return 'status-cancelled';
-        return 'status-pending';
-      }
-
-      function getStatusText(status) {
-        const s = (status || '').toLowerCase();
-        if (s.includes('succes') || s.includes('succès')) return 'Terminée';
-        if (s.includes('en cours')) return 'En cours';
-        if (s.includes('en attente')) return 'En attente';
-        if (s.includes('annul') || s.includes('rembours')) return 'Annulée';
-        return status || 'En attente';
-      }
-
-      function updateTotalAmount() {
-        if (!totalAmountElem) return;
-        const ordersToSum = currentFilter === 'all' ? allOrders : displayedOrders;
-        const totalXAF = ordersToSum.reduce((sum, order) => {
-          const cost = order.totalCost != null ? order.totalCost : (order.finalCost != null ? order.finalCost : (order.originalPrice != null ? order.originalPrice : 0));
-          return sum + Number(cost);
-        }, 0);
-        totalAmountElem.textContent = formatAmount(totalXAF);
-      }
-
-      function displayOrders() {
-        if (!ordersList) return;
-        const ordersToShow = displayedOrders.slice(0, currentDisplayLimit);
-        
-        if (ordersToShow.length === 0) {
-          ordersList.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-light);"><i class="fas fa-inbox" style="font-size:3rem;opacity:0.3;"></i><p>Aucune commande trouvée</p></div>`;
-          loadMoreContainer.style.display = 'none';
-          updateTotalAmount();
-          return;
-        }
-
-        let html = '';
-        ordersToShow.forEach(order => {
-          let createdAtDate;
-          if (order.createdAt && typeof order.createdAt.toDate === 'function') createdAtDate = order.createdAt.toDate();
-          else if (order.createdAt) createdAtDate = new Date(order.createdAt);
-          else createdAtDate = new Date();
-          const dateStr = createdAtDate.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-          const orderId = order.orderId || order.id || 'N/A';
-          const docId = order.id || orderId;
-          const service = order.service || 'N/A';
-          const platform = order.platform || '';
-          let platformIcon = 'fas fa-globe';
-          const pf = platform.toLowerCase();
-          if (pf.includes("instagram")) platformIcon = "fab fa-instagram";
-          else if (pf.includes("facebook")) platformIcon = "fab fa-facebook";
-          else if (pf.includes("tiktok")) platformIcon = "fab fa-tiktok";
-          else if (pf.includes("youtube")) platformIcon = "fab fa-youtube";
-          else if (pf.includes("twitter")) platformIcon = "fab fa-twitter";
-          else if (pf.includes("telegram")) platformIcon = "fab fa-telegram";
-
-          function detectQuality(serviceName) {
-            const nameLower = (serviceName || '').toLowerCase();
-            const high = ['haute qualité', '(haute qualité)', 'hq', 'premium', 'réel', 'réels', 'actif', 'organique', 'high quality', 'real', 'genuine', 'no drop'];
-            const medium = ['qualité moyenne', 'moyenne qualité', 'mq', 'mixte', 'standard', 'bot', 'cheap', 'fast', 'instant', 'medium quality'];
-            for (const kw of high) if (nameLower.includes(kw)) return 'Haute qualité';
-            for (const kw of medium) if (nameLower.includes(kw)) return 'Qualité moyenne';
-            return 'Standard';
-          }
-          
-          const quality = order.quality && order.quality !== 'N/A' ? order.quality : detectQuality(service);
-          const quantity = order.quantity != null ? Number(order.quantity) : 0;
-          const totalCost = order.totalCost != null ? order.totalCost : (order.finalCost != null ? order.finalCost : (order.originalPrice != null ? order.originalPrice : 0));
-          const link = order.link || '';
-          const statusText = order.status || 'N/A';
-          const contact = order.contact || '';
-          const isExoOrder = order.isAutoOrder && order.exoOrderId;
-          const exoRemains = order.exoRemains !== undefined ? order.exoRemains : quantity;
-          const delivered = quantity - exoRemains;
-          const progress = calculateProgress(order);
-          const statusClass = getStatusClass(statusText);
-          const statusLabel = getStatusText(statusText);
-          const formattedAmount = formatAmount(totalCost);
-          
-          let customComments = order.customComments || order.commentaires || order.commentaires_personnalises || order.comments || '';
-
-          // Données pour le partage
-          const shareData = {
-            orderId, dateStr, platform, service, quality, quantity: quantity.toLocaleString('fr-FR'),
-            formattedAmount, statusLabel, link, contact, comments: customComments
-          };
-
-          html += `
-            <div class="order-card" data-docid="${docId}">
-              <div class="order-card-header">
-                <span class="order-id">#${orderId}</span>
-                <div class="order-meta">
-                  <span><i class="${platformIcon}"></i> ${platform || 'N/A'}</span>
-                  <span>${service}</span>
-                  <span class="order-status-badge ${statusClass}">${statusLabel}</span>
-                </div>
-                <span style="color:var(--text-light); font-size:0.8rem;">${dateStr}</span>
-              </div>
-              <div class="progress-bar-container">
-                <span style="font-size:0.8rem; color:var(--text-light);">${quantity.toLocaleString('fr-FR')} ${isExoOrder ? '· '+delivered.toLocaleString('fr-FR')+' livrés' : ''}</span>
-                <div class="progress-bar">
-                  <div class="progress-fill" style="width:${progress}%;"></div>
-                </div>
-                <span class="progress-percent">${progress}%</span>
-                <span style="font-weight:600;">${formattedAmount}</span>
-                <i class="fas fa-chevron-down toggle-icon" style="cursor:pointer; margin-left:10px;"></i>
-              </div>
-              <div class="order-details">
-                <div class="details-grid">
-                  <div class="detail-item">
-                    <div class="detail-label">ID commande</div>
-                    <div class="detail-value">
-                      ${orderId}
-                      <button class="copy-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${orderId.replace(/'/g, "\\'")}').then(() => { const t = this.nextElementSibling; if(t) { t.style.opacity = '1'; setTimeout(() => t.style.opacity = '0', 1500); } })" title="Copier"><i class="far fa-copy"></i></button>
-                      <span class="copied-tooltip">Copié !</span>
-                    </div>
-                  </div>
-                  <div class="detail-item">
-                    <div class="detail-label">Date</div>
-                    <div class="detail-value">
-                      ${dateStr}
-                      <button class="copy-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${dateStr.replace(/'/g, "\\'")}').then(() => { const t = this.nextElementSibling; if(t) { t.style.opacity = '1'; setTimeout(() => t.style.opacity = '0', 1500); } })" title="Copier"><i class="far fa-copy"></i></button>
-                      <span class="copied-tooltip">Copié !</span>
-                    </div>
-                  </div>
-                  <div class="detail-item">
-                    <div class="detail-label">Plateforme</div>
-                    <div class="detail-value">${platform || 'N/A'}</div>
-                  </div>
-                  <div class="detail-item">
-                    <div class="detail-label">Service</div>
-                    <div class="detail-value">
-                      ${service}
-                      <button class="copy-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${service.replace(/'/g, "\\'")}').then(() => { const t = this.nextElementSibling; if(t) { t.style.opacity = '1'; setTimeout(() => t.style.opacity = '0', 1500); } })" title="Copier"><i class="far fa-copy"></i></button>
-                      <span class="copied-tooltip">Copié !</span>
-                    </div>
-                  </div>
-                  <div class="detail-item">
-                    <div class="detail-label">Qualité</div>
-                    <div class="detail-value">${quality}</div>
-                  </div>
-                  <div class="detail-item">
-                    <div class="detail-label">Quantité</div>
-                    <div class="detail-value">${quantity.toLocaleString('fr-FR')}</div>
-                  </div>
-                  <div class="detail-item">
-                    <div class="detail-label">Montant</div>
-                    <div class="detail-value">${formattedAmount}</div>
-                  </div>
-                  ${link ? `
-                  <div class="detail-item">
-                    <div class="detail-label">Lien</div>
-                    <div class="detail-value">
-                      <a href="${link}" target="_blank" onclick="event.stopPropagation();">Voir</a>
-                      <button class="copy-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${link.replace(/'/g, "\\'")}').then(() => { const t = this.nextElementSibling; if(t) { t.style.opacity = '1'; setTimeout(() => t.style.opacity = '0', 1500); } })" title="Copier le lien"><i class="far fa-copy"></i></button>
-                      <span class="copied-tooltip">Copié !</span>
-                    </div>
-                  </div>` : ''}
-                  <div class="detail-item">
-                    <div class="detail-label">Statut</div>
-                    <div class="detail-value"><span class="order-status-badge ${statusClass}">${statusLabel}</span></div>
-                  </div>
-                  ${contact ? `
-                  <div class="detail-item">
-                    <div class="detail-label">Contact</div>
-                    <div class="detail-value">
-                      ${contact}
-                      <button class="copy-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${contact.replace(/'/g, "\\'")}').then(() => { const t = this.nextElementSibling; if(t) { t.style.opacity = '1'; setTimeout(() => t.style.opacity = '0', 1500); } })" title="Copier"><i class="far fa-copy"></i></button>
-                      <span class="copied-tooltip">Copié !</span>
-                    </div>
-                  </div>` : ''}
-                  ${isExoOrder ? `
-                  <div class="detail-item"><div class="detail-label">Départ</div><div class="detail-value">${(order.startCount||0).toLocaleString('fr-FR')}</div></div>
-                  <div class="detail-item"><div class="detail-label">Livrés</div><div class="detail-value" style="color:#4CAF50;">${delivered.toLocaleString('fr-FR')}</div></div>
-                  <div class="detail-item"><div class="detail-label">Restants</div><div class="detail-value" style="color:#FFB800;">${exoRemains.toLocaleString('fr-FR')}</div></div>
-                  ` : ''}
-                </div>
-                ${customComments ? `
-                <div class="comments-section">
-                  <div class="comments-title"><i class="fas fa-comment"></i> Commentaires</div>
-                  <div class="comments-content">${customComments}</div>
-                </div>` : ''}
-                ${shareOrder(shareData)}
-                ${isExoOrder ? `
-                <div class="exo-actions">
-                  <button class="exo-btn status" onclick="event.stopPropagation(); checkExoStatus('${docId}')"><i class="fas fa-sync"></i> Actualiser</button>
-                  ${!['succès','annulée','completed','canceled','partiel','success'].some(s => (order.status||'').toLowerCase().includes(s)) ? `
-                  <button class="exo-btn refill" onclick="event.stopPropagation(); requestExoRefill('${docId}')"><i class="fas fa-redo"></i> Refill</button>
-                  <button class="exo-btn cancel" onclick="event.stopPropagation(); cancelExoOrder('${docId}')"><i class="fas fa-times"></i> Annuler</button>
-                  ` : ''}
-                </div>` : ''}
-              </div>
+    <!-- ===== HEADER ===== -->
+    <header>
+        <a href="dashboard.html" class="logo-link">
+            <img
+            src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg"
+            alt="Logo"
+            class="logo-img"
+            >
+            <div class="logo-text">
+                <span class="social">SOCIAL</span>
+                <span class="boost">BOOST</span>
+                <span class="horizon">HORIZON</span>
             </div>
-          `;
-        });
+        </a>
+        <div class="header-icons">
+            <i class="fa-solid fa-bars icon-hamburger" id="hamburgerBtn"></i>
+        </div>
+        <nav class="mobile-menu">
+            <a href="dashboard.html"><i class="fas fa-home"></i> Tableau de bord</a>
+            <a href="wallet.html"><i class="fas fa-wallet"></i> Portefeuille</a>
+            <a href="https://socialboosthorizon.com/commandes.html"><i class="fas fa-list"></i> Mes commandes</a>
+            <a href="commande-revendeur.html"><i class="fas fa-star"></i> Espace Revendeur</a>
+            <a href="#" onclick="firebase.auth().signOut()"><i class="fas fa-sign-out-alt"></i> Déconnexion</a>
+        </nav>
+    </header>
 
-        ordersList.innerHTML = html;
+    <!-- ===== BANNIÈRE APP ===== -->
+    <a href="https://socialboosthorizon.com/telecharger.html?app=sbh" class="app-promo-banner" data-aos="fade-down">
+        <i class="fab fa-android" style="font-size:2.2rem; color:#22c55e;"></i>
+        <div style="flex:1;">
+            <strong>Téléchargez l'application Social Boost Horizon !</strong><br>
+            <small>Gérez tout depuis votre mobile, où que vous soyez.</small>
+        </div>
+        <i class="fas fa-download" style="font-size:1.1rem;"></i>
+    </a>
 
-        // Toggle détails
-        document.querySelectorAll('.order-card').forEach(card => {
-          const icon = card.querySelector('.toggle-icon');
-          const details = card.querySelector('.order-details');
-          card.addEventListener('click', (e) => {
-            if (e.target.closest('button') || e.target.closest('a')) return;
-            details.classList.toggle('open');
-            icon.className = details.classList.contains('open') ? 'fas fa-chevron-up toggle-icon' : 'fas fa-chevron-down toggle-icon';
-          });
-        });
+    <!-- ===== COMPTEUR SERVICES ===== -->
+    <div class="services-count" data-aos="fade-up">
+        <div class="count" id="totalServicesCount">--</div>
+        <div class="label">Services disponibles sur la plateforme</div>
+    </div>
 
-        loadMoreContainer.style.display = displayedOrders.length > currentDisplayLimit ? 'block' : 'none';
-        updateTotalAmount();
-      }
+    <!-- ===== PLATEFORMES ===== -->
+    <div class="platforms-section" data-aos="fade-up" data-aos-delay="100">
+        <div class="platforms-title"><i class="fas fa-layer-group"></i> Choisis ta plateforme</div>
+        <div class="platforms" id="platformsContainer">
+            <div style="text-align: center; padding: 30px; width: 100%;">
+                <div class="loading-skeleton" style="height: 56px; width: 100%;"></div>
+            </div>
+        </div>
+    </div>
 
-      function updateStats(orders) {
-        const total = orders.length;
-        const completed = orders.filter(o => (o.status||'').toLowerCase().includes('succes') || (o.status||'').toLowerCase().includes('succès')).length;
-        const processing = orders.filter(o => (o.status||'').toLowerCase().includes('en cours')).length;
-        const pending = orders.filter(o => (o.status||'').toLowerCase().includes('en attente')).length;
-        const cancelled = orders.filter(o => (o.status||'').toLowerCase().includes('annul') || (o.status||'').toLowerCase().includes('rembours')).length;
-        totalOrdersElem.textContent = total;
-        completedOrdersElem.textContent = completed;
-        processingOrdersElem.textContent = processing;
-        pendingOrdersElem.textContent = pending;
-        cancelledOrdersElem.textContent = cancelled;
-        updateTotalAmount();
-      }
+    <!-- ===== FORMULAIRE DE COMMANDE ===== -->
+    <div class="content" data-aos="fade-up" data-aos-delay="200">
+        <div class="page-title">
+            <h2>
+                <i class="fas fa-rocket"></i> Commander un Boost
+                <span class="new-badge">NOUVEAU</span>
+            </h2>
+        </div>
 
-      async function fetchOrders() {
-        if (!currentUid) return;
-        ordersList.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--light-blue);"></i><p>Chargement...</p></div>';
-        loadMoreContainer.style.display = 'none';
-        try {
-          const querySnapshot = await db.collection("commandes").where("userId", "==", currentUid).orderBy("createdAt", "desc").get();
-          if (querySnapshot.empty) {
-            ordersList.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light);"><i class="fas fa-inbox" style="font-size:3rem;opacity:0.3;"></i><p>Aucune commande</p></div>';
-            updateStats([]);
-            return;
-          }
-          allOrders = [];
-          querySnapshot.forEach(doc => { const o = doc.data(); o.id = doc.id; allOrders.push(o); });
-          displayedOrders = [...allOrders];
-          // Appliquer le tri choisi (par défaut date-desc)
-          sortOrders(currentSort);
-          displayOrders();
-          updateStats(allOrders);
-        } catch (err) {
-          ordersList.innerHTML = `<div style="text-align:center;padding:40px;color:#FF6B6B;"><i class="fas fa-exclamation-triangle"></i><p>Erreur: ${err.message}</p></div>`;
+        <!-- Solde -->
+        <div class="balance-display">
+            <span>Ton solde actuel</span>
+            <span class="balance-amount" id="userBalance">-- FCFA</span>
+        </div>
+
+        <!-- Lien rapide historique -->
+        <div style="text-align:center; margin-bottom:20px;">
+            <a href="https://socialboosthorizon.com/commandes.html" class="history-btn-inline" data-aos="zoom-in" data-aos-delay="150">
+                <i class="fas fa-history"></i> Voir l'historique de mes commandes
+                <i class="fas fa-arrow-right" style="font-size:0.8rem;"></i>
+            </a>
+        </div>
+
+        <form id="orderForm">
+            <input type="hidden" id="userId" name="userId">
+
+            <!-- Catégories -->
+            <div class="form-group" id="categorySection" style="display: none;">
+                <label><i class="fas fa-tags"></i> Catégorie</label>
+                <div class="category-buttons" id="categoryButtons"></div>
+            </div>
+
+            <!-- Services -->
+            <div class="form-group" id="serviceSection" style="display: none;">
+                <label><i class="fas fa-concierge-bell"></i> Service</label>
+                <select id="serviceSelect" required>
+                    <option value="">Choisir un service</option>
+                </select>
+            </div>
+
+            <!-- Infos service -->
+            <div class="service-info" id="serviceInfo" style="display: none;">
+                <div class="info-row">
+                    <span class="info-label" id="priceLabel">Prix pour 1000 :</span>
+                    <span class="info-value" id="pricePerK">-- FCFA</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Quantité min / max :</span>
+                    <span class="info-value" id="minMaxQty">-- / --</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Temps estimé :</span>
+                    <span class="info-value" id="estimatedTime">--</span>
+                </div>
+            </div>
+
+            <!-- Description service -->
+            <div class="service-description-box" id="serviceDescriptionBox"></div>
+            <div class="drop-notice" id="dropNotice"></div>
+
+            <!-- Lien -->
+            <div class="form-group" id="linkSection" style="display: none;">
+                <label><i class="fas fa-link"></i> Lien (URL)</label>
+                <input type="url" id="linkInput" placeholder="https://..." required>
+            </div>
+
+            <!-- Quantité -->
+            <div class="form-group" id="quantitySection" style="display: none;">
+                <label id="quantLabel"><i class="fas fa-sort-numeric-up"></i> Quantité</label>
+                <input type="number" id="quantityInput" min="1" placeholder="Ex: 1000">
+                <div class="quantity-error" id="quantityError"></div>
+                <div class="comments-count" id="commentsCount" style="display: none;">0 commentaire(s)</div>
+            </div>
+
+            <!-- Total -->
+            <div class="service-info" id="totalSection" style="display: none;">
+                <div class="info-row">
+                    <span class="info-label">Prix total estimé :</span>
+                    <span class="info-value price-highlight" id="totalPrice">0 FCFA</span>
+                </div>
+            </div>
+
+            <!-- Contact -->
+            <div class="contact-section" id="contactSection" style="display: none;">
+                <div class="form-group">
+                    <label><i class="fas fa-address-book"></i> Contact pour suivi (optionnel)</label>
+                    <select id="contactType">
+                        <option value="">Aucun</option>
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="email">Email</option>
+                    </select>
+                </div>
+                <div class="contact-fields" id="whatsappField">
+                    <input type="tel" id="contactInput" placeholder="+237 6XX XXX XXX">
+                </div>
+                <div class="contact-fields" id="emailField">
+                    <input type="email" id="emailInput" placeholder="ton@email.com">
+                </div>
+            </div>
+
+            <!-- Boutons d'action -->
+            <button type="submit" class="btn-submit" id="submitBtn" style="display: none;">
+                <i class="fas fa-spinner fa-spin spinner"></i>
+                <span class="btn-text"><i class="fas fa-paper-plane"></i> Envoyer la commande</span>
+            </button>
+
+            <a href="strategie-de-boost.html" class="boost-tips-btn" id="boostTipsBtn" style="display: none;">
+                <i class="fas fa-lightbulb"></i> Conseils de Boost Intelligents
+            </a>
+        </form>
+    </div>
+
+    <!-- Notification overlay -->
+    <div class="notification-overlay" id="notification">
+        <div class="notification-box">
+            <div class="notification-icon" id="notificationIcon"></div>
+            <div class="notification-message" id="notificationMessage"></div>
+            <div id="notificationButtons">
+                <button class="notification-close" onclick="closeNotification()">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== FOOTER ===== -->
+    <footer>
+        <div class="footer-content">
+            <span>&copy; 2026 Social Boost Horizon</span>
+            <span class="separator">|</span>
+            <span>Mc Exau</span>
+            <span class="separator">|</span>
+            <span>Tous droits réservés</span>
+            <span class="separator">|</span>
+            <a href="legal.html">Mentions légales</a>
+            <span class="separator">|</span>
+            <a href="privacy.html">Confidentialité</a>
+        </div>
+    </footer>
+
+    <!-- ===== SCRIPTS ===== -->
+    <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js">
+    </script>
+    <script src="service-descriptions.js">
+    </script>
+    <script>
+        AOS.init({ duration: 600, once: true, offset: 40 });
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+            authDomain: "social-boost-horizon.firebaseapp.com",
+            projectId: "social-boost-horizon",
+            storageBucket: "social-boost-horizon.appspot.com",
+            messagingSenderId: "43658165639",
+            appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
         }
-      }
+        const auth = firebase.auth();
+        const db = firebase.firestore();
 
-      if (refreshBtn) refreshBtn.addEventListener('click', fetchOrders);
+        let servicesData = {};
+        let categorizedServices = {};
+        let selectedPlatform = null;
+        let selectedCategory = null;
+        let selectedService = null;
+        let userBalance = 0;
+        let userBalanceXAF = 0;
 
-      // --- Fonctions ExoSupplier (identiques) ---
-      function showNotification(message, type = 'info') {
-        const existing = document.querySelector('.exo-notification');
-        if (existing) existing.remove();
-        const n = document.createElement('div');
-        n.className = 'exo-notification';
-        n.style.cssText = `position:fixed;top:20px;right:20px;padding:15px 25px;border-radius:12px;color:#fff;font-weight:500;z-index:10000;animation:slideIn 0.3s ease;max-width:350px;box-shadow:0 10px 30px rgba(0,0,0,0.3);`;
-        n.style.background = type === 'success' ? 'linear-gradient(135deg,#10B981,#059669)' : type === 'error' ? 'linear-gradient(135deg,#EF4444,#DC2626)' : 'linear-gradient(135deg,#8B5CF6,#7C3AED)';
-        n.innerHTML = `<i class="fas fa-${type==='success'?'check-circle':type==='error'?'exclamation-circle':'info-circle'}" style="margin-right:10px;"></i>${message}`;
-        document.body.appendChild(n);
-        setTimeout(() => { n.style.animation = 'slideOut 0.3s ease'; setTimeout(() => n.remove(), 300); }, 4000);
-      }
+        // Configuration des devises pour les 18 pays africains
+        const CURRENCY_CONFIG = {
+            'cm': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇲' },
+            'ga': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇬🇦' },
+            'cg': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇬' },
+            'td': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇹🇩' },
+            'cf': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇫' },
+            'gq': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇬🇶' },
+            'sn': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇸🇳' },
+            'ci': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇨🇮' },
+            'ml': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇲🇱' },
+            'bf': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇫' },
+            'bj': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇯' },
+            'tg': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇹🇬' },
+            'ne': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇳🇪' },
+            'gw': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇬🇼' },
+            'cd': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+            'gh': { code: 'GHS', symbol: 'GH₵', rate: 0.024, flag: '🇬🇭' },
+            'ng': { code: 'NGN', symbol: '₦', rate: 2.44, flag: '🇳🇬' },
+            'ke': { code: 'KES', symbol: 'KSh', rate: 0.20, flag: '🇰🇪' },
+            'ug': { code: 'UGX', symbol: 'USh', rate: 5.64, flag: '🇺🇬' },
+            'tz': { code: 'TZS', symbol: 'TSh', rate: 3.81, flag: '🇹🇿' },
+            'rw': { code: 'RWF', symbol: 'FRw', rate: 1.98, flag: '🇷🇼' },
+            'zm': { code: 'ZMW', symbol: 'ZK', rate: 0.041, flag: '🇿🇲' },
+            'mw': { code: 'MWK', symbol: 'MK', rate: 2.67, flag: '🇲🇼' },
+            'Cameroun': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇲' },
+            'RDC': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+            'RD Congo': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+            'Sénégal': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇸🇳' },
+            'Côte d\'Ivoire': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇨🇮' },
+            'Ghana': { code: 'GHS', symbol: 'GH₵', rate: 0.024, flag: '🇬🇭' },
+            'Nigeria': { code: 'NGN', symbol: '₦', rate: 2.44, flag: '🇳🇬' }
+        };
 
-      async function checkExoStatus(orderId) {
-        try {
-          showNotification('Vérification...', 'info');
-          const idToken = await auth.currentUser.getIdToken();
-          const response = await fetch(`${BACKEND_URL}/api/exo/order-status/${orderId}`, { headers: { 'Authorization': `Bearer ${idToken}` } });
-          const data = await response.json();
-          if (!data.success) throw new Error(data.error || 'Erreur');
-          showNotification(`Statut: ${data.status}`, 'success');
-          fetchOrders();
-        } catch (error) { showNotification(error.message, 'error'); }
-      }
+        let userCurrency = CURRENCY_CONFIG['Cameroun'];
 
-      async function requestExoRefill(orderId) {
-        if (!confirm('Demander un refill ?')) return;
-        try {
-          showNotification('Refill...', 'info');
-          const idToken = await auth.currentUser.getIdToken();
-          const response = await fetch(`${BACKEND_URL}/api/exo/refill`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` }, body: JSON.stringify({ orderId }) });
-          const data = await response.json();
-          if (!data.success) throw new Error(data.error || 'Erreur');
-          showNotification('Refill demandé !', 'success');
-          fetchOrders();
-        } catch (error) { showNotification(error.message, 'error'); }
-      }
+        function convertFromXAF(amountXAF) {
+            return amountXAF * userCurrency.rate;
+        }
+        let totalServicesCount = 0;
 
-      async function cancelExoOrder(orderId) {
-        if (!confirm('Annuler cette commande ?')) return;
-        try {
-          showNotification('Annulation...', 'info');
-          const idToken = await auth.currentUser.getIdToken();
-          const response = await fetch(`${BACKEND_URL}/api/exo/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` }, body: JSON.stringify({ orderId }) });
-          const data = await response.json();
-          if (!data.success) throw new Error(data.error || 'Erreur');
-          const msg = data.refundAmount > 0 ? `Remboursé: ${data.refundAmount.toLocaleString('fr-FR')} FCFA` : 'Annulée';
-          showNotification(msg, 'success');
-          fetchOrders();
-        } catch (error) { showNotification(error.message, 'error'); }
-      }
+        const platformIcons = {
+            tiktok: 'https://img.icons8.com/color/48/tiktok--v1.png',
+            instagram: 'https://img.icons8.com/color/48/instagram-new.png',
+            facebook: 'https://img.icons8.com/color/48/facebook.png',
+            youtube: 'https://img.icons8.com/color/48/youtube-play.png',
+            telegram: 'https://img.icons8.com/color/48/telegram-app.png',
+            twitter: 'https://img.icons8.com/ios-filled/50/ffffff/x.png',
+            whatsapp: 'https://img.icons8.com/color/48/whatsapp--v1.png',
+            spotify: 'https://img.icons8.com/color/48/spotify.png',
+            linkedin: 'https://img.icons8.com/color/48/linkedin.png',
+            threads: 'https://img.icons8.com/ios-filled/50/ffffff/threads.png',
+            snapchat: 'https://img.icons8.com/color/48/snapchat.png',
+            pinterest: 'https://img.icons8.com/color/48/pinterest.png',
+            discord: 'https://img.icons8.com/color/48/discord-logo.png',
+            twitch: 'https://img.icons8.com/color/48/twitch.png',
+            soundcloud: 'https://img.icons8.com/color/48/soundcloud.png'
+        };
 
-      window.checkExoStatus = checkExoStatus;
-      window.requestExoRefill = requestExoRefill;
-      window.cancelExoOrder = cancelExoOrder;
+        // URL du serveur backend
+        const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('replit') ?
+            '' :
+            'https://social-boost-exaucenapopolo2.replit.app';
 
-      setInterval(() => { if (allOrders.length > 0) displayOrders(); }, 60000);
-    });
-  </script>
+        const categoryIcons = {
+            followers: 'fa-users',
+            likes: 'fa-heart',
+            views: 'fa-eye',
+            comments: 'fa-comments',
+            shares: 'fa-share',
+            subscribers: 'fa-bell',
+            members: 'fa-user-plus',
+            reactions: 'fa-smile',
+            saves: 'fa-bookmark',
+            impressions: 'fa-chart-line',
+            plays: 'fa-play',
+            other: 'fa-star'
+        };
+
+        auth.onAuthStateChanged(async (user) => {
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+            document.getElementById('userId').value = user.uid;
+
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            if (userDoc.exists) {
+                const data = userDoc.data();
+                userBalanceXAF = data.balance || 0;
+                userBalance = userBalanceXAF;
+
+                // Détection de la devise selon le pays de l'utilisateur
+                const country = data.country || data.pays || 'Cameroun';
+                if (CURRENCY_CONFIG[country]) {
+                    userCurrency = CURRENCY_CONFIG[country];
+                } else if (CURRENCY_CONFIG[country.toLowerCase()]) {
+                    userCurrency = CURRENCY_CONFIG[country.toLowerCase()];
+                }
+
+                document.getElementById('userBalance').textContent = formatPrice(userBalanceXAF);
+            }
+
+            loadServices();
+        });
+
+        function formatPrice(amountXAF) {
+            const localAmount = convertFromXAF(amountXAF);
+            if (userCurrency.rate === 1) {
+                return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(
+                    Math.round(localAmount)) + ' ' + userCurrency.symbol;
+            } else {
+                return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+                    localAmount) + ' ' + userCurrency.symbol;
+            }
+        }
+
+        function decodeHTML(text) {
+            const el = document.createElement('textarea');
+            el.innerHTML = text;
+            return el.value;
+        }
+
+        function extractCategory(serviceName) {
+            const name = serviceName.toLowerCase();
+            if (name.includes('follower') || name.includes('abonne')) return 'followers';
+            if (name.includes('like') || name.includes('j\'aime')) return 'likes';
+            if (name.includes('view') || name.includes('vue')) return 'views';
+            if (name.includes('comment')) return 'comments';
+            if (name.includes('share') || name.includes('partage')) return 'shares';
+            if (name.includes('subscriber') || name.includes('abonnement')) return 'subscribers';
+            if (name.includes('member') || name.includes('membre')) return 'members';
+            if (name.includes('reaction')) return 'reactions';
+            if (name.includes('save') || name.includes('enregistr')) return 'saves';
+            if (name.includes('impression')) return 'impressions';
+            if (name.includes('play') || name.includes('stream')) return 'plays';
+            return 'other';
+        }
+
+        async function loadServices() {
+            const container = document.getElementById('platformsContainer');
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/exo-services`);
+                const data = await response.json();
+
+                if (!data.success) throw new Error('Erreur chargement');
+
+                servicesData = data.platforms;
+                container.innerHTML = '';
+
+                totalServicesCount = 0;
+                Object.keys(servicesData).forEach(platform => {
+                    if (servicesData[platform] && servicesData[platform].length > 0) {
+                        totalServicesCount += servicesData[platform].length;
+
+                        const iconDiv = document.createElement('div');
+                        iconDiv.className = 'platform-icon';
+                        iconDiv.dataset.platform = platform;
+                        iconDiv.onclick = () => selectPlatform(platform);
+                        iconDiv.innerHTML = `
+                            <img src="${platformIcons[platform] || `https://img.icons8.com/color/48/${platform}.png`}" alt="${platform}">
+                            <span class="platform-name">${platform.charAt(0).toUpperCase() + platform.slice(1)}</span>
+                        `;
+                        container.appendChild(iconDiv);
+                    }
+                });
+
+                document.getElementById('totalServicesCount').textContent = totalServicesCount;
+
+            } catch (error) {
+                container.innerHTML = `
+                    <div style="color:#ff6b9d;padding:20px;text-align:center;width:100%;">
+                        <i class="fas fa-exclamation-triangle" style="font-size:2rem;margin-bottom:10px;display:block;"></i>
+                        Erreur de chargement des services.
+                        <button onclick="loadServices()" class="btn btn-sm" style="margin-top:12px;">
+                            <i class="fas fa-redo"></i> Réessayer
+                        </button>
+                    </div>`;
+            }
+        }
+
+        function selectPlatform(platform) {
+            document.querySelectorAll('.platform-icon').forEach(i => i.classList.remove('active'));
+            const icon = document.querySelector(`.platform-icon[data-platform="${platform}"]`);
+            if (icon) icon.classList.add('active');
+
+            selectedPlatform = platform;
+            selectedCategory = null;
+            selectedService = null;
+
+            categorizedServices = {};
+            servicesData[platform].forEach(service => {
+                const category = extractCategory(service.name);
+                if (!categorizedServices[category]) {
+                    categorizedServices[category] = [];
+                }
+                categorizedServices[category].push(service);
+            });
+
+            const categorySection = document.getElementById('categorySection');
+            const categoryButtons = document.getElementById('categoryButtons');
+            categoryButtons.innerHTML = '';
+
+            Object.keys(categorizedServices).forEach(category => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'category-btn';
+                btn.dataset.category = category;
+                btn.onclick = () => selectCategory(category);
+                const icon = categoryIcons[category] || 'fa-star';
+                const count = categorizedServices[category].length;
+                btn.innerHTML =
+                    `<i class="fas ${icon}"></i> ${category.charAt(0).toUpperCase() + category.slice(1)} (${count})`;
+                categoryButtons.appendChild(btn);
+            });
+
+            categorySection.style.display = 'block';
+            document.getElementById('serviceSection').style.display = 'none';
+            document.getElementById('serviceInfo').style.display = 'none';
+            document.getElementById('linkSection').style.display = 'none';
+            document.getElementById('quantitySection').style.display = 'none';
+            document.getElementById('totalSection').style.display = 'none';
+            document.getElementById('contactSection').style.display = 'none';
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('boostTipsBtn').style.display = 'none';
+            document.getElementById('serviceDescriptionBox').classList.remove('visible');
+            document.getElementById('dropNotice').classList.remove('visible');
+        }
+
+        function selectCategory(category) {
+            document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.querySelector(`.category-btn[data-category="${category}"]`);
+            if (btn) btn.classList.add('active');
+
+            selectedCategory = category;
+            selectedService = null;
+
+            const select = document.getElementById('serviceSelect');
+            select.innerHTML = '<option value="">Choisir un service</option>';
+
+            categorizedServices[category].forEach(service => {
+                const opt = document.createElement('option');
+                opt.value = service.id;
+                opt.textContent = decodeHTML(service.name);
+                opt.dataset.priceXAF = service.priceXAF;
+                opt.dataset.min = service.min;
+                opt.dataset.max = service.max;
+                opt.dataset.isPackage = service.isPackage;
+                opt.dataset.isPerOne = service.isPerOne;
+                opt.dataset.isCustomComments = service.isCustomComments;
+                opt.dataset.averageTime = service.averageTime || 'Rapide';
+                select.appendChild(opt);
+            });
+
+            document.getElementById('serviceSection').style.display = 'block';
+            document.getElementById('serviceInfo').style.display = 'none';
+            document.getElementById('linkSection').style.display = 'none';
+            document.getElementById('quantitySection').style.display = 'none';
+            document.getElementById('totalSection').style.display = 'none';
+            document.getElementById('contactSection').style.display = 'none';
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('boostTipsBtn').style.display = 'none';
+            document.getElementById('serviceDescriptionBox').classList.remove('visible');
+            document.getElementById('dropNotice').classList.remove('visible');
+        }
+
+        document.getElementById('serviceSelect').addEventListener('change', function() {
+            const opt = this.options[this.selectedIndex];
+            if (!opt.value) {
+                document.getElementById('serviceInfo').style.display = 'none';
+                document.getElementById('linkSection').style.display = 'none';
+                document.getElementById('quantitySection').style.display = 'none';
+                document.getElementById('totalSection').style.display = 'none';
+                document.getElementById('contactSection').style.display = 'none';
+                document.getElementById('submitBtn').style.display = 'none';
+                document.getElementById('boostTipsBtn').style.display = 'none';
+                document.getElementById('serviceDescriptionBox').classList.remove('visible');
+                document.getElementById('dropNotice').classList.remove('visible');
+                return;
+            }
+
+            selectedService = {
+                id: opt.value,
+                name: opt.textContent,
+                priceXAF: parseFloat(opt.dataset.priceXAF) || 0,
+                min: parseInt(opt.dataset.min) || 1,
+                max: parseInt(opt.dataset.max) || 1000000,
+                isPackage: opt.dataset.isPackage === 'true',
+                isPerOne: opt.dataset.isPerOne === 'true',
+                isCustomComments: opt.dataset.isCustomComments === 'true',
+                averageTime: opt.dataset.averageTime
+            };
+
+            document.getElementById('serviceInfo').style.display = 'block';
+            const isPerUnit = selectedService.isPerOne || selectedService.isPackage;
+            document.getElementById('priceLabel').textContent = isPerUnit ? 'Prix unitaire :' : 'Prix pour 1000 :';
+            document.getElementById('pricePerK').textContent = isPerUnit ?
+                formatPrice(selectedService.priceXAF) + ' /unité' :
+                formatPrice(selectedService.priceXAF) + ' /1000';
+            document.getElementById('minMaxQty').textContent =
+                `${selectedService.min.toLocaleString('fr-FR')} / ${selectedService.max.toLocaleString('fr-FR')}`;
+            document.getElementById('estimatedTime').textContent = selectedService.averageTime;
+
+            document.getElementById('linkSection').style.display = 'block';
+            document.getElementById('quantitySection').style.display = 'block';
+            document.getElementById('totalSection').style.display = 'block';
+            document.getElementById('contactSection').style.display = 'block';
+            document.getElementById('submitBtn').style.display = 'flex';
+            document.getElementById('boostTipsBtn').style.display = 'flex';
+
+            try {
+                const descBox = document.getElementById('serviceDescriptionBox');
+                const dropBox = document.getElementById('dropNotice');
+                if (typeof getServiceDescription === 'function') {
+                    const platform = selectedPlatform || '';
+                    descBox.innerHTML = getServiceDescription(selectedService.name, platform, '');
+                    descBox.classList.add('visible');
+                    dropBox.innerHTML = getDropNotice(selectedService.name);
+                    dropBox.classList.add('visible');
+                }
+            } catch (descErr) {
+                console.warn('Erreur description service:', descErr);
+            }
+
+            const qtySection = document.getElementById('quantitySection');
+            const qtyInput = document.getElementById('quantityInput');
+
+            if (selectedService.isCustomComments) {
+                if (qtyInput.tagName !== 'TEXTAREA') {
+                    const textarea = document.createElement('textarea');
+                    textarea.id = 'quantityInput';
+                    textarea.rows = 5;
+                    textarea.placeholder = 'Un commentaire par ligne...';
+                    textarea.style.cssText = qtyInput.style.cssText;
+                    qtyInput.parentNode.replaceChild(textarea, qtyInput);
+                    document.getElementById('quantityInput').addEventListener('input', updatePrice);
+                }
+                document.getElementById('quantLabel').innerHTML =
+                '<i class="fas fa-comments"></i> Tes commentaires';
+                document.getElementById('commentsCount').style.display = 'block';
+            } else {
+                if (qtyInput.tagName === 'TEXTAREA') {
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.id = 'quantityInput';
+                    input.min = selectedService.min;
+                    input.placeholder = `Min: ${selectedService.min}`;
+                    qtyInput.parentNode.replaceChild(input, qtyInput);
+                    document.getElementById('quantityInput').addEventListener('input', updatePrice);
+                }
+                document.getElementById('quantLabel').innerHTML =
+                    '<i class="fas fa-sort-numeric-up"></i> Quantité';
+                document.getElementById('commentsCount').style.display = 'none';
+            }
+
+            document.getElementById('quantityInput').value = '';
+            document.getElementById('totalPrice').textContent = '0 FCFA';
+        });
+
+        document.getElementById('quantityInput').addEventListener('input', updatePrice);
+
+        function updatePrice() {
+            if (!selectedService) return;
+
+            const qtyInput = document.getElementById('quantityInput');
+            const errorEl = document.getElementById('quantityError');
+            const countEl = document.getElementById('commentsCount');
+
+            let qty = 0;
+            if (selectedService.isCustomComments) {
+                const comments = qtyInput.value.split('\n').filter(c => c.trim());
+                qty = comments.length;
+                countEl.textContent = `${qty} commentaire(s)`;
+            } else {
+                qty = parseInt(qtyInput.value) || 0;
+            }
+
+            if (qty > 0 && qty < selectedService.min) {
+                errorEl.textContent = `Minimum: ${selectedService.min}`;
+                errorEl.style.display = 'block';
+            } else if (qty > selectedService.max) {
+                errorEl.textContent = `Maximum: ${selectedService.max}`;
+                errorEl.style.display = 'block';
+            } else {
+                errorEl.style.display = 'none';
+            }
+
+            const isPerUnit = selectedService.isPerOne || selectedService.isPackage;
+            let total = isPerUnit ?
+                selectedService.priceXAF * qty :
+                (selectedService.priceXAF / 1000) * qty;
+
+            document.getElementById('totalPrice').textContent = formatPrice(Math.round(total));
+        }
+
+        document.getElementById('contactType').addEventListener('change', function() {
+            document.getElementById('whatsappField').classList.remove('active');
+            document.getElementById('emailField').classList.remove('active');
+            if (this.value === 'whatsapp') document.getElementById('whatsappField').classList.add('active');
+            if (this.value === 'email') document.getElementById('emailField').classList.add('active');
+        });
+
+        document.getElementById('orderForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            if (!selectedService) {
+                showNotification('Veuillez sélectionner un service', 'error');
+                return;
+            }
+
+            const qtyInput = document.getElementById('quantityInput');
+            const link = document.getElementById('linkInput').value.trim();
+
+            let qty = 0;
+            let comments = [];
+
+            if (selectedService.isCustomComments) {
+                comments = qtyInput.value.split('\n').filter(c => c.trim());
+                qty = comments.length;
+            } else {
+                qty = parseInt(qtyInput.value) || 0;
+            }
+
+            if (qty < selectedService.min) {
+                showNotification(`Quantité minimum: ${selectedService.min}`, 'error');
+                return;
+            }
+
+            if (!link) {
+                showNotification('Veuillez entrer un lien', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.classList.add('loading');
+
+            try {
+                const token = await auth.currentUser.getIdToken();
+                const contactType = document.getElementById('contactType').value;
+
+                const payload = {
+                    exoServiceId: selectedService.id,
+                    link: link,
+                    quantity: qty,
+                    comments: selectedService.isCustomComments ? comments : null,
+                    contactType: contactType || null,
+                    contact: contactType === 'email' ?
+                        document.getElementById('emailInput').value :
+                        (contactType === 'whatsapp' ? document.getElementById('contactInput').value : null)
+                };
+
+                const res = await fetch(`${BACKEND_URL}/api/order-exo`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    userBalance = result.newBalance;
+                    document.getElementById('userBalance').textContent = formatPrice(userBalance);
+                    showNotification(
+                        `✅ Commande envoyée avec succès !<br><br><strong>ID:</strong> ${result.orderId}<br><strong>Nouveau solde:</strong> ${formatPrice(result.newBalance)}<br><br><a href="https://socialboosthorizon.com/commandes.html" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:linear-gradient(45deg,#8B5CF6,#06B6D4);color:white;border-radius:25px;text-decoration:none;font-weight:600;margin-top:5px;"><i class="fas fa-history"></i> Voir l'historique</a>`,
+                        'success');
+                    document.getElementById('orderForm').reset();
+                    document.getElementById('serviceSection').style.display = 'none';
+                    document.getElementById('serviceInfo').style.display = 'none';
+                    document.getElementById('linkSection').style.display = 'none';
+                    document.getElementById('quantitySection').style.display = 'none';
+                    document.getElementById('totalSection').style.display = 'none';
+                    document.getElementById('contactSection').style.display = 'none';
+                    document.getElementById('submitBtn').style.display = 'none';
+                    document.getElementById('boostTipsBtn').style.display = 'none';
+                    document.getElementById('serviceDescriptionBox').classList.remove('visible');
+                    document.getElementById('dropNotice').classList.remove('visible');
+                    document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                } else {
+                    if (result.adminContact) {
+                        showNotification(
+                            `${result.error}<br><br>📞 <a href="https://wa.me/${result.adminContact.replace('+', '')}" target="_blank" style="color:#22c55e;font-weight:bold;">${result.adminContact}</a>`,
+                            'error');
+                    } else {
+                        throw new Error(result.error);
+                    }
+                }
+
+            } catch (error) {
+                showNotification(error.message || 'Erreur lors de la commande', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+            }
+        });
+
+        function showNotification(message, type) {
+            const notif = document.getElementById('notification');
+            document.getElementById('notificationIcon').textContent = type === 'success' ? '🎉' : '❌';
+            document.getElementById('notificationMessage').innerHTML = message;
+            notif.className = `notification-overlay ${type}`;
+            notif.style.display = 'flex';
+        }
+
+        function closeNotification() {
+            document.getElementById('notification').style.display = 'none';
+        }
+
+        // Menu hamburger
+        document.getElementById('hamburgerBtn').addEventListener('click', function() {
+            document.querySelector('header').classList.toggle('open');
+        });
+        document.addEventListener('click', function(e) {
+            const header = document.querySelector('header');
+            if (!header.contains(e.target) && header.classList.contains('open')) {
+                header.classList.remove('open');
+            }
+        });
+
+        // Service Worker PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('[PWA] Service Worker enregistré:', reg.scope))
+                    .catch(err => console.warn('[PWA] Service Worker échec:', err));
+            });
+        }
+    </script>
 </body>
 </html>
