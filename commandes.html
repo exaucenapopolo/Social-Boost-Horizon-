@@ -303,6 +303,29 @@
     }
     .comments-content { font-style: italic; color: var(--text-light); font-size: 0.9rem; }
 
+    /* Bouton Partager amélioré */
+    .share-section {
+      margin-top: 15px; padding-top: 15px;
+      border-top: 1px solid var(--glass-border);
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    }
+    .share-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: linear-gradient(135deg, #25D366, #128C7E);
+      color: #fff; padding: 10px 18px; border: none; border-radius: 50px;
+      cursor: pointer; font-weight: 600; font-size: 0.85rem;
+      transition: 0.3s; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+    }
+    .share-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(37, 211, 102, 0.5); }
+    .share-btn.facebook {
+      background: linear-gradient(135deg, #1877F2, #0C5DC7);
+      box-shadow: 0 4px 15px rgba(24, 119, 242, 0.3);
+    }
+    .share-btn.copy-share {
+      background: linear-gradient(135deg, var(--grad-start), var(--btn-blue));
+      box-shadow: 0 4px 15px rgba(30,144,255,0.3);
+    }
+
     .exo-actions {
       display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;
     }
@@ -320,6 +343,48 @@
       text-align: center; margin-top: 20px;
     }
 
+    /* Modale Commander */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
+      z-index: 1000; justify-content: center; align-items: center; padding: 20px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      background: linear-gradient(135deg, #0a1a2f, #0f2847);
+      border: 1px solid var(--gold);
+      border-radius: 24px; padding: 30px; max-width: 450px; width: 100%;
+      animation: modalIn 0.3s ease;
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .modal-box h3 {
+      color: var(--gold); margin-bottom: 20px; text-align: center;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .modal-option {
+      background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+      border-radius: 14px; padding: 16px 18px; margin-bottom: 10px;
+      cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 15px;
+      text-decoration: none; color: #fff;
+    }
+    .modal-option:hover {
+      background: rgba(212,175,55,0.1); border-color: var(--gold);
+      transform: translateX(5px);
+    }
+    .modal-option i { font-size: 1.5rem; color: var(--gold); width: 30px; text-align: center; }
+    .modal-option .option-text h4 { margin: 0; font-size: 1rem; }
+    .modal-option .option-text p { margin: 2px 0 0; font-size: 0.8rem; color: var(--text-light); }
+    .modal-close-btn {
+      display: block; width: 100%; margin-top: 15px; background: transparent;
+      border: 1px solid rgba(255,255,255,0.2); color: #fff;
+      padding: 10px; border-radius: 50px; cursor: pointer; font-weight: 600;
+      transition: 0.3s;
+    }
+    .modal-close-btn:hover { background: rgba(255,255,255,0.05); }
+
     footer {
       background: rgba(8,14,26,0.9); border-top: 1px solid var(--glass-border);
       padding: 18px; text-align: center; font-size: 0.8rem; color: var(--text-light);
@@ -329,6 +394,8 @@
     @media (max-width: 600px) {
       .order-card { padding: 15px; }
       .details-grid { grid-template-columns: 1fr 1fr; }
+      .share-section { flex-direction: column; align-items: stretch; }
+      .share-btn { justify-content: center; }
     }
   </style>
 </head>
@@ -347,7 +414,7 @@
       </div>
     </a>
     <div class="header-actions">
-      <a href="commander.html" class="btn" style="padding:8px 16px; font-size:0.8rem;"><i class="fas fa-plus"></i> Commander</a>
+      <button class="btn" id="openOrderModalBtn" style="padding:8px 16px; font-size:0.8rem;"><i class="fas fa-plus"></i> Commander</button>
       <i class="fa-solid fa-bars icon-hamburger" id="hamburgerBtn"></i>
     </div>
     <div class="mobile-menu">
@@ -456,6 +523,42 @@
     </div>
   </main>
 
+  <!-- Modale Commander -->
+  <div class="modal-overlay" id="orderModal">
+    <div class="modal-box">
+      <h3><i class="fas fa-rocket"></i> Type de commande</h3>
+      <div class="modal-option" data-url="https://socialboosthorizon.com/commander.html">
+        <i class="fas fa-shopping-cart"></i>
+        <div class="option-text">
+          <h4>Commande Standard</h4>
+          <p>Passez une commande classique</p>
+        </div>
+      </div>
+      <div class="modal-option" data-url="https://socialboosthorizon.com/commande-automatique.html">
+        <i class="fas fa-robot"></i>
+        <div class="option-text">
+          <h4>Commande Automatique</h4>
+          <p>Livraison automatique et suivi en temps réel</p>
+        </div>
+      </div>
+      <div class="modal-option" data-url="https://socialboosthorizon.com/commande-revendeur.html">
+        <i class="fas fa-store"></i>
+        <div class="option-text">
+          <h4>Commande Revendeur</h4>
+          <p>Accédez à l'espace revendeur</p>
+        </div>
+      </div>
+      <div class="modal-option" data-url="https://socialboosthorizon.com/commande-avancee.html">
+        <i class="fas fa-star"></i>
+        <div class="option-text">
+          <h4>Commande Avancée</h4>
+          <p>Options avancées et personnalisation</p>
+        </div>
+      </div>
+      <button class="modal-close-btn" id="closeOrderModal">Annuler</button>
+    </div>
+  </div>
+
   <footer>
     <p>© 2026 Social Boost Horizon · Mc Exau. Tous droits réservés.</p>
   </footer>
@@ -467,12 +570,13 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
   <script>
-    // ========== SCRIPT ORIGINAL (INTACT) + AJOUTS COPIE & TOTAL ==========
+    // ========== SCRIPT ORIGINAL (INTACT) + AJOUTS ==========
     document.addEventListener("DOMContentLoaded", function () {
       if (typeof AOS !== 'undefined') {
         AOS.init({ duration: 800, once: true, offset: 100 });
       }
 
+      // --- HAMBURGER MENU ---
       (function initHamburgerMenu() {
         const header = document.querySelector("header");
         const hamburger = document.getElementById("hamburgerBtn");
@@ -483,6 +587,25 @@
         });
       })();
 
+      // --- MODALE COMMANDER ---
+      const orderModal = document.getElementById('orderModal');
+      const openOrderModalBtn = document.getElementById('openOrderModalBtn');
+      const closeOrderModalBtn = document.getElementById('closeOrderModal');
+
+      if (openOrderModalBtn && orderModal) {
+        openOrderModalBtn.addEventListener('click', () => orderModal.classList.add('active'));
+        closeOrderModalBtn.addEventListener('click', () => orderModal.classList.remove('active'));
+        orderModal.addEventListener('click', (e) => { if (e.target === orderModal) orderModal.classList.remove('active'); });
+
+        document.querySelectorAll('#orderModal .modal-option').forEach(opt => {
+          opt.addEventListener('click', () => {
+            const url = opt.dataset.url;
+            if (url) window.location.href = url;
+          });
+        });
+      }
+
+      // --- FIREBASE CONFIG ---
       const firebaseConfig = {
         apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
         authDomain: "social-boost-horizon.firebaseapp.com",
@@ -539,16 +662,45 @@
         return `${converted.toLocaleString('fr-FR')} ${symbol}`;
       }
 
-      // Fonction utilitaire de copie
-      function copyToClipboard(text, element) {
-        navigator.clipboard.writeText(text).then(() => {
-          // Afficher tooltip
-          const tooltip = element.querySelector('.copied-tooltip');
-          if (tooltip) {
-            tooltip.style.opacity = '1';
-            setTimeout(() => { tooltip.style.opacity = '0'; }, 1500);
-          }
-        }).catch(err => console.error('Erreur copie:', err));
+      // --- FONCTION DE PARTAGE ---
+      function generateShareMessage(orderData) {
+        const lines = [];
+        lines.push(`📋 *Commande #${orderData.orderId}*`);
+        lines.push(`📅 Date : ${orderData.dateStr}`);
+        lines.push(`🌐 Plateforme : ${orderData.platform || 'N/A'}`);
+        lines.push(`🛠 Service : ${orderData.service}`);
+        lines.push(`⭐ Qualité : ${orderData.quality}`);
+        lines.push(`📊 Quantité : ${orderData.quantity}`);
+        lines.push(`💰 Montant : ${orderData.formattedAmount}`);
+        lines.push(`📌 Statut : ${orderData.statusLabel}`);
+        if (orderData.link) lines.push(`🔗 Lien : ${orderData.link}`);
+        if (orderData.contact) lines.push(`📞 Contact : ${orderData.contact}`);
+        if (orderData.comments) lines.push(`💬 Commentaires : ${orderData.comments}`);
+        lines.push('');
+        lines.push(`✅ Commande lancée sur Social Boost Horizon`);
+        lines.push(`🚀 socialboosthorizon.com`);
+
+        return lines.join('\n');
+      }
+
+      function shareOrder(orderData) {
+        const message = generateShareMessage(orderData);
+        const encoded = encodeURIComponent(message);
+
+        // Créer les boutons de partage dans la section share
+        return `
+          <div class="share-section">
+            <button class="share-btn" onclick="event.stopPropagation(); window.open('https://api.whatsapp.com/send?text=${encoded}', '_blank')" title="Partager sur WhatsApp">
+              <i class="fab fa-whatsapp"></i> WhatsApp
+            </button>
+            <button class="share-btn facebook" onclick="event.stopPropagation(); window.open('https://www.facebook.com/sharer/sharer.php?u=https://socialboosthorizon.com&quote=${encoded}', '_blank')" title="Partager sur Facebook">
+              <i class="fab fa-facebook"></i> Facebook
+            </button>
+            <button class="share-btn copy-share" onclick="event.stopPropagation(); navigator.clipboard.writeText(\`${message.replace(/`/g, '\\`')}\`).then(() => { const notif = document.createElement('div'); notif.className = 'copied-tooltip'; notif.textContent = 'Copié !'; notif.style.position = 'static'; notif.style.opacity = '1'; this.appendChild(notif); setTimeout(() => notif.remove(), 1500); })" title="Copier le message">
+              <i class="far fa-copy"></i> Copier
+            </button>
+          </div>
+        `;
       }
 
       if (currencySelect) {
@@ -718,16 +870,15 @@
           const progress = calculateProgress(order);
           const statusClass = getStatusClass(statusText);
           const statusLabel = getStatusText(statusText);
+          const formattedAmount = formatAmount(totalCost);
           
           let customComments = order.customComments || order.commentaires || order.commentaires_personnalises || order.comments || '';
 
-          // Bouton copie générique (utilisé plusieurs fois)
-          const copyBtn = (text) => `
-            <button class="copy-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${text.replace(/'/g, "\\'")}').then(() => { const tooltip = this.nextElementSibling; if(tooltip) { tooltip.style.opacity = '1'; setTimeout(() => tooltip.style.opacity = '0', 1500); } })" title="Copier">
-              <i class="far fa-copy"></i>
-            </button>
-            <span class="copied-tooltip">Copié !</span>
-          `;
+          // Données pour le partage
+          const shareData = {
+            orderId, dateStr, platform, service, quality, quantity: quantity.toLocaleString('fr-FR'),
+            formattedAmount, statusLabel, link, contact, comments: customComments
+          };
 
           html += `
             <div class="order-card" data-docid="${docId}">
@@ -746,7 +897,7 @@
                   <div class="progress-fill" style="width:${progress}%;"></div>
                 </div>
                 <span class="progress-percent">${progress}%</span>
-                <span style="font-weight:600;">${formatAmount(totalCost)}</span>
+                <span style="font-weight:600;">${formattedAmount}</span>
                 <i class="fas fa-chevron-down toggle-icon" style="cursor:pointer; margin-left:10px;"></i>
               </div>
               <div class="order-details">
@@ -789,7 +940,7 @@
                   </div>
                   <div class="detail-item">
                     <div class="detail-label">Montant</div>
-                    <div class="detail-value">${formatAmount(totalCost)}</div>
+                    <div class="detail-value">${formattedAmount}</div>
                   </div>
                   ${link ? `
                   <div class="detail-item">
@@ -824,6 +975,7 @@
                   <div class="comments-title"><i class="fas fa-comment"></i> Commentaires</div>
                   <div class="comments-content">${customComments}</div>
                 </div>` : ''}
+                ${shareOrder(shareData)}
                 ${isExoOrder ? `
                 <div class="exo-actions">
                   <button class="exo-btn status" onclick="event.stopPropagation(); checkExoStatus('${docId}')"><i class="fas fa-sync"></i> Actualiser</button>
@@ -891,7 +1043,7 @@
 
       if (refreshBtn) refreshBtn.addEventListener('click', fetchOrders);
 
-      // Fonctions ExoSupplier (identiques)
+      // --- Fonctions ExoSupplier (identiques) ---
       function showNotification(message, type = 'info') {
         const existing = document.querySelector('.exo-notification');
         if (existing) existing.remove();
