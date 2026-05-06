@@ -315,7 +315,7 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
     const provider = new firebase.auth.GoogleAuthProvider();
-    const BACKEND_URL = window.location.hostname.includes('localhost') 
+    const BACKEND_URL = window.location.hostname.includes('localhost')
       ? 'http://localhost:5000' : 'https://social-boost-exaucenapopolo2.replit.app';
     let isRegisteringWithEmail = false;
     let isProcessingGoogleAuth = false;
@@ -337,15 +337,28 @@
         const referralCode = Math.random().toString(36).substring(2,10).toUpperCase();
         const urlParams = new URLSearchParams(window.location.search);
         const referralCodeUsed = urlParams.get('ref') || null;
-        await db.collection('users').doc(userId).set({
-          userId, username, email, phone: '', country: '',
-          referralCode, referredBy: referralCodeUsed,
-          balance: 0, referralBalance: 0, discountUsesLeft: 10, referralsCount: 0,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          provider: 'google', isFirstAccess: true, openedChests: []
+        const response = await fetch(`${BACKEND_URL}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId, username, email, phone: '', country: '',
+            referralCode, referralCodeUsed: referralCodeUsed || undefined,
+            balance: 0, welcomeModalShown: false, isFirstAccess: true, openedChests: []
+          })
         });
+        if (!response.ok) {
+          await db.collection('users').doc(userId).set({
+            userId, username, email, phone: '', country: '',
+            referralCode, referredBy: referralCodeUsed || null,
+            balance: 0, referralBalance: 0, discountUsesLeft: 10, referralsCount: 0,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            provider: 'google', isFirstAccess: true, openedChests: []
+          });
+        }
         return true;
-      } catch (err) { return true; }
+      } catch (err) {
+        return true;
+      }
     }
 
     auth.onAuthStateChanged(async (user) => {
@@ -449,27 +462,34 @@
         const userId = user.uid;
         const generatedCode = Math.random().toString(36).substring(2,10).toUpperCase();
         const referralCodeUsed = referral || new URLSearchParams(location.search).get('ref') || null;
-        if (referralCodeUsed) {
-          const response = await fetch(`${BACKEND_URL}/register`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId, username, email, phone: `${indicatif} ${telephone}`, country: pays, referralCode: generatedCode, referralCodeUsed: referralCodeUsed.toUpperCase(), welcomeModalShown: false, isFirstAccess: true, openedChests: [], balance: 0 })
-          });
-          if (!response.ok) throw new Error('Erreur serveur');
-        } else {
-          await db.collection('users').doc(userId).set({
-            userId, username, email, phone: `${indicatif} ${telephone}`, country: pays,
-            referralCode: generatedCode, referredBy: null, balance: 0, referralBalance: 0,
-            discountUsesLeft: 10, referralsCount: 0,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            provider: 'email', welcomeModalShown: false, isFirstAccess: true, openedChests: []
-          });
+
+        const response = await fetch(`${BACKEND_URL}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId, username, email,
+            phone: `${indicatif} ${telephone}`,
+            country: pays,
+            referralCode: generatedCode,
+            referralCodeUsed: referralCodeUsed ? referralCodeUsed.toUpperCase() : undefined,
+            welcomeModalShown: false,
+            isFirstAccess: true,
+            openedChests: [],
+            balance: 0
+          })
+        });
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || 'Erreur serveur');
         }
+
         showNotification('✅ Inscription réussie !', 'success');
         setTimeout(() => { window.location.href = 'dashboard.html'; }, 1500);
       } catch (error) {
         isRegisteringWithEmail = false;
         let msg = "Erreur";
         if (error.code === 'auth/email-already-in-use') msg = "Cet email est déjà utilisé";
+        else if (error.code === 'auth/weak-password') msg = "Mot de passe trop faible (6 caractères min.)";
         else msg = error.message;
         showNotification(`❌ ${msg}`, 'error');
       } finally { btn.classList.remove('btn-loading'); }
