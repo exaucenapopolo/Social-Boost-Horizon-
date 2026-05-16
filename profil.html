@@ -1080,6 +1080,15 @@
       .user-display-name { font-size: 1.3rem; }
     }
   </style>
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1e3c72">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Social Boost">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="apple-touch-startup-image" href="/icons/splash-1125x2436.png">
 </head>
 <body>
   <div class="background-animation"></div>
@@ -1823,8 +1832,9 @@
       displayNameInput.value = fallbackName;
       emailInput.value = user.email || '';
 
-      // Bouton espace fondateur — visible uniquement pour le compte admin
-      if (user.email === 'mcexauofficiel@gmail.com') {
+      // Bouton espace fondateur — visible uniquement pour les comptes admin
+      const ADMIN_EMAILS = ['mcexauofficiel@gmail.com', 'exaucenapopolo2@gmail.com'];
+      if (ADMIN_EMAILS.includes(user.email)) {
         const adminBtn = document.getElementById('adminWorkspaceBtn');
         if (adminBtn) adminBtn.style.display = 'inline-flex';
       }
@@ -2293,6 +2303,17 @@
           setTimeout(() => c.remove(), dur * 1000);
         }, i * 20);
       }
+    }
+  </script>
+
+  <!-- Enregistrement du Service Worker PWA -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('[PWA] Service Worker enregistré:', reg.scope))
+          .catch(err => console.warn('[PWA] Service Worker échec:', err));
+      });
     }
   </script>
 </body>
