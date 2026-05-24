@@ -142,8 +142,10 @@
     .phone-group { display: flex; gap: 10px; }
     .phone-group input:first-child { max-width: 100px; }
     @media (max-width: 480px) { .phone-group { flex-direction: column; } .phone-group input:first-child { max-width: 100%; } }
-    .error { color: var(--error-color); font-size: 0.8rem; margin-top: 5px; display: none; }
-    .success { color: var(--success-color); font-size: 0.8rem; margin-top: 5px; display: none; }
+    
+    /* Styles retravaillés pour la visibilité des erreurs/succès */
+    .error { color: var(--error-color); font-size: 0.85rem; margin-top: 6px; display: none; font-weight: 500; }
+    .success { color: var(--success-color); font-size: 0.85rem; margin-top: 6px; display: none; font-weight: 500; }
 
     .btn-container { margin-top: 1.8rem; display: flex; flex-direction: column; gap: 12px; }
     .btn-container button { width: 100%; }
@@ -166,16 +168,17 @@
     .footer-bottom a { color: rgba(255,255,255,0.7); text-decoration: none; transition: color 0.3s; margin: 0 0.5rem; }
     .footer-bottom a:hover { color: #fff; }
 
+    /* Fix pour la notification */
     .notification {
-      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-      padding: 14px 24px; border-radius: 12px; color: #fff; font-weight: 600;
-      z-index: 1000; opacity: 0; transition: opacity 0.3s, top 0.3s;
-      box-shadow: 0 8px 25px rgba(0,0,0,0.3); font-size: 0.9rem;
-      pointer-events: none;
+      position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
+      padding: 16px 28px; border-radius: 12px; color: #fff; font-weight: 600;
+      z-index: 1000; opacity: 0; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-size: 0.95rem;
+      pointer-events: none; text-align: center; min-width: 300px;
     }
     .notification.show { opacity: 1; top: 30px; }
-    .notification.success { background: #2e7d32; }
-    .notification.error { background: #c62828; }
+    .notification.success { background: linear-gradient(135deg, #2e7d32, #4caf50); border: 1px solid rgba(255,255,255,0.2); }
+    .notification.error { background: linear-gradient(135deg, #c62828, #f44336); border: 1px solid rgba(255,255,255,0.2); }
 
     .loader {
       display: none; width: 22px; height: 22px; border: 3px solid rgba(255,255,255,0.3);
@@ -184,7 +187,7 @@
     }
     @keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
     .btn-loading .loader { display: block; }
-    .btn-loading .btn-text { opacity: 0.6; }
+    .btn-loading .btn-text { opacity: 0.4; }
     .btn { position: relative; }
   </style>
 </head>
@@ -250,14 +253,14 @@
             <option value="tz">Tanzanie 🇹🇿 (+255)</option>
             <option value="tg">Togo 🇹🇬 (+228)</option>
             <option value="zm">Zambie 🇿🇲 (+260)</option>
-            <option value="">Ailleurs 🌍</option>
+            <option value="ailleurs">Ailleurs 🌍</option>
           </select>
           <div class="error" id="countryError"></div>
         </div>
         <div class="form-group">
           <label for="telephone"><i class="fas fa-phone"></i>Numéro de téléphone</label>
           <div class="phone-group">
-            <input type="text" id="indicatif" readonly placeholder="+229" style="max-width:100px;">
+            <input type="text" id="indicatif" readonly placeholder="+229">
             <input type="tel" id="telephone" required placeholder="xx xx xx xx">
           </div>
           <div class="error" id="phoneError"></div>
@@ -296,14 +299,21 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   <script>
-    // --- Notification améliorée ---
-    function showNotification(message, type, duration = 5000) {
+    // --- Notification Correction de l'affichage ---
+    let notificationTimeout;
+    function showNotification(message, type, duration = 4000) {
       const n = document.getElementById('notification');
       const msgSpan = document.getElementById('notification-message');
+      
+      clearTimeout(notificationTimeout);
       msgSpan.textContent = message;
       n.className = `notification ${type}`;
-      setTimeout(() => n.classList.add('show'), 10);
-      setTimeout(() => {
+      
+      // Force un reflow CSS pour redéclencher l'animation
+      n.offsetHeight; 
+      n.classList.add('show');
+      
+      notificationTimeout = setTimeout(() => {
         n.classList.remove('show');
       }, duration);
     }
@@ -322,7 +332,6 @@
     const db = firebase.firestore();
     const provider = new firebase.auth.GoogleAuthProvider();
     
-    // Backend URL (détection auto)
     const BACKEND_URL = (() => {
       if (window.location.hostname.includes('localhost') || window.location.hostname === '127.0.0.1')
         return 'http://localhost:5000';
@@ -331,7 +340,7 @@
 
     let isRegistering = false;
 
-    // Fonction de fallback Firestore en cas d'échec backend
+    // Fallback Firestore ultra-rapide
     async function fallbackCreateUserInFirestore(userData) {
       try {
         const userRef = db.collection('users').doc(userData.userId);
@@ -348,7 +357,7 @@
           discountUsesLeft: 10,
           referralsCount: 0,
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          provider: 'email',
+          provider: userData.provider || 'email',
           isFirstAccess: true,
           openedChests: []
         }, { merge: true });
@@ -359,8 +368,8 @@
       }
     }
 
-    // Traitement après authentification (email ou Google)
-    async finalizeUserRegistration(user, userData) {
+    // Amélioration de la vitesse d'enregistrement (Exécution asynchrone intelligente)
+    async function finalizeUserRegistration(user, userData) {
       if (!user) return false;
       const userId = user.uid;
       const email = user.email;
@@ -370,69 +379,57 @@
       const referralCode = userData.referralCode || Math.random().toString(36).substring(2,10).toUpperCase();
       const referralCodeUsed = userData.referralCodeUsed || null;
       
-      // 1) Tentative via backend (avec timeout 12 secondes)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
-      let backendOk = false;
-      try {
-        const response = await fetch(`${BACKEND_URL}/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId, username, email, phone, country,
-            referralCode, referralCodeUsed: referralCodeUsed,
-            welcomeModalShown: false, isFirstAccess: true, openedChests: [], balance: 0
-          }),
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        if (response.ok) backendOk = true;
-        else {
-          const errText = await response.text();
-          console.warn("Backend error:", errText);
-        }
-      } catch (err) {
-        clearTimeout(timeoutId);
-        console.warn("Backend network error:", err);
+      // On lance en priorité la base de données locale (Firestore), c'est instantané !
+      const firestoreSuccess = await fallbackCreateUserInFirestore({
+        userId, username, email, phone, country, referralCode, referredBy: referralCodeUsed, provider: userData.provider || 'email'
+      });
+
+      if (!firestoreSuccess) {
+        showNotification("❌ Échec de la base de données principale. Réessayez.", "error");
+        return false;
       }
-      
-      // 2) Fallback Firestore direct si backend échoue
-      if (!backendOk) {
-        showNotification("Serveur secondaire actif, finalisation...", "success", 3000);
-        const fallbackSuccess = await fallbackCreateUserInFirestore({
-          userId, username, email, phone, country, referralCode,
-          referredBy: referralCodeUsed
-        });
-        if (!fallbackSuccess) {
-          showNotification("❌ Échec d'enregistrement. Réessayez.", "error");
-          return false;
-        }
-      }
+
+      // On notifie en tâche de fond le serveur backend pour éviter les ralentissements (Non bloquant)
+      fetch(`${BACKEND_URL}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId, username, email, phone, country,
+          referralCode, referralCodeUsed: referralCodeUsed,
+          welcomeModalShown: false, isFirstAccess: true, openedChests: [], balance: 0
+        })
+      }).catch(err => console.warn("Avis au backend différé ou en échec, mais compte créé sur Firestore."));
       
       return true;
     }
 
-    // Gestion Google
+    // Gestion Google corrigée
     document.getElementById('googleSignup').addEventListener('click', async (e) => {
       e.preventDefault();
       if (isRegistering) return;
       const btn = document.getElementById('googleSignup');
       btn.classList.add('btn-loading');
       isRegistering = true;
+      
       try {
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
-        if (!user) throw new Error("Aucun utilisateur retourné");
+        if (!user) throw new Error("Aucun utilisateur retourné par Google");
+        
+        showNotification("🔄 Traitement de votre profil Google...", "success");
+        
         const referralCodeFromUrl = new URLSearchParams(window.location.search).get('ref') || null;
         const success = await finalizeUserRegistration(user, {
           username: user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email.split('@')[0],
           email: user.email,
           phone: '',
           country: '',
-          referralCodeUsed: referralCodeFromUrl
+          referralCodeUsed: referralCodeFromUrl,
+          provider: 'google'
         });
+        
         if (success) {
-          showNotification('✅ Inscription Google réussie ! Redirection...', 'success');
+          showNotification('✅ Inscription Google réussie ! Préparation de l\'espace...', 'success');
           setTimeout(() => { window.location.href = 'dashboard.html'; }, 1500);
         } else {
           showNotification("❌ Erreur finalisation inscription. Réessayez.", "error");
@@ -440,12 +437,11 @@
         }
       } catch (error) {
         if (error.code === 'auth/popup-closed-by-user')
-          showNotification('⚠️ Inscription annulée', 'error');
+          showNotification('⚠️ Inscription Google annulée par l\'utilisateur', 'error');
         else if (error.code === 'auth/popup-blocked')
-          showNotification('❌ Popup bloquée. Autorisez les popups.', 'error');
+          showNotification('❌ Navigateur bloqué. Autorisez les popups.', 'error');
         else
           showNotification(`❌ ${error.message}`, 'error');
-      } finally {
         btn.classList.remove('btn-loading');
         isRegistering = false;
       }
@@ -459,7 +455,7 @@
       indicatif.value = codes[selected] || '';
     };
 
-    // Vérification code parrainage en temps réel
+    // Vérification code parrainage
     async function verifyReferralCode(code) {
       if (!code) return null;
       try {
@@ -501,7 +497,6 @@
       }
     });
 
-    // Remplir auto le code de parrainage depuis l'URL
     async function checkAndFillReferralFromUrl() {
       const urlParams = new URLSearchParams(window.location.search);
       const refCode = urlParams.get('ref');
@@ -522,15 +517,12 @@
       }
     }
 
-    // Soumission email/password
+    // Soumission email/password avec retour utilisateur en temps réel
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (isRegistering) return;
-      isRegistering = true;
-      const btn = document.getElementById('registerBtn');
-      btn.classList.add('btn-loading');
       
-      // Reset errors
+      // Reset des erreurs visuelles
       document.querySelectorAll('.error').forEach(el => { el.textContent = ''; el.style.display = 'none'; });
       
       const username = document.getElementById('username').value.trim();
@@ -543,10 +535,10 @@
       
       let valid = true;
       if (!username) { showFieldError('usernameError', 'Nom d\'utilisateur requis'); valid = false; }
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showFieldError('emailError', 'Email valide requis'); valid = false; }
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showFieldError('emailError', 'Une adresse email valide est requise'); valid = false; }
       if (!pays) { showFieldError('countryError', 'Veuillez sélectionner votre pays'); valid = false; }
       if (!telephone) { showFieldError('phoneError', 'Numéro de téléphone requis'); valid = false; }
-      if (password.length < 6) { showFieldError('passwordError', '6 caractères minimum'); valid = false; }
+      if (password.length < 6) { showFieldError('passwordError', 'Le mot de passe doit faire 6 caractères minimum'); valid = false; }
       
       function showFieldError(id, msg) {
         const el = document.getElementById(id);
@@ -555,10 +547,13 @@
       }
       
       if (!valid) {
-        btn.classList.remove('btn-loading');
-        isRegistering = false;
+        showNotification("⚠️ Veuillez corriger les erreurs dans le formulaire.", "error");
         return;
       }
+      
+      isRegistering = true;
+      const btn = document.getElementById('registerBtn');
+      btn.classList.add('btn-loading');
       
       try {
         // 1) Création Firebase Auth
@@ -568,45 +563,43 @@
         const finalReferral = referralCode || new URLSearchParams(location.search).get('ref') || null;
         const generatedCode = Math.random().toString(36).substring(2,10).toUpperCase();
         
-        // 2) Finalisation (backend + fallback)
+        // 2) Enregistrement synchrone rapide
         const success = await finalizeUserRegistration(user, {
           username, email, phone: fullPhone, country: pays,
-          referralCode: generatedCode, referralCodeUsed: finalReferral
+          referralCode: generatedCode, referralCodeUsed: finalReferral, provider: 'email'
         });
         
         if (success) {
-          showNotification('✅ Inscription réussie ! Redirection en cours...', 'success', 2000);
-          setTimeout(() => { window.location.href = 'dashboard.html'; }, 1800);
+          showNotification('✅ Inscription réussie ! Redirection vers votre tableau de bord...', 'success', 3000);
+          setTimeout(() => { window.location.href = 'dashboard.html'; }, 2000);
         } else {
-          // Si échec complet, supprimer l'utilisateur Firebase pour éviter compte orphelin
           await user.delete().catch(()=>{});
-          throw new Error("Impossible d'enregistrer le profil. Réessayez.");
+          throw new Error("Impossible d'initialiser votre profil. Veuillez réessayer.");
         }
       } catch (error) {
         let friendlyMsg = "Erreur lors de l'inscription";
-        if (error.code === 'auth/email-already-in-use') friendlyMsg = "Cet email est déjà utilisé";
-        else if (error.code === 'auth/weak-password') friendlyMsg = "Mot de passe trop faible (6 caractères minimum)";
+        if (error.code === 'auth/email-already-in-use') friendlyMsg = "Cet email est déjà lié à un compte existant.";
+        else if (error.code === 'auth/weak-password') friendlyMsg = "Le mot de passe choisi est trop faible.";
         else if (error.message) friendlyMsg = error.message;
+        
         showNotification(`❌ ${friendlyMsg}`, 'error');
-      } finally {
         btn.classList.remove('btn-loading');
         isRegistering = false;
       }
     });
 
-    // Observer auth state pour éviter double inscription (optionnel mais sécuritaire)
+    // Correction de l'écouteur d'état pour éviter les boucles infinies de redirection forcée
     auth.onAuthStateChanged(async (user) => {
       if (user && !isRegistering && window.location.pathname.includes('register.html')) {
-        // Déjà connecté sur la page d'inscription ? Rediriger vers dashboard
+        // L'utilisateur est connecté mais pas en cours d'inscription, on vérifie s'il existe déjà
         const userDoc = await db.collection('users').doc(user.uid).get();
         if (userDoc.exists) {
-          showNotification("Vous êtes déjà connecté, redirection...", "success");
-          setTimeout(() => window.location.href = 'dashboard.html', 1200);
+          window.location.href = 'dashboard.html';
         }
       }
     });
 
-    // Initialisation
+    // Initialisation générale
     document.addEventListener("DOMContentLoaded", () => {
       AOS.init({ duration: 800, once: true, offset: 50 });
       const header = document.querySelector("header");
