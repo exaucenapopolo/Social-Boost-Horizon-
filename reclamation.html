@@ -2,212 +2,152 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <title>Réclamation – Social Boost Horizon</title>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@600;700;800&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
-
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
 
+  <!-- Polices & librairies -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+
   <style>
+    /* ========== VARIABLES & RESET ========== */
     :root {
+      --sbh-deep-blue: #080e1a;
       --sbh-dark-blue: #0A162B;
       --sbh-gradient-start: #1e3c72;
       --sbh-gradient-end: #6a0dad;
       --sbh-btn-color: #1E90FF;
       --sbh-btn-hover: #187bcd;
-      --sbh-icon-color: #4CAF50;
+      --sbh-icon-green: #4CAF50;
       --sbh-text-white: #FFFFFF;
-      --sbh-text-green: #4CAF50;
-      --sbh-card-bg: rgba(17, 32, 58, 0.6);
-      --sbh-card-border: rgba(255, 255, 255, 0.1);
-      --sbh-text-light: rgba(255, 255, 255, 0.9);
+      --sbh-text-light: rgba(255, 255, 255, 0.85);
       --sbh-accent: #FF6B6B;
       --sbh-light-blue: #4DA6FF;
-      --font: 'Roboto', sans-serif;
-    }
-
-    body {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: var(--font);
-      color: var(--sbh-text-white);
-      background: var(--sbh-dark-blue);
-      position: relative;
-      min-height: 100vh;
-      overflow-x: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .background-animation {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: -1;
-      background-color: var(--sbh-dark-blue);
-      overflow: hidden;
-    }
-    .background-animation::before,
-    .background-animation::after {
-      content: "";
-      position: absolute;
-      border-radius: 50%;
-      background-color: rgba(255, 255, 255, 0.4);
-      animation: twinkle 5s infinite alternate;
-    }
-    .background-animation::before {
-      width: 2px;
-      height: 2px;
-      box-shadow:
-        100px  50px  0 0 white, 200px 150px  0 0 white, 300px 250px  0 0 white,
-        400px  70px  0 0 white,  50px 300px  0 0 white, 350px 100px  0 0 white,
-        500px 400px  0 0 white, 600px 120px  0 0 white, 700px 350px  0 0 white;
-      animation-delay: 0s;
-    }
-    .background-animation::after {
-      width: 3px;
-      height: 3px;
-      box-shadow:
-        150px 200px  0 0 white, 250px 300px  0 0 white,  50px 100px  0 0 white,
-        300px  10px  0 0 white, 450px 200px  0 0 white,  10px 250px  0 0 white;
-      animation-delay: 2s;
-    }
-    @keyframes twinkle {
-      0%   { opacity: 0.3; transform: scale(1); }
-      50%  { opacity: 0.7; transform: scale(1.1); }
-      100% { opacity: 0.3; transform: scale(1); }
+      --sbh-gold: #D4AF37;
+      --sbh-gold-deep: #B8860B;
+      --glass-bg: rgba(15, 25, 45, 0.5);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --card-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+      --font-primary: 'Plus Jakarta Sans', sans-serif;
+      --font-display: 'Space Grotesk', sans-serif;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    h1, h2, h3 {
-      font-family: 'Montserrat', sans-serif;
+    html { font-size: 14px; scroll-behavior: smooth; }
+    @media (min-width: 768px) { html { font-size: 15px; } }
+    @media (max-width: 480px) { html { font-size: 13px; } }
+
+    body {
+      font-family: var(--font-primary);
       color: var(--sbh-text-white);
-      text-align: center;
+      background: var(--sbh-deep-blue);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.6;
+      letter-spacing: 0.02em;
+      display: flex;
+      flex-direction: column;
     }
 
+    /* Arrière‑plan animé */
+    .background-animation {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2;
+      background: radial-gradient(ellipse at 20% 50%, #0f2040 0%, #080e1a 70%);
+    }
+    .bg-grid {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+      background-image: linear-gradient(rgba(77,166,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(77,166,255,0.05) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+    }
+
+    h1, h2, h3 { font-family: var(--font-display); color: var(--sbh-text-white); }
+    h2 { font-size: 2rem; margin-bottom: 1.2rem; text-align: center; }
+    @media (max-width: 480px) { h2 { font-size: 1.6rem; } }
+    p { color: var(--sbh-text-light); margin-bottom: 1rem; font-size: 0.95rem; }
+
+    .container { max-width: 1300px; margin: 0 auto; padding: 0 20px; }
+    @media (max-width: 480px) { .container { padding: 0 14px; } }
+
+    /* ========== HEADER & NAV ========== */
     header {
-      position: sticky;
-      top: 0;
-      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem 2rem;
-      z-index: 100;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(8, 14, 26, 0.85); backdrop-filter: blur(20px);
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.7rem 1.8rem; border-bottom: 1px solid var(--glass-border);
     }
-    .logo-text {
-      display: flex;
-      flex-direction: column;
-      font-family: 'Poppins', sans-serif;
-      text-decoration: none;
-      line-height: 1.2;
+    @media (max-width: 480px) { header { padding: 0.6rem 1rem; } }
+    .logo-link {
+      display: flex; align-items: center; text-decoration: none; gap: 10px;
     }
-    .logo-text .text-social,
-    .logo-text .text-horizon {
-      color: var(--sbh-text-white);
-      font-size: 1.3rem;
-      font-weight: 600;
+    .logo-img {
+      height: 42px; width: 42px; border-radius: 50%; object-fit: cover;
+      border: 2px solid var(--sbh-gold); box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+      transition: transform 0.3s ease;
     }
-    .logo-text .boost-line {
-      display: flex;
-      align-items: center;
-      color: var(--sbh-text-green);
-      font-size: 1.8rem;
-      font-weight: 800;
-    }
-    .logo-text .boost-line img {
-      height: 1.8rem;
-      margin-right: 0.4rem;
-    }
-    .icon-hamburger {
-      font-size: 1.5rem;
-      cursor: pointer;
-      color: white;
-      display: none;
-    }
-    @media (max-width: 768px) {
-      .icon-hamburger { display: block; }
-    }
-
+    .logo-img:hover { transform: scale(1.05) rotate(5deg); }
+    .logo-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
+    .logo-text .social { font-size: 0.8rem; font-weight: 600; color: #fff; letter-spacing: 1px; }
+    .logo-text .boost { font-size: 1.4rem; font-weight: 800; color: var(--sbh-gold); line-height: 1; }
+    .logo-text .horizon { font-size: 0.9rem; font-weight: 600; color: #fff; }
+    .icon-hamburger { font-size: 1.6rem; cursor: pointer; transition: 0.3s; }
+    .icon-hamburger:hover { color: var(--sbh-gold); }
     .mobile-menu {
-      display: none;
-      flex-direction: column;
-      background: rgba(30, 60, 114, 0.95);
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      padding: 1rem;
-      gap: 1rem;
+      display: none; position: absolute; top: 65px; right: 1.8rem;
+      background: rgba(10, 22, 43, 0.95); border: 1px solid var(--glass-border);
+      border-radius: 16px; padding: 1.2rem; flex-direction: column; z-index: 200;
+      min-width: 240px; backdrop-filter: blur(20px);
     }
     header.open .mobile-menu { display: flex; }
     .mobile-menu a {
-      color: white;
-      text-decoration: none;
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
-      transition: background 0.3s;
+      color: #fff; padding: 0.7rem 0.9rem; text-decoration: none; border-radius: 8px;
+      transition: 0.3s; display: flex; align-items: center; gap: 10px; font-size: 0.9rem;
     }
-    .mobile-menu a:hover { background: rgba(255,255,255,0.1); }
+    .mobile-menu a:hover { background: rgba(30, 60, 114, 0.5); transform: translateX(5px); }
 
-    .main-container {
-      flex: 1;
-      padding: 2rem;
-      max-width: 800px;
-      margin: 0 auto;
-      width: 100%;
+    /* Boutons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      background: linear-gradient(135deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      color: #fff; padding: 0.7rem 1.7rem; border: none; border-radius: 50px;
+      text-decoration: none; font-weight: 600; transition: all 0.3s ease; font-size: 0.95rem;
+      box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3); cursor: pointer;
     }
+    .btn:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(30, 144, 255, 0.5); }
+    .btn-gold { background: linear-gradient(135deg, var(--sbh-gold-deep), var(--sbh-gold)); color: #080e1a; }
+    .btn-success { background: linear-gradient(135deg, #2e7d32, #4CAF50); }
+    .btn-outline { background: transparent; border: 2px solid var(--sbh-light-blue); box-shadow: none; }
+    .btn-outline:hover { background: var(--sbh-light-blue); border-color: var(--sbh-light-blue); color: #080e1a; }
+    .btn-full { width: 100%; }
 
-    .page-title {
-      text-align: center;
-      margin-bottom: 1rem;
+    /* Cartes glassmorphism */
+    .glass-card {
+      background: var(--glass-bg); backdrop-filter: blur(15px);
+      border: 1px solid var(--glass-border); border-radius: 24px;
+      padding: 2rem; margin-bottom: 2rem; transition: transform 0.3s, border-color 0.3s;
     }
-    .page-title i {
-      font-size: 3rem;
-      color: var(--sbh-text-green);
-      margin-bottom: 1rem;
-    }
-    .page-title h1 {
-      font-size: 2rem;
-      margin-bottom: 0.5rem;
-    }
-    .page-title p {
-      color: var(--sbh-text-light);
-      font-size: 1rem;
-      max-width: 600px;
-      margin: 0 auto;
-    }
+    .glass-card:hover { border-color: var(--sbh-gold); transform: translateY(-5px); }
 
+    /* Info box */
     .info-box {
-      background: rgba(76, 175, 80, 0.15);
-      border: 1px solid var(--sbh-text-green);
-      border-radius: 12px;
+      background: rgba(76, 175, 80, 0.1);
+      border: 1px solid var(--sbh-icon-green);
+      border-radius: 20px;
       padding: 1.5rem;
-      margin: 2rem 0;
+      margin-bottom: 2rem;
     }
-    .info-box h3 {
-      color: var(--sbh-text-green);
-      margin-bottom: 1rem;
-      font-size: 1.2rem;
-    }
-    .info-box ul {
-      list-style: none;
-      padding: 0;
-    }
+    .info-box h3 { color: var(--sbh-icon-green); text-align: left; margin-bottom: 1rem; }
+    .info-box ul { list-style: none; }
     .info-box li {
-      padding: 0.5rem 0;
-      padding-left: 1.5rem;
+      padding: 0.4rem 0 0.4rem 1.8rem;
       position: relative;
       color: var(--sbh-text-light);
     }
@@ -215,17 +155,11 @@
       content: "✓";
       position: absolute;
       left: 0;
-      color: var(--sbh-text-green);
+      color: var(--sbh-icon-green);
       font-weight: bold;
     }
 
-    .form-container {
-      background: var(--sbh-card-bg);
-      border: 1px solid var(--sbh-card-border);
-      border-radius: 16px;
-      padding: 2rem;
-      backdrop-filter: blur(10px);
-    }
+    /* Formulaires */
     .form-group {
       margin-bottom: 1.5rem;
     }
@@ -240,139 +174,80 @@
     .form-group textarea {
       width: 100%;
       padding: 1rem;
-      border: 1px solid var(--sbh-card-border);
-      border-radius: 10px;
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
       background: rgba(255, 255, 255, 0.05);
       color: var(--sbh-text-white);
-      font-size: 1rem;
+      font-size: 0.95rem;
       transition: border-color 0.3s, box-shadow 0.3s;
     }
     .form-group input:focus,
     .form-group select:focus,
     .form-group textarea:focus {
       outline: none;
-      border-color: var(--sbh-btn-color);
-      box-shadow: 0 0 10px rgba(30, 144, 255, 0.3);
+      border-color: var(--sbh-light-blue);
+      box-shadow: 0 0 10px rgba(77, 166, 255, 0.3);
     }
-    .form-group textarea {
-      min-height: 100px;
-      resize: vertical;
-    }
-
-    .btn {
-      padding: 1rem 2rem;
-      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
-      color: white;
-      border: none;
-      border-radius: 10px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.3s;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-    }
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(30, 144, 255, 0.4);
-    }
-    .btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-    }
-    .btn-full { width: 100%; }
-
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      color: var(--sbh-light-blue);
-      text-decoration: none;
-      margin-bottom: 2rem;
-      transition: color 0.3s;
-    }
-    .back-link:hover { color: var(--sbh-text-white); }
 
     .order-details {
       background: rgba(30, 144, 255, 0.1);
-      border: 1px solid var(--sbh-btn-color);
-      border-radius: 12px;
+      border: 1px solid var(--sbh-light-blue);
+      border-radius: 20px;
       padding: 1.5rem;
       margin: 1.5rem 0;
       display: none;
     }
     .order-details.show { display: block; }
-    .order-details h3 {
-      color: var(--sbh-btn-color);
-      margin-bottom: 1rem;
-      font-size: 1.1rem;
-    }
-    .order-details .detail-row {
+    .detail-row {
       display: flex;
       justify-content: space-between;
-      padding: 0.5rem 0;
+      padding: 0.6rem 0;
       border-bottom: 1px solid rgba(255,255,255,0.1);
     }
-    .order-details .detail-row:last-child { border-bottom: none; }
-    .order-details .detail-label { color: var(--sbh-text-light); }
-    .order-details .detail-value { color: var(--sbh-text-white); font-weight: 500; }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label { color: var(--sbh-text-light); }
+    .detail-value { color: var(--sbh-text-white); font-weight: 500; }
 
     .error-box {
       background: rgba(255, 107, 107, 0.15);
       border: 1px solid var(--sbh-accent);
-      border-radius: 12px;
-      padding: 1.5rem;
-      margin: 1.5rem 0;
+      border-radius: 16px;
+      padding: 1rem;
+      margin: 1rem 0;
       display: none;
     }
     .error-box.show { display: block; }
-    .error-box p {
-      color: var(--sbh-accent);
-      margin: 0;
-      text-align: center;
-    }
+    .error-box p { color: var(--sbh-accent); margin: 0; text-align: center; }
 
     .success-box {
       background: rgba(76, 175, 80, 0.15);
-      border: 1px solid var(--sbh-text-green);
-      border-radius: 12px;
+      border: 1px solid var(--sbh-icon-green);
+      border-radius: 20px;
       padding: 2rem;
-      margin: 1.5rem 0;
       text-align: center;
-      display: none;
     }
-    .success-box.show { display: block; }
-    .success-box i {
-      font-size: 3rem;
-      color: var(--sbh-text-green);
-      margin-bottom: 1rem;
-    }
-    .success-box h3 {
-      color: var(--sbh-text-green);
-      margin-bottom: 0.5rem;
-    }
-    .success-box p { color: var(--sbh-text-light); }
+    .success-box i { font-size: 3rem; color: var(--sbh-icon-green); margin-bottom: 1rem; }
+    .success-box h3 { color: var(--sbh-icon-green); margin-bottom: 0.5rem; }
 
     .step { display: none; }
     .step.active { display: block; }
 
+    /* Notification */
     .notification {
       position: fixed;
       top: 20px;
       right: 20px;
       padding: 1rem 1.5rem;
-      border-radius: 10px;
+      border-radius: 50px;
       color: white;
-      font-weight: 500;
-      z-index: 1000;
+      font-weight: 600;
+      z-index: 1100;
       animation: slideIn 0.3s ease;
       max-width: 350px;
+      backdrop-filter: blur(10px);
     }
-    .notification.success { background: linear-gradient(45deg, #4CAF50, #45a049); }
-    .notification.error { background: linear-gradient(45deg, #f44336, #d32f2f); }
+    .notification.success { background: linear-gradient(135deg, #2e7d32, #4CAF50); }
+    .notification.error { background: linear-gradient(135deg, #c62828, #f44336); }
     @keyframes slideIn {
       from { opacity: 0; transform: translateX(100px); }
       to { opacity: 1; transform: translateX(0); }
@@ -389,440 +264,369 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    footer {
-      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
-      padding: 1.5rem;
-      text-align: center;
-      margin-top: auto;
-    }
-    footer p {
-      color: rgba(255,255,255,0.8);
-      font-size: 0.9rem;
-      margin: 0;
-    }
-
+    /* Modal */
     .modal {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       background: rgba(0, 0, 0, 0.8);
       display: flex;
       justify-content: center;
       align-items: center;
-      z-index: 1000;
+      z-index: 1200;
     }
     .modal-content {
-      background: var(--sbh-card-bg);
-      border: 1px solid var(--sbh-card-border);
-      border-radius: 16px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: 28px;
       padding: 2rem;
       max-width: 400px;
       width: 90%;
       position: relative;
-      backdrop-filter: blur(10px);
     }
     .modal-close {
       position: absolute;
       top: 1rem;
-      right: 1rem;
-      font-size: 1.5rem;
+      right: 1.2rem;
+      font-size: 1.6rem;
       cursor: pointer;
       color: var(--sbh-text-light);
+    }
+    .modal-close:hover { color: var(--sbh-accent); }
+
+    /* Footer */
+    footer {
+      background: rgba(8, 14, 26, 0.9);
+      border-top: 1px solid var(--glass-border);
+      padding: 2rem 1rem;
+      text-align: center;
+      margin-top: auto;
+    }
+    footer p { color: rgba(255,255,255,0.6); font-size: 0.85rem; margin: 0; }
+
+    /* Back link */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--sbh-light-blue);
+      text-decoration: none;
+      margin-bottom: 1.5rem;
       transition: color 0.3s;
+      font-weight: 500;
     }
-    .modal-close:hover {
-      color: var(--sbh-accent);
-    }
+    .back-link:hover { color: var(--sbh-gold); }
   </style>
 </head>
 <body>
-  <div class="background-animation"></div>
+<div class="bg-grid"></div>
+<div class="background-animation"></div>
 
-  <header>
-    <a href="dashboard.html" class="logo-text">
-      <span class="text-social">SOCIAL</span>
-      <div class="boost-line">
-        <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo">
-        <span class="text-boost">BOOST</span>
-      </div>
-      <span class="text-horizon">HORIZON</span>
-    </a>
-    <i class="fa-solid fa-bars icon-hamburger" id="hamburgerBtn"></i>
-    <div class="mobile-menu">
-      <a href="dashboard.html"><i class="fa-solid fa-house"></i> Accueil</a>
-      <a href="commandes.html"><i class="fa-solid fa-shopping-cart"></i> Mes commandes</a>
-      <a href="wallet.html"><i class="fa-solid fa-wallet"></i> Mon portefeuille</a>
-      <a href="assistant.html"><i class="fa-solid fa-headset"></i> Assistance</a>
+<header>
+  <a href="dashboard.html" class="logo-link">
+    <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo" class="logo-img">
+    <div class="logo-text">
+      <span class="social">SOCIAL</span>
+      <span class="boost">BOOST</span>
+      <span class="horizon">HORIZON</span>
     </div>
-  </header>
+  </a>
+  <i class="fa-solid fa-bars icon-hamburger" id="hamburgerBtn"></i>
+  <div class="mobile-menu">
+    <a href="dashboard.html"><i class="fas fa-home"></i> Accueil</a>
+    <a href="commandes.html"><i class="fas fa-shopping-cart"></i> Mes commandes</a>
+    <a href="wallet.html"><i class="fas fa-wallet"></i> Mon portefeuille</a>
+    <a href="assistant.html"><i class="fas fa-headset"></i> Assistance</a>
+  </div>
+</header>
 
-  <main class="main-container" data-aos="fade-up">
-    <a href="dashboard.html" class="back-link">
-      <i class="fas fa-arrow-left"></i> Retour au tableau de bord
-    </a>
+<main style="flex:1; padding: 2rem 1rem;">
+  <div class="container">
+    <a href="dashboard.html" class="back-link"><i class="fas fa-arrow-left"></i> Retour au tableau de bord</a>
 
-    <div class="page-title">
-      <i class="fas fa-sync-alt"></i>
-      <h1>Réclamation - Remplissage Gratuit</h1>
-      <p>Vous avez commandé en haute qualité et vous avez subi des chutes ? Demandez un remplissage gratuit.</p>
+    <div data-aos="fade-up" style="text-align:center; margin-bottom: 2rem;">
+      <i class="fas fa-sync-alt" style="font-size: 3rem; color: var(--sbh-icon-green);"></i>
+      <h1 style="font-size: 2.5rem; margin-top: 0.5rem;">Remplissage Gratuit</h1>
+      <p>Vous avez commandé en haute qualité et subi des chutes ? Demandez un remplissage gratuit sous 30 jours.</p>
     </div>
 
-    <div class="info-box">
-      <h3><i class="fas fa-info-circle"></i> Conditions pour une réclamation</h3>
+    <div class="info-box" data-aos="fade-up">
+      <h3><i class="fas fa-info-circle"></i> Conditions d’éligibilité</h3>
       <ul>
-        <li>Votre commande doit être en <strong>haute qualité</strong></li>
-        <li>Les chutes doivent être survenues dans les <strong>30 jours</strong> suivant la livraison</li>
-        <li>Vous devez fournir le numéro de commande original</li>
-        <li>Le remplissage sera effectué dans un délai de 24 à 72 heures</li>
+        <li>Commande en <strong>haute qualité</strong> uniquement</li>
+        <li>Chutes survenues dans les <strong>30 jours</strong> suivant la livraison</li>
+        <li>Numéro de commande original valide</li>
+        <li>Remplissage effectué sous 24-72h</li>
         <li><strong>Une seule réclamation par commande</strong></li>
       </ul>
     </div>
 
     <div class="action-buttons" style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
-      <button type="button" class="btn" id="orderBtn" style="flex: 1; min-width: 200px;">
-        <i class="fas fa-shopping-cart"></i> Passer une commande
-      </button>
-      <a href="historique-reclamations.html" class="btn" style="flex: 1; min-width: 200px; text-decoration: none; text-align: center; background: rgba(255,255,255,0.1);">
-        <i class="fas fa-history"></i> Historique des réclamations
-      </a>
+      <button class="btn" id="orderBtn" style="flex:1;"><i class="fas fa-shopping-cart"></i> Passer une commande</button>
+      <a href="historique-reclamations.html" class="btn btn-outline" style="flex:1; text-align:center;"><i class="fas fa-history"></i> Historique réclamations</a>
     </div>
 
-    <div id="orderModal" class="modal" style="display: none;">
-      <div class="modal-content">
-        <span class="modal-close" id="closeModal">&times;</span>
-        <h3 style="margin-bottom: 1.5rem; text-align: center;"><i class="fas fa-shopping-cart"></i> Choisir le type de commande</h3>
-        <div style="display: flex; gap: 1rem; flex-direction: column;">
-          <a href="commander.html" class="btn btn-full" style="text-decoration: none;">
-            <i class="fas fa-user"></i> Commande Normale
-          </a>
-          <a href="commande-revendeur.html" class="btn btn-full" style="text-decoration: none; background: linear-gradient(45deg, #4CAF50, #45a049);">
-            <i class="fas fa-store"></i> Commande Revendeur
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <div class="form-container">
+    <div class="glass-card" data-aos="fade-up">
       <div id="step1" class="step active">
-        <h3 style="margin-bottom: 1.5rem; text-align: left;"><i class="fas fa-search"></i> Étape 1 : Vérifier votre commande</h3>
+        <h3 style="text-align:left;"><i class="fas fa-search"></i> Étape 1 : Vérifier votre commande</h3>
         <div class="form-group">
-          <label for="orderNumber"><i class="fas fa-hashtag"></i> Numéro de commande</label>
+          <label><i class="fas fa-hashtag"></i> Numéro de commande</label>
           <input type="text" id="orderNumber" placeholder="Ex: SBH_1234567890_abc123" required>
         </div>
-        <button type="button" class="btn btn-full" id="verifyBtn">
-          <i class="fas fa-search"></i> Vérifier ma commande
-        </button>
+        <button class="btn btn-full" id="verifyBtn"><i class="fas fa-search"></i> Vérifier ma commande</button>
 
         <div class="order-details" id="orderDetails">
-          <h3><i class="fas fa-check-circle"></i> Détails de votre commande</h3>
-          <div class="detail-row">
-            <span class="detail-label">Plateforme :</span>
-            <span class="detail-value" id="detailPlatform">-</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Service :</span>
-            <span class="detail-value" id="detailService">-</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Quantité commandée :</span>
-            <span class="detail-value" id="detailQuantity">-</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Qualité :</span>
-            <span class="detail-value" id="detailQuality">-</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Lien :</span>
-            <span class="detail-value" id="detailLink">-</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Ancienneté :</span>
-            <span class="detail-value" id="detailDays">-</span>
-          </div>
+          <h3><i class="fas fa-check-circle"></i> Détails</h3>
+          <div class="detail-row"><span class="detail-label">Plateforme :</span><span class="detail-value" id="detailPlatform">-</span></div>
+          <div class="detail-row"><span class="detail-label">Service :</span><span class="detail-value" id="detailService">-</span></div>
+          <div class="detail-row"><span class="detail-label">Quantité :</span><span class="detail-value" id="detailQuantity">-</span></div>
+          <div class="detail-row"><span class="detail-label">Qualité :</span><span class="detail-value" id="detailQuality">-</span></div>
+          <div class="detail-row"><span class="detail-label">Lien :</span><span class="detail-value" id="detailLink">-</span></div>
+          <div class="detail-row"><span class="detail-label">Ancienneté :</span><span class="detail-value" id="detailDays">-</span></div>
         </div>
 
-        <div class="error-box" id="errorBox">
-          <p id="errorMessage"></p>
-        </div>
+        <div class="error-box" id="errorBox"><p id="errorMessage"></p></div>
 
-        <button type="button" class="btn btn-full" id="continueBtn" style="display: none; margin-top: 1rem; background: linear-gradient(45deg, #4CAF50, #45a049);">
+        <button class="btn btn-success btn-full" id="continueBtn" style="display:none; margin-top:1rem;">
           <i class="fas fa-arrow-right"></i> Continuer la réclamation
         </button>
       </div>
 
       <div id="step2" class="step">
-        <h3 style="margin-bottom: 1.5rem; text-align: left;"><i class="fas fa-edit"></i> Étape 2 : Détails de la réclamation</h3>
-        
-        <div class="order-details show" id="orderSummary">
-          <h3><i class="fas fa-file-alt"></i> Résumé de votre commande</h3>
-          <div class="detail-row">
-            <span class="detail-label">Commande :</span>
-            <span class="detail-value" id="summaryOrderId">-</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Quantité originale :</span>
-            <span class="detail-value" id="summaryQuantity">-</span>
-          </div>
+        <h3 style="text-align:left;"><i class="fas fa-edit"></i> Étape 2 : Détails des chutes</h3>
+        <div class="order-details show" style="margin-bottom:1rem;">
+          <h3><i class="fas fa-file-alt"></i> Commande concernée</h3>
+          <div class="detail-row"><span class="detail-label">Commande :</span><span class="detail-value" id="summaryOrderId">-</span></div>
+          <div class="detail-row"><span class="detail-label">Quantité originale :</span><span class="detail-value" id="summaryQuantity">-</span></div>
         </div>
 
         <div class="form-group">
-          <label for="quantityLost"><i class="fas fa-chart-line"></i> Combien avez-vous perdu ?</label>
+          <label><i class="fas fa-chart-line"></i> Nombre perdu</label>
           <input type="number" id="quantityLost" placeholder="Ex: 500" min="1" required>
-          <small style="color: var(--sbh-text-light); display: block; margin-top: 0.5rem;">
-            Entrez le nombre exact de followers/likes/vues que vous avez perdus.
-          </small>
+          <small style="color:var(--sbh-text-light);">Entrez le nombre exact de followers/likes/vues perdus.</small>
         </div>
 
         <div class="form-group">
-          <label for="description"><i class="fas fa-comment-alt"></i> Description (optionnel)</label>
-          <textarea id="description" placeholder="Décrivez votre problème si nécessaire..."></textarea>
+          <label><i class="fas fa-comment-alt"></i> Description (optionnel)</label>
+          <textarea id="description" rows="3" placeholder="Décrivez votre problème..."></textarea>
         </div>
 
         <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-          <button type="button" class="btn" id="backBtn" style="flex: 1; background: rgba(255,255,255,0.1);">
-            <i class="fas fa-arrow-left"></i> Retour
-          </button>
-          <button type="button" class="btn" id="submitBtn" style="flex: 2; background: linear-gradient(45deg, #4CAF50, #45a049);">
-            <i class="fas fa-paper-plane"></i> Envoyer ma réclamation
-          </button>
+          <button class="btn btn-outline" id="backBtn" style="flex:1;"><i class="fas fa-arrow-left"></i> Retour</button>
+          <button class="btn btn-success" id="submitBtn" style="flex:2;"><i class="fas fa-paper-plane"></i> Envoyer ma réclamation</button>
         </div>
       </div>
 
       <div id="step3" class="step">
-        <div class="success-box show">
+        <div class="success-box">
           <i class="fas fa-check-circle"></i>
-          <h3>Réclamation envoyée avec succès !</h3>
-          <p id="successMessage">Notre équipe va traiter votre demande sous 24-72 heures.</p>
-          <a href="dashboard.html" class="btn" style="margin-top: 1.5rem;">
-            <i class="fas fa-home"></i> Retour au tableau de bord
-          </a>
+          <h3>Réclamation envoyée !</h3>
+          <p id="successMessage">Notre équipe traite votre demande sous 24-72 heures.</p>
+          <a href="dashboard.html" class="btn" style="margin-top:1.5rem;"><i class="fas fa-home"></i> Retour accueil</a>
         </div>
       </div>
     </div>
-  </main>
+  </div>
+</main>
 
-  <footer>
-    <p>&copy; 2025 Social Boost Horizon. Tous droits réservés.</p>
-  </footer>
+<footer>
+  <div class="container">
+    <p>&copy; 2026 Social Boost Horizon. Tous droits réservés.</p>
+  </div>
+</footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
-  <script>
-    AOS.init({ duration: 800, once: true });
+<!-- Modale pour commander -->
+<div id="orderModal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <span class="modal-close" id="closeModal">&times;</span>
+    <h3 style="margin-bottom:1.5rem; text-align:center;"><i class="fas fa-shopping-cart"></i> Choisir le type de commande</h3>
+    <div style="display:flex; flex-direction:column; gap:1rem;">
+      <a href="commander.html" class="btn btn-full"><i class="fas fa-user"></i> Commande Normale</a>
+      <a href="commande-revendeur.html" class="btn btn-gold btn-full"><i class="fas fa-store"></i> Commande Revendeur</a>
+    </div>
+  </div>
+</div>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-      authDomain: "social-boost-horizon.firebaseapp.com",
-      projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.appspot.com",
-      messagingSenderId: "43658165639",
-      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
-    };
+<script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+<script>
+  AOS.init({ duration: 800, once: true, offset: 50 });
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const auth = firebase.auth();
+  // Firebase
+  const firebaseConfig = {
+    apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+    authDomain: "social-boost-horizon.firebaseapp.com",
+    projectId: "social-boost-horizon",
+    storageBucket: "social-boost-horizon.appspot.com",
+    messagingSenderId: "43658165639",
+    appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
 
-    const BACKEND_URL = window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')
-      ? 'http://localhost:5000'
-      : 'https://social-boost-exaucenapopolo2.replit.app';
+  const BACKEND_URL = window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')
+    ? 'http://localhost:5000'
+    : 'https://social-boost-exaucenapopolo2.replit.app';
 
-    let currentUserId = null;
-    let userData = null;
-    let verifiedOrder = null;
+  let currentUserId = null;
+  let userData = null;
+  let verifiedOrder = null;
 
-    function fetchUserData() {
-      auth.onAuthStateChanged((user) => {
-        if (user) {
-          currentUserId = user.uid;
-          listenToUserData(currentUserId);
-        } else {
-          window.location.href = 'login.html';
-        }
+  // Header mobile
+  const hamburgerBtn = document.getElementById('hamburgerBtn');
+  const header = document.querySelector('header');
+  hamburgerBtn.addEventListener('click', () => header.classList.toggle('open'));
+  document.addEventListener('click', (e) => {
+    if (!header.contains(e.target) && header.classList.contains('open')) header.classList.remove('open');
+  });
+
+  // Modal commande
+  const orderBtn = document.getElementById('orderBtn');
+  const orderModal = document.getElementById('orderModal');
+  const closeModal = document.getElementById('closeModal');
+  orderBtn.addEventListener('click', () => orderModal.style.display = 'flex');
+  closeModal.addEventListener('click', () => orderModal.style.display = 'none');
+  orderModal.addEventListener('click', (e) => { if (e.target === orderModal) orderModal.style.display = 'none'; });
+
+  function showNotification(message, type) {
+    const existing = document.querySelector('.notification');
+    if (existing) existing.remove();
+    const notif = document.createElement('div');
+    notif.className = `notification ${type}`;
+    notif.innerHTML = message;
+    document.body.appendChild(notif);
+    setTimeout(() => notif.remove(), 5000);
+  }
+
+  // Auth
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) {
+      window.location.href = 'login.html';
+      return;
+    }
+    currentUserId = user.uid;
+    const doc = await db.collection('users').doc(currentUserId).get();
+    if (doc.exists) userData = doc.data();
+  });
+
+  // Vérification commande
+  document.getElementById('verifyBtn').addEventListener('click', async () => {
+    const orderId = document.getElementById('orderNumber').value.trim();
+    if (!orderId) {
+      showNotification('Veuillez entrer un numéro de commande', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('verifyBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-spinner"></span> Vérification...';
+
+    document.getElementById('orderDetails').classList.remove('show');
+    document.getElementById('errorBox').classList.remove('show');
+    document.getElementById('continueBtn').style.display = 'none';
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/verify-order-for-claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, userId: currentUserId })
       });
-    }
+      const data = await res.json();
 
-    function listenToUserData(userId) {
-      db.collection('users').doc(userId).get().then((doc) => {
-        if (doc.exists) {
-          userData = doc.data();
-          console.log('Données utilisateur chargées:', userData.username);
-        }
-      }).catch((err) => {
-        console.error('Erreur chargement données:', err);
-      });
-    }
-
-    const hamburgerBtn = document.getElementById('hamburgerBtn');
-    const header = document.querySelector('header');
-    hamburgerBtn.addEventListener('click', () => {
-      header.classList.toggle('open');
-    });
-
-    // Modal pour passer une commande
-    const orderBtn = document.getElementById('orderBtn');
-    const orderModal = document.getElementById('orderModal');
-    const closeModal = document.getElementById('closeModal');
-
-    orderBtn.addEventListener('click', () => {
-      orderModal.style.display = 'flex';
-    });
-
-    closeModal.addEventListener('click', () => {
-      orderModal.style.display = 'none';
-    });
-
-    orderModal.addEventListener('click', (e) => {
-      if (e.target === orderModal) {
-        orderModal.style.display = 'none';
-      }
-    });
-
-    function showNotification(message, type) {
-      const existing = document.querySelector('.notification');
-      if (existing) existing.remove();
-      
-      const notif = document.createElement('div');
-      notif.className = `notification ${type}`;
-      notif.innerHTML = message;
-      document.body.appendChild(notif);
-      
-      setTimeout(() => notif.remove(), 5000);
-    }
-
-    document.getElementById('verifyBtn').addEventListener('click', async () => {
-      const orderId = document.getElementById('orderNumber').value.trim();
-      if (!orderId) {
-        showNotification('Veuillez entrer un numéro de commande', 'error');
-        return;
-      }
-
-      const verifyBtn = document.getElementById('verifyBtn');
-      verifyBtn.disabled = true;
-      verifyBtn.innerHTML = '<span class="loading-spinner"></span> Vérification...';
-
-      document.getElementById('orderDetails').classList.remove('show');
-      document.getElementById('errorBox').classList.remove('show');
-      document.getElementById('continueBtn').style.display = 'none';
-
-      try {
-        const response = await fetch(`${BACKEND_URL}/verify-order-for-claim`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            orderId: orderId,
-            userId: currentUserId 
-          })
-        });
-
-        const data = await response.json();
-
-        if (data.eligible) {
-          verifiedOrder = data.order;
-          
+      if (data.eligible) {
+        verifiedOrder = data.order;
+        document.getElementById('detailPlatform').textContent = data.order.platform || '-';
+        document.getElementById('detailService').textContent = data.order.service || '-';
+        document.getElementById('detailQuantity').textContent = data.order.quantity || '-';
+        document.getElementById('detailQuality').textContent = 'Haute qualité';
+        document.getElementById('detailLink').textContent = data.order.link || '-';
+        document.getElementById('detailDays').textContent = `${data.order.daysSinceOrder} jours`;
+        document.getElementById('orderDetails').classList.add('show');
+        document.getElementById('continueBtn').style.display = 'flex';
+        showNotification('Commande éligible au remplissage gratuit !', 'success');
+      } else {
+        document.getElementById('errorMessage').textContent = data.reason || 'Commande non éligible.';
+        document.getElementById('errorBox').classList.add('show');
+        if (data.order) {
           document.getElementById('detailPlatform').textContent = data.order.platform || '-';
           document.getElementById('detailService').textContent = data.order.service || '-';
           document.getElementById('detailQuantity').textContent = data.order.quantity || '-';
-          document.getElementById('detailQuality').textContent = 'Haute qualité';
+          document.getElementById('detailQuality').textContent = data.order.quality || 'Moyenne';
           document.getElementById('detailLink').textContent = data.order.link || '-';
-          document.getElementById('detailDays').textContent = `${data.order.daysSinceOrder} jours`;
-
+          document.getElementById('detailDays').textContent = data.order.daysSinceOrder ? `${data.order.daysSinceOrder} jours` : '-';
           document.getElementById('orderDetails').classList.add('show');
-          document.getElementById('continueBtn').style.display = 'flex';
-          
-          showNotification('Commande éligible au remplissage gratuit !', 'success');
-        } else {
-          document.getElementById('errorMessage').textContent = data.reason || 'Cette commande n\'est pas éligible.';
-          document.getElementById('errorBox').classList.add('show');
-          
-          if (data.order) {
-            document.getElementById('detailPlatform').textContent = data.order.platform || '-';
-            document.getElementById('detailService').textContent = data.order.service || '-';
-            document.getElementById('detailQuantity').textContent = data.order.quantity || '-';
-            document.getElementById('detailQuality').textContent = data.order.quality || 'Moyenne';
-            document.getElementById('detailLink').textContent = data.order.link || '-';
-            document.getElementById('detailDays').textContent = data.order.daysSinceOrder ? `${data.order.daysSinceOrder} jours` : '-';
-            document.getElementById('orderDetails').classList.add('show');
-          }
         }
-
-      } catch (err) {
-        console.error('Erreur:', err);
-        showNotification('Erreur de connexion au serveur', 'error');
+        showNotification(data.reason || 'Commande non éligible', 'error');
       }
+    } catch (err) {
+      console.error(err);
+      showNotification('Erreur de connexion au serveur', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-search"></i> Vérifier ma commande';
+    }
+  });
 
-      verifyBtn.disabled = false;
-      verifyBtn.innerHTML = '<i class="fas fa-search"></i> Vérifier ma commande';
-    });
+  document.getElementById('continueBtn').addEventListener('click', () => {
+    document.getElementById('step1').classList.remove('active');
+    document.getElementById('step2').classList.add('active');
+    document.getElementById('summaryOrderId').textContent = verifiedOrder.orderId;
+    document.getElementById('summaryQuantity').textContent = verifiedOrder.quantity;
+  });
 
-    document.getElementById('continueBtn').addEventListener('click', () => {
-      document.getElementById('step1').classList.remove('active');
-      document.getElementById('step2').classList.add('active');
+  document.getElementById('backBtn').addEventListener('click', () => {
+    document.getElementById('step2').classList.remove('active');
+    document.getElementById('step1').classList.add('active');
+  });
 
-      document.getElementById('summaryOrderId').textContent = verifiedOrder.orderId;
-      document.getElementById('summaryQuantity').textContent = verifiedOrder.quantity;
-    });
+  document.getElementById('submitBtn').addEventListener('click', async () => {
+    const quantityLost = document.getElementById('quantityLost').value;
+    const description = document.getElementById('description').value.trim();
 
-    document.getElementById('backBtn').addEventListener('click', () => {
-      document.getElementById('step2').classList.remove('active');
-      document.getElementById('step1').classList.add('active');
-    });
+    if (!quantityLost || parseInt(quantityLost) < 1) {
+      showNotification('Veuillez entrer le nombre de chutes', 'error');
+      return;
+    }
+    if (parseInt(quantityLost) > parseInt(verifiedOrder.quantity)) {
+      showNotification('Le nombre perdu ne peut pas dépasser la quantité commandée', 'error');
+      return;
+    }
 
-    document.getElementById('submitBtn').addEventListener('click', async () => {
-      const quantityLost = document.getElementById('quantityLost').value;
-      const description = document.getElementById('description').value.trim();
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="loading-spinner"></span> Envoi...';
 
-      if (!quantityLost || parseInt(quantityLost) < 1) {
-        showNotification('Veuillez entrer le nombre de chutes', 'error');
-        return;
+    try {
+      const res = await fetch(`${BACKEND_URL}/submit-claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: verifiedOrder.orderId,
+          userId: currentUserId,
+          userEmail: userData?.email || '',
+          userName: userData?.username || '',
+          quantityLost: parseInt(quantityLost),
+          description
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('step2').classList.remove('active');
+        document.getElementById('step3').classList.add('active');
+        document.getElementById('successMessage').innerHTML = `Réclamation ${data.reclamationId} envoyée. Notre équipe traite votre demande sous 24-72 heures.`;
+        showNotification('Réclamation envoyée avec succès !', 'success');
+      } else {
+        showNotification(data.error || 'Erreur lors de l\'envoi', 'error');
       }
-
-      if (parseInt(quantityLost) > parseInt(verifiedOrder.quantity)) {
-        showNotification('Le nombre de chutes ne peut pas dépasser la quantité commandée', 'error');
-        return;
-      }
-
-      const submitBtn = document.getElementById('submitBtn');
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="loading-spinner"></span> Envoi en cours...';
-
-      try {
-        const response = await fetch(`${BACKEND_URL}/submit-claim`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            orderId: verifiedOrder.orderId,
-            userId: currentUserId,
-            userEmail: userData?.email || '',
-            userName: userData?.username || '',
-            quantityLost: quantityLost,
-            description: description
-          })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-          document.getElementById('step2').classList.remove('active');
-          document.getElementById('step3').classList.add('active');
-          document.getElementById('successMessage').textContent = 
-            `Réclamation ${data.reclamationId} envoyée. Notre équipe va traiter votre demande sous 24-72 heures.`;
-          showNotification('Réclamation envoyée avec succès !', 'success');
-        } else {
-          showNotification(data.error || 'Erreur lors de l\'envoi', 'error');
-        }
-
-      } catch (err) {
-        console.error('Erreur:', err);
-        showNotification('Erreur de connexion au serveur', 'error');
-      }
-
+    } catch (err) {
+      console.error(err);
+      showNotification('Erreur de connexion au serveur', 'error');
+    } finally {
       submitBtn.disabled = false;
       submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Envoyer ma réclamation';
-    });
-
-    fetchUserData();
-  </script>
+    }
+  });
+</script>
 </body>
 </html>
