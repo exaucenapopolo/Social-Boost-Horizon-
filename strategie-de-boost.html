@@ -2,1130 +2,407 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Assistance - Social Boost Horizon</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+  <title>Stratégies & Assistance – Social Boost Horizon</title>
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
-  
-  <!-- Fonts -->
+
+  <!-- Polices premium -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
-  <!-- AOS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
-
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <!-- AOS & Font Awesome -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 
   <style>
-    /* =======================================================
-       Variables & Design System (inchangé)
-       ======================================================= */
+    /* ========== VARIABLES & RESET (cohérent avec l'entreprise) ========== */
     :root {
-      --primary-color: #1A237E;
-      --secondary-color: #283593;
-      --accent-color: #00BFA5;
-      --accent-dark: #00897B;
-      --warning-color: #FF6B35;
-      --success-color: #4CAF50;
-      --text-primary: #FFFFFF;
-      --text-secondary: #B0BEC5;
-      --text-tertiary: #78909C;
-      --bg-primary: #0F1A30;
-      --bg-secondary: #1A2B4A;
-      --bg-tertiary: #25395A;
-      --card-bg: rgba(255, 255, 255, 0.05);
-      --border-color: rgba(255, 255, 255, 0.1);
-      --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.3);
-      --shadow-md: 0 10px 40px rgba(0, 0, 0, 0.2);
-      --radius-sm: 8px;
-      --radius-md: 12px;
-      --radius-lg: 20px;
-      --radius-xl: 30px;
-      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      --sbh-deep-blue: #080e1a;
+      --sbh-dark-blue: #0A162B;
+      --sbh-gradient-start: #1e3c72;
+      --sbh-gradient-end: #6a0dad;
+      --sbh-btn-color: #1E90FF;
+      --sbh-icon-green: #4CAF50;
+      --sbh-text-white: #FFFFFF;
+      --sbh-text-light: rgba(255, 255, 255, 0.85);
+      --sbh-accent: #FF6B6B;
+      --sbh-light-blue: #4DA6FF;
+      --sbh-gold: #D4AF37;
+      --sbh-gold-deep: #B8860B;
+      --glass-bg: rgba(15, 25, 45, 0.5);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --card-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+      --font-primary: 'Plus Jakarta Sans', sans-serif;
+      --font-display: 'Space Grotesk', sans-serif;
     }
 
-    /* Reset & Base Styles */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    html {
-      scroll-behavior: smooth;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { font-size: 14px; scroll-behavior: smooth; }
+    @media (min-width: 768px) { html { font-size: 15px; } }
+    @media (max-width: 480px) { html { font-size: 13px; } }
 
     body {
-      font-family: 'Inter', sans-serif;
-      background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
-      color: var(--text-primary);
+      font-family: var(--font-primary);
+      color: var(--sbh-text-white);
+      background: var(--sbh-deep-blue);
       min-height: 100vh;
       overflow-x: hidden;
       line-height: 1.6;
-    }
-
-    /* Animations */
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes slideInRight {
-      from { opacity: 0; transform: translateX(20px); }
-      to { opacity: 1; transform: translateX(0); }
-    }
-
-    @keyframes slideInLeft {
-      from { opacity: 0; transform: translateX(-20px); }
-      to { opacity: 1; transform: translateX(0); }
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.7; }
-    }
-
-    @keyframes typing {
-      from { width: 0; }
-      to { width: 100%; }
-    }
-
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
-
-    /* Header - Minimal */
-    .header {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      background: rgba(15, 26, 48, 0.95);
-      backdrop-filter: blur(20px);
-      z-index: 1000;
-      border-bottom: 1px solid var(--border-color);
-      padding: 1rem 2rem;
-    }
-
-    .header-container {
-      max-width: 1400px;
-      margin: 0 auto;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .logo-link {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      text-decoration: none;
-    }
-
-    .logo-img {
-      height: 45px;
-      width: auto;
-      border-radius: 8px;
-    }
-
-    .logo-text {
+      letter-spacing: 0.02em;
       display: flex;
       flex-direction: column;
-      font-family: 'Poppins', sans-serif;
     }
 
-    .logo-main {
-      font-weight: 700;
-      font-size: 1.2rem;
-      color: white;
-      line-height: 1.1;
+    /* Arrière‑plan animé avec grille */
+    .background-animation {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2;
+      background: radial-gradient(ellipse at 20% 50%, #0f2040 0%, #080e1a 70%);
+    }
+    .bg-grid {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+      background-image: linear-gradient(rgba(77,166,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(77,166,255,0.05) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
     }
 
-    .logo-sub {
-      font-size: 0.8rem;
-      color: var(--accent-color);
-      font-weight: 500;
-    }
+    h1, h2, h3 { font-family: var(--font-display); color: var(--sbh-text-white); }
+    h2 { font-size: 2rem; margin-bottom: 1.2rem; text-align: center; }
+    @media (max-width: 480px) { h2 { font-size: 1.6rem; } }
+    p { color: var(--sbh-text-light); margin-bottom: 1rem; font-size: 0.95rem; }
 
+    .container { max-width: 1300px; margin: 0 auto; padding: 0 20px; }
+    @media (max-width: 480px) { .container { padding: 0 14px; } }
+
+    /* ========== HEADER (identique aux autres pages) ========== */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(8, 14, 26, 0.85); backdrop-filter: blur(20px);
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.7rem 1.8rem; border-bottom: 1px solid var(--glass-border);
+    }
+    @media (max-width: 480px) { header { padding: 0.6rem 1rem; } }
+    .logo-link {
+      display: flex; align-items: center; text-decoration: none; gap: 10px;
+    }
+    .logo-img {
+      height: 42px; width: 42px; border-radius: 50%; object-fit: cover;
+      border: 2px solid var(--sbh-gold); box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+      transition: transform 0.3s ease;
+    }
+    .logo-img:hover { transform: scale(1.05) rotate(5deg); }
+    .logo-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
+    .logo-text .social { font-size: 0.8rem; font-weight: 600; color: #fff; letter-spacing: 1px; }
+    .logo-text .boost { font-size: 1.4rem; font-weight: 800; color: var(--sbh-gold); line-height: 1; }
+    .logo-text .horizon { font-size: 0.9rem; font-weight: 600; color: #fff; }
     .back-btn {
-      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-      color: white;
-      border: none;
-      padding: 0.8rem 1.5rem;
-      border-radius: var(--radius-md);
-      font-weight: 600;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: var(--transition);
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
+      background: linear-gradient(135deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 40px;
+      font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: var(--transition);
+      text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
     }
+    .back-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(30,144,255,0.4); }
 
-    .back-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-md);
+    /* Boutons génériques */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      background: linear-gradient(135deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      color: #fff; padding: 0.7rem 1.7rem; border: none; border-radius: 50px;
+      text-decoration: none; font-weight: 600; transition: all 0.3s ease; font-size: 0.95rem;
+      box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3); cursor: pointer;
     }
+    .btn:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(30, 144, 255, 0.5); }
+    .btn-gold { background: linear-gradient(135deg, var(--sbh-gold-deep), var(--sbh-gold)); color: #080e1a; }
 
-    /* Main Container */
-    .main-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 5rem 1rem 1rem;
+    /* Cartes glassmorphism */
+    .glass-card {
+      background: var(--glass-bg); backdrop-filter: blur(15px);
+      border: 1px solid var(--glass-border); border-radius: 24px;
+      padding: 2rem; margin-bottom: 2rem; transition: transform 0.3s, border-color 0.3s;
     }
+    .glass-card:hover { border-color: var(--sbh-gold); transform: translateY(-5px); }
 
-    /* Hero Section */
+    /* Hero section */
     .hero-section {
       text-align: center;
-      padding: 2rem 0 3rem;
+      padding: 2rem 0 1rem;
       position: relative;
     }
-
     .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(0, 191, 165, 0.1);
-      color: var(--accent-color);
-      padding: 0.5rem 1rem;
-      border-radius: 50px;
-      font-weight: 600;
-      font-size: 0.85rem;
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(0, 191, 165, 0.1); color: var(--sbh-gold);
+      padding: 0.5rem 1.2rem; border-radius: 50px; font-weight: 600; font-size: 0.85rem;
       margin-bottom: 1.5rem;
     }
-
     .hero-title {
-      font-size: 2.5rem;
-      font-weight: 700;
-      margin-bottom: 1rem;
-      background: linear-gradient(135deg, var(--text-primary), var(--accent-color));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      line-height: 1.2;
+      font-size: 2.5rem; font-weight: 800; margin-bottom: 1rem;
+      background: linear-gradient(135deg, #fff, var(--sbh-gold));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
-
     .hero-subtitle {
-      font-size: 1.1rem;
-      color: var(--text-secondary);
-      max-width: 600px;
-      margin: 0 auto 2rem;
+      font-size: 1.1rem; color: var(--sbh-text-light); max-width: 700px; margin: 0 auto;
     }
 
-    /* Chat Assistant Section - Full Width */
+    /* Chat assistant amélioré */
     .chat-assistant {
-      background: var(--bg-tertiary);
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--border-color);
-      overflow: hidden;
-      margin: 2rem 0;
-      height: 70vh;
-      display: flex;
-      flex-direction: column;
-      box-shadow: var(--shadow-lg);
+      background: var(--glass-bg); backdrop-filter: blur(15px);
+      border: 1px solid var(--glass-border); border-radius: 28px;
+      overflow: hidden; margin: 2rem 0; display: flex; flex-direction: column;
+      box-shadow: var(--card-shadow);
     }
-
     .chat-header {
-      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-      padding: 1.2rem 1.5rem;
+      background: linear-gradient(135deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      padding: 1.2rem 1.5rem; display: flex; align-items: center; gap: 12px;
+    }
+    .chat-avatar {
+      width: 48px; height: 48px; background: linear-gradient(135deg, var(--sbh-gold), var(--sbh-gold-deep));
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; color: #000;
+    }
+    .chat-info h3 { font-size: 1.2rem; margin: 0; }
+    .chat-info p { color: rgba(255,255,255,0.8); font-size: 0.85rem; margin: 0; }
+    .chat-status { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #4CAF50; }
+    .status-dot { width: 10px; height: 10px; background: #4CAF50; border-radius: 50%; animation: pulse 1.5s infinite; }
+
+    .chat-messages {
+      flex: 1; max-height: 55vh; overflow-y: auto; padding: 1.5rem;
+      display: flex; flex-direction: column; gap: 1rem;
+    }
+    .message { max-width: 85%; animation: fadeIn 0.3s ease; }
+    .message.bot { align-self: flex-start; }
+    .message.user { align-self: flex-end; }
+    .message-content {
+      padding: 0.9rem 1.2rem; border-radius: 20px; position: relative;
+      word-wrap: break-word; font-size: 0.95rem;
+    }
+    .bot .message-content {
+      background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+      border-bottom-left-radius: 4px;
+    }
+    .user .message-content {
+      background: linear-gradient(135deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      border-bottom-right-radius: 4px;
+    }
+    .typing-indicator {
+      display: flex; gap: 6px; padding: 0.8rem 1rem;
+      background: rgba(255,255,255,0.03); border-radius: 20px; width: fit-content;
+      margin: 0.5rem 0;
+    }
+    .typing-dot { width: 8px; height: 8px; background: var(--sbh-gold); border-radius: 50%; animation: pulse 1.5s infinite; }
+    .chat-options {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1rem;
+    }
+    .chat-option {
+      background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+      border-radius: 40px; padding: 0.5rem 1.2rem; font-size: 0.85rem;
+      cursor: pointer; transition: all 0.2s; color: var(--sbh-text-light);
+    }
+    .chat-option:hover { background: rgba(212,175,55,0.2); border-color: var(--sbh-gold); color: var(--sbh-gold); }
+    .chat-input-container {
+      padding: 1rem 1.5rem; border-top: 1px solid var(--glass-border);
+      background: rgba(0,0,0,0.2);
+    }
+    .chat-input-wrapper {
+      display: flex; gap: 10px; align-items: center;
+    }
+    .chat-input {
+      flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+      border-radius: 50px; padding: 0.8rem 1.2rem; color: white; font-size: 0.9rem;
+    }
+    .chat-input:focus { outline: none; border-color: var(--sbh-gold); }
+    .send-button {
+      background: linear-gradient(135deg, var(--sbh-gold), var(--sbh-gold-deep));
+      width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; color: #000; cursor: pointer; transition: 0.3s;
+    }
+    .send-button:hover { transform: scale(1.05); box-shadow: 0 0 12px var(--sbh-gold); }
+
+    /* FAQ */
+    .faq-section { margin: 3rem 0; }
+    .faq-container { max-width: 800px; margin: 0 auto; }
+    .faq-item {
+      background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border);
+      border-radius: 20px; margin-bottom: 1rem; overflow: hidden;
+      transition: 0.2s;
+    }
+    .faq-item.active { border-color: var(--sbh-gold); }
+    .faq-question {
+      padding: 1.2rem; display: flex; justify-content: space-between;
+      cursor: pointer; font-weight: 600;
+    }
+    .faq-question h3 { font-size: 1rem; margin: 0; }
+    .faq-toggle { color: var(--sbh-gold); transition: 0.2s; }
+    .faq-item.active .faq-toggle { transform: rotate(45deg); }
+    .faq-answer { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+    .faq-item.active .faq-answer { max-height: 400px; }
+    .faq-answer-content { padding: 0 1.2rem 1.2rem; color: var(--sbh-text-light); font-size: 0.9rem; }
+
+    /* Lecture essentielle (contenu existant mais design retravaillé) */
+    .lecture-boost {
+      margin: 3.5rem auto;
+    }
+    .lecture-header h2 {
+      text-align: left;
       display: flex;
       align-items: center;
       gap: 12px;
-      flex-shrink: 0;
     }
-
-    .chat-avatar {
-      width: 45px;
-      height: 45px;
-      background: linear-gradient(135deg, var(--accent-color), var(--accent-dark));
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.3rem;
-    }
-
-    .chat-info h3 {
-      font-size: 1.1rem;
-      font-weight: 700;
-      margin-bottom: 3px;
-    }
-
-    .chat-info p {
-      color: rgba(255, 255, 255, 0.8);
-      font-size: 0.85rem;
-    }
-
-    .chat-status {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.8rem;
-      color: #4CAF50;
-      margin-left: auto;
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      background: #4CAF50;
-      border-radius: 50%;
-    }
-
-    /* Chat Messages Container */
-    .chat-messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 1.5rem;
-      background: rgba(15, 26, 48, 0.7);
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .message {
-      max-width: 80%;
-      animation: fadeIn 0.3s ease forwards;
-    }
-
-    .message.bot {
-      align-self: flex-start;
-    }
-
-    .message.user {
-      align-self: flex-end;
-    }
-
-    .message-content {
-      padding: 1rem 1.2rem;
-      border-radius: var(--radius-md);
-      position: relative;
-      word-wrap: break-word;
-    }
-
-    .bot .message-content {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border-color);
-      border-bottom-left-radius: 4px;
-    }
-
-    .user .message-content {
-      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-      color: white;
-      border-bottom-right-radius: 4px;
-    }
-
-    .typing-indicator {
-      display: flex;
-      gap: 4px;
-      padding: 1rem;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: var(--radius-md);
-      width: fit-content;
-      margin-bottom: 1rem;
-    }
-
-    .typing-dot {
-      width: 8px;
-      height: 8px;
-      background: var(--accent-color);
-      border-radius: 50%;
-      animation: pulse 1.5s infinite;
-    }
-
-    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-
-    /* Chat Options */
-    .chat-options {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 1rem;
-    }
-
-    .chat-option {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      padding: 0.7rem 1.2rem;
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: var(--transition);
-    }
-
-    .chat-option:hover {
-      background: rgba(0, 191, 165, 0.1);
-      border-color: var(--accent-color);
-      color: var(--accent-color);
-    }
-
-    /* Chat Input */
-    .chat-input-container {
-      padding: 1rem 1.5rem;
-      background: var(--bg-tertiary);
-      border-top: 1px solid var(--border-color);
-      flex-shrink: 0;
-    }
-
-    .chat-input-wrapper {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-
-    .chat-input {
-      flex: 1;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      padding: 0.9rem 1.2rem;
-      color: var(--text-primary);
-      font-size: 0.95rem;
-      transition: var(--transition);
-    }
-
-    .chat-input:focus {
-      outline: none;
-      border-color: var(--accent-color);
-      box-shadow: 0 0 0 2px rgba(0, 191, 165, 0.2);
-    }
-
-    .send-button {
-      background: linear-gradient(135deg, var(--accent-color), var(--accent-dark));
-      border: none;
-      width: 45px;
-      height: 45px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      cursor: pointer;
-      transition: var(--transition);
-    }
-
-    .send-button:hover {
-      transform: scale(1.05);
-      box-shadow: 0 4px 15px rgba(0, 191, 165, 0.4);
-    }
-
-    /* FAQ Section - Minimal */
-    .faq-section {
-      margin: 3rem 0;
-    }
-
-    .section-header {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-
-    .section-title {
-      font-size: 2rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-      color: white;
-    }
-
-    .section-subtitle {
-      color: var(--text-secondary);
-      max-width: 600px;
-      margin: 0 auto;
-      font-size: 1rem;
-    }
-
-    .faq-container {
-      max-width: 800px;
-      margin: 0 auto;
-    }
-
-    .faq-item {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      margin-bottom: 1rem;
-      overflow: hidden;
-      transition: var(--transition);
-    }
-
-    .faq-item.active {
-      border-color: var(--accent-color);
-    }
-
-    .faq-question {
-      padding: 1.2rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      cursor: pointer;
-      transition: var(--transition);
-    }
-
-    .faq-question:hover {
-      background: rgba(255, 255, 255, 0.02);
-    }
-
-    .faq-question h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .faq-toggle {
-      width: 20px;
-      height: 20px;
-      background: rgba(0, 191, 165, 0.1);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--accent-color);
-      transition: var(--transition);
-      font-size: 0.8rem;
-    }
-
-    .faq-item.active .faq-toggle {
-      transform: rotate(45deg);
-    }
-
-    .faq-answer {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.3s ease;
-    }
-
-    .faq-item.active .faq-answer {
-      max-height: 500px;
-    }
-
-    .faq-answer-content {
-      padding: 0 1.2rem 1.2rem;
-      color: var(--text-secondary);
-      line-height: 1.6;
-      font-size: 0.95rem;
-    }
-
-    /* -------------------------------------------------------
-       NOUVELLE SECTION : Lecture essentielle (boost)
-       Style premium, animations, icônes
-    ------------------------------------------------------- */
-    .lecture-boost {
-      margin: 3.5rem auto;
-      max-width: 980px;
-    }
-
-    .lecture-header {
-      margin-bottom: 1.5rem;
-      text-align: left;
-    }
-
-    .lecture-header h2 {
-      font-size: 2rem;
-      font-weight: 700;
-      margin: 0 0 0.5rem;
-      background: linear-gradient(135deg, #fff, var(--accent-color));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      display: inline-block;
-    }
-
-    .lecture-header p {
-      color: var(--text-tertiary);
-      font-size: 1.1rem;
-      max-width: 800px;
-    }
-
     .lecture-article {
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-lg);
+      background: var(--glass-bg); backdrop-filter: blur(15px);
+      border: 1px solid var(--glass-border); border-radius: 28px;
       padding: 2rem;
-      color: var(--text-primary);
-      backdrop-filter: blur(10px);
-      box-shadow: var(--shadow-md);
-      transition: var(--transition);
     }
-
-    .lecture-article:hover {
-      border-color: rgba(0, 191, 165, 0.3);
-      box-shadow: 0 20px 40px rgba(0,191,165,0.1);
+    .lecture-article h3, .lecture-article h4 {
+      display: flex; align-items: center; gap: 10px;
+      margin-top: 2rem; margin-bottom: 0.8rem;
     }
-
-    .lecture-article h3,
-    .lecture-article h4 {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 1.8rem;
-      margin-bottom: 0.8rem;
-      font-weight: 600;
-    }
-
-    .lecture-article h3:first-of-type {
-      margin-top: 0;
-    }
-
-    .lecture-article h3 i,
-    .lecture-article h4 i {
-      color: var(--accent-color);
-      font-size: 1.2em;
-    }
-
-    .lecture-article ul,
-    .lecture-article ol {
-      padding-left: 1.8rem;
-      margin: 0.8rem 0 1.2rem;
-      color: var(--text-secondary);
-    }
-
-    .lecture-article li {
-      margin-bottom: 0.4rem;
-    }
-
-    .lecture-article strong {
-      color: white;
-    }
-
-    .lecture-article em {
-      color: var(--accent-color);
-    }
-
-    .lecture-article hr {
-      margin: 2rem 0;
-      border: none;
-      border-top: 1px solid var(--border-color);
-    }
-
+    .lecture-article h3:first-of-type { margin-top: 0; }
+    .lecture-article ul, .lecture-article ol { padding-left: 1.5rem; margin: 0.8rem 0; }
+    .lecture-article li { margin-bottom: 0.4rem; }
     .checklist {
-      background: rgba(0, 191, 165, 0.05);
-      border-left: 4px solid var(--accent-color);
-      padding: 1.5rem;
-      border-radius: 0 var(--radius-md) var(--radius-md) 0;
-      margin: 1.5rem 0;
+      background: rgba(0,191,165,0.05); border-left: 4px solid var(--sbh-gold);
+      padding: 1.2rem; border-radius: 16px; margin: 1.5rem 0;
     }
-
-    .checklist p {
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
-      margin-bottom: 0.5rem;
-    }
-
-    .checklist i {
-      color: var(--accent-color);
-      width: 20px;
-      text-align: center;
-    }
-
     .highlight-box {
-      background: linear-gradient(145deg, rgba(0,191,165,0.1), rgba(26,35,126,0.2));
-      border: 1px solid rgba(0,191,165,0.2);
-      border-radius: var(--radius-md);
-      padding: 1.5rem;
-      margin: 1.8rem 0;
+      background: rgba(212,175,55,0.05); border: 1px solid rgba(212,175,55,0.3);
+      border-radius: 20px; padding: 1.5rem; margin: 1.8rem 0;
     }
-
-    .highlight-box p {
-      margin-bottom: 0.5rem;
-    }
-
-    .highlight-box i {
-      color: var(--accent-color);
-      margin-right: 8px;
-    }
-
-    /* Contact Section */
+    /* Contact section */
     .contact-section {
-      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-      border-radius: var(--radius-lg);
-      padding: 2.5rem;
-      margin: 3rem 0;
-      text-align: center;
+      background: linear-gradient(135deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
+      border-radius: 28px; padding: 2.5rem; text-align: center; margin: 2rem 0;
     }
-
-    .contact-title {
-      font-size: 1.8rem;
-      font-weight: 700;
-      margin-bottom: 1rem;
-      color: white;
-    }
-
-    .contact-description {
-      color: rgba(255, 255, 255, 0.9);
-      max-width: 600px;
-      margin: 0 auto 1.5rem;
-      font-size: 1rem;
-    }
-
     .contact-buttons {
-      display: flex;
-      justify-content: center;
-      gap: 1rem;
-      flex-wrap: wrap;
+      display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;
     }
-
     .contact-button {
-      background: white;
-      color: var(--primary-color);
-      border: none;
-      padding: 0.8rem 1.5rem;
-      border-radius: var(--radius-md);
-      font-weight: 600;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: var(--transition);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      text-decoration: none;
+      background: white; color: var(--sbh-dark-blue); padding: 0.7rem 1.5rem;
+      border-radius: 40px; font-weight: 600; text-decoration: none;
+      display: inline-flex; align-items: center; gap: 8px; transition: 0.3s;
     }
+    .contact-button:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
 
-    .contact-button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    /* Footer */
+    footer {
+      background: rgba(8, 14, 26, 0.9); border-top: 1px solid var(--glass-border);
+      padding: 2rem 1rem; margin-top: 3rem;
     }
-
-    /* Footer - Minimal */
-    .footer {
-      background: var(--bg-tertiary);
-      border-top: 1px solid var(--border-color);
-      padding: 2rem 1rem 1.5rem;
-      margin-top: 3rem;
+    .footer-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem; max-width: 1200px; margin: 0 auto;
     }
+    .footer-grid h3 { font-size: 1.1rem; margin-bottom: 1rem; }
+    .footer-links { list-style: none; }
+    .footer-links li { margin-bottom: 0.5rem; }
+    .footer-links a { color: var(--sbh-text-light); text-decoration: none; transition: 0.3s; }
+    .footer-links a:hover { color: var(--sbh-gold); }
+    .footer-bottom { text-align: center; padding-top: 2rem; margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.05); color: var(--sbh-text-light); font-size: 0.85rem; }
 
-    .footer-content {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 2rem;
-    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-    .footer-section h3 {
-      font-size: 1rem;
-      font-weight: 700;
-      margin-bottom: 1rem;
-      color: white;
-    }
-
-    .footer-links {
-      list-style: none;
-    }
-
-    .footer-links li {
-      margin-bottom: 0.5rem;
-    }
-
-    .footer-links a {
-      color: var(--text-secondary);
-      text-decoration: none;
-      transition: var(--transition);
-      font-size: 0.9rem;
-    }
-
-    .footer-links a:hover {
-      color: var(--accent-color);
-    }
-
-    .footer-bottom {
-      text-align: center;
-      padding-top: 1.5rem;
-      margin-top: 2rem;
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
-      color: var(--text-tertiary);
-      font-size: 0.85rem;
-    }
-
-    /* Responsive Design */
     @media (max-width: 768px) {
-      .header {
-        padding: 0.8rem 1rem;
-      }
-
-      .logo-img {
-        height: 35px;
-      }
-
-      .logo-main {
-        font-size: 1rem;
-      }
-
-      .logo-sub {
-        font-size: 0.7rem;
-      }
-
-      .main-container {
-        padding: 4rem 0.5rem 0.5rem;
-      }
-
-      .hero-title {
-        font-size: 2rem;
-      }
-
-      .chat-assistant {
-        height: 65vh;
-      }
-
-      .message {
-        max-width: 90%;
-      }
-
-      .lecture-article {
-        padding: 1.5rem;
-      }
-
-      .lecture-header h2 {
-        font-size: 1.7rem;
-      }
-
-      .contact-section {
-        padding: 1.5rem;
-      }
-
-      .contact-title {
-        font-size: 1.5rem;
-      }
-
-      .contact-buttons {
-        flex-direction: column;
-        align-items: center;
-      }
-
-      .contact-button {
-        width: 100%;
-        justify-content: center;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .hero-title {
-        font-size: 1.7rem;
-      }
-
-      .section-title {
-        font-size: 1.5rem;
-      }
-
-      .chat-messages {
-        padding: 1rem;
-      }
-
-      .message-content {
-        padding: 0.8rem 1rem;
-      }
-
-      .lecture-header h2 {
-        font-size: 1.4rem;
-      }
-
-      .lecture-article {
-        padding: 1rem;
-      }
-
-      .footer-content {
-        grid-template-columns: 1fr;
-        text-align: center;
-      }
+      .hero-title { font-size: 1.8rem; }
+      .lecture-article { padding: 1.2rem; }
+      .chat-messages { max-height: 45vh; }
     }
   </style>
 </head>
 <body>
-  <!-- Header -->
-  <header class="header">
-    <div class="header-container">
-      <a href="dashboard.html" class="logo-link">
-        <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" 
-             alt="Social Boost Horizon" class="logo-img">
-        <div class="logo-text">
-          <span class="logo-main">Social Boost Horizon</span>
-          <span class="logo-sub">Assistance</span>
-        </div>
-      </a>
-      <a href="dashboard.html" class="back-btn">
-        <i class="fas fa-arrow-left"></i> Dashboard
-      </a>
+<div class="bg-grid"></div>
+<div class="background-animation"></div>
+
+<header>
+  <a href="dashboard.html" class="logo-link">
+    <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo" class="logo-img">
+    <div class="logo-text">
+      <span class="social">SOCIAL</span>
+      <span class="boost">BOOST</span>
+      <span class="horizon">HORIZON</span>
     </div>
-  </header>
+  </a>
+  <a href="dashboard.html" class="back-btn"><i class="fas fa-arrow-left"></i> Dashboard</a>
+</header>
 
-  <!-- Main Content -->
-  <main class="main-container">
-    <!-- Hero Section -->
-    <section class="hero-section" data-aos="fade-up">
-      <div class="hero-badge">
-        <i class="fas fa-headset"></i>
-        Support 24/7
-      </div>
-      <h1 class="hero-title">Assistance Instantanée</h1>
-      <p class="hero-subtitle">
-        Posez vos questions à notre assistant virtuel ou consultez notre FAQ pour des réponses rapides
-      </p>
-    </section>
+<main>
+  <div class="container">
+    <!-- Hero -->
+    <div class="hero-section" data-aos="fade-up">
+      <div class="hero-badge"><i class="fas fa-headset"></i> Support 24/7 & Stratégies</div>
+      <h1 class="hero-title">Assistance & Stratégies de Boost</h1>
+      <p class="hero-subtitle">Posez vos questions à notre assistant virtuel ou explorez nos guides complets pour une croissance maîtrisée.</p>
+    </div>
 
-    <!-- Chat Assistant -->
-    <section class="chat-assistant" data-aos="fade-up">
+    <!-- Chat Assistant (fonctionnalités intactes) -->
+    <div class="chat-assistant" data-aos="fade-up">
       <div class="chat-header">
-        <div class="chat-avatar">
-          <i class="fas fa-robot"></i>
-        </div>
+        <div class="chat-avatar"><i class="fas fa-robot"></i></div>
         <div class="chat-info">
           <h3>Assistant Horizon</h3>
           <p>Expert en boost et stratégies réseaux sociaux</p>
         </div>
-        <div class="chat-status">
-          <div class="status-dot"></div>
-          <span>En ligne • Réponse instantanée</span>
-        </div>
+        <div class="chat-status"><div class="status-dot"></div><span>En ligne • réponse instantanée</span></div>
       </div>
-
-      <!-- Chat Messages Container -->
       <div class="chat-messages" id="chatMessages">
-        <!-- Initial message -->
-        <div class="message bot">
-          <div class="message-content">
-            Bonjour ! 👋 Je suis votre assistant Horizon.<br><br>
-            Je peux vous aider à comprendre :
-            • Les chutes (baisses) après un boost<br>
-            • La différence entre qualité moyenne et haute qualité<br>
-            • Les stratégies pour booster efficacement<br>
-            • La procédure de réclamation<br><br>
-            <strong>Quelle est votre question aujourd'hui ?</strong>
-            <div class="chat-options" id="initialOptions">
-              <!-- Options will be inserted by JavaScript -->
-            </div>
-          </div>
-        </div>
+        <!-- Le message initial sera inséré par JS -->
       </div>
-
-      <!-- Typing Indicator (Hidden by default) -->
       <div class="typing-indicator" id="typingIndicator" style="display: none;">
-        <div class="typing-dot"></div>
-        <div class="typing-dot"></div>
-        <div class="typing-dot"></div>
+        <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
       </div>
-
-      <!-- Chat Input -->
       <div class="chat-input-container">
         <div class="chat-input-wrapper">
-          <input type="text" class="chat-input" id="userInput" placeholder="Écrivez votre question ici..." maxlength="300">
-          <button class="send-button" id="sendButton">
-            <i class="fas fa-paper-plane"></i>
-          </button>
+          <input type="text" class="chat-input" id="userInput" placeholder="Écrivez votre question..." maxlength="300">
+          <button class="send-button" id="sendButton"><i class="fas fa-paper-plane"></i></button>
         </div>
-        <div class="chat-options" id="quickOptions" style="margin-top: 0.8rem;">
-          <!-- Quick options will be inserted by JavaScript -->
-        </div>
+        <div class="chat-options" id="quickOptions" style="margin-top: 0.8rem;"></div>
       </div>
-    </section>
+    </div>
 
     <!-- FAQ Section -->
-    <section class="faq-section" data-aos="fade-up">
-      <div class="section-header">
-        <h2 class="section-title">Questions Fréquentes</h2>
-        <p class="section-subtitle">
-          Réponses rapides aux questions les plus courantes
-        </p>
+    <div class="faq-section" data-aos="fade-up">
+      <div class="section-header" style="text-align:center; margin-bottom:2rem;">
+        <h2>Questions fréquentes</h2>
+        <p class="hero-subtitle" style="font-size:0.95rem;">Réponses rapides aux interrogations courantes</p>
       </div>
-
       <div class="faq-container">
-        <!-- Question 1 -->
-        <div class="faq-item">
-          <div class="faq-question" onclick="toggleFAQ(this)">
-            <h3>Combien de temps dure une livraison ?</h3>
-            <div class="faq-toggle">
-              <i class="fas fa-plus"></i>
-            </div>
-          </div>
-          <div class="faq-answer">
-            <div class="faq-answer-content">
-              <p>Les délais de livraison varient selon le type de service :</p>
-              <ul style="margin-top: 0.8rem; padding-left: 1.2rem;">
-                <li><strong>Service Rapide :</strong> 1 à 10 minutes</li>
-                <li><strong>Service Standard :</strong> 1 à 7 heures</li>
-                <li><strong>Service Premium :</strong> 2 à 24 heures</li>
-                <li><strong>Grandes quantités :</strong> Jusqu'à 72 heures avec livraison progressive</li>
-              </ul>
-              <p style="margin-top: 1rem;"><strong>Garantie :</strong> 30 jours après la livraison pour la haute qualité, garantie à vie pour certains services spécifiques.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Question 2 -->
-        <div class="faq-item">
-          <div class="faq-question" onclick="toggleFAQ(this)">
-            <h3>Quelle est la différence entre qualité moyenne et haute qualité ?</h3>
-            <div class="faq-toggle">
-              <i class="fas fa-plus"></i>
-            </div>
-          </div>
-          <div class="faq-answer">
-            <div class="faq-answer-content">
-              <p><strong>Qualité Moyenne :</strong></p>
-              <ul style="margin: 0.5rem 0 1rem 1.2rem;">
-                <li>Prix plus abordable</li>
-                <li>Livraison rapide</li>
-                <li>Idéal pour tester ou créer une preuve sociale</li>
-                <li>Chutes possibles mais normales</li>
-              </ul>
-              
-              <p><strong>Haute Qualité :</strong></p>
-              <ul style="margin: 0.5rem 0 1rem 1.2rem;">
-                <li>Comptes plus stables et actifs</li>
-                <li>Moins de chutes</li>
-                <li>Idéal pour monétisation et comptes sérieux</li>
-                <li>Réclamation gratuite disponible</li>
-                <li>Garantie 30 jours</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        <!-- Question 3 -->
-        <div class="faq-item">
-          <div class="faq-question" onclick="toggleFAQ(this)">
-            <h3>Comment faire une réclamation ?</h3>
-            <div class="faq-toggle">
-              <i class="fas fa-plus"></i>
-            </div>
-          </div>
-          <div class="faq-answer">
-            <div class="faq-answer-content">
-              <p>Pour faire une réclamation gratuite :</p>
-              <ol style="margin: 0.8rem 0 1rem 1.2rem;">
-                <li>Assurez-vous que le service est en <strong>haute qualité</strong></li>
-                <li>Vérifiez que la perte dépasse <strong>10%</strong> de la quantité commandée</li>
-                <li>Réclamez dans les <strong>30 jours</strong> suivant la livraison</li>
-                <li>Contactez le support via WhatsApp ou email avec vos preuves</li>
-              </ol>
-              <p><strong>Support WhatsApp :</strong> +237 699 85 36 65</p>
-              <p><strong>Email :</strong> socialboosthorizon984@gmail.com</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Question 4 -->
-        <div class="faq-item">
-          <div class="faq-question" onclick="toggleFAQ(this)">
-            <h3>Pourquoi y a-t-il des chutes après un boost ?</h3>
-            <div class="faq-toggle">
-              <i class="fas fa-plus"></i>
-            </div>
-          </div>
-          <div class="faq-answer">
-            <div class="faq-answer-content">
-              <p>Les chutes sont normales et se produisent sur toutes les plateformes :</p>
-              <ul style="margin: 0.8rem 0 1rem 1.2rem;">
-                <li>Les plateformes suppriment régulièrement les comptes inactifs</li>
-                <li>Nettoyage des faux profils par les algorithmes</li>
-                <li>Ajustements automatiques des statistiques</li>
-                <li>Suppression des interactions jugées non naturelles</li>
-              </ul>
-              <p>Même une croissance 100% organique peut subir des baisses. La haute qualité réduit considérablement ces chutes.</p>
-            </div>
-          </div>
-        </div>
+        <div class="faq-item"><div class="faq-question" onclick="toggleFAQ(this)"><h3>Combien de temps dure une livraison ?</h3><div class="faq-toggle"><i class="fas fa-plus"></i></div></div><div class="faq-answer"><div class="faq-answer-content"><p>Les délais varient selon le service :</p><ul><li><strong>Rapide :</strong> 1 à 10 min</li><li><strong>Standard :</strong> 1 à 7 h</li><li><strong>Premium :</strong> 2 à 24 h</li><li><strong>Grandes quantités :</strong> jusqu'à 72 h</li></ul><p>Garantie 30 jours pour haute qualité.</p></div></div></div>
+        <div class="faq-item"><div class="faq-question" onclick="toggleFAQ(this)"><h3>Différence entre qualité moyenne et haute qualité ?</h3><div class="faq-toggle"><i class="fas fa-plus"></i></div></div><div class="faq-answer"><div class="faq-answer-content"><p><strong>Qualité moyenne :</strong> prix abordable, livraison rapide, chutes possibles.<br><strong>Haute qualité :</strong> comptes stables, moins de chutes, réclamation gratuite, garanti 30 jours.</p></div></div></div>
+        <div class="faq-item"><div class="faq-question" onclick="toggleFAQ(this)"><h3>Comment faire une réclamation ?</h3><div class="faq-toggle"><i class="fas fa-plus"></i></div></div><div class="faq-answer"><div class="faq-answer-content"><p>Conditions : service haute qualité, perte >10%, dans les 30 jours. Contactez WhatsApp +237 699 85 36 65 ou email socialboosthorizon984@gmail.com avec preuves.</p></div></div></div>
+        <div class="faq-item"><div class="faq-question" onclick="toggleFAQ(this)"><h3>Pourquoi des chutes après un boost ?</h3><div class="faq-toggle"><i class="fas fa-plus"></i></div></div><div class="faq-answer"><div class="faq-answer-content"><p>Les plateformes suppriment les comptes inactifs et nettoient les interactions. C'est normal. La haute qualité réduit ces chutes.</p></div></div></div>
       </div>
-    </section>
+    </div>
 
-    <!-- =================================================== -->
-    <!-- NOUVELLE SECTION : Lecture essentielle (boost)      -->
-    <!-- =================================================== -->
-    <section id="lecture-boost" class="lecture-boost" data-aos="fade-up" data-aos-duration="900">
-      <div class="lecture-header" data-aos="fade-right" data-aos-delay="100">
-        <h2><i class="fas fa-book-open" style="color: var(--accent-color); margin-right: 10px;"></i> Lecture essentielle — Comprendre le boost</h2>
+    <!-- Lecture essentielle (contenu original enrichi visuellement) -->
+    <section id="lecture-boost" class="lecture-boost" data-aos="fade-up">
+      <div class="lecture-header" data-aos="fade-right">
+        <h2><i class="fas fa-book-open" style="color: var(--sbh-gold);"></i> Lecture essentielle — Comprendre le boost</h2>
         <p>Tout ce qu’il faut savoir pour booster intelligemment : chutes, qualité, abonnés réels, bonnes pratiques et exemples concrets.</p>
       </div>
-
-      <article class="lecture-article" data-aos="fade-up" data-aos-delay="200">
+      <article class="lecture-article" data-aos="fade-up" data-aos-delay="100">
         <h3><i class="fas fa-chart-line"></i> 1. Les chutes (baisses) — pourquoi c’est normal</h3>
-        <p>Après un boost, il est courant d’observer une diminution partielle des abonnés, vues ou likes. Cela arrive parce que les plateformes (TikTok, Instagram, Facebook, YouTube...) procèdent régulièrement à des nettoyages :</p>
-        <ul>
-          <li>suppression ou désactivation de comptes inactifs ;</li>
-          <li>détection et retrait d'interactions jugées non naturelles ;</li>
-          <li>changements d’algorithme et vérifications de sécurité.</li>
-        </ul>
-        <p><strong>Conclusion :</strong> une baisse n’est pas une arnaque — c’est une réalité technique et commune à tous les services de boost.</p>
-
+        <p>Après un boost, il est courant d’observer une diminution partielle des abonnés, vues ou likes. Cela arrive parce que les plateformes (TikTok, Instagram, Facebook, YouTube...) procèdent régulièrement à des nettoyages : suppression ou désactivation de comptes inactifs ; détection et retrait d'interactions jugées non naturelles ; changements d’algorithme et vérifications de sécurité. Une baisse n’est pas une arnaque — c’est une réalité technique et commune à tous les services de boost.</p>
         <h3><i class="fas fa-layer-group"></i> 2. Qualité moyenne vs Haute qualité</h3>
-        <p><strong>Qualité moyenne (Medium)</strong> : comptes réels qui réalisent l’action demandée (abonnement, like, vue). Avantages : plus économique, livraison rapide. Inconvénient : rétention plus faible — les pertes initiales peuvent être plus marquées.</p>
-        <p><strong>Haute qualité (Premium / Élite)</strong> : comptes plus stables et plus actifs, interactions plus naturelles. Avantage : meilleure rétention, moins de chutes, idéal pour la monétisation et la crédibilité. Inconvénient : coût supérieur.</p>
-
+        <p><strong>Qualité moyenne (Medium)</strong> : comptes réels qui réalisent l’action demandée. Avantages : plus économique, livraison rapide. Inconvénient : rétention plus faible — les pertes initiales peuvent être plus marquées.<br><strong>Haute qualité (Premium / Élite)</strong> : comptes plus stables et plus actifs, interactions plus naturelles. Avantage : meilleure rétention, moins de chutes, idéal pour la monétisation et la crédibilité.</p>
         <h3><i class="fas fa-cart-shopping"></i> 3. Acheter intelligemment : quantité, fréquence et mix</h3>
-        <p>Le boost doit ressembler au comportement organique d’un public. Si vous augmentez fortement les vues sans engagement (likes, commentaires, abonnés), la croissance paraît artificielle et attire les nettoyages.</p>
-        <p><strong>Règles pratiques :</strong></p>
-        <ul>
-          <li>Évitez d’envoyer plusieurs commandes simultanées sur le même lien.</li>
-          <li>Fractionnez vos volumes : ex. 2–3 étapes sur plusieurs jours plutôt qu’un seul pic.</li>
-          <li>Mélangez les types d’actions : vues + likes + commentaires + abonnés.</li>
-        </ul>
-
+        <p>Le boost doit ressembler au comportement organique d’un public. Si vous augmentez fortement les vues sans engagement (likes, commentaires, abonnés), la croissance paraît artificielle et attire les nettoyages.<br>Règles pratiques : évitez d’envoyer plusieurs commandes simultanées sur le même lien ; fractionnez vos volumes ; mélangez les types d’actions (vues + likes + commentaires + abonnés).</p>
         <h4><i class="fas fa-bullseye"></i> Exemples de stratégie</h4>
-        <ul>
-          <li><strong>Test rapide (budget limité)</strong> : 2 000 vues + 150 likes sur 48–72h pour voir réponse organique.</li>
-          <li><strong>Lancement pro (monétisation)</strong> : 10 000 vues sur 7 jours + 1 000 likes + 150 commentaires + 1 000 abonnés haute qualité (progressif).</li>
-        </ul>
-
+        <ul><li><strong>Test rapide (budget limité)</strong> : 2 000 vues + 150 likes sur 48–72h.</li><li><strong>Lancement pro (monétisation)</strong> : 10 000 vues sur 7 jours + 1 000 likes + 150 commentaires + 1 000 abonnés haute qualité (progressif).</li></ul>
         <h3><i class="fas fa-shield"></i> 4. Réclamations & garanties</h3>
-        <p>Nous proposons un système de réclamation principalement pour les commandes en <strong>haute qualité</strong>. Si vous constatez une baisse importante après la période de stabilisation :</p>
-        <ol>
-          <li>Vérifiez le seuil d’éligibilité (indiqué dans votre commande).</li>
-          <li>Ouvrez une réclamation depuis votre tableau de bord (case « Réclamation ») en joignant : numéro de commande, date de réception, capture d’écran si nécessaire, et le détail de la perte.</li>
-          <li>Si la commande est éligible, nous procédons au réapprovisionnement gratuitement.</li>
-        </ol>
-        <p><em>Important :</em> les délais et conditions exacts sont disponibles sur votre tableau de bord → section réclamations.</p>
-
+        <p>Nous proposons un système de réclamation principalement pour les commandes en <strong>haute qualité</strong>. Si vous constatez une baisse importante après la période de stabilisation : vérifiez le seuil d’éligibilité, ouvrez une réclamation depuis votre tableau de bord en joignant numéro de commande, captures, et détail de la perte. Si la commande est éligible, nous procédons au réapprovisionnement gratuitement.</p>
         <h3><i class="fas fa-user-check"></i> 5. Abonnés réels vs robots — ce qu’il faut comprendre</h3>
-        <p><strong>Les abonnés que nous fournissons sont des personnes réelles</strong>, pas des robots programmés. Cela a deux conséquences majeures :</p>
-        <ul>
-          <li><strong>Engagement conditionnel :</strong> ces personnes interagiront uniquement si votre contenu les intéresse réellement.</li>
-          <li><strong>Pas d’engagement automatique :</strong> contrairement à un bot, une personne ne commentera ou ne partagera pas si le contenu ne correspond pas à ses centres d’intérêt.</li>
-        </ul>
-
-        <h4><i class="fas fa-question-circle"></i> Pourquoi certains abonnés « semblent inactifs »</h4>
-        <ul>
-          <li>Ils ne partagent pas votre niche : ex. abonnés fans de musique ne réagiront pas à un contenu de fitness.</li>
-          <li>Ils ont peu de temps ou ne voient pas toutes vos publications.</li>
-          <li>Ils ont un comportement passif : s’abonner sans interagir régulièrement.</li>
-        </ul>
-
+        <p><strong>Les abonnés que nous fournissons sont des personnes réelles</strong>, pas des robots programmés. Cela a deux conséquences majeures : engagement conditionnel (ils interagissent si le contenu les intéresse) et pas d’engagement automatique. Certains abonnés peuvent sembler inactifs car ils ne partagent pas votre niche, ont peu de temps ou adoptent un comportement passif.</p>
         <h4><i class="fas fa-rocket"></i> Comment transformer des abonnés achetés en vrais fans actifs</h4>
-        <ol>
-          <li><strong>Adapter le contenu à la cible</strong> : si vous achetez des abonnés d’un pays ou d’un intérêt précis, publiez des contenus qui leur parlent (langue, format, sujets locaux).</li>
-          <li><strong>Appel à l’action</strong> : ajouter un CTA clair (commenter, partager, taguer un ami) augmente le taux d’engagement.</li>
-          <li><strong>Contenu récurrent et qualitatif</strong> : séries de vidéos, épisodes, tutoriels ou rubriques que l’audience attendent.</li>
-          <li><strong>Interaction réelle</strong> : répondez aux commentaires, likez, épinglez une réponse — cela stimule la participation.</li>
-          <li><strong>Timing</strong> : poster aux heures où votre audience est active augmente la visibilité.</li>
-        </ol>
-
-        <h4><i class="fas fa-lightbulb"></i> Exemples concrets</h4>
-        <ul>
-          <li><strong>Chaîne cuisine ciblée France</strong> : achetez abonnés francophones → publiez recettes locales, CTA « taguez un ami qui veut tester » → plus de commentaires.</li>
-          <li><strong>Compte fitness ciblé Afrique francophone</strong> : achetez abonnés d’Afrique → publiez courtes routines, avant/après, horaires d’entraînement → hausse d’interactions.</li>
-        </ul>
-
-        <h3><i class="fas fa-user-slash"></i> 6. Comptes inactifs et suppressions par les plateformes</h3>
-        <p>Un compte devient « inactif » pour des raisons variées : oubli de mot de passe, perte d’accès, suppression volontaire, suspension, ou simplement absence de connexion pendant longtemps. Quand la plateforme détecte ce comportement, elle peut supprimer le compte — d’où les chutes.</p>
-        <p><strong>Conséquences :</strong> ces suppressions expliquent une part des pertes et sont indépendantes de notre volonté.</p>
-
-        <!-- Ajout d'un encart "Stratégie pas à pas" (développement personnel) -->
-        <div class="highlight-box" data-aos="zoom-in" data-aos-delay="300">
-          <h4 style="margin-top: 0;"><i class="fas fa-tasks"></i> 🧠 Stratégie pas à pas – Exemple concret</h4>
+        <ol><li>Adapter le contenu à la cible.</li><li>Ajouter des appels à l’action clairs.</li><li>Publier du contenu récurrent et qualitatif.</li><li>Interagir réellement (répondre aux commentaires).</li><li>Poster aux heures de forte activité.</li></ol>
+        <div class="highlight-box">
+          <h4 style="margin-top:0;"><i class="fas fa-tasks"></i> 🧠 Stratégie pas à pas – Exemple concret</h4>
           <p><strong>Objectif :</strong> Atteindre 5 000 abonnés en 30 jours avec une bonne rétention.</p>
-          <ul style="margin-bottom: 0;">
-            <li><i class="fas fa-check-circle" style="color: var(--accent-color);"></i> Semaine 1 : 1 500 abonnés HQ + 8 000 vues + 300 likes</li>
-            <li><i class="fas fa-check-circle" style="color: var(--accent-color);"></i> Semaine 2 : 2 000 abonnés HQ + 12 000 vues + 500 likes + 50 commentaires</li>
-            <li><i class="fas fa-check-circle" style="color: var(--accent-color);"></i> Semaine 3 : 1 500 abonnés HQ + 15 000 vues + 600 likes + 80 commentaires</li>
-            <li><i class="fas fa-check-circle" style="color: var(--accent-color);"></i> Semaine 4 : consolidation, contenu quotidien, stories</li>
-          </ul>
-          <p style="margin-top: 1rem; margin-bottom: 0;"><em>Résultat attendu :</em> un compte qui paraît naturel, avec un taux d’engagement réel en hausse.</p>
+          <ul><li>Semaine 1 : 1 500 abonnés HQ + 8 000 vues + 300 likes</li><li>Semaine 2 : 2 000 abonnés HQ + 12 000 vues + 500 likes + 50 commentaires</li><li>Semaine 3 : 1 500 abonnés HQ + 15 000 vues + 600 likes + 80 commentaires</li><li>Semaine 4 : consolidation, contenu quotidien, stories</li></ul>
+          <p><em>Résultat attendu :</em> un compte qui paraît naturel, avec un taux d’engagement réel en hausse.</p>
         </div>
-
         <h3><i class="fas fa-clipboard-list"></i> 7. Résumé & checklist actionnable</h3>
         <div class="checklist">
           <p><i class="fas fa-check-circle"></i> Définir l’objectif : preuve sociale rapide vs monétisation.</p>
@@ -1135,497 +412,155 @@
           <p><i class="fas fa-check-circle"></i> Ne pas multiplier les commandes simultanées sur le même lien.</p>
           <p><i class="fas fa-check-circle"></i> Si perte importante sur une commande Premium : déposer une réclamation via le tableau de bord avec preuves.</p>
         </div>
-
         <h3><i class="fas fa-question"></i> FAQ rapide (pratiques)</h3>
-        <p><strong>Q :</strong> Combien de baisse est « normale » ?<br>
-           <strong>R :</strong> Cela varie selon la qualité. À titre indicatif : qualité moyenne → pertes possibles de <em>quelques % à ~20–30%</em> dans certains cas ; haute qualité → pertes généralement <em>inférieures à 10%</em>. Ces chiffres sont des fourchettes approximatives et peuvent varier selon la plateforme et la période.</p>
-
-        <!-- Encart "Ce qu'il faut retenir" (ajout personnel) -->
-        <div class="highlight-box" style="background: rgba(0,191,165,0.08); border-color: var(--accent-color); margin-top: 2rem;" data-aos="fade-up" data-aos-delay="400">
-          <h4 style="margin-top: 0;"><i class="fas fa-gem"></i> Ce qu’il faut retenir</h4>
-          <p style="margin-bottom: 0;"><i class="fas fa-arrow-right"></i> Le boost est un accélérateur, pas une baguette magique. Il fonctionne mieux quand il est utilisé intelligemment et en complément d’un contenu pertinent. Social Boost Horizon fournit des outils et des garanties (selon le service) — la réussite dépend ensuite de votre stratégie de contenu et de votre constance.</p>
+        <p><strong>Q :</strong> Combien de baisse est « normale » ?<br><strong>R :</strong> qualité moyenne → pertes possibles de quelques % à ~20–30% ; haute qualité → pertes généralement inférieures à 10%. Ces chiffres sont des fourchettes approximatives.</p>
+        <div class="highlight-box" style="background: rgba(212,175,55,0.05);">
+          <h4 style="margin-top:0;"><i class="fas fa-gem"></i> Ce qu’il faut retenir</h4>
+          <p>Le boost est un accélérateur, pas une baguette magique. Il fonctionne mieux quand il est utilisé intelligemment et en complément d’un contenu pertinent. Social Boost Horizon fournit des outils et des garanties — la réussite dépend ensuite de votre stratégie de contenu et de votre constance.</p>
         </div>
       </article>
     </section>
 
     <!-- Contact Section -->
-    <section class="contact-section" data-aos="fade-up">
-      <h2 class="contact-title">Contact Direct</h2>
-      <p class="contact-description">
-        Besoin d'une aide personnalisée ? Notre équipe est disponible pour vous accompagner
-      </p>
+    <div class="contact-section" data-aos="fade-up">
+      <h2 style="color:white;">Contact Direct</h2>
+      <p class="hero-subtitle" style="color:rgba(255,255,255,0.9);">Une question personnalisée ? Notre équipe est à votre écoute.</p>
       <div class="contact-buttons">
-        <a href="https://wa.me/237699853665" target="_blank" class="contact-button">
-          <i class="fab fa-whatsapp"></i> WhatsApp Support
-        </a>
-        <a href="mailto:socialboosthorizon984@gmail.com" class="contact-button">
-          <i class="fas fa-envelope"></i> Email Support
-        </a>
-        <a href="communaute.html" class="contact-button">
-          <i class="fas fa-users"></i> Communauté
-        </a>
-      </div>
-    </section>
-  </main>
-
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="footer-content">
-      <div class="footer-section">
-        <h3>Social Boost Horizon</h3>
-        <p style="color: var(--text-secondary); margin-top: 0.5rem; font-size: 0.9rem;">
-          Votre partenaire pour une croissance intelligente sur les réseaux sociaux.
-        </p>
-      </div>
-
-      <div class="footer-section">
-        <h3>Liens Rapides</h3>
-        <ul class="footer-links">
-          <li><a href="dashboard.html">Dashboard</a></li>
-          <li><a href="services.html">Services</a></li>
-          <li><a href="strategie-de-boost.html">Stratégies</a></li>
-          <li><a href="assistance.html">Assistance</a></li>
-        </ul>
-      </div>
-
-      <div class="footer-section">
-        <h3>Support</h3>
-        <ul class="footer-links">
-          <li><a href="faq.html">FAQ</a></li>
-          <li><a href="communaute.html">Communauté</a></li>
-          <li><a href="conditions.html">Conditions</a></li>
-        </ul>
+        <a href="https://wa.me/237699853665" target="_blank" class="contact-button"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+        <a href="mailto:socialboosthorizon984@gmail.com" class="contact-button"><i class="fas fa-envelope"></i> Email</a>
+        <a href="communaute.html" class="contact-button"><i class="fas fa-users"></i> Communauté</a>
       </div>
     </div>
+  </div>
+</main>
 
-    <div class="footer-bottom">
-      <p>&copy; 2026 Social Boost Horizon. Tous droits réservés.</p>
-    </div>
-  </footer>
+<footer>
+  <div class="footer-grid">
+    <div><h3>Social Boost Horizon</h3><p style="color:var(--sbh-text-light);">Votre partenaire pour une croissance intelligente sur les réseaux sociaux.</p></div>
+    <div><h3>Liens Rapides</h3><ul class="footer-links"><li><a href="dashboard.html">Dashboard</a></li><li><a href="services.html">Services</a></li><li><a href="strategie-de-boost.html">Stratégies</a></li><li><a href="assistance.html">Assistance</a></li></ul></div>
+    <div><h3>Support</h3><ul class="footer-links"><li><a href="faq.html">FAQ</a></li><li><a href="communaute.html">Communauté</a></li><li><a href="conditions.html">Conditions</a></li></ul></div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 Social Boost Horizon. Tous droits réservés.</p></div>
+</footer>
 
-  <!-- Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
-  
-  <script>
-    // Configuration Firebase
-    const firebaseConfig = {
-      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-      authDomain: "social-boost-horizon.firebaseapp.com",
-      projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.appspot.com",
-      messagingSenderId: "43658165639",
-      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
-    };
+<script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+<script>
+  AOS.init({ duration: 800, once: true, offset: 50 });
 
-    // Initialiser Firebase
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
+  // Firebase
+  const firebaseConfig = {
+    apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+    authDomain: "social-boost-horizon.firebaseapp.com",
+    projectId: "social-boost-horizon",
+    storageBucket: "social-boost-horizon.appspot.com",
+    messagingSenderId: "43658165639",
+    appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
 
-    // Base de connaissances du chatbot
-    const knowledgeBase = {
-      'menu': {
-        title: 'Menu Principal',
-        content: `Que souhaitez-vous savoir ?`,
-        options: [
-          { text: '📉 Pourquoi les chutes ?', value: 'chutes' },
-          { text: '🎯 Différence qualités', value: 'qualites' },
-          { text: '🚀 Stratégies efficaces', value: 'strategies' },
-          { text: '🛡️ Procédure réclamation', value: 'reclamation' },
-          { text: '⏱️ Délais livraison', value: 'delais' },
-          { text: '👨‍💻 Contact support', value: 'support' }
-        ]
-      },
-      
-      'chutes': {
-        title: 'Comprendre les chutes',
-        content: `Les chutes (baisses) sont normales sur toutes les plateformes :
-        
-        🔹 **Pourquoi ?**
-        • Les plateformes suppriment les comptes inactifs
-        • Nettoyage des faux profils par les algorithmes
-        • Ajustements automatiques des statistiques
-        • Suppression des interactions jugées non naturelles
-        
-        🔹 **Chiffres typiques :**
-        • Qualité moyenne : 70-85% rétention après 30 jours
-        • Haute qualité : 85-95% rétention après 30 jours
-        
-        ⚠️ **Important :**
-        Une chute n'est pas une arnaque, c'est un phénomène normal du marketing digital.`,
-        options: [
-          { text: '🎯 Différence qualités', value: 'qualites' },
-          { text: '🚀 Comment réduire les chutes', value: 'strategies' },
-          { text: '🛡️ Réclamation gratuite', value: 'reclamation' },
-          { text: '🏠 Menu principal', value: 'menu' }
-        ]
-      },
-      
-      'qualites': {
-        title: 'Différence qualité moyenne vs haute qualité',
-        content: `**🟢 QUALITÉ MOYENNE :**
-        • Prix abordable
-        • Livraison rapide (1-10 min)
-        • Idéal pour tests/preuve sociale
-        • Chutes possibles mais normales
-        
-        **🔵 HAUTE QUALITÉ :**
-        • Comptes stables et actifs
-        • Moins de chutes
-        • Idéal pour monétisation
-        • Réclamation gratuite disponible
-        • Garantie 30 jours
-        
-        📌 **Recommandation :**
-        Pour monétisation et comptes sérieux → **HAUTE QUALITÉ**`,
-        options: [
-          { text: '📉 Comprendre les chutes', value: 'chutes' },
-          { text: '🚀 Stratégies efficaces', value: 'strategies' },
-          { text: '⏱️ Délais livraison', value: 'delais' },
-          { text: '🏠 Menu principal', value: 'menu' }
-        ]
-      },
-      
-      'strategies': {
-        title: 'Stratégies efficaces',
-        content: `🎯 **Bonnes pratiques :**
-        
-        ✅ **À faire :**
-        • Espacer les commandes (3-7 jours minimum)
-        • Mélanger vues + likes + commentaires
-        • Augmenter progressivement
-        • Respecter la logique naturelle
-        
-        ❌ **À éviter :**
-        • Commander plusieurs fois sur le même lien
-        • Commander des quantités énormes d'un coup
-        • Booster sans likes ni commentaires
-        • Commander tous les jours
-        
-        📈 **Exemple stratégie :**
-        Jour 1 : 2 000 vues + 100 likes
-        Jour 3 : 3 000 vues + 150 likes
-        Jour 6 : 5 000 vues + commentaires`,
-        options: [
-          { text: '🎯 Différence qualités', value: 'qualites' },
-          { text: '📉 Comprendre les chutes', value: 'chutes' },
-          { text: '🛡️ Réclamation', value: 'reclamation' },
-          { text: '🏠 Menu principal', value: 'menu' }
-        ]
-      },
-      
-      'reclamation': {
-        title: 'Procédure de réclamation',
-        content: `🛡️ **Conditions d\'éligibilité :**
-        • Service en **haute qualité** uniquement
-        • Perte supérieure à **10%**
-        • Réclamation dans les **30 jours** après livraison
-        • Preuves d'achat et de baisse fournies
-        
-        📋 **Procédure :**
-        1. Vérifiez l'éligibilité
-        2. Contactez le support WhatsApp ou email
-        3. Fournissez les preuves
-        4. Notre équipe traite en 24-48h
-        
-        📞 **Contact support :**
-        WhatsApp : +237 699 85 36 65
-        Email : socialboosthorizon984@gmail.com`,
-        options: [
-          { text: '🎯 Différence qualités', value: 'qualites' },
-          { text: '⏱️ Délais livraison', value: 'delais' },
-          { text: '👨‍💻 Contact direct', value: 'support' },
-          { text: '🏠 Menu principal', value: 'menu' }
-        ]
-      },
-      
-      'delais': {
-        title: 'Délais de livraison',
-        content: `⏱️ **Délais selon les services :**
-        
-        🚀 **Service Rapide :** 1 à 10 minutes
-        📦 **Service Standard :** 1 à 7 heures
-        ⭐ **Service Premium :** 2 à 24 heures
-        📊 **Grandes quantités :** Jusqu'à 72 heures (livraison progressive)
-        
-        ⚠️ **Note :**
-        • La qualité haute peut prendre plus de temps pour une meilleure stabilité
-        • Les délais peuvent varier selon la charge du serveur
-        • Vous recevez des notifications à chaque étape
-        
-        🔒 **Garantie :**
-        • Haute qualité : 30 jours après livraison
-        • Certains services : Garantie à vie`,
-        options: [
-          { text: '🎯 Différence qualités', value: 'qualites' },
-          { text: '🛡️ Réclamation', value: 'reclamation' },
-          { text: '🚀 Stratégies', value: 'strategies' },
-          { text: '🏠 Menu principal', value: 'menu' }
-        ]
-      },
-      
-      'support': {
-        title: 'Contact support',
-        content: `👨‍💻 **Support Social Boost Horizon :**
-        
-        📱 **WhatsApp :** +237 699 85 36 65
-        📧 **Email :** socialboosthorizon984@gmail.com
-        🌐 **Site :** Social Boost Horizon
-        
-        ⏰ **Disponibilité :**
-        • Support WhatsApp : 8h - 22h (GMT+1)
-        • Email : Réponse sous 24h
-        • Urgences : Disponible 24/7
-        
-        🎯 **Pour une réponse rapide :**
-        • Précisez votre question
-        • Fournissez votre email
-        • Indiquez le service concerné`,
-        options: [
-          { text: '📉 Comprendre les chutes', value: 'chutes' },
-          { text: '🛡️ Réclamation', value: 'reclamation' },
-          { text: '⏱️ Délais livraison', value: 'delais' },
-          { text: '🏠 Menu principal', value: 'menu' }
-        ]
-      }
-    };
+  // Base de connaissances (identique à l'original)
+  const knowledgeBase = {
+    'menu': { title: 'Menu Principal', content: `Que souhaitez-vous savoir ?`, options: [{ text:'📉 Pourquoi les chutes ?', value:'chutes'},{ text:'🎯 Différence qualités', value:'qualites'},{ text:'🚀 Stratégies efficaces', value:'strategies'},{ text:'🛡️ Procédure réclamation', value:'reclamation'},{ text:'⏱️ Délais livraison', value:'delais'},{ text:'👨‍💻 Contact support', value:'support'}] },
+    'chutes': { title: 'Comprendre les chutes', content: `Les chutes (baisses) sont normales sur toutes les plateformes :\n\n🔹 Pourquoi ?\n• Les plateformes suppriment les comptes inactifs\n• Nettoyage des faux profils\n• Ajustements automatiques\n\n🔹 Chiffres typiques :\n• Qualité moyenne : 70-85% rétention\n• Haute qualité : 85-95% rétention\n\n⚠️ Une chute n'est pas une arnaque.`, options: [{ text:'🎯 Différence qualités', value:'qualites'},{ text:'🚀 Réduire les chutes', value:'strategies'},{ text:'🛡️ Réclamation', value:'reclamation'},{ text:'🏠 Menu', value:'menu'}] },
+    'qualites': { title: 'Différence qualité moyenne vs haute qualité', content: `**QUALITÉ MOYENNE :** prix abordable, livraison rapide, chutes possibles.\n**HAUTE QUALITÉ :** comptes stables, moins de chutes, réclamation gratuite, garanti 30 jours.\nRecommandation : pour monétisation → HAUTE QUALITÉ.`, options: [{ text:'📉 Chutes', value:'chutes'},{ text:'🚀 Stratégies', value:'strategies'},{ text:'⏱️ Délais', value:'delais'},{ text:'🏠 Menu', value:'menu'}] },
+    'strategies': { title: 'Stratégies efficaces', content: `✅ À faire : espacer les commandes (3-7 jours), mélanger vues+likes+commentaires, augmenter progressivement.\n❌ À éviter : commander plusieurs fois sur le même lien, quantités énormes d'un coup.\n📈 Exemple : Jour1: 2000 vues+100 likes, Jour3: 3000 vues+150 likes, Jour6: 5000 vues+commentaires.`, options: [{ text:'🎯 Qualités', value:'qualites'},{ text:'📉 Chutes', value:'chutes'},{ text:'🛡️ Réclamation', value:'reclamation'},{ text:'🏠 Menu', value:'menu'}] },
+    'reclamation': { title: 'Procédure de réclamation', content: `Conditions : service haute qualité, perte >10%, dans 30 jours. Contactez WhatsApp +237 699 85 36 65 ou email socialboosthorizon984@gmail.com avec preuves.`, options: [{ text:'🎯 Qualités', value:'qualites'},{ text:'⏱️ Délais', value:'delais'},{ text:'👨‍💻 Support', value:'support'},{ text:'🏠 Menu', value:'menu'}] },
+    'delais': { title: 'Délais de livraison', content: `Rapide : 1-10 min | Standard : 1-7 h | Premium : 2-24 h | Grandes quantités : jusqu'à 72 h.\nHaute qualité : garantie 30 jours.`, options: [{ text:'🎯 Qualités', value:'qualites'},{ text:'🛡️ Réclamation', value:'reclamation'},{ text:'🚀 Stratégies', value:'strategies'},{ text:'🏠 Menu', value:'menu'}] },
+    'support': { title: 'Contact support', content: `WhatsApp : +237 699 85 36 65\nEmail : socialboosthorizon984@gmail.com\nDisponibilité : 8h-22h (GMT+1), urgences 24/7.`, options: [{ text:'📉 Chutes', value:'chutes'},{ text:'🛡️ Réclamation', value:'reclamation'},{ text:'⏱️ Délais', value:'delais'},{ text:'🏠 Menu', value:'menu'}] }
+  };
 
-    document.addEventListener("DOMContentLoaded", function () {
-      // Initialiser AOS
-      AOS.init({
-        duration: 800,
-        once: true,
-        offset: 100
-      });
+  let currentUserId = null;
+  const chatMessages = document.getElementById('chatMessages');
+  const userInput = document.getElementById('userInput');
+  const sendButton = document.getElementById('sendButton');
+  const typingIndicator = document.getElementById('typingIndicator');
+  const quickOptions = document.getElementById('quickOptions');
 
-      // Vérifier l'authentification
-      auth.onAuthStateChanged((user) => {
-        if (!user) {
-          window.location.href = "login.html";
-        } else {
-          initializeChat();
-        }
-      });
-
-      // Éléments DOM
-      const chatMessages = document.getElementById('chatMessages');
-      const userInput = document.getElementById('userInput');
-      const sendButton = document.getElementById('sendButton');
-      const typingIndicator = document.getElementById('typingIndicator');
-      const initialOptions = document.getElementById('initialOptions');
-      const quickOptions = document.getElementById('quickOptions');
-
-      // Initialiser les options initiales
-      function initializeInitialOptions() {
-        initialOptions.innerHTML = '';
-        const menu = knowledgeBase['menu'];
-        
-        menu.options.forEach(option => {
-          const optionDiv = document.createElement('div');
-          optionDiv.className = 'chat-option';
-          optionDiv.textContent = option.text;
-          optionDiv.onclick = () => selectOption(option.value);
-          initialOptions.appendChild(optionDiv);
+  function addMessage(content, isUser = false, options = null) {
+    const div = document.createElement('div');
+    div.className = `message ${isUser ? 'user' : 'bot'}`;
+    const inner = document.createElement('div');
+    inner.className = 'message-content';
+    inner.innerHTML = content;
+    div.appendChild(inner);
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return div;
+  }
+  function showTyping() { typingIndicator.style.display = 'flex'; chatMessages.appendChild(typingIndicator); chatMessages.scrollTop = chatMessages.scrollHeight; }
+  function hideTyping() { typingIndicator.style.display = 'none'; }
+  window.selectOption = function(optionId) {
+    const kb = knowledgeBase[optionId];
+    if (!kb) return;
+    addMessage(kb.title, true);
+    showTyping();
+    setTimeout(() => {
+      hideTyping();
+      const botMsg = addMessage(kb.content);
+      if (kb.options && kb.options.length) {
+        const optsDiv = document.createElement('div');
+        optsDiv.className = 'chat-options';
+        kb.options.forEach(opt => {
+          const btn = document.createElement('div');
+          btn.className = 'chat-option';
+          btn.textContent = opt.text;
+          btn.onclick = () => selectOption(opt.value);
+          optsDiv.appendChild(btn);
         });
+        botMsg.querySelector('.message-content').appendChild(optsDiv);
       }
-
-      // Initialiser les options rapides
-      function initializeQuickOptions() {
-        quickOptions.innerHTML = '';
-        
-        const quickTopics = [
-          { text: '📉 Chutes', value: 'chutes' },
-          { text: '🎯 Qualités', value: 'qualites' },
-          { text: '🚀 Stratégies', value: 'strategies' },
-          { text: '🛡️ Réclamation', value: 'reclamation' },
-          { text: '⏱️ Délais', value: 'delais' },
-          { text: '👨‍💻 Support', value: 'support' }
-        ];
-
-        quickTopics.forEach(topic => {
-          const optionDiv = document.createElement('div');
-          optionDiv.className = 'chat-option';
-          optionDiv.textContent = topic.text;
-          optionDiv.onclick = () => selectOption(topic.value);
-          quickOptions.appendChild(optionDiv);
-        });
-      }
-
-      // Ajouter un message
-      function addMessage(content, isUser = false, options = null) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
-        
-        const messageContent = document.createElement('div');
-        messageContent.className = 'message-content';
-        messageContent.innerHTML = content;
-        
-        messageDiv.appendChild(messageContent);
-        chatMessages.appendChild(messageDiv);
-        
-        // Scroll automatique vers le bas
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-        
-        return messageDiv;
-      }
-
-      // Afficher l'indicateur de frappe
-      function showTypingIndicator() {
-        typingIndicator.style.display = 'flex';
-        chatMessages.appendChild(typingIndicator);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-      }
-
-      // Cacher l'indicateur de frappe
-      function hideTypingIndicator() {
-        typingIndicator.style.display = 'none';
-      }
-
-      // Sélectionner une option
-      window.selectOption = function(optionId) {
-        const knowledge = knowledgeBase[optionId];
-        if (!knowledge) return;
-
-        // Ajouter le message de l'utilisateur
-        addMessage(knowledge.title, true);
-
-        // Afficher l'indicateur de frappe
-        showTypingIndicator();
-
-        // Simuler un délai de réponse (3-5 secondes)
-        const delay = 3000 + Math.random() * 2000;
-        
-        setTimeout(() => {
-          hideTypingIndicator();
-          
-          // Ajouter la réponse du bot
-          const botMessage = addMessage(knowledge.content);
-          
-          // Ajouter les options de suivi
-          if (knowledge.options && knowledge.options.length > 0) {
-            const optionsDiv = document.createElement('div');
-            optionsDiv.className = 'chat-options';
-            optionsDiv.style.marginTop = '1rem';
-            
-            knowledge.options.forEach(option => {
-              const optionDiv = document.createElement('div');
-              optionDiv.className = 'chat-option';
-              optionDiv.textContent = option.text;
-              optionDiv.onclick = () => selectOption(option.value);
-              optionsDiv.appendChild(optionDiv);
-            });
-            
-            botMessage.querySelector('.message-content').appendChild(optionsDiv);
-          }
-          
-          chatMessages.scrollTop = chatMessages.scrollHeight;
-        }, delay);
-      };
-
-      // Gestionnaire d'envoi de message
-      sendButton.addEventListener('click', sendMessage);
-      userInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
+    }, 1500);
+  };
+  function sendMessage() {
+    const msg = userInput.value.trim();
+    if (!msg) return;
+    addMessage(msg, true);
+    userInput.value = '';
+    showTyping();
+    setTimeout(() => {
+      hideTyping();
+      const lower = msg.toLowerCase();
+      let response = '';
+      if (lower.includes('chute')||lower.includes('baisse')) response = knowledgeBase['chutes'].content;
+      else if (lower.includes('qualité')) response = knowledgeBase['qualites'].content;
+      else if (lower.includes('stratégie')||lower.includes('conseil')) response = knowledgeBase['strategies'].content;
+      else if (lower.includes('réclamation')) response = knowledgeBase['reclamation'].content;
+      else if (lower.includes('délai')||lower.includes('livraison')) response = knowledgeBase['delais'].content;
+      else if (lower.includes('contact')||lower.includes('support')) response = knowledgeBase['support'].content;
+      else if (lower.includes('bonjour')||lower.includes('salut')) response = "Bonjour ! 😊 Je suis votre assistant. Comment puis-je vous aider ?";
+      else response = "Je vous suggère de consulter les options ci-dessous ou de reformuler votre question.";
+      const botMsg = addMessage(response);
+      const follow = [{ text:'📉 Chutes', value:'chutes'},{ text:'🎯 Qualités', value:'qualites'},{ text:'🚀 Stratégies', value:'strategies'},{ text:'👨‍💻 Support', value:'support'}];
+      const optsDiv = document.createElement('div'); optsDiv.className = 'chat-options';
+      follow.forEach(opt => {
+        const b = document.createElement('div'); b.className = 'chat-option'; b.textContent = opt.text; b.onclick = () => selectOption(opt.value); optsDiv.appendChild(b);
       });
-
-      function sendMessage() {
-        const message = userInput.value.trim();
-        if (!message) return;
-
-        // Ajouter le message de l'utilisateur
-        addMessage(message, true);
-        userInput.value = '';
-
-        // Afficher l'indicateur de frappe
-        showTypingIndicator();
-
-        // Simuler un délai de réponse
-        const delay = 2000 + Math.random() * 2000;
-        
-        setTimeout(() => {
-          hideTypingIndicator();
-          
-          // Générer une réponse basée sur les mots-clés
-          const response = generateBotResponse(message);
-          const botMessage = addMessage(response);
-          
-          // Ajouter des options de suivi
-          const optionsDiv = document.createElement('div');
-          optionsDiv.className = 'chat-options';
-          optionsDiv.style.marginTop = '1rem';
-          
-          const followUpOptions = [
-            { text: '📉 Comprendre les chutes', value: 'chutes' },
-            { text: '🎯 Différence qualités', value: 'qualites' },
-            { text: '🚀 Stratégies', value: 'strategies' },
-            { text: '👨‍💻 Support', value: 'support' }
-          ];
-          
-          followUpOptions.forEach(option => {
-            const optionDiv = document.createElement('div');
-            optionDiv.className = 'chat-option';
-            optionDiv.textContent = option.text;
-            optionDiv.onclick = () => selectOption(option.value);
-            optionsDiv.appendChild(optionDiv);
-          });
-          
-          botMessage.querySelector('.message-content').appendChild(optionsDiv);
-          
-          chatMessages.scrollTop = chatMessages.scrollHeight;
-        }, delay);
-      }
-
-      // Générer une réponse du bot
-      function generateBotResponse(message) {
-        const lowerMessage = message.toLowerCase();
-        
-        if (lowerMessage.includes('chute') || lowerMessage.includes('baisse') || lowerMessage.includes('perte')) {
-          return knowledgeBase['chutes'].content;
-        } else if (lowerMessage.includes('qualité') || lowerMessage.includes('moyen') || lowerMessage.includes('haut')) {
-          return knowledgeBase['qualites'].content;
-        } else if (lowerMessage.includes('stratégie') || lowerMessage.includes('conseil') || lowerMessage.includes('astuce')) {
-          return knowledgeBase['strategies'].content;
-        } else if (lowerMessage.includes('réclamation') || lowerMessage.includes('remboursement') || lowerMessage.includes('problème')) {
-          return knowledgeBase['reclamation'].content;
-        } else if (lowerMessage.includes('délai') || lowerMessage.includes('temps') || lowerMessage.includes('livraison')) {
-          return knowledgeBase['delais'].content;
-        } else if (lowerMessage.includes('contact') || lowerMessage.includes('support') || lowerMessage.includes('aide')) {
-          return knowledgeBase['support'].content;
-        } else if (lowerMessage.includes('bonjour') || lowerMessage.includes('salut') || lowerMessage.includes('hello')) {
-          return `Bonjour ! 😊 Heureux de vous aider.<br><br>Je suis votre assistant Horizon, expert en stratégies de boost sur les réseaux sociaux. Comment puis-je vous aider aujourd'hui ?`;
-        } else if (lowerMessage.includes('merci')) {
-          return `Avec plaisir ! 😊<br><br>N'hésitez pas si vous avez d'autres questions. Je reste à votre disposition !`;
-        } else {
-          return `Je comprends votre question : "${message}"<br><br>Pour vous aider au mieux, voici quelques sujets que je peux vous expliquer :`;
-        }
-      }
-
-      // Toggle FAQ
-      window.toggleFAQ = function(element) {
-        const faqItem = element.parentElement;
-        const isActive = faqItem.classList.contains('active');
-        
-        // Fermer toutes les autres FAQ
-        document.querySelectorAll('.faq-item.active').forEach(item => {
-          if (item !== faqItem) {
-            item.classList.remove('active');
-          }
-        });
-        
-        // Toggle la FAQ actuelle
-        faqItem.classList.toggle('active');
-      };
-
-      // Initialiser le chat
-      function initializeChat() {
-        initializeInitialOptions();
-        initializeQuickOptions();
-        
-        // Démarrer avec le menu principal
-        setTimeout(() => {
-          selectOption('menu');
-        }, 1000);
-      }
+      botMsg.querySelector('.message-content').appendChild(optsDiv);
+    }, 2000);
+  }
+  function initializeQuickOptions() {
+    quickOptions.innerHTML = '';
+    const quick = [{ text:'📉 Chutes', value:'chutes'},{ text:'🎯 Qualités', value:'qualites'},{ text:'🚀 Stratégies', value:'strategies'},{ text:'🛡️ Réclamation', value:'reclamation'},{ text:'⏱️ Délais', value:'delais'},{ text:'👨‍💻 Support', value:'support'}];
+    quick.forEach(t => {
+      const opt = document.createElement('div'); opt.className = 'chat-option'; opt.textContent = t.text; opt.onclick = () => selectOption(t.value); quickOptions.appendChild(opt);
     });
-  </script>
+  }
+  sendButton.addEventListener('click', sendMessage);
+  userInput.addEventListener('keypress', e => { if(e.key === 'Enter') sendMessage(); });
+
+  auth.onAuthStateChanged(user => {
+    if(!user) window.location.href = 'login.html';
+    else {
+      initializeQuickOptions();
+      setTimeout(() => selectOption('menu'), 800);
+    }
+  });
+
+  window.toggleFAQ = function(el) {
+    const item = el.parentElement;
+    item.classList.toggle('active');
+  };
+</script>
 </body>
 </html>
