@@ -538,6 +538,11 @@
       <p>Rechargez votre solde via Mobile Money. Minimum 100 FCFA.</p>
 
       <form id="payment-form">
+        <!-- NOUVEAU CHAMP : Numéro Mobile Money -->
+        <div class="form-group">
+          <label for="phone">Numéro Mobile Money (Orange/MTN)</label>
+          <input type="tel" id="phone" name="phone" placeholder="6XXXXXXXX" autocomplete="tel" required>
+        </div>
         <div class="form-group">
           <label for="amount">Montant (XAF)</label>
           <input type="number" id="amount" name="amount" value="1000" min="100" required>
@@ -582,7 +587,7 @@
     <p>© 2026 Social Boost Horizon · <a href="dashboard.html">Assistance</a> · Paiement sécurisé</p>
   </footer>
 
-  <!-- Scripts (inchangés) -->
+  <!-- Scripts -->
   <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
   <script>
     AOS.init({ duration: 600, once: true });
@@ -593,7 +598,7 @@
   <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
 
   <script>
-    // ---------- SCRIPT ORIGINAL INTACT ----------
+    // ---------- SCRIPT ORIGINAL INTACT AVEC AJOUT DU NUMÉRO DE PAIEMENT ----------
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -742,12 +747,10 @@
       const loadingEl = document.getElementById('activitiesLoading');
       loadingEl.style.display = 'block';
       
-      // Annuler l'ancien listener si existant
       if (unsubscribeActivities) {
         unsubscribeActivities();
       }
       
-      // Écouter les transactions Fapshi en temps réel
       unsubscribeActivities = db.collection('fapshiTransactions')
         .where('userId', '==', userId)
         .orderBy('dateInitiated', 'desc')
@@ -764,6 +767,22 @@
         });
     }
 
+    // ----- RÉCUPÉRATION DU NUMÉRO DE PAIEMENT (paymentPhone) -----
+    async function loadUserPaymentPhone(uid) {
+      try {
+        const userDoc = await db.collection('users').doc(uid).get();
+        if (userDoc.exists) {
+          const data = userDoc.data();
+          const phoneInput = document.getElementById('phone');
+          if (data.paymentPhone && phoneInput) {
+            phoneInput.value = data.paymentPhone;
+          }
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération du numéro de paiement :', error);
+      }
+    }
+
     auth.onAuthStateChanged(user => {
       if (!user) {
         window.location.href = 'login.html';
@@ -771,6 +790,9 @@
       }
       
       currentUser = user;
+      
+      // Charger le numéro de paiement enregistré
+      loadUserPaymentPhone(user.uid);
       
       // Charger les activités récentes
       loadRecentActivities(user.uid);
@@ -804,6 +826,15 @@
         toggleLoader(true);
         
         try {
+          const phoneInput = document.getElementById('phone');
+          const phone = phoneInput ? phoneInput.value.trim() : '';
+          if (!phone) {
+            throw new Error('Veuillez entrer votre numéro Mobile Money.');
+          }
+          if (!/^[0-9]{9,13}$/.test(phone)) {
+            throw new Error('Numéro de téléphone invalide (9 à 13 chiffres).');
+          }
+          
           const amountInput = document.getElementById('amount').value;
           const amountValue = parseFloat(amountInput);
           
@@ -814,16 +845,20 @@
           const amount = Math.round(amountValue);
           
           if (amount < 100) {
-            throw new Error('Le montant doit etre au moins 100 FCFA.');
+            throw new Error('Le montant doit être au moins 100 FCFA.');
           }
           
           const description = document.getElementById('description').value.trim();
+          if (!description) {
+            throw new Error('Veuillez entrer une description.');
+          }
           
           const fapshiRedirectUrl = 'https://socialboosthorizon.com/payment-success.html';
           
           console.log("--- Debut de l'appel Fapshi ---");
           console.log("Montant:", amount);
           console.log("UID utilisateur:", currentUser.uid);
+          console.log("Téléphone:", phone);
           console.log("Backend:", BACKEND_URL);
 
           const response = await fetch(
@@ -838,7 +873,8 @@
                 currency: 'XAF', 
                 description, 
                 redirectUrl: fapshiRedirectUrl,
-                externalId: currentUser.uid
+                externalId: currentUser.uid,
+                phone: phone   // <-- Ajout du numéro de téléphone pour le partenaire
               })
             }
           );
@@ -853,7 +889,7 @@
             console.log("Redirection vers:", data.checkoutUrl);
             window.location.href = data.checkoutUrl;
           } else {
-            throw new Error('URL de paiement non recue. Veuillez reessayer.');
+            throw new Error('URL de paiement non reçue. Veuillez réessayer.');
           }
           
         } catch (err) {
