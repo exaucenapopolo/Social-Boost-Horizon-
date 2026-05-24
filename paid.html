@@ -573,14 +573,27 @@
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
         if (userDoc.exists) {
           userData = userDoc.data();
+          
+          // 1. Pré‑remplir le numéro de paiement (paymentPhone) si existant
+          const phoneInput = document.getElementById('phone');
+          if (userData.paymentPhone) {
+            phoneInput.value = userData.paymentPhone;
+          } else {
+            phoneInput.value = ''; // Laisser vide si non défini
+          }
+
+          // 2. Pré‑sélectionner le pays en fonction du document utilisateur
           if (userData.country && COUNTRIES_CONFIG[userData.country]) {
             selectedCountry = userData.country;
             document.getElementById('country').value = selectedCountry;
+          } else {
+            // Pays par défaut Cameroun si non défini
+            selectedCountry = 'CM';
+            document.getElementById('country').value = selectedCountry;
           }
+          
+          // Mettre à jour l'affichage des devises et des presets
           updateCurrencyDisplay(selectedCountry);
-          if (userData.phone) {
-            document.getElementById('phone').value = userData.phone;
-          }
         }
       } catch (error) {
         console.error('Erreur chargement données:', error);
