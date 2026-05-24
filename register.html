@@ -56,6 +56,7 @@
     }
     
     .logo-link { display: flex; align-items: center; text-decoration: none; gap: 10px; }
+    .logo-img { height: 42px; width: 42px; border-radius: 50%; border: 2px solid var(--sbh-gold); }
     .logo-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
     .logo-text .social { font-size: 0.8rem; font-weight: 600; color: #fff; }
     .logo-text .boost { font-size: 1.4rem; font-weight: 800; color: var(--sbh-gold); }
@@ -73,6 +74,7 @@
       width: auto; padding: 0 1.2rem; background: transparent; border: 1px solid var(--sbh-light-blue);
       color: var(--sbh-light-blue); border-radius: 12px; font-weight: 600; cursor: pointer; transition: 0.3s;
     }
+    .btn-verify:hover { background: rgba(77, 166, 255, 0.1); }
 
     .btn-google { background: #fff; color: #444; }
 
@@ -105,12 +107,12 @@
     .link { text-align: center; margin-top: 1.5rem; font-size: 0.9rem; }
     .link a { color: var(--sbh-light-blue); text-decoration: none; }
 
-    /* Notification beaucoup plus visible */
+    /* Notification globale */
     .notification {
       position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
       padding: 16px 28px; border-radius: 12px; color: #fff; font-weight: 600;
       z-index: 9999; opacity: 0; transition: all 0.4s ease; text-align: center;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-size: 1rem; width: 90%; max-width: 400px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-size: 1rem; width: 90%; max-width: 450px;
     }
     .notification.show { opacity: 1; top: 20px; }
     .notification.success { background: linear-gradient(135deg, #2e7d32, #4caf50); }
@@ -128,6 +130,7 @@
 
   <header>
     <a href="index.html" class="logo-link">
+      <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo" class="logo-img">
       <div class="logo-text">
         <span class="social">SOCIAL</span>
         <span class="boost">BOOST</span>
@@ -154,27 +157,39 @@
           <select id="pays" required>
             <option value="">— Sélectionnez votre pays —</option>
             <optgroup label="Afrique">
+                <option value="za">Afrique du Sud 🇿🇦</option>
+                <option value="dz">Algérie 🇩🇿</option>
+                <option value="ao">Angola 🇦🇴</option>
                 <option value="bj">Bénin 🇧🇯</option>
                 <option value="bf">Burkina Faso 🇧🇫</option>
+                <option value="bi">Burundi 🇧🇮</option>
                 <option value="cm">Cameroun 🇨🇲</option>
+                <option value="cv">Cap-Vert 🇨🇻</option>
                 <option value="cf">Centrafrique 🇨🇫</option>
+                <option value="km">Comores 🇰🇲</option>
                 <option value="cg">Congo Brazzaville 🇨🇬</option>
-                <option value="cd">RDC 🇨🇩</option>
+                <option value="cd">Congo (RDC) 🇨🇩</option>
                 <option value="ci">Côte d'Ivoire 🇨🇮</option>
+                <option value="dj">Djibouti 🇩🇯</option>
+                <option value="eg">Égypte 🇪🇬</option>
                 <option value="ga">Gabon 🇬🇦</option>
                 <option value="gn">Guinée 🇬🇳</option>
+                <option value="gq">Guinée équatoriale 🇬🇶</option>
+                <option value="ke">Kenya 🇰🇪</option>
+                <option value="mg">Madagascar 🇲🇬</option>
                 <option value="ml">Mali 🇲🇱</option>
+                <option value="ma">Maroc 🇲🇦</option>
+                <option value="mu">Maurice 🇲🇺</option>
+                <option value="mr">Mauritanie 🇲🇷</option>
                 <option value="ne">Niger 🇳🇪</option>
                 <option value="ng">Nigéria 🇳🇬</option>
+                <option value="ug">Ouganda 🇺🇬</option>
+                <option value="rw">Rwanda 🇷🇼</option>
                 <option value="sn">Sénégal 🇸🇳</option>
+                <option value="td">Tchad 🇹🇩</option>
                 <option value="tg">Togo 🇹🇬</option>
-            </optgroup>
-            <optgroup label="Europe & Amérique">
-                <option value="fr">France 🇫🇷</option>
-                <option value="be">Belgique 🇧🇪</option>
-                <option value="ch">Suisse 🇨🇭</option>
-                <option value="ca">Canada 🇨🇦</option>
-                <option value="us">États-Unis 🇺🇸</option>
+                <option value="tn">Tunisie 🇹🇳</option>
+                <option value="zm">Zambie 🇿🇲</option>
             </optgroup>
             <option value="ailleurs">Ailleurs dans le monde 🌍</option>
           </select>
@@ -193,7 +208,7 @@
 
         <div class="form-group">
           <label for="password"><i class="fas fa-lock"></i> Mot de passe</label>
-          <input type="password" id="password" required minlength="6" placeholder="•••••• (6 min.)">
+          <input type="password" id="password" required minlength="6" placeholder="•••••• (6 caractères min.)">
           <div class="error" id="passwordError"></div>
         </div>
 
@@ -213,16 +228,18 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   
   <script>
-    // URL du backend (Replit)
+    // Configuration Backend
     const BACKEND_URL = window.location.hostname.includes('localhost') ? 'http://localhost:5000' : 'https://social-boost-exaucenapopolo2.replit.app';
 
-    // Fonctions d'interface
+    // Fonctions Interface (Notifications & Erreurs)
+    let notificationTimeout;
     function showNotification(message, type, duration = 6000) {
       const n = document.getElementById('notification');
       document.getElementById('notification-message').textContent = message;
       n.className = `notification ${type}`;
+      clearTimeout(notificationTimeout);
       n.classList.add('show');
-      setTimeout(() => { n.classList.remove('show'); }, duration);
+      notificationTimeout = setTimeout(() => { n.classList.remove('show'); }, duration);
     }
 
     function showFieldError(id, msg) {
@@ -235,21 +252,24 @@
       document.querySelectorAll('.error, .success').forEach(el => { el.style.display = 'none'; });
     }
 
-    // Configuration Firebase
+    // Configuration Firebase Complète (Ne rien retirer ici)
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
-      projectId: "social-boost-horizon"
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.appspot.com",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
     };
+    
     if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
     const auth = firebase.auth();
     const db = firebase.firestore();
     const provider = new firebase.auth.GoogleAuthProvider();
 
-    // Fonction centralisée pour sauvegarder (Firestore + Backend)
+    // Fonction de synchronisation (Firestore + Backend)
     async function finalizeRegistration(user, email, pays, referralCodeUsed, isGoogle = false) {
       const userId = user.uid;
-      // On génère un pseudo depuis l'email (ex: jean@mail.com -> jean)
       const generatedUsername = isGoogle && user.displayName 
           ? user.displayName.replace(/\s+/g, '_').toLowerCase() 
           : email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
@@ -261,7 +281,7 @@
         username: generatedUsername,
         email: email,
         country: pays || '',
-        phone: '', // Champ vide pour garder la compatibilité
+        phone: '', 
         referralCode: newReferralCode,
         referredBy: referralCodeUsed || null,
         balance: 0,
@@ -269,7 +289,7 @@
         isFirstAccess: true
       }, { merge: true });
 
-      // 2. Envoi silencieux au Backend (Emails, Parrainage, etc.)
+      // 2. Envoi des données au Backend
       fetch(`${BACKEND_URL}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -286,7 +306,7 @@
           openedChests: [],
           balance: 0
         })
-      }).catch(err => console.log("Avis au backend envoyé"));
+      }).catch(err => console.log("Données envoyées au backend pour traitement (emails, etc)."));
 
       return true;
     }
@@ -297,31 +317,34 @@
       hideAllErrors();
 
       if (!code) {
-        showFieldError('referralError', "Veuillez entrer un code avant de vérifier.");
+        showFieldError('referralError', "Veuillez entrer un code de parrainage avant de vérifier.");
         return;
       }
 
       const btn = document.getElementById('verifyReferralBtn');
       btn.textContent = "...";
+      btn.disabled = true;
       
       try {
         const q = await db.collection('users').where('referralCode', '==', code.toUpperCase()).limit(1).get();
         if (!q.empty) {
           const data = q.docs[0].data();
-          showFieldError('referralSuccess', `✅ Code valide ! Parrainé par : ${data.username || 'un membre'}`);
+          showFieldError('referralSuccess', `✅ Code valide ! Vous êtes parrainé par : ${data.username || 'un membre'}`);
           document.getElementById('referralSuccess').style.color = 'var(--success-color)';
         } else {
           showFieldError('referralError', "❌ Ce code n'appartient à aucun membre. Laissez ce champ vide ou vérifiez-le.");
           document.getElementById('referral').value = ''; 
         }
       } catch (e) {
-        showFieldError('referralError', "Erreur de vérification.");
+        showFieldError('referralError', "Erreur de connexion. Veuillez vérifier votre connexion internet.");
+        console.error(e);
       } finally {
         btn.textContent = "Vérifier";
+        btn.disabled = false;
       }
     });
 
-    // Auto-remplissage du code parrainage via l'URL
+    // Remplissage automatique du code depuis un lien
     document.addEventListener("DOMContentLoaded", () => {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.has('ref')) {
@@ -332,7 +355,7 @@
 
     let isRegistering = false;
 
-    // SOUMISSION DU FORMULAIRE CLASSIQUE
+    // SOUMISSION DU FORMULAIRE D'INSCRIPTION
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (isRegistering) return;
@@ -344,7 +367,7 @@
       const referralCodeUsed = document.getElementById('referral').value.trim();
       
       if (!email) return showFieldError('emailError', 'L\'adresse email est requise.');
-      if (!pays) return showFieldError('countryError', 'Sélectionnez un pays.');
+      if (!pays) return showFieldError('countryError', 'Veuillez sélectionner votre pays.');
       if (password.length < 6) return showFieldError('passwordError', 'Le mot de passe doit faire au moins 6 caractères.');
       
       isRegistering = true;
@@ -354,32 +377,30 @@
       try {
         const userCred = await auth.createUserWithEmailAndPassword(email, password);
         
-        // Finalisation avec Firestore + Backend
         await finalizeRegistration(userCred.user, email, pays, referralCodeUsed, false);
         
-        // Modification visuelle immédiate du bouton
         btn.classList.remove('btn-loading');
         btn.style.background = '#4CAF50';
         btn.innerHTML = '<span>✅ Validé ! Redirection...</span>';
         
-        // Notification claire
         showNotification('🎉 Compte validé ! Redirection vers votre tableau de bord dans quelques secondes...', 'success', 4000);
         
-        // Redirection
         setTimeout(() => { window.location.href = 'dashboard.html'; }, 3500);
 
       } catch (error) {
         btn.classList.remove('btn-loading');
         if (error.code === 'auth/email-already-in-use') {
           showFieldError('emailError', '⚠️ Cette adresse email existe déjà. Connectez-vous.');
+        } else if (error.code === 'auth/invalid-email') {
+          showFieldError('emailError', '⚠️ Le format de cette adresse email est incorrect.');
         } else {
-          showNotification('❌ Erreur lors de l\'inscription. Veuillez réessayer.', 'error');
+          showNotification('❌ Erreur lors de l\'inscription. Veuillez vérifier vos informations.', 'error');
         }
         isRegistering = false;
       }
     });
 
-    // INSCRIPTION VIA GOOGLE
+    // SOUMISSION VIA GOOGLE
     document.getElementById('googleSignup').addEventListener('click', async () => {
       if (isRegistering) return;
       isRegistering = true;
