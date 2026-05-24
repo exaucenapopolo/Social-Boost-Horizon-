@@ -2,761 +2,483 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <title>Parrainage – Social Boost Horizon</title>
 
+  <!-- Firebase (compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
-  
+
+  <!-- Polices & librairies -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@600;700;800&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
 
   <style>
+    /* ========== VARIABLES & RESET ========== */
     :root {
+      --sbh-deep-blue: #080e1a;
       --sbh-dark-blue: #0A162B;
       --sbh-gradient-start: #1e3c72;
       --sbh-gradient-end: #6a0dad;
       --sbh-btn-color: #1E90FF;
       --sbh-btn-hover: #187bcd;
-      --sbh-icon-color: #4CAF50;
+      --sbh-icon-green: #4CAF50;
       --sbh-text-white: #FFFFFF;
-      --sbh-text-green: #4CAF50;
-      --sbh-card-bg: rgba(17, 32, 58, 0.6);
-      --sbh-card-border: rgba(255, 255, 255, 0.1);
-      --sbh-text-light: rgba(255, 255, 255, 0.9);
+      --sbh-text-light: rgba(255, 255, 255, 0.85);
       --sbh-accent: #FF6B6B;
       --sbh-light-blue: #4DA6FF;
-      --sbh-card-radius: 12px;
-      --gold-primary: #FFD700;
-      --gold-secondary: #D4AF37;
+      --sbh-gold: #D4AF37;
+      --sbh-gold-deep: #B8860B;
+      --glass-bg: rgba(15, 25, 45, 0.5);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --card-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+      --font-primary: 'Plus Jakarta Sans', sans-serif;
+      --font-display: 'Space Grotesk', sans-serif;
     }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { font-size: 14px; scroll-behavior: smooth; }
+    @media (min-width: 768px) { html { font-size: 15px; } }
+    @media (max-width: 480px) { html { font-size: 13px; } }
 
     body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Roboto', sans-serif;
+      font-family: var(--font-primary);
       color: var(--sbh-text-white);
-      background: var(--sbh-dark-blue);
+      background: var(--sbh-deep-blue);
       min-height: 100vh;
       overflow-x: hidden;
+      line-height: 1.6;
+      letter-spacing: 0.02em;
     }
 
+    /* Arrière‑plan animé */
     .background-animation {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: -1;
-      background-color: var(--sbh-dark-blue);
-      overflow: hidden;
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2;
+      background: radial-gradient(ellipse at 20% 50%, #0f2040 0%, #080e1a 70%);
     }
-    .background-animation::before {
-      content: "";
-      position: absolute;
-      width: 2px;
-      height: 2px;
-      border-radius: 50%;
-      background-color: rgba(255, 255, 255, 0.4);
-      box-shadow:
-        100px 50px 0 0 white, 200px 150px 0 0 white, 300px 250px 0 0 white,
-        400px 70px 0 0 white, 50px 300px 0 0 white, 350px 100px 0 0 white,
-        500px 400px 0 0 white, 600px 120px 0 0 white, 700px 350px 0 0 white;
-      animation: twinkle 5s infinite alternate;
-    }
-    @keyframes twinkle {
-      0% { opacity: 0.3; transform: scale(1); }
-      50% { opacity: 0.7; transform: scale(1.1); }
-      100% { opacity: 0.3; transform: scale(1); }
+    .bg-grid {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+      background-image: linear-gradient(rgba(77,166,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(77,166,255,0.05) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
     }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    h1, h2, h3 { font-family: var(--font-display); color: var(--sbh-text-white); }
+    h2 { font-size: 2rem; margin-bottom: 1.2rem; text-align: center; }
+    @media (max-width: 480px) { h2 { font-size: 1.6rem; } }
+    p { color: var(--sbh-text-light); margin-bottom: 1rem; font-size: 0.95rem; }
 
+    .container { max-width: 1300px; margin: 0 auto; padding: 0 20px; }
+    @media (max-width: 480px) { .container { padding: 0 14px; } }
+
+    /* ========== HEADER & NAV ========== */
     header {
-      position: sticky;
-      top: 0;
-      background: linear-gradient(45deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem 2rem;
-      z-index: 100;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(8, 14, 26, 0.85); backdrop-filter: blur(20px);
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.7rem 1.8rem; border-bottom: 1px solid var(--glass-border);
     }
-    .header-icons {
-      display: flex;
-      align-items: center;
-      gap: 20px;
+    @media (max-width: 480px) { header { padding: 0.6rem 1rem; } }
+    .logo-link {
+      display: flex; align-items: center; text-decoration: none; gap: 10px;
     }
-    .logo-text {
-      display: flex;
-      flex-direction: column;
-      font-family: 'Poppins', sans-serif;
-      text-decoration: none;
-      line-height: 1.2;
+    .logo-img {
+      height: 42px; width: 42px; border-radius: 50%; object-fit: cover;
+      border: 2px solid var(--sbh-gold); box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+      transition: transform 0.3s ease;
     }
-    .logo-text .text-social,
-    .logo-text .text-horizon {
-      color: var(--sbh-text-white);
-      font-size: 1.3rem;
-      font-weight: 600;
-    }
-    .logo-text .boost-line {
-      display: flex;
-      align-items: center;
-      color: var(--sbh-text-green);
-      font-size: 1.8rem;
-      font-weight: 800;
-    }
-    .logo-text .boost-line img {
-      height: 1.8rem;
-      margin-right: 0.4rem;
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.1); }
-      100% { transform: scale(1); }
-    }
-    .icon-hamburger {
-      font-size: 1.8rem;
-      color: var(--sbh-text-white);
-      cursor: pointer;
-      transition: transform 0.3s;
-    }
-    .icon-hamburger:hover {
-      transform: scale(1.1);
-    }
-    .snap-avatar {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 30% 30%, #fffc00, #ffdc00 50%, #ffbc00);
-      font-size: 1.4rem;
-      text-decoration: none;
-      box-shadow: 0 2px 8px rgba(255, 220, 0, 0.5);
-    }
-
+    .logo-img:hover { transform: scale(1.05) rotate(5deg); }
+    .logo-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
+    .logo-text .social { font-size: 0.8rem; font-weight: 600; color: #fff; letter-spacing: 1px; }
+    .logo-text .boost { font-size: 1.4rem; font-weight: 800; color: var(--sbh-gold); line-height: 1; }
+    .logo-text .horizon { font-size: 0.9rem; font-weight: 600; color: #fff; }
+    .icon-hamburger { font-size: 1.6rem; cursor: pointer; transition: 0.3s; }
+    .icon-hamburger:hover { color: var(--sbh-gold); }
     .mobile-menu {
-      display: none;
-      position: absolute;
-      top: 100%;
-      right: 0;
-      background: linear-gradient(135deg, var(--sbh-gradient-start), var(--sbh-gradient-end));
-      padding: 1rem;
-      border-radius: 0 0 10px 10px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-      z-index: 200;
-      flex-direction: column;
-      gap: 0.5rem;
-      min-width: 220px;
+      display: none; position: absolute; top: 65px; right: 1.8rem;
+      background: rgba(10, 22, 43, 0.95); border: 1px solid var(--glass-border);
+      border-radius: 16px; padding: 1.2rem; flex-direction: column; z-index: 200;
+      min-width: 240px; backdrop-filter: blur(20px);
     }
-    .mobile-menu.active {
-      display: flex;
-    }
+    header.open .mobile-menu { display: flex; }
     .mobile-menu a {
-      color: var(--sbh-text-white);
-      text-decoration: none;
-      padding: 0.8rem 1rem;
-      border-radius: 8px;
-      transition: background 0.3s;
-      display: flex;
-      align-items: center;
-      gap: 10px;
+      color: #fff; padding: 0.7rem 0.9rem; text-decoration: none; border-radius: 8px;
+      transition: 0.3s; display: flex; align-items: center; gap: 10px; font-size: 0.9rem;
     }
-    .mobile-menu a:hover {
-      background: rgba(255,255,255,0.15);
-    }
+    .mobile-menu a:hover { background: rgba(30, 60, 114, 0.5); transform: translateX(5px); }
 
-    main {
-      flex: 1;
-      padding: 2rem 1rem;
-      max-width: 800px;
-      margin: 0 auto;
+    /* Avatar */
+    .snap-avatar {
+      display: flex; align-items: center; justify-content: center;
+      width: 42px; height: 42px; border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #fffc00, #ffdc00 50%, #ffbc00);
+      font-size: 1.4rem; text-decoration: none; box-shadow: 0 2px 8px rgba(255, 220, 0, 0.5);
     }
+    .snap-avatar span { color: #000; font-weight: bold; }
 
-    .page-title {
-      text-align: center;
-      margin-bottom: 2rem;
+    /* Boutons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      background: linear-gradient(135deg, var(--sbh-gradient-start), var(--sbh-btn-color));
+      color: #fff; padding: 0.7rem 1.7rem; border: none; border-radius: 50px;
+      text-decoration: none; font-weight: 600; transition: all 0.3s ease; font-size: 0.95rem;
+      box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3); cursor: pointer;
     }
-    .page-title h1 {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 2.5rem;
-      margin-bottom: 0.5rem;
-      background: linear-gradient(90deg, var(--gold-primary), var(--gold-secondary));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .page-title p {
-      color: var(--sbh-text-light);
-      font-size: 1.1rem;
-    }
+    .btn:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(30, 144, 255, 0.5); }
+    .btn-gold { background: linear-gradient(135deg, var(--sbh-gold-deep), var(--sbh-gold)); color: #080e1a; }
+    .btn-whatsapp { background: #25D366; color: white; }
+    .btn-whatsapp:hover { background: #128C7E; }
+    .btn-outline { background: transparent; border: 2px solid var(--sbh-light-blue); box-shadow: none; }
+    .btn-outline:hover { background: var(--sbh-light-blue); border-color: var(--sbh-light-blue); color: #080e1a; }
 
-    .referral-card {
-      background: var(--sbh-card-bg);
-      border: 1px solid var(--sbh-card-border);
-      border-radius: var(--sbh-card-radius);
-      padding: 2rem;
-      margin-bottom: 2rem;
-      text-align: center;
-      backdrop-filter: blur(10px);
+    /* Cartes glassmorphism */
+    .glass-card {
+      background: var(--glass-bg); backdrop-filter: blur(15px);
+      border: 1px solid var(--glass-border); border-radius: 24px;
+      padding: 2rem; margin-bottom: 2rem; transition: transform 0.3s, border-color 0.3s;
     }
-    .referral-card h2 {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
-      color: var(--sbh-text-white);
-    }
-    .referral-card h2::after {
-      display: none;
-    }
+    .glass-card:hover { border-color: var(--sbh-gold); transform: translateY(-5px); }
 
-    .referral-code-box {
-      background: rgba(0,0,0,0.3);
-      border: 2px dashed var(--gold-primary);
-      border-radius: 10px;
-      padding: 1.5rem;
-      margin: 1.5rem 0;
-    }
-    .referral-code-label {
-      font-size: 0.9rem;
-      color: var(--sbh-text-light);
-      margin-bottom: 0.5rem;
+    /* Section code + lien */
+    .code-highlight {
+      background: rgba(0,0,0,0.4); border-radius: 20px; padding: 1.5rem;
+      text-align: center; margin: 1.5rem 0;
     }
     .referral-code {
-      font-family: 'Montserrat', monospace;
-      font-size: 2rem;
-      font-weight: 700;
-      color: var(--gold-primary);
-      letter-spacing: 3px;
-    }
-
-    .referral-link-box {
-      background: rgba(0,0,0,0.2);
-      border: 1px solid var(--sbh-card-border);
-      border-radius: 10px;
-      padding: 1rem;
-      margin: 1.5rem 0;
-    }
-    .referral-link-label {
-      font-size: 0.9rem;
-      color: var(--sbh-text-light);
-      margin-bottom: 0.5rem;
+      font-family: 'Space Grotesk', monospace; font-size: 2.5rem; font-weight: 700;
+      color: var(--sbh-gold); letter-spacing: 4px; background: rgba(0,0,0,0.5);
+      display: inline-block; padding: 0.5rem 1.2rem; border-radius: 60px; margin: 0.5rem 0;
     }
     .referral-link {
-      font-size: 0.85rem;
-      color: var(--sbh-light-blue);
-      word-break: break-all;
-      padding: 0.5rem;
-      background: rgba(0,0,0,0.3);
-      border-radius: 5px;
-      display: block;
-      margin-bottom: 1rem;
+      font-size: 0.9rem; color: var(--sbh-light-blue); word-break: break-all;
+      background: rgba(0,0,0,0.3); padding: 0.8rem; border-radius: 14px; display: inline-block;
+      max-width: 100%;
     }
+    .flex-buttons { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 1rem; }
 
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 0.8rem 1.5rem;
-      border: none;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s;
-      text-decoration: none;
-    }
-    .btn-primary {
-      background: linear-gradient(135deg, var(--sbh-btn-color), var(--sbh-gradient-end));
-      color: white;
-    }
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 15px rgba(30, 144, 255, 0.4);
-    }
-    .btn-gold {
-      background: linear-gradient(135deg, var(--gold-primary), var(--gold-secondary));
-      color: #000;
-    }
-    .btn-gold:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
-    }
-    .btn-whatsapp {
-      background: #25D366;
-      color: white;
-    }
-    .btn-whatsapp:hover {
-      background: #128C7E;
-    }
-
-    .share-buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      justify-content: center;
-      margin-top: 1rem;
-    }
-
+    /* Statistiques */
     .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 1rem;
-      margin-top: 1.5rem;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1.5rem;
+      margin-top: 2rem;
     }
-    .stat-item {
-      background: rgba(0,0,0,0.2);
-      border-radius: 10px;
-      padding: 1rem;
-      text-align: center;
+    .stat-card {
+      background: rgba(0,0,0,0.3); border-radius: 20px; padding: 1.2rem; text-align: center;
+      transition: all 0.3s;
     }
-    .stat-value {
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: var(--gold-primary);
-    }
-    .stat-label {
-      font-size: 0.85rem;
-      color: var(--sbh-text-light);
-      margin-top: 0.3rem;
-    }
+    .stat-card:hover { background: rgba(212,175,55,0.1); transform: scale(1.02); }
+    .stat-value { font-size: 2.2rem; font-weight: 800; color: var(--sbh-gold); }
+    .stat-label { font-size: 0.85rem; color: var(--sbh-text-light); margin-top: 0.3rem; }
 
-    .how-it-works {
-      background: var(--sbh-card-bg);
-      border: 1px solid var(--sbh-card-border);
-      border-radius: var(--sbh-card-radius);
-      padding: 2rem;
-      margin-bottom: 2rem;
-      backdrop-filter: blur(10px);
-    }
-    .how-it-works h2 {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 1.5rem;
-      margin-bottom: 1.5rem;
-      text-align: center;
-    }
-    .how-it-works h2::after {
-      display: none;
-    }
-    .steps {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-    .step {
-      display: flex;
-      align-items: flex-start;
-      gap: 1rem;
-      padding: 1rem;
-      background: rgba(0,0,0,0.2);
-      border-radius: 10px;
-    }
-    .step-number {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--gold-primary), var(--gold-secondary));
-      color: #000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 1.2rem;
-      flex-shrink: 0;
-    }
-    .step-content h3 {
-      font-size: 1.1rem;
-      margin-bottom: 0.3rem;
-      text-align: left;
-    }
-    .step-content p {
-      font-size: 0.9rem;
-      color: var(--sbh-text-light);
-      margin: 0;
-    }
-
-    .referral-history {
-      background: var(--sbh-card-bg);
-      border: 1px solid var(--sbh-card-border);
-      border-radius: var(--sbh-card-radius);
-      padding: 2rem;
-      backdrop-filter: blur(10px);
-    }
-    .referral-history h2 {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
-      text-align: center;
-    }
-    .referral-history h2::after {
-      display: none;
-    }
+    /* Liste filleuls */
     .referral-list {
-      max-height: 300px;
-      overflow-y: auto;
+      max-height: 320px; overflow-y: auto; margin-top: 1rem;
     }
     .referral-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.8rem 1rem;
-      background: rgba(0,0,0,0.2);
-      border-radius: 8px;
-      margin-bottom: 0.5rem;
+      display: flex; justify-content: space-between; align-items: center;
+      background: rgba(0,0,0,0.2); padding: 0.9rem 1.2rem; border-radius: 16px;
+      margin-bottom: 0.7rem; transition: 0.2s;
     }
-    .referral-item:last-child {
-      margin-bottom: 0;
+    .referral-item:hover { background: rgba(77,166,255,0.1); }
+    .referral-user i { color: var(--sbh-gold); margin-right: 8px; }
+    .referral-bonus { color: #4CAF50; font-weight: 600; }
+    .empty-state { text-align: center; padding: 2rem; color: var(--sbh-text-light); }
+
+    /* Steps */
+    .steps-container {
+      display: flex; flex-direction: column; gap: 1.2rem; margin-top: 1.5rem;
     }
-    .referral-user {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    .step-row {
+      display: flex; align-items: flex-start; gap: 1rem;
+      background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 20px;
     }
-    .referral-user i {
-      color: var(--gold-primary);
+    .step-num {
+      width: 44px; height: 44px; background: linear-gradient(135deg, var(--sbh-gold), var(--sbh-gold-deep));
+      color: #000; font-weight: 800; font-size: 1.3rem; display: flex; align-items: center; justify-content: center;
+      border-radius: 40px; flex-shrink: 0;
     }
-    .referral-bonus {
-      color: var(--sbh-text-green);
-      font-weight: 600;
+    .step-text h3 { font-size: 1.2rem; margin-bottom: 0.2rem; text-align: left; }
+
+    /* Notification */
+    .notification {
+      position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%);
+      background: var(--sbh-gold); color: #000; padding: 0.8rem 1.8rem;
+      border-radius: 40px; display: none; z-index: 1100; font-weight: bold;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.3);
     }
-    .empty-state {
-      text-align: center;
-      padding: 2rem;
-      color: var(--sbh-text-light);
-    }
-    .empty-state i {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-      opacity: 0.5;
+    .notification.active { display: block; animation: fadeUp 0.3s ease; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translate(-50%, 20px); }
+      to { opacity: 1; transform: translate(-50%, 0); }
     }
 
-    .notification {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--sbh-text-green);
-      color: white;
-      padding: 1rem 2rem;
-      border-radius: 10px;
-      display: none;
-      z-index: 1000;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    /* Footer (similaire index) */
+    footer {
+      background: rgba(8, 14, 26, 0.9); border-top: 1px solid var(--glass-border);
+      padding: 3rem 1rem 2rem; margin-top: 3rem;
     }
-    .notification.active {
-      display: block;
-      animation: slideUp 0.3s ease;
+    .footer-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem;
     }
-    @keyframes slideUp {
-      from { transform: translate(-50%, 100%); opacity: 0; }
-      to { transform: translate(-50%, 0); opacity: 1; }
+    .footer-grid h3 { font-size: 1.2rem; margin-bottom: 1.2rem; color: #fff; }
+    .footer-grid ul { list-style: none; padding: 0; }
+    .footer-grid li { margin-bottom: 0.6rem; }
+    .footer-grid a {
+      color: var(--sbh-text-light); text-decoration: none; font-size: 0.9rem; transition: 0.3s;
     }
+    .footer-grid a:hover { color: var(--sbh-gold); }
 
     @media (max-width: 600px) {
-      .page-title h1 {
-        font-size: 1.8rem;
-      }
-      .referral-code {
-        font-size: 1.5rem;
-      }
-      .stats-grid {
-        grid-template-columns: 1fr 1fr;
-      }
+      .referral-code { font-size: 1.5rem; letter-spacing: 2px; }
+      .stat-value { font-size: 1.6rem; }
     }
   </style>
 </head>
 <body>
-  <div class="background-animation"></div>
+<div class="bg-grid"></div>
+<div class="background-animation"></div>
 
-  <header data-aos="fade-down">
-    <a href="dashboard.html" class="logo-text">
-      <span class="text-social">SOCIAL</span>
-      <div class="boost-line">
-        <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo">
-        <span>BOOST</span>
-      </div>
-      <span class="text-horizon">HORIZON</span>
-    </a>
-    <div class="header-icons">
-      <a href="profil.html" class="snap-avatar">
-        <span id="userInitial"></span>
-      </a>
-      <i class="fa-solid fa-bars icon-hamburger" id="hamburgerBtn"></i>
+<!-- Header -->
+<header>
+  <a href="dashboard.html" class="logo-link">
+    <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo" class="logo-img">
+    <div class="logo-text">
+      <span class="social">SOCIAL</span>
+      <span class="boost">BOOST</span>
+      <span class="horizon">HORIZON</span>
     </div>
-    <div class="mobile-menu" id="mobileMenu">
-      <a href="dashboard.html"><i class="fa-solid fa-house"></i> Accueil</a>
-      <a href="wallet.html"><i class="fa-solid fa-wallet"></i> Mon portefeuille</a>
-      <a href="commander.html"><i class="fa-solid fa-rocket"></i> Commander</a>
-      <a href="commandes.html"><i class="fa-solid fa-shopping-cart"></i> Mes commandes</a>
-      <a href="parrainage.html"><i class="fa-solid fa-handshake"></i> Parrainage</a>
-      <a href="assistant.html"><i class="fa-solid fa-headset"></i> Assistance</a>
-    </div>
-  </header>
+  </a>
+  <div class="header-icons" style="display:flex; align-items:center; gap:20px;">
+    <a href="profil.html" class="snap-avatar"><span id="userInitial">?</span></a>
+    <i class="fa-solid fa-bars icon-hamburger" id="hamburgerBtn"></i>
+  </div>
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="dashboard.html"><i class="fa-solid fa-house"></i> Accueil</a>
+    <a href="wallet.html"><i class="fa-solid fa-wallet"></i> Mon portefeuille</a>
+    <a href="commander.html"><i class="fa-solid fa-rocket"></i> Commander</a>
+    <a href="commandes.html"><i class="fa-solid fa-shopping-cart"></i> Mes commandes</a>
+    <a href="parrainage.html"><i class="fa-solid fa-handshake"></i> Parrainage</a>
+    <a href="assistant.html"><i class="fa-solid fa-headset"></i> Assistance</a>
+  </div>
+</header>
 
-  <main>
-    <div class="page-title" data-aos="fade-up">
-      <h1><i class="fas fa-handshake"></i> Parrainage</h1>
-      <p>Parrainez vos amis et gagnez des bonus sur chaque recharge !</p>
+<main>
+  <div class="container">
+    <!-- Titre principal -->
+    <div data-aos="fade-up" style="text-align:center; margin: 2rem 0 1rem;">
+      <h1 style="font-size: 2.8rem; background: linear-gradient(135deg, var(--sbh-gold), #FFF8DC); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Parrainage</h1>
+      <p style="font-size:1.1rem;">Parrainez vos amis et recevez <strong>10% de bonus</strong> sur chaque recharge de vos filleuls !</p>
     </div>
 
-    <div class="referral-card" data-aos="fade-up" data-aos-delay="100">
-      <h2><i class="fas fa-gift"></i> Votre Code de Parrainage</h2>
-      
-      <div class="referral-code-box">
-        <div class="referral-code-label">Code unique</div>
+    <!-- Carte principale : code + lien + stats -->
+    <div class="glass-card" data-aos="fade-up" data-aos-delay="100">
+      <h2 style="text-align:center;"><i class="fas fa-gift"></i> Votre code unique</h2>
+      <div class="code-highlight">
         <div class="referral-code" id="referralCode">--------</div>
+        <div class="flex-buttons" style="margin-top: 0.6rem;">
+          <button class="btn btn-outline" onclick="copyCode()"><i class="fas fa-copy"></i> Copier le code</button>
+        </div>
       </div>
 
-      <div class="referral-link-box">
-        <div class="referral-link-label">Lien de parrainage</div>
+      <div style="margin: 1rem 0; text-align:center;">
         <div class="referral-link" id="referralLink">Chargement...</div>
-        <button class="btn btn-primary" onclick="copyLink()">
-          <i class="fas fa-copy"></i> Copier le lien
-        </button>
-      </div>
-
-      <div class="share-buttons">
-        <button class="btn btn-whatsapp" onclick="shareWhatsApp()">
-          <i class="fab fa-whatsapp"></i> Partager sur WhatsApp
-        </button>
-        <button class="btn btn-gold" onclick="shareFacebook()">
-          <i class="fab fa-facebook"></i> Partager sur Facebook
-        </button>
+        <div class="flex-buttons">
+          <button class="btn" onclick="copyLink()"><i class="fas fa-link"></i> Copier le lien</button>
+          <button class="btn btn-whatsapp" onclick="shareWhatsApp()"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+          <button class="btn btn-gold" onclick="shareFacebook()"><i class="fab fa-facebook"></i> Facebook</button>
+        </div>
       </div>
 
       <div class="stats-grid">
-        <div class="stat-item">
-          <div class="stat-value" id="totalReferrals">0</div>
-          <div class="stat-label">Filleuls</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value" id="totalEarnings">0</div>
-          <div class="stat-label">FCFA gagnés</div>
-        </div>
+        <div class="stat-card"><div class="stat-value" id="totalReferrals">0</div><div class="stat-label">👥 Filleuls inscrits</div></div>
+        <div class="stat-card"><div class="stat-value" id="totalEarnings">0</div><div class="stat-label">💰 Bonus gagnés (FCFA)</div></div>
       </div>
     </div>
 
-    <div class="how-it-works" data-aos="fade-up" data-aos-delay="200">
+    <!-- Comment ça marche (amélioré) -->
+    <div class="glass-card" data-aos="fade-up" data-aos-delay="200">
       <h2><i class="fas fa-info-circle"></i> Comment ça marche ?</h2>
-      <div class="steps">
-        <div class="step">
-          <div class="step-number">1</div>
-          <div class="step-content">
-            <h3>Partagez votre lien</h3>
-            <p>Envoyez votre lien de parrainage unique à vos amis par WhatsApp, Facebook ou autres.</p>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-number">2</div>
-          <div class="step-content">
-            <h3>Vos amis s'inscrivent</h3>
-            <p>Quand ils s'inscrivent avec votre lien, ils deviennent vos filleuls.</p>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-number">3</div>
-          <div class="step-content">
-            <h3>Gagnez des bonus</h3>
-            <p>Recevez 10% de bonus sur chaque recharge effectuee par vos filleuls !</p>
-          </div>
-        </div>
+      <div class="steps-container">
+        <div class="step-row"><div class="step-num">1</div><div class="step-text"><h3>Partagez votre lien</h3><p>Copiez votre lien ou code unique et envoyez-le à vos amis via WhatsApp, Facebook, SMS...</p></div></div>
+        <div class="step-row"><div class="step-num">2</div><div class="step-text"><h3>Ils s'inscrivent</h3><p>Quand ils créent un compte avec votre code, ils deviennent vos filleuls automatiquement.</p></div></div>
+        <div class="step-row"><div class="step-num">3</div><div class="step-text"><h3>Gagnez des bonus</h3><p>À chaque recharge effectuée par vos filleuls, vous recevez <strong>10% du montant</strong> directement sur votre portefeuille !</p></div></div>
+        <div class="step-row"><div class="step-num">🎁</div><div class="step-text"><h3>Bonus illimité</h3><p>Aucune limite, parrainez autant de personnes que vous voulez et multipliez vos gains.</p></div></div>
       </div>
     </div>
 
-    <div class="referral-history" data-aos="fade-up" data-aos-delay="300">
-      <h2><i class="fas fa-users"></i> Vos Filleuls</h2>
+    <!-- Historique des filleuls -->
+    <div class="glass-card" data-aos="fade-up" data-aos-delay="300">
+      <h2><i class="fas fa-users"></i> Vos filleuls</h2>
       <div class="referral-list" id="referralList">
-        <div class="empty-state">
-          <i class="fas fa-user-friends"></i>
-          <p>Aucun filleul pour le moment.<br>Partagez votre lien pour commencer !</p>
-        </div>
+        <div class="empty-state"><i class="fas fa-user-friends fa-3x" style="opacity:0.5;"></i><p>Aucun filleul pour le moment.<br>Partagez votre lien pour commencer !</p></div>
       </div>
     </div>
-  </main>
+  </div>
+</main>
 
-  <div class="notification" id="notification">Lien copie !</div>
+<!-- Footer (identique à index) -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="logo-link" style="margin-bottom:1rem;"><img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo" class="logo-img" style="border-color:var(--sbh-gold);"><span style="font-weight:800; color:var(--sbh-gold);"> SOCIAL BOOST HORIZON</span></div>
+        <p>Votre visibilité, notre horizon. Plateforme tout-en-un pour booster votre présence digitale.</p>
+      </div>
+      <div><h3>Liens Rapides</h3><ul><li><a href="dashboard.html">Accueil</a></li><li><a href="about.html">À propos</a></li><li><a href="services.html">Services</a></li><li><a href="commander.html">Commander</a></li></ul></div>
+      <div><h3>Légal</h3><ul><li><a href="cgu.html">CGU</a></li><li><a href="https://socialboosthorizon.com/privacy">Confidentialité</a></li><li><a href="cookies.html">Cookies</a></li></ul></div>
+      <div><h3>Contact</h3><p><i class="fas fa-envelope"></i> socialboosthorizon984@gmail.com</p><p><i class="fas fa-phone"></i> +237 699 85 36 65</p><a href="https://chat.whatsapp.com/HRgWJFxTgkiEkEC0Ou2028" target="_blank" class="btn btn-outline" style="margin-top:10px;">WhatsApp</a></div>
+    </div>
+    <div style="text-align:center; margin-top:3rem; padding-top:2rem; border-top:1px solid rgba(255,255,255,0.1);"><p style="font-size:0.85rem;">&copy; 2026 Social Boost Horizon • Tous droits réservés.</p></div>
+  </div>
+</footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
-  <script>
-    AOS.init({ duration: 800, once: true });
+<div class="notification" id="notification">✓ Copié !</div>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-      authDomain: "social-boost-horizon.firebaseapp.com",
-      projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.appspot.com",
-      messagingSenderId: "43658165639",
-      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const auth = firebase.auth();
+<script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+<script>
+  AOS.init({ duration: 800, once: true, offset: 50 });
 
-    const FRONTEND_DOMAIN = 'https://socialboosthorizon.com';
-    const BACKEND_URL = 'https://social-boost-exaucenapopolo2.replit.app';
+  // Firebase config
+  const firebaseConfig = {
+    apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+    authDomain: "social-boost-horizon.firebaseapp.com",
+    projectId: "social-boost-horizon",
+    storageBucket: "social-boost-horizon.appspot.com",
+    messagingSenderId: "43658165639",
+    appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
 
-    let currentUser = null;
-    let userData = null;
+  const FRONTEND_DOMAIN = 'https://socialboosthorizon.com';
+  const BACKEND_URL = 'https://social-boost-exaucenapopolo2.replit.app';
 
-    document.getElementById('hamburgerBtn').addEventListener('click', () => {
-      document.getElementById('mobileMenu').classList.toggle('active');
-    });
+  let currentUser = null;
+  let userData = null;
 
-    auth.onAuthStateChanged(async (user) => {
-      if (!user) {
-        window.location.href = 'login.html';
-        return;
-      }
-      currentUser = user;
-      await loadUserData();
-    });
+  // Menu mobile
+  document.getElementById('hamburgerBtn').addEventListener('click', () => {
+    document.querySelector('header').classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    const header = document.querySelector('header');
+    if (!header.contains(e.target) && header.classList.contains('open')) header.classList.remove('open');
+  });
 
-    async function loadUserData() {
-      try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        if (userDoc.exists) {
-          userData = userDoc.data();
-          
-          const initial = (userData.username || currentUser.email || '?').charAt(0).toUpperCase();
-          document.getElementById('userInitial').textContent = initial;
-          
-          const code = userData.referralCode || '--------';
-          document.getElementById('referralCode').textContent = code;
-          
-          const link = `${FRONTEND_DOMAIN}/register.html?ref=${code}`;
-          document.getElementById('referralLink').textContent = link;
-          
-          await loadReferralStats();
-          await loadReferralHistory();
-        }
-      } catch (error) {
-        console.error('Erreur chargement donnees:', error);
-      }
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) {
+      window.location.href = 'login.html';
+      return;
     }
+    currentUser = user;
+    await loadUserData();
+  });
 
-    async function loadReferralStats() {
-      try {
-        const response = await fetch(`${BACKEND_URL}/api/referrals/${currentUser.uid}`);
-        const data = await response.json();
-        
-        if (data.success) {
-          document.getElementById('totalReferrals').textContent = data.totalReferrals;
-          document.getElementById('totalEarnings').textContent = data.totalEarnings.toLocaleString('fr-FR');
-          
-          // Stocker les données pour l'historique
-          window.referralsData = data.referrals;
-        } else {
-          document.getElementById('totalReferrals').textContent = '0';
-          document.getElementById('totalEarnings').textContent = '0';
-        }
-      } catch (error) {
-        console.error('Erreur stats:', error);
+  async function loadUserData() {
+    try {
+      const userDoc = await db.collection('users').doc(currentUser.uid).get();
+      if (userDoc.exists) {
+        userData = userDoc.data();
+        const initial = (userData.username || currentUser.email || '?').charAt(0).toUpperCase();
+        document.getElementById('userInitial').textContent = initial;
+
+        let code = userData.referralCode || '--------';
+        document.getElementById('referralCode').textContent = code;
+
+        // Lien sans .html
+        const link = `${FRONTEND_DOMAIN}/register?ref=${code}`;
+        document.getElementById('referralLink').textContent = link;
+
+        await loadReferralStats();
+        await loadReferralHistory();
+      }
+    } catch (error) {
+      console.error('Erreur chargement:', error);
+    }
+  }
+
+  async function loadReferralStats() {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/referrals/${currentUser.uid}`);
+      const data = await response.json();
+      if (data.success) {
+        document.getElementById('totalReferrals').textContent = data.totalReferrals;
+        document.getElementById('totalEarnings').textContent = data.totalEarnings.toLocaleString('fr-FR');
+        window.referralsData = data.referrals;
+      } else {
         document.getElementById('totalReferrals').textContent = '0';
         document.getElementById('totalEarnings').textContent = '0';
       }
+    } catch (error) {
+      console.error('Erreur stats:', error);
+      document.getElementById('totalReferrals').textContent = '0';
+      document.getElementById('totalEarnings').textContent = '0';
     }
+  }
 
-    async function loadReferralHistory() {
-      try {
-        const listEl = document.getElementById('referralList');
-        
-        // Utiliser les données déjà chargées ou les récupérer
-        let referrals = window.referralsData;
-        
-        if (!referrals) {
-          const response = await fetch(`${BACKEND_URL}/api/referrals/${currentUser.uid}`);
-          const data = await response.json();
-          if (data.success) {
-            referrals = data.referrals;
-          } else {
-            referrals = [];
-          }
-        }
-        
-        if (!referrals || referrals.length === 0) {
-          listEl.innerHTML = `
-            <div class="empty-state">
-              <i class="fas fa-user-friends"></i>
-              <p>Aucun filleul pour le moment.<br>Partagez votre lien pour commencer !</p>
-            </div>
-          `;
-          return;
-        }
-        
-        let html = '';
-        for (const referral of referrals) {
-          const username = referral.username || 'Utilisateur';
-          const bonus = referral.bonus || 0;
-          const country = referral.country || '';
-          
-          html += `
-            <div class="referral-item">
-              <div class="referral-user">
-                <i class="fas fa-user-check"></i>
-                <span>${username}</span>
-                ${country ? `<small style="opacity:0.7">${country}</small>` : ''}
-              </div>
-              <span class="referral-bonus">${bonus > 0 ? '+' + bonus.toLocaleString('fr-FR') + ' FCFA' : 'Inscrit'}</span>
-            </div>
-          `;
-        }
-        
-        listEl.innerHTML = html;
-      } catch (error) {
-        console.error('Erreur historique:', error);
+  async function loadReferralHistory() {
+    try {
+      let referrals = window.referralsData;
+      if (!referrals) {
+        const response = await fetch(`${BACKEND_URL}/api/referrals/${currentUser.uid}`);
+        const data = await response.json();
+        referrals = data.success ? data.referrals : [];
       }
+      const listEl = document.getElementById('referralList');
+      if (!referrals || referrals.length === 0) {
+        listEl.innerHTML = `<div class="empty-state"><i class="fas fa-user-friends fa-3x"></i><p>Aucun filleul pour le moment.<br>Partagez votre lien !</p></div>`;
+        return;
+      }
+      let html = '';
+      for (const ref of referrals) {
+        const username = ref.username || 'Utilisateur';
+        const bonus = ref.bonus || 0;
+        html += `<div class="referral-item"><div class="referral-user"><i class="fas fa-user-check"></i> ${username}</div><span class="referral-bonus">${bonus > 0 ? '+' + bonus.toLocaleString('fr-FR') + ' FCFA' : 'Inscrit'}</span></div>`;
+      }
+      listEl.innerHTML = html;
+    } catch (error) {
+      console.error('Erreur historique:', error);
     }
+  }
 
-    function copyLink() {
-      const link = document.getElementById('referralLink').textContent;
-      navigator.clipboard.writeText(link).then(() => {
-        showNotification('Lien copie !');
-      }).catch(() => {
-        const input = document.createElement('input');
-        input.value = link;
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand('copy');
-        document.body.removeChild(input);
-        showNotification('Lien copie !');
-      });
-    }
+  function copyCode() {
+    const code = document.getElementById('referralCode').textContent;
+    navigator.clipboard.writeText(code).then(() => showNotification('Code copié !')).catch(() => fallbackCopy(code, 'Code copié !'));
+  }
+  function copyLink() {
+    const link = document.getElementById('referralLink').textContent;
+    navigator.clipboard.writeText(link).then(() => showNotification('Lien copié !')).catch(() => fallbackCopy(link, 'Lien copié !'));
+  }
+  function fallbackCopy(text, msg) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    showNotification(msg);
+  }
 
-    function shareWhatsApp() {
-      const code = document.getElementById('referralCode').textContent;
-      const link = `${FRONTEND_DOMAIN}/register.html?ref=${code}`;
-      const text = encodeURIComponent(`Rejoins Social Boost Horizon et booste tes reseaux sociaux ! Inscris-toi avec mon lien : ${link}`);
-      window.open(`https://wa.me/?text=${text}`, '_blank');
-    }
+  function shareWhatsApp() {
+    const link = document.getElementById('referralLink').textContent;
+    const text = encodeURIComponent(`🔥 Rejoins Social Boost Horizon et booste tes réseaux sociaux ! Inscris-toi avec mon lien : ${link}`);
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+  }
+  function shareFacebook() {
+    const link = encodeURIComponent(document.getElementById('referralLink').textContent);
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${link}`, '_blank');
+  }
 
-    function shareFacebook() {
-      const code = document.getElementById('referralCode').textContent;
-      const link = encodeURIComponent(`${FRONTEND_DOMAIN}/register.html?ref=${code}`);
-      window.open(`https://www.facebook.com/sharer/sharer.php?u=${link}`, '_blank');
-    }
-
-    function showNotification(msg) {
-      const el = document.getElementById('notification');
-      el.textContent = msg;
-      el.classList.add('active');
-      setTimeout(() => {
-        el.classList.remove('active');
-      }, 2500);
-    }
-  </script>
+  function showNotification(msg) {
+    const notif = document.getElementById('notification');
+    notif.textContent = msg;
+    notif.classList.add('active');
+    setTimeout(() => notif.classList.remove('active'), 2500);
+  }
+</script>
 </body>
 </html>
