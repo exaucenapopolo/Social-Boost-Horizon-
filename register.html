@@ -35,8 +35,11 @@
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    /* Cohérence des tailles de police avec index.html */
     html { font-size: 14px; }
     @media (min-width: 768px) { html { font-size: 15px; } }
+    @media (max-width: 480px) { html { font-size: 13px; } }
 
     body {
       font-family: var(--font-primary);
@@ -52,20 +55,38 @@
       background: radial-gradient(ellipse at 30% 50%, #0f2040 0%, #080e1a 70%);
     }
 
+    /* --- HEADER & HAMBURGER MENU --- */
     header {
       position: sticky; top: 0; z-index: 100;
       background: rgba(8, 14, 26, 0.85); backdrop-filter: blur(20px);
       display: flex; justify-content: space-between; align-items: center;
       padding: 0.7rem 1.8rem; border-bottom: 1px solid var(--glass-border);
     }
+    @media (max-width: 480px) { header { padding: 0.6rem 1rem; } }
 
     .logo-link { display: flex; align-items: center; text-decoration: none; gap: 10px; }
     .logo-img { height: 42px; width: 42px; border-radius: 50%; border: 2px solid var(--sbh-gold); }
+    @media (max-width: 480px) { .logo-img { height: 36px; width: 36px; } }
+    
     .logo-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
     .logo-text .social { font-size: 0.8rem; font-weight: 600; color: #fff; }
     .logo-text .boost { font-size: 1.4rem; font-weight: 800; color: var(--sbh-gold); }
+    @media (max-width: 480px) { .logo-text .boost { font-size: 1.2rem; } }
     .logo-text .horizon { font-size: 0.9rem; font-weight: 600; color: #fff; }
 
+    .icon-hamburger { font-size: 1.6rem; cursor: pointer; transition: 0.3s; color: #fff; }
+    .icon-hamburger:hover { color: var(--sbh-gold); }
+    .mobile-menu {
+      display: none; position: absolute; top: 65px; right: 1.8rem;
+      background: rgba(10, 22, 43, 0.95); border: 1px solid var(--glass-border);
+      border-radius: 16px; padding: 1.2rem; flex-direction: column; z-index: 200;
+      min-width: 240px; backdrop-filter: blur(20px);
+    }
+    header.open .mobile-menu { display: flex; }
+    .mobile-menu a { color: #fff; padding: 0.7rem 0.9rem; text-decoration: none; border-radius: 8px; transition: 0.3s; display: flex; align-items: center; gap: 10px; font-size: 0.9rem; }
+    .mobile-menu a:hover { background: rgba(30, 60, 114, 0.5); transform: translateX(5px); }
+
+    /* --- BOUTONS --- */
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
       background: linear-gradient(135deg, var(--sbh-gradient-start), var(--sbh-btn-color));
@@ -86,6 +107,7 @@
     .btn-google { background: #fff; color: #444; }
     .btn-google:hover { background: #f5f5f5; }
 
+    /* --- FORMULAIRE --- */
     main {
       display: flex; justify-content: center; align-items: center;
       padding: 2rem 1rem; min-height: 80vh;
@@ -100,6 +122,8 @@
       font-family: var(--font-display); font-size: 1.8rem; text-align: center;
       color: var(--sbh-gold); margin-bottom: 0.5rem;
     }
+    @media (max-width: 480px) { .form-container h2 { font-size: 1.6rem; } }
+    
     .form-container > p { text-align: center; margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--text-light); }
 
     .form-group { margin-bottom: 1.2rem; }
@@ -107,17 +131,54 @@
       display: block; font-size: 0.9rem; margin-bottom: 0.4rem;
       color: #fff; font-weight: 500;
     }
-    .form-group input, .form-group select {
+    .form-group input {
       width: 100%; padding: 12px 14px; border: 1px solid var(--glass-border);
       border-radius: 12px; background: var(--input-bg); color: #fff;
       font-size: 0.95rem; font-family: var(--font-primary); transition: 0.3s;
       outline: none;
     }
-    .form-group input:focus, .form-group select:focus {
+    .form-group input:focus {
       border-color: rgba(77,166,255,0.5);
       box-shadow: 0 0 0 3px rgba(77,166,255,0.1);
     }
-    .form-group select option { background: #1a2a45; color: #fff; }
+    
+    /* --- SÉLECTEUR DE PAYS PERSONNALISÉ (AVEC RECHERCHE) --- */
+    .custom-select-container { position: relative; }
+    .custom-select-display {
+      width: 100%; padding: 12px 14px; border: 1px solid var(--glass-border);
+      border-radius: 12px; background: var(--input-bg); color: #fff;
+      font-size: 0.95rem; font-family: var(--font-primary); cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center; transition: 0.3s;
+    }
+    .custom-select-display.active {
+      border-color: rgba(77,166,255,0.5); box-shadow: 0 0 0 3px rgba(77,166,255,0.1);
+    }
+    .custom-select-dropdown {
+      position: absolute; top: 100%; left: 0; width: 100%; margin-top: 5px;
+      background: #0f182b; border: 1px solid var(--glass-border); border-radius: 12px;
+      z-index: 200; display: none; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .custom-select-dropdown.show { display: block; }
+    .custom-select-search { padding: 10px; border-bottom: 1px solid var(--glass-border); background: #141e32; }
+    .custom-select-search input {
+      width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(0,0,0,0.2); color: #fff; outline: none; font-family: var(--font-primary); font-size: 0.9rem;
+    }
+    .custom-select-search input:focus { border-color: var(--sbh-light-blue); }
+    .custom-select-options { max-height: 250px; overflow-y: auto; padding-bottom: 5px; }
+    /* Scrollbar personnalisée */
+    .custom-select-options::-webkit-scrollbar { width: 6px; }
+    .custom-select-options::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+    .custom-select-options::-webkit-scrollbar-thumb { background: var(--sbh-light-blue); border-radius: 10px; }
+    
+    .custom-select-group-label {
+      padding: 8px 12px; font-size: 0.8rem; color: var(--sbh-gold);
+      font-weight: 700; background: rgba(0,0,0,0.3); text-transform: uppercase; margin-top: 5px;
+    }
+    .custom-select-option { padding: 10px 14px; cursor: pointer; font-size: 0.9rem; transition: 0.2s; color: rgba(255,255,255,0.9); }
+    .custom-select-option:hover { background: rgba(77,166,255,0.15); color: #fff; }
+    .custom-select-option.hidden { display: none; }
+
     .referral-group { display: flex; gap: 10px; }
     .referral-group input { flex: 1; }
 
@@ -190,6 +251,14 @@
         <span class="horizon">HORIZON</span>
       </div>
     </a>
+    
+    <i class="fa-solid fa-bars icon-hamburger"></i>
+    <div class="mobile-menu">
+      <a href="index.html"><i class="fas fa-home"></i> Accueil</a>
+      <a href="login.html"><i class="fas fa-right-to-bracket"></i> Se connecter</a>
+      <a href="partenaire.html"><i class="fas fa-handshake"></i> Devenir partenaire</a>
+      <a href="https://chat.whatsapp.com/HRgWJFxTgkiEkEC0Ou2028" target="_blank"><i class="fab fa-whatsapp"></i> Rejoindre la communauté WhatsApp</a>
+    </div>
   </header>
 
   <main>
@@ -206,46 +275,103 @@
         </div>
 
         <div class="form-group">
-          <label for="pays"><i class="fas fa-globe"></i> Pays</label>
-          <select id="pays" required>
-            <option value="">— Sélectionnez votre pays —</option>
-            <optgroup label="Afrique">
-              <option value="za">Afrique du Sud 🇿🇦</option>
-              <option value="dz">Algérie 🇩🇿</option>
-              <option value="ao">Angola 🇦🇴</option>
-              <option value="bj">Bénin 🇧🇯</option>
-              <option value="bf">Burkina Faso 🇧🇫</option>
-              <option value="bi">Burundi 🇧🇮</option>
-              <option value="cm">Cameroun 🇨🇲</option>
-              <option value="cv">Cap-Vert 🇨🇻</option>
-              <option value="cf">Centrafrique 🇨🇫</option>
-              <option value="km">Comores 🇰🇲</option>
-              <option value="cg">Congo Brazzaville 🇨🇬</option>
-              <option value="cd">Congo (RDC) 🇨🇩</option>
-              <option value="ci">Côte d'Ivoire 🇨🇮</option>
-              <option value="dj">Djibouti 🇩🇯</option>
-              <option value="eg">Égypte 🇪🇬</option>
-              <option value="ga">Gabon 🇬🇦</option>
-              <option value="gn">Guinée 🇬🇳</option>
-              <option value="gq">Guinée équatoriale 🇬🇶</option>
-              <option value="ke">Kenya 🇰🇪</option>
-              <option value="mg">Madagascar 🇲🇬</option>
-              <option value="ml">Mali 🇲🇱</option>
-              <option value="ma">Maroc 🇲🇦</option>
-              <option value="mu">Maurice 🇲🇺</option>
-              <option value="mr">Mauritanie 🇲🇷</option>
-              <option value="ne">Niger 🇳🇪</option>
-              <option value="ng">Nigéria 🇳🇬</option>
-              <option value="ug">Ouganda 🇺🇬</option>
-              <option value="rw">Rwanda 🇷🇼</option>
-              <option value="sn">Sénégal 🇸🇳</option>
-              <option value="td">Tchad 🇹🇩</option>
-              <option value="tg">Togo 🇹🇬</option>
-              <option value="tn">Tunisie 🇹🇳</option>
-              <option value="zm">Zambie 🇿🇲</option>
-            </optgroup>
-            <option value="ailleurs">Ailleurs dans le monde 🌍</option>
-          </select>
+          <label><i class="fas fa-globe"></i> Pays</label>
+          
+          <div class="custom-select-container" id="customSelectContainer">
+            <div class="custom-select-display" id="customSelectDisplay">
+              <span id="customSelectText">— Sélectionnez votre pays —</span>
+              <i class="fas fa-chevron-down"></i>
+            </div>
+            
+            <div class="custom-select-dropdown" id="customSelectDropdown">
+              <div class="custom-select-search">
+                <input type="text" id="customSearchInput" placeholder="Rechercher un pays..." autocomplete="off">
+              </div>
+              <div class="custom-select-options" id="customOptionsList">
+                
+                <div class="custom-select-group">
+                  <div class="custom-select-group-label">Afrique Centrale</div>
+                  <div class="custom-select-option" data-value="ao">Angola 🇦🇴</div>
+                  <div class="custom-select-option" data-value="cm">Cameroun 🇨🇲</div>
+                  <div class="custom-select-option" data-value="cf">Centrafrique 🇨🇫</div>
+                  <div class="custom-select-option" data-value="cg">Congo Brazzaville 🇨🇬</div>
+                  <div class="custom-select-option" data-value="cd">Congo (RDC) 🇨🇩</div>
+                  <div class="custom-select-option" data-value="ga">Gabon 🇬🇦</div>
+                  <div class="custom-select-option" data-value="gq">Guinée équatoriale 🇬🇶</div>
+                  <div class="custom-select-option" data-value="st">Sao Tomé-et-Principe 🇸🇹</div>
+                  <div class="custom-select-option" data-value="td">Tchad 🇹🇩</div>
+                </div>
+
+                <div class="custom-select-group">
+                  <div class="custom-select-group-label">Afrique de l'Ouest</div>
+                  <div class="custom-select-option" data-value="bj">Bénin 🇧🇯</div>
+                  <div class="custom-select-option" data-value="bf">Burkina Faso 🇧🇫</div>
+                  <div class="custom-select-option" data-value="cv">Cap-Vert 🇨🇻</div>
+                  <div class="custom-select-option" data-value="ci">Côte d'Ivoire 🇨🇮</div>
+                  <div class="custom-select-option" data-value="gm">Gambie 🇬🇲</div>
+                  <div class="custom-select-option" data-value="gh">Ghana 🇬🇭</div>
+                  <div class="custom-select-option" data-value="gn">Guinée 🇬🇳</div>
+                  <div class="custom-select-option" data-value="gw">Guinée-Bissau 🇬🇼</div>
+                  <div class="custom-select-option" data-value="lr">Libéria 🇱🇷</div>
+                  <div class="custom-select-option" data-value="ml">Mali 🇲🇱</div>
+                  <div class="custom-select-option" data-value="mr">Mauritanie 🇲🇷</div>
+                  <div class="custom-select-option" data-value="ne">Niger 🇳🇪</div>
+                  <div class="custom-select-option" data-value="ng">Nigéria 🇳🇬</div>
+                  <div class="custom-select-option" data-value="sn">Sénégal 🇸🇳</div>
+                  <div class="custom-select-option" data-value="sl">Sierra Leone 🇸🇱</div>
+                  <div class="custom-select-option" data-value="tg">Togo 🇹🇬</div>
+                </div>
+
+                <div class="custom-select-group">
+                  <div class="custom-select-group-label">Afrique de l'Est</div>
+                  <div class="custom-select-option" data-value="bi">Burundi 🇧🇮</div>
+                  <div class="custom-select-option" data-value="km">Comores 🇰🇲</div>
+                  <div class="custom-select-option" data-value="dj">Djibouti 🇩🇯</div>
+                  <div class="custom-select-option" data-value="er">Érythrée 🇪🇷</div>
+                  <div class="custom-select-option" data-value="et">Éthiopie 🇪🇹</div>
+                  <div class="custom-select-option" data-value="ke">Kenya 🇰🇪</div>
+                  <div class="custom-select-option" data-value="mg">Madagascar 🇲🇬</div>
+                  <div class="custom-select-option" data-value="mu">Maurice 🇲🇺</div>
+                  <div class="custom-select-option" data-value="ug">Ouganda 🇺🇬</div>
+                  <div class="custom-select-option" data-value="rw">Rwanda 🇷🇼</div>
+                  <div class="custom-select-option" data-value="sc">Seychelles 🇸🇨</div>
+                  <div class="custom-select-option" data-value="so">Somalie 🇸🇴</div>
+                  <div class="custom-select-option" data-value="sd">Soudan 🇸🇩</div>
+                  <div class="custom-select-option" data-value="ss">Soudan du Sud 🇸🇸</div>
+                  <div class="custom-select-option" data-value="tz">Tanzanie 🇹🇿</div>
+                </div>
+
+                <div class="custom-select-group">
+                  <div class="custom-select-group-label">Afrique du Nord</div>
+                  <div class="custom-select-option" data-value="dz">Algérie 🇩🇿</div>
+                  <div class="custom-select-option" data-value="eg">Égypte 🇪🇬</div>
+                  <div class="custom-select-option" data-value="ly">Libye 🇱🇾</div>
+                  <div class="custom-select-option" data-value="ma">Maroc 🇲🇦</div>
+                  <div class="custom-select-option" data-value="tn">Tunisie 🇹🇳</div>
+                </div>
+
+                <div class="custom-select-group">
+                  <div class="custom-select-group-label">Afrique Australe</div>
+                  <div class="custom-select-option" data-value="za">Afrique du Sud 🇿🇦</div>
+                  <div class="custom-select-option" data-value="bw">Botswana 🇧🇼</div>
+                  <div class="custom-select-option" data-value="sz">Eswatini 🇸🇿</div>
+                  <div class="custom-select-option" data-value="ls">Lesotho 🇱🇸</div>
+                  <div class="custom-select-option" data-value="mw">Malawi 🇲🇼</div>
+                  <div class="custom-select-option" data-value="mz">Mozambique 🇲🇿</div>
+                  <div class="custom-select-option" data-value="na">Namibie 🇳🇦</div>
+                  <div class="custom-select-option" data-value="zm">Zambie 🇿🇲</div>
+                  <div class="custom-select-option" data-value="zw">Zimbabwe 🇿🇼</div>
+                </div>
+
+                <div class="custom-select-group">
+                  <div class="custom-select-group-label">Autre</div>
+                  <div class="custom-select-option" data-value="ailleurs">Ailleurs dans le monde 🌍</div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+          <input type="hidden" id="pays" required>
           <div class="error" id="countryError"></div>
         </div>
 
@@ -309,6 +435,13 @@
     const db = firebase.firestore();
     const provider = new firebase.auth.GoogleAuthProvider();
 
+    // ── Gestion du Menu Hamburger ──
+    const header = document.querySelector("header");
+    document.querySelector(".icon-hamburger").addEventListener("click", () => header.classList.toggle("open"));
+    document.addEventListener("click", (e) => { 
+      if (!header.contains(e.target) && header.classList.contains("open")) header.classList.remove("open"); 
+    });
+
     // ── Utilitaires UI ──
     let notifTimeout;
     function showNotification(message, type, duration = 6000) {
@@ -328,6 +461,65 @@
     function hideAllErrors() {
       document.querySelectorAll('.error, .success-msg').forEach(el => { el.style.display = 'none'; });
     }
+
+    // ── Logique du Sélecteur de Pays Personnalisé ──
+    const customSelectDisplay = document.getElementById('customSelectDisplay');
+    const customSelectDropdown = document.getElementById('customSelectDropdown');
+    const customSearchInput = document.getElementById('customSearchInput');
+    const customSelectText = document.getElementById('customSelectText');
+    const paysInput = document.getElementById('pays');
+    const customOptions = document.querySelectorAll('.custom-select-option');
+    const customGroups = document.querySelectorAll('.custom-select-group');
+
+    customSelectDisplay.addEventListener('click', function(e) {
+      e.stopPropagation();
+      this.classList.toggle('active');
+      customSelectDropdown.classList.toggle('show');
+      if (customSelectDropdown.classList.contains('show')) {
+        customSearchInput.focus(); // Focus automatique sur la barre de recherche
+      }
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!document.getElementById('customSelectContainer').contains(e.target)) {
+        customSelectDisplay.classList.remove('active');
+        customSelectDropdown.classList.remove('show');
+      }
+    });
+
+    customOptions.forEach(option => {
+      option.addEventListener('click', function() {
+        customSelectText.textContent = this.textContent;
+        customSelectText.style.color = '#fff';
+        paysInput.value = this.dataset.value;
+        customSelectDisplay.classList.remove('active');
+        customSelectDropdown.classList.remove('show');
+        document.getElementById('countryError').style.display = 'none';
+      });
+    });
+
+    customSearchInput.addEventListener('input', function(e) {
+      const term = e.target.value.toLowerCase();
+      
+      customOptions.forEach(opt => {
+        if(opt.textContent.toLowerCase().includes(term)) {
+          opt.classList.remove('hidden');
+        } else {
+          opt.classList.add('hidden');
+        }
+      });
+
+      // Cacher les titres de groupes si aucune option n'est visible
+      customGroups.forEach(group => {
+        const visibleOptions = group.querySelectorAll('.custom-select-option:not(.hidden)');
+        const label = group.querySelector('.custom-select-group-label');
+        if (visibleOptions.length === 0) {
+          label.style.display = 'none';
+        } else {
+          label.style.display = 'block';
+        }
+      });
+    });
 
     // ── Toggle mot de passe ──
     document.getElementById('togglePassword').addEventListener('click', function() {
@@ -438,7 +630,7 @@
       const refCode  = document.getElementById('referral').value.trim().toUpperCase();
 
       if (!email)             return showFieldError('emailError', 'L\'adresse email est requise.');
-      if (!pays)              return showFieldError('countryError', 'Veuillez sélectionner votre pays.');
+      if (!pays)              return showFieldError('countryError', 'Veuillez sélectionner votre pays dans la liste.');
       if (password.length < 6) return showFieldError('passwordError', 'Le mot de passe doit contenir au moins 6 caractères.');
 
       isRegistering = true;
