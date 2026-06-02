@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta name="description" content="Programme Revendeur VIP – Social Boost Horizon">
   <title>Programme Revendeur VIP – Social Boost Horizon</title>
   
-  <!-- Firebase -->
+  <!-- Firebase (Compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
@@ -13,571 +14,674 @@
   <!-- Fonts & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,600;14..32,700;14..32,800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
   
   <style>
+    /* ══════════════ VARIABLES DE BRANDING (Inspirées du Dashboard) ══════════════ */
+    :root {
+      --sbh-deep-blue: #080e1a;
+      --sbh-dark-blue: #0A162B;
+      --sbh-gradient-start: #1e3c72;
+      --sbh-gradient-end: #6a0dad;
+      --sbh-gold: #D4AF37;
+      --sbh-gold-deep: #B8860B;
+      --sbh-cyan: #00E5FF;
+      --glass-bg: rgba(15, 25, 45, 0.55);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --card-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      --font-primary: 'Plus Jakarta Sans', sans-serif;
+      --font-display: 'Space Grotesk', sans-serif;
+    }
+
+    /* ══════════════ RESET & BASE RESPONSIVE ══════════════ */
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
     
+    html {
+      font-size: 14px;
+      scroll-behavior: smooth;
+    }
+    @media (min-width: 768px) { html { font-size: 15px; } }
+    @media (max-width: 480px) { html { font-size: 13px; } }
+
     body {
-      font-family: 'Inter', sans-serif;
-      background: #0A0C10;
-      color: #F0F3F8;
-      line-height: 1.5;
+      font-family: var(--font-primary);
+      background: var(--sbh-deep-blue);
+      color: #fff;
+      line-height: 1.6;
       overflow-x: hidden;
     }
     
-    /* Subtle noise texture */
-    body::before {
-      content: "";
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-image: radial-gradient(rgba(212, 175, 55, 0.03) 1px, transparent 1px);
-      background-size: 40px 40px;
+    /* Maillage et Arrière-plan animé subtil */
+    .background-animation {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2;
+      background: radial-gradient(ellipse at 50% 20%, #0f2040 0%, #080e1a 80%);
+    }
+    .bg-grid {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+      background-image:
+        linear-gradient(rgba(212,175,55,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(212,175,55,0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
       pointer-events: none;
-      z-index: 0;
     }
-    
-    /* ========== HEADER LUXE ========== */
-    .header {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: rgba(10, 12, 16, 0.85);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid rgba(212, 175, 55, 0.2);
-      padding: 0.8rem 2rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem;
+      position: relative;
+      z-index: 2;
     }
-    .logo {
-      font-family: 'Space Grotesk', monospace;
-      font-weight: 800;
-      font-size: 1.6rem;
-      text-decoration: none;
-      background: linear-gradient(135deg, #fff, #D4AF37);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-      letter-spacing: -0.5px;
+
+    h1, h2, h3 { font-family: var(--font-display); }
+
+    /* ══════════════ EN-TÊTE ULTRA-PRO ══════════════ */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(8,14,26,0.85); backdrop-filter: blur(20px);
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.7rem 1.8rem;
+      border-bottom: 1px solid var(--glass-border);
     }
-    .logo span {
-      background: none;
-      color: #D4AF37;
-      -webkit-background-clip: unset;
+    .logo-link { display: flex; align-items: center; text-decoration: none; gap: 12px; }
+    .logo-img {
+      height: 42px; width: 42px; border-radius: 50%; object-fit: cover;
+      border: 2px solid var(--sbh-gold);
+      box-shadow: 0 0 15px rgba(212,175,55,0.3);
     }
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 1.5rem;
-    }
-    .solde {
-      background: linear-gradient(135deg, #1A1E2A, #0F1119);
+    .logo-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
+    .logo-text .social { font-size: 0.8rem; font-weight: 600; color: #fff; letter-spacing: 1px; }
+    .logo-text .boost { font-size: 1.4rem; font-weight: 800; color: var(--sbh-gold); line-height: 1; }
+    .logo-text .horizon { font-size: 0.9rem; font-weight: 600; color: #fff; }
+
+    .header-right { display: flex; align-items: center; gap: 1.5rem; }
+    .solde-badge {
+      background: linear-gradient(135deg, rgba(20,30,50,0.8), rgba(12,20,38,0.8));
       padding: 0.5rem 1.2rem;
-      border-radius: 2rem;
-      border: 1px solid rgba(212, 175, 55, 0.4);
+      border-radius: 50px;
+      border: 1px solid rgba(212, 175, 55, 0.3);
       font-weight: 700;
       display: flex;
       align-items: center;
       gap: 0.6rem;
+      font-size: 0.9rem;
     }
-    .solde i { color: #D4AF37; }
-    .btn-back {
-      color: #B0B8C5;
-      text-decoration: none;
-      font-weight: 500;
-      transition: 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+    .solde-badge i { color: var(--sbh-gold); }
+
+    /* ══════════════ BOUTONS MODERNES ══════════════ */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+      color: rgba(255,255,255,0.9); padding: 0.65rem 1.5rem; border: 1px solid rgba(212,175,55,0.25);
+      border-radius: 50px; text-decoration: none; font-weight: 600;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); font-size: 0.85rem;
+      cursor: pointer; position: relative; overflow: hidden;
     }
-    .btn-back:hover { color: #D4AF37; }
-    
-    /* ========== MAIN ========== */
-    main {
-      max-width: 1300px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem;
-      position: relative;
-      z-index: 2;
+    .btn:hover { transform: translateY(-2px); border-color: rgba(212,175,55,0.6); box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
+    .btn-gold {
+      background: linear-gradient(135deg, var(--sbh-gold-deep), var(--sbh-gold));
+      color: #080e1a; border-color: transparent; font-weight: 700;
     }
-    
-    /* Hero Section */
-    .hero {
-      text-align: center;
-      margin-bottom: 4rem;
-    }
+    .btn-gold:hover { box-shadow: 0 10px 25px rgba(212,175,55,0.4); }
+    .btn-outline { background: transparent; border: 1px solid rgba(255,255,255,0.2); }
+    .btn-outline:hover { border-color: var(--sbh-gold); color: var(--sbh-gold); background: rgba(212,175,55,0.05); }
+
+    /* ══════════════ HERO SECTION ══════════════ */
+    .hero { text-align: center; margin-bottom: 4.5rem; padding: 1rem 0; }
     .hero h1 {
-      font-size: 3rem;
-      font-weight: 800;
-      background: linear-gradient(135deg, #FFFFFF, #D4AF37);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-      margin-bottom: 1rem;
+      font-size: 3.2rem; font-weight: 800; line-height: 1.2;
+      background: linear-gradient(135deg, #FFFFFF, var(--sbh-gold));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      margin-bottom: 1.2rem;
     }
-    .hero p {
-      font-size: 1.1rem;
-      color: #9CA3AF;
-      max-width: 700px;
-      margin: 0 auto;
-    }
-    
-    /* Section "Nos plans revendeur" */
-    .plans {
-      display: flex;
-      flex-wrap: wrap;
+    .hero p { font-size: 1.15rem; color: rgba(255,255,255,0.7); max-width: 750px; margin: 0 auto; }
+
+    /* ══════════════ DESTRUCTION DES CASES -> GRILLE PREMIUM ══════════════ */
+    .plans-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
       gap: 2rem;
-      justify-content: center;
-      margin: 3rem 0 4rem;
+      margin-bottom: 5rem;
     }
-    .plan-card {
-      background: rgba(20, 24, 36, 0.7);
-      backdrop-filter: blur(8px);
-      border-radius: 2rem;
-      padding: 2rem;
-      width: 300px;
-      text-align: center;
-      border: 1px solid rgba(255,255,255,0.05);
-      transition: all 0.3s;
-    }
-    .plan-card:hover {
-      transform: translateY(-8px);
-      border-color: rgba(212, 175, 55, 0.5);
-      background: rgba(20, 24, 36, 0.9);
-    }
-    .plan-icon {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-    }
-    .plan-card h3 {
-      font-size: 1.6rem;
-      margin-bottom: 0.5rem;
-    }
-    .plan-card .price-tag {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #D4AF37;
-      margin: 0.5rem 0;
-    }
-    .btn-plan {
-      display: inline-block;
-      margin-top: 1.5rem;
-      padding: 0.7rem 1.5rem;
-      border-radius: 2rem;
-      background: transparent;
-      border: 1px solid #D4AF37;
-      color: #D4AF37;
-      font-weight: 600;
-      text-decoration: none;
-      transition: 0.2s;
-    }
-    .btn-plan:hover {
-      background: #D4AF37;
-      color: #0A0C10;
-    }
-    .badge {
-      background: #E63946;
-      font-size: 0.7rem;
-      padding: 0.2rem 0.8rem;
-      border-radius: 2rem;
-      display: inline-block;
-      margin-bottom: 1rem;
-    }
-    
-    /* Niveaux de remise */
-    .levels-section {
-      margin: 4rem 0;
-    }
-    .section-title {
-      font-size: 2rem;
-      font-weight: 700;
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-    .levels-grid {
+    .plan-card-premium {
+      background: linear-gradient(145deg, rgba(16,26,46,0.75), rgba(8,14,28,0.85));
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 2.5rem 2rem;
       display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 1.5rem;
-    }
-    .level-item {
-      background: rgba(0,0,0,0.4);
-      border-radius: 1.5rem;
-      padding: 1.5rem;
-      text-align: center;
-      width: 180px;
-      transition: 0.2s;
-      border: 1px solid rgba(255,255,255,0.05);
-    }
-    .level-item.active {
-      border-color: #D4AF37;
-      background: rgba(212, 175, 55, 0.1);
-      box-shadow: 0 0 20px rgba(212,175,55,0.2);
-    }
-    .level-icon {
-      font-size: 2.5rem;
-    }
-    .level-name {
-      font-weight: 800;
-      font-size: 1.2rem;
-      margin: 0.5rem 0;
-    }
-    .discount {
-      font-size: 1.5rem;
-      font-weight: 800;
-      color: #00E5FF;
-    }
-    
-    /* Dashboard utilisateur (connecté) */
-    .dashboard-stats {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1.5rem;
-      justify-content: center;
-      margin: 2rem 0;
-    }
-    .stat-card {
-      background: rgba(0,0,0,0.5);
-      border-radius: 1.5rem;
-      padding: 1.2rem 2rem;
-      min-width: 180px;
-      text-align: center;
-      backdrop-filter: blur(4px);
-    }
-    .stat-label {
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      color: #9CA3AF;
-    }
-    .stat-value {
-      font-size: 1.8rem;
-      font-weight: 800;
-      font-family: 'Space Grotesk', monospace;
-    }
-    
-    .price-sample {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      justify-content: center;
-      margin: 2rem 0;
-    }
-    .price-card {
-      background: rgba(0,0,0,0.3);
-      border-radius: 1rem;
-      padding: 1rem;
-      width: 200px;
-      text-align: center;
-    }
-    .old {
-      text-decoration: line-through;
-      color: #9CA3AF;
-      font-size: 0.85rem;
-    }
-    .new {
-      font-size: 1.2rem;
-      font-weight: 700;
-      color: #D4AF37;
-    }
-    
-    .faq {
-      margin-top: 4rem;
-    }
-    .faq-item {
-      background: rgba(255,255,255,0.03);
-      border-radius: 1rem;
-      margin-bottom: 1rem;
-      padding: 1rem 1.5rem;
-    }
-    .faq-question {
-      font-weight: 700;
-      cursor: pointer;
-      display: flex;
+      flex-direction: column;
       justify-content: space-between;
+      position: relative;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .faq-answer {
-      display: none;
-      margin-top: 1rem;
-      color: #B0B8C5;
+    .plan-card-premium:hover {
+      transform: translateY(-6px);
+      border-color: rgba(212,175,55,0.4);
+      box-shadow: var(--card-shadow), 0 0 30px rgba(212,175,55,0.05);
     }
-    .faq-item.open .faq-answer { display: block; }
-    
+    .plan-card-premium.featured {
+      border-color: rgba(212,175,55,0.5);
+      background: linear-gradient(145deg, rgba(20,32,58,0.85), rgba(8,14,28,0.9));
+    }
+    .hot-badge {
+      position: absolute; top: -12px; right: 25px;
+      background: linear-gradient(135deg, #FF416C, #FF4B2B);
+      color: white; font-size: 0.7rem; font-weight: 800;
+      padding: 0.3rem 1rem; border-radius: 50px;
+      letter-spacing: 1px; box-shadow: 0 4px 15px rgba(255,65,108,0.3);
+    }
+    .plan-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+    .plan-icon-box {
+      width: 60px; height: 60px; border-radius: 16px;
+      background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.6rem; color: var(--sbh-gold);
+    }
+    .plan-header h3 { font-size: 1.6rem; font-weight: 700; color: #fff; }
+    .plan-price { font-size: 1.3rem; font-weight: 800; color: var(--sbh-gold); margin-bottom: 1rem; }
+    .plan-card-premium p { color: rgba(255,255,255,0.65); font-size: 0.95rem; margin-bottom: 1.5rem; flex-grow: 1; }
+
+    /* ══════════════ APERÇU DES PRIX DYNAMIQUE ET IMMEDIAT ══════════════ */
+    .section-wrapper {
+      background: rgba(10,22,43,0.4);
+      border-top: 1px solid var(--glass-border);
+      border-bottom: 1px solid var(--glass-border);
+      padding: 4rem 1.5rem;
+      margin: 4rem calc(-1 * (100vw - 100%)/2);
+      width: 100vw;
+      position: relative;
+      left: 50%;
+      right: 50%;
+      margin-left: -50vw;
+      margin-right: -50vw;
+    }
+    .section-title-container { text-align: center; margin-bottom: 3rem; }
+    .section-title-container h2 { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .section-title-container p { color: rgba(255,255,255,0.5); }
+
+    .price-showcase-grid {
+      max-width: 1200px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem;
+      padding: 0 1.5rem;
+    }
+    .premium-price-card {
+      background: rgba(15, 25, 45, 0.6);
+      border: 1px solid var(--glass-border); border-radius: 20px;
+      padding: 1.8rem; text-align: center; position: relative; overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    .premium-price-card:hover { border-color: var(--sbh-gold); transform: scale(1.02); }
+    .service-tag {
+      position: absolute; top: 12px; left: 12px; font-size: 0.65rem;
+      background: rgba(255,255,255,0.06); padding: 0.2rem 0.6rem; border-radius: 4px;
+      color: rgba(255,255,255,0.4); text-transform: uppercase;
+    }
+    .service-name { font-weight: 700; font-size: 1.1rem; margin-top: 0.8rem; margin-bottom: 1rem; color: #fff; }
+    .price-box-flex { display: flex; justify-content: center; align-items: baseline; gap: 10px; margin-bottom: 0.5rem; }
+    .old-price { text-decoration: line-through; color: rgba(255,255,255,0.35); font-size: 1rem; font-weight: 500; }
+    .vip-price { font-size: 1.8rem; font-weight: 800; color: var(--sbh-cyan); font-family: var(--font-display); }
+    .save-badge-card {
+      display: inline-block; background: rgba(0, 229, 255, 0.12);
+      color: var(--sbh-cyan); font-size: 0.75rem; font-weight: 700;
+      padding: 0.25rem 0.75rem; border-radius: 6px; margin-top: 0.5rem;
+    }
+
+    /* Niveaux de remise fluides */
+    .levels-flow-layout {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 1.5rem; margin-bottom: 5rem;
+    }
+    .level-flow-card {
+      background: rgba(16,26,46,0.5); border: 1px solid var(--glass-border);
+      border-radius: 20px; padding: 1.5rem; text-align: center; width: 220px;
+      transition: all 0.3s ease;
+    }
+    .level-flow-card.active {
+      border-color: var(--sbh-gold); background: rgba(212, 175, 55, 0.06);
+      box-shadow: 0 10px 30px rgba(212,175,55,0.1);
+    }
+    .level-flow-icon { font-size: 2.2rem; margin-bottom: 0.5rem; }
+    .level-flow-title { font-weight: 700; font-size: 1.15rem; color: #fff; }
+    .level-flow-discount { font-size: 1.6rem; font-weight: 800; color: var(--sbh-gold); margin: 0.3rem 0; }
+
+    /* Espace connecté Stats */
+    .dashboard-stats-row {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;
+      margin: 2rem 0 3rem;
+    }
+    .stat-premium-box {
+      background: rgba(10,22,43,0.6); border: 1px solid var(--glass-border);
+      border-radius: 18px; padding: 1.5rem; text-align: center;
+    }
+    .stat-premium-label { font-size: 0.75rem; text-transform: uppercase; color: rgba(255,255,255,0.4); letter-spacing: 1px; }
+    .stat-premium-value { font-size: 2rem; font-weight: 800; color: #fff; font-family: var(--font-display); margin-top: 0.2rem; }
+
+    /* ══════════════ ACCORDÉON FAQ LUXE ══════════════ */
+    .faq-container { max-width: 850px; margin: 4rem auto 2rem; }
+    .faq-wrapper-item {
+      background: rgba(16,26,46,0.6); border: 1px solid var(--glass-border);
+      border-radius: 16px; margin-bottom: 1rem; overflow: hidden; transition: all 0.3s ease;
+    }
+    .faq-wrapper-item.open { border-color: rgba(212,175,55,0.3); background: rgba(16,26,46,0.9); }
+    .faq-trigger {
+      padding: 1.4rem 1.8rem; font-weight: 600; font-size: 1.1rem;
+      cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+    }
+    .faq-trigger i { transition: transform 0.3s ease; color: var(--sbh-gold); }
+    .faq-wrapper-item.open .faq-trigger i { transform: rotate(180deg); }
+    .faq-content-inside {
+      display: none; padding: 0 1.8rem 1.4rem; color: rgba(255,255,255,0.7); font-size: 0.95rem;
+    }
+
+    /* ══════════════ FOOTER HARMONISÉ ══════════════ */
     footer {
-      text-align: center;
-      padding: 2rem;
-      border-top: 1px solid rgba(255,255,255,0.05);
-      margin-top: 3rem;
-      color: #6B7280;
+      background: rgba(8,14,26,0.95); border-top: 1px solid var(--glass-border);
+      padding: 3.5rem 2rem 1.5rem; font-size: 0.85rem; position: relative; z-index: 2;
     }
+    .footer-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 2.5rem; max-width: 1200px; margin: 0 auto;
+    }
+    .footer-grid h3 { font-size: 1.1rem; margin-bottom: 1rem; color: var(--sbh-gold); font-weight: 700; }
+    .footer-brand-desc { font-size: 0.9rem; color: rgba(255,255,255,0.6); margin: 0.8rem 0; line-height: 1.5; }
+    .social-icons { display: flex; gap: 12px; margin-top: 1rem; }
+    .social-icons a {
+      width: 36px; height: 36px; background: rgba(255,255,255,0.05); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.1);
+      color: #fff; transition: 0.3s; font-size: 0.95rem; text-decoration: none;
+    }
+    .social-icons a:hover { background: var(--sbh-gold); color: #080e1a; transform: translateY(-3px); }
+    .footer-grid ul { list-style: none; }
+    .footer-grid ul li { margin-bottom: 0.5rem; }
+    .footer-grid ul li a { color: rgba(255,255,255,0.7); text-decoration: none; transition: 0.2s; }
+    .footer-grid ul li a:hover { color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.2); }
+    .footer-contact-item { font-size: 0.88rem; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.7); }
+    .footer-contact-item i { color: var(--sbh-gold); }
     
-    @media (max-width: 680px) {
-      .hero h1 { font-size: 2rem; }
-      .plans { flex-direction: column; align-items: center; }
+    .footer-bottom {
+      text-align: center; padding-top: 1.5rem; margin-top: 2.5rem;
+      border-top: 1px solid rgba(255,255,255,0.06); font-size: 0.8rem;
+      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem;
+      max-width: 1200px; margin-left: auto; margin-right: auto;
+    }
+    .footer-bottom p { color: rgba(255,255,255,0.4); }
+    .footer-links-legal a { color: rgba(255,255,255,0.5); text-decoration: none; margin: 0 6px; transition: 0.3s; }
+    .footer-links-legal a:hover { color: #fff; }
+
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 2.3rem; }
+      .footer-bottom { flex-direction: column; text-align: center; }
     }
   </style>
 </head>
 <body>
 
-<div class="header">
-  <a href="dashboard.html" class="logo">SOCIAL <span>BOOST</span> HORIZON</a>
-  <div class="header-right">
-    <div class="solde" id="soldeDisplay"><i class="fas fa-wallet"></i> -- FCFA</div>
-    <a href="dashboard.html" class="btn-back"><i class="fas fa-arrow-left"></i> Retour</a>
-  </div>
-</div>
+  <div class="bg-grid"></div>
+  <div class="background-animation"></div>
 
-<main>
-  <!-- Hero -->
-  <div class="hero" data-aos="fade-up">
-    <h1>Transformez votre audience <br>en revenus</h1>
-    <p>Rejoignez le programme revendeur de Social Boost Horizon. Remises exclusives, boutique personnalisée, ou plateforme marque blanche.</p>
-  </div>
-
-  <!-- Section visible pour tout le monde : plans -->
-  <div class="plans" data-aos="fade-up">
-    <div class="plan-card">
-      <div class="plan-icon"><i class="fas fa-user-check"></i></div>
-      <h3>Revendeur Simple</h3>
-      <div class="price-tag">Gratuit</div>
-      <p>Commandez depuis votre tableau de bord avec remise immédiate (jusqu'à 20%).</p>
-      <button id="activateResellerBtn" class="btn-plan">Activer maintenant</button>
-    </div>
-    <div class="plan-card">
-      <div class="badge">🔥 Populaire</div>
-      <div class="plan-icon"><i class="fas fa-store"></i></div>
-      <h3>Boutique Revendeur</h3>
-      <div class="price-tag">Sur devis</div>
-      <p>Votre propre boutique en ligne avec votre logo. Vos clients commandent directement.</p>
-      <a href="https://wa.me/56927785730?text=Bonjour%2C%20je%20veux%20une%20boutique%20revendeur" target="_blank" class="btn-plan">Contacter l'admin</a>
-    </div>
-    <div class="plan-card">
-      <div class="plan-icon"><i class="fas fa-crown"></i></div>
-      <h3>Marque Blanche</h3>
-      <div class="price-tag">Sur mesure</div>
-      <p>Votre propre plateforme complète, nom de domaine personnalisé, design unique.</p>
-      <a href="https://wa.me/56927785730?text=Bonjour%2C%20je%20suis%20intéressé%20par%20la%20Marque%20Blanche" target="_blank" class="btn-plan">Demander un devis</a>
-    </div>
-  </div>
-
-  <!-- NIVEAUX DE REMISE (affichage statique + dynamique) -->
-  <div class="levels-section" data-aos="fade-up">
-    <div class="section-title">📈 Vos niveaux de remise</div>
-    <div class="levels-grid" id="levelsContainer">
-      <!-- Rempli par JS -->
-    </div>
-  </div>
-
-  <!-- DASHBOARD REVENDEUR (caché par défaut) -->
-  <div id="resellerDashboard" style="display: none;">
-    <div class="dashboard-stats" data-aos="fade-up">
-      <div class="stat-card"><div class="stat-label">Niveau actuel</div><div id="currentLevel" class="stat-value">—</div></div>
-      <div class="stat-card"><div class="stat-label">Commandes (7j)</div><div id="weeklyOrders" class="stat-value">0</div></div>
-      <div class="stat-card"><div class="stat-label">Total commandes</div><div id="totalOrders" class="stat-value">0</div></div>
-      <div class="stat-card"><div class="stat-label">Économies réalisées</div><div id="totalSavings" class="stat-value">0 FCFA</div></div>
-    </div>
-    <div class="btn-group" style="display: flex; gap: 1rem; justify-content: center; margin-bottom: 2rem;">
-      <a href="commande-revendeur.html" class="btn-plan" style="background: #D4AF37; color:#0A0C10;">Commander au prix VIP</a>
-      <button id="resignResellerBtn" class="btn-plan" style="border-color:#E63946; color:#E63946;">Quitter le programme</button>
-    </div>
-  </div>
-
-  <!-- Aperçu des prix (selon remise) -->
-  <div class="price-sample" id="priceSample" data-aos="fade-up"></div>
-
-  <!-- FAQ -->
-  <div class="faq" data-aos="fade-up">
-    <div class="section-title">💡 Questions fréquentes</div>
-    <div class="faq-item">
-      <div class="faq-question">Comment fonctionne l’évolution des remises ? <i class="fas fa-chevron-down"></i></div>
-      <div class="faq-answer">Votre niveau est recalculé automatiquement chaque semaine selon le nombre de commandes passées (tous types). Plus vous commandez, plus votre remise augmente, jusqu’à 20%.</div>
-    </div>
-    <div class="faq-item">
-      <div class="faq-question">Y a-t-il des frais cachés ? <i class="fas fa-chevron-down"></i></div>
-      <div class="faq-answer">Aucun. Le statut revendeur simple est gratuit. Les options boutique et marque blanche sont payantes mais sans engagement.</div>
-    </div>
-    <div class="faq-item">
-      <div class="faq-question">Puis-je cumuler parrainage et remise revendeur ? <i class="fas fa-chevron-down"></i></div>
-      <div class="faq-answer">Oui, les 10% de parrainage s’ajoutent à votre remise personnelle.</div>
-    </div>
-  </div>
-</main>
-
-<footer>
-  <p>© 2026 Social Boost Horizon – Programme Revendeur d'excellence</p>
-</footer>
-
-<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-<script>
-  AOS.init({ duration: 800, once: true });
-  
-  // Firebase config
-  const firebaseConfig = {
-    apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-    authDomain: "social-boost-horizon.firebaseapp.com",
-    projectId: "social-boost-horizon",
-    storageBucket: "social-boost-horizon.appspot.com",
-    messagingSenderId: "43658165639",
-    appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
-  };
-  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-  const db = firebase.firestore();
-  
-  // DOM elements
-  const soldeDisplay = document.getElementById('soldeDisplay');
-  const activateBtn = document.getElementById('activateResellerBtn');
-  const resignBtn = document.getElementById('resignResellerBtn');
-  const resellerDashboard = document.getElementById('resellerDashboard');
-  const levelsContainer = document.getElementById('levelsContainer');
-  const priceSample = document.getElementById('priceSample');
-  
-  // Niveaux
-  const levels = [
-    { name: 'Débutant', minOrders: 0, maxOrders: 6, discount: 5, icon: '🌱' },
-    { name: 'Amateur', minOrders: 7, maxOrders: 9, discount: 10, icon: '🍂' },
-    { name: 'Intermédiaire', minOrders: 10, maxOrders: 19, discount: 15, icon: '🔥' },
-    { name: 'Professionnel', minOrders: 20, maxOrders: Infinity, discount: 20, icon: '👑' }
-  ];
-  
-  // Affiche les niveaux statiques
-  function renderLevels(activeLevelName) {
-    levelsContainer.innerHTML = levels.map(lvl => `
-      <div class="level-item ${lvl.name === activeLevelName ? 'active' : ''}">
-        <div class="level-icon">${lvl.icon}</div>
-        <div class="level-name">${lvl.name}</div>
-        <div class="discount">${lvl.discount}%</div>
-        <div style="font-size:0.75rem; color:#9CA3AF;">${lvl.minOrders === 0 ? '0-6' : lvl.minOrders + '+'} cmd/semaine</div>
+  <!-- HEADER LUXUEUX AVEC POSITIONNEMENT STRICT -->
+  <header>
+    <a href="dashboard.html" class="logo-link">
+      <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo Social Boost Horizon" class="logo-img">
+      <div class="logo-text">
+        <span class="social">SOCIAL</span>
+        <span class="boost">BOOST</span>
+        <span class="horizon">HORIZON</span>
       </div>
-    `).join('');
-  }
-  renderLevels('Débutant'); // par défaut
-  
-  // Mise à jour prix
-  function updatePricePreview(discount) {
-    const services = [
-      { name: 'Followers Instagram', public: 1250 },
-      { name: 'Likes TikTok', public: 150 },
-      { name: 'Vues YouTube', public: 1550 },
-      { name: 'Abonnés TikTok', public: 1150 }
-    ];
-    priceSample.innerHTML = services.map(s => {
-      const newPrice = Math.round(s.public * (1 - discount/100));
-      return `<div class="price-card">
-        <strong>${s.name}</strong><br>
-        <span class="old">${s.public.toLocaleString('fr-FR')} FCFA</span><br>
-        <span class="new">${newPrice.toLocaleString('fr-FR')} FCFA</span><br>
-        <small>pour 1000</small>
-      </div>`;
-    }).join('');
-  }
-  
-  // Récupération des commandes utilisateur
-  async function fetchUserOrders(userId) {
-    try {
-      const snap = await db.collection('commandes').where('userId', '==', userId).get();
-      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    } catch(e) { return []; }
-  }
-  
-  // Calcul niveau + stats
-  function computeStats(orders) {
-    const now = Date.now();
-    const sevenDaysAgo = now - 7*24*3600*1000;
-    const weekly = orders.filter(o => o.createdAt && o.createdAt.toMillis && o.createdAt.toMillis() > sevenDaysAgo).length;
-    const total = orders.length;
-    let level = levels[0];
-    for (let l of levels) {
-      if (weekly >= l.minOrders && weekly <= l.maxOrders) level = l;
-    }
-    return { level, weekly, total, discount: level.discount };
-  }
-  
-  // Mise à jour UI revendeur
-  async function updateResellerUI(userId) {
-    const orders = await fetchUserOrders(userId);
-    const { level, weekly, total, discount } = computeStats(orders);
-    // Sauvegarde dans user doc
-    await db.collection('users').doc(userId).update({
-      resellerLevel: level.name,
-      discountRate: discount,
-      resellerWeeklyOrders: weekly,
-      resellerTotalOrders: total
-    }).catch(() => {});
-    // Affichage
-    document.getElementById('currentLevel').innerText = level.name;
-    document.getElementById('weeklyOrders').innerText = weekly;
-    document.getElementById('totalOrders').innerText = total;
-    let savings = 0;
-    orders.forEach(o => { if(o.amount) savings += (o.amount * discount / 100); });
-    document.getElementById('totalSavings').innerHTML = Math.round(savings).toLocaleString('fr-FR') + ' FCFA';
-    renderLevels(level.name);
-    updatePricePreview(discount);
-  }
-  
-  // Synchronisation globale
-  async function syncUser(user) {
-    if (!user) return;
-    const userDoc = await db.collection('users').doc(user.uid).get();
-    const userData = userDoc.exists ? userDoc.data() : { balance: 0, isReseller: false };
-    soldeDisplay.innerHTML = `<i class="fas fa-wallet"></i> ${(userData.balance || 0).toLocaleString('fr-FR')} FCFA`;
+    </a>
+    <div class="header-right">
+      <div class="solde-badge" id="soldeDisplay"><i class="fas fa-wallet"></i> -- FCFA</div>
+      <a href="dashboard.html" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Retour</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO SECTION D'EXCELLENCE -->
+    <div class="hero" data-aos="fade-up">
+      <h1>Débloquez des Tarifs Grossistes <br>et Multipliez vos Revenus</h1>
+      <p>Profitez immédiatement de réductions allant jusqu'à 20% sur l'ensemble de notre catalogue. Pas d'attente, pas de paliers bloquants : vendez au prix fort, commandez au prix VIP.</p>
+    </div>
+
+    <!-- GRILLE DE PLANS REVENDEURS (FLUIDE SANS EFFET DE CASIER BRUT) -->
+    <div class="plans-container" data-aos="fade-up">
+      <div class="plan-card-premium">
+        <div>
+          <div class="plan-header">
+            <div class="plan-icon-box"><i class="fas fa-user-check"></i></div>
+            <h3>Revendeur Simple</h3>
+          </div>
+          <div class="plan-price">Activation Gratuite</div>
+          <p>Commandez à tout moment directement depuis votre espace client et bénéficiez instantanément d'une marge brute de 20% sur chaque commande.</p>
+        </div>
+        <button id="activateResellerBtn" class="btn btn-gold" style="width:100%;">Activer le statut VIP</button>
+      </div>
+
+      <div class="plan-card-premium featured">
+        <span class="hot-badge">RECOMMANDÉ</span>
+        <div>
+          <div class="plan-header">
+            <div class="plan-icon-box"><i class="fas fa-store"></i></div>
+            <h3>Boutique Revendeur</h3>
+          </div>
+          <div class="plan-price">Sur Devis Unique</div>
+          <p>Obtenez une plateforme de vente complète clé en main, configurée avec votre logo et vos propres configurations de paiement pour vos clients.</p>
+        </div>
+        <a href="https://wa.me/56927785730?text=Bonjour%2C%20je%20veux%20une%20boutique%20revendeur" target="_blank" class="btn btn-gold" style="width:100%;">Contacter l'administrateur</a>
+      </div>
+
+      <div class="plan-card-premium">
+        <div>
+          <div class="plan-header">
+            <div class="plan-icon-box"><i class="fas fa-crown"></i></div>
+            <h3>Marque Blanche</h3>
+          </div>
+          <div class="plan-price">Solution Sur-Mesure</div>
+          <p>Votre propre infrastructure de serveurs avec un nom de domaine personnalisé et une autonomie technique totale sous votre propre marque d'agence.</p>
+        </div>
+        <a href="https://wa.me/56927785730?text=Bonjour%2C%20je%20suis%20intéressé%20par%20la%20Marque%20Blanche" target="_blank" class="btn btn-outline" style="width:100%;">Demander une étude</a>
+      </div>
+    </div>
+
+    <!-- TABLEAU COMPORTANT LES PRIX COMPARES (CALCUL IMMÉDIAT EN LIVE) -->
+    <div class="section-wrapper" data-aos="fade-up">
+      <div class="section-title-container">
+        <h2>Tarifs Grossistes Immédiats (-20%)</h2>
+        <p>Voici un aperçu en temps réel des réductions appliquées d'office à nos partenaires revendeurs</p>
+      </div>
+      
+      <div class="price-showcase-grid" id="priceSampleContainer">
+        <!-- Génération dynamique via le Script JavaScript -->
+      </div>
+    </div>
+
+    <!-- VOS NIVEAUX DE REMISE -->
+    <div class="section-title-container" style="margin-top: 5rem;" data-aos="fade-up">
+      <h2>Évolution de vos privilèges</h2>
+      <p>Votre volume de commandes hebdomadaire renforce votre positionnement et débloque des bonus exclusifs</p>
+    </div>
     
-    if (userData.isReseller === true) {
-      resellerDashboard.style.display = 'block';
-      await updateResellerUI(user.uid);
-    } else {
-      resellerDashboard.style.display = 'none';
-      updatePricePreview(0);
-      renderLevels('Débutant');
+    <div class="levels-flow-layout" id="levelsContainer" data-aos="fade-up">
+      <!-- Rempli par le script -->
+    </div>
+
+    <!-- DASHBOARD REVENDEUR DYNAMIQUE (Affiché si connecté & revendeur) -->
+    <div id="resellerDashboard" style="display: none;" data-aos="fade-up">
+      <div class="section-title-container">
+        <h2>Votre Espace Performance</h2>
+      </div>
+      <div class="dashboard-stats-row">
+        <div class="stat-premium-box">
+          <div class="stat-premium-label">Statut Partenaire</div>
+          <div id="currentLevel" class="stat-premium-value">—</div>
+        </div>
+        <div class="stat-premium-box">
+          <div class="stat-premium-label">Commandes (7j)</div>
+          <div id="weeklyOrders" class="stat-premium-value">0</div>
+        </div>
+        <div class="stat-premium-box">
+          <div class="stat-premium-label">Volume global</div>
+          <div id="totalOrders" class="stat-premium-value">0</div>
+        </div>
+        <div class="stat-premium-box">
+          <div class="stat-premium-label">Bénéfice Épargné</div>
+          <div id="totalSavings" class="stat-premium-value" style="color:var(--sbh-cyan);">0 FCFA</div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 1.5rem; justify-content: center; margin-bottom: 3rem; flex-wrap: wrap;">
+        <a href="commande-revendeur.html" class="btn btn-gold" style="padding: 0.8rem 2.5rem;">Accéder au tunnel VIP</a>
+        <button id="resignResellerBtn" class="btn btn-outline" style="color:#FF4B2B; border-color: rgba(255,75,43,0.3);">Suspendre mon abonnement</button>
+      </div>
+    </div>
+
+    <!-- SECTION QUESTIONS FREQUENTES (ACCORDEON SANS CASE CLASSIQUE) -->
+    <div class="faq-container" data-aos="fade-up">
+      <div class="section-title-container">
+        <h2>Besoin d'éclaircissements ?</h2>
+      </div>
+      
+      <div class="faq-wrapper-item">
+        <div class="faq-trigger">Comment fonctionne l’évolution automatique des remises ? <i class="fas fa-chevron-down"></i></div>
+        <div class="faq-content-inside">Notre algorithme recalcule vos statistiques chaque semaine. Plus votre volume d'achat est important, plus vos avantages s'étendent, maintenant votre remise brute à hauteur stable de 20%.</div>
+      </div>
+      
+      <div class="faq-wrapper-item">
+        <div class="faq-trigger">Y a-t-il des redevances ou frais d'entrée ? <i class="fas fa-chevron-down"></i></div>
+        <div class="faq-content-inside">L'accès au plan Revendeur Simple est entièrement gratuit et sans aucun engagement de volume minimum à vie. Les services de boutiques personnalisées font l'objet d'un devis d'installation unique.</div>
+      </div>
+      
+      <div class="faq-wrapper-item">
+        <div class="faq-trigger">Puis-je cumuler mon code de parrainage avec mes remises ? <i class="fas fa-chevron-down"></i></div>
+        <div class="faq-content-inside">Absolument. Les avantages liés au programme d'affiliation et de parrainage (10% de reversement à vie) s'additionnent à vos grilles tarifaires de grossiste déjà appliquées.</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- FOOTER ENTREPRISE AUX NORMES DU DASHBOARD -->
+  <footer>
+    <div class="footer-grid">
+      <div>
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:0.5rem;">
+          <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo" style="height:38px; width:38px; border-radius:50%; border:2px solid var(--sbh-gold);">
+          <strong style="font-size:1.1rem; color:var(--sbh-gold); font-family:var(--font-display);">SOCIAL BOOST HORIZON</strong>
+        </div>
+        <p class="footer-brand-desc">Leader panafricain des solutions de croissance digitale, d'engagement social et d'optimisation de visibilité pour créateurs et entreprises.</p>
+        <div class="social-icons">
+          <a href="https://www.facebook.com/share/1ACQ14Cg9h/?mibextid=wwXIfr" target="_blank"><i class="fab fa-facebook-f"></i></a>
+          <a href="https://www.instagram.com/social.boost.horizon" target="_blank"><i class="fab fa-instagram"></i></a>
+          <a href="https://x.com/mcexau?s=21" target="_blank"><i class="fab fa-twitter"></i></a>
+          <a href="https://www.tiktok.com/@social.boost.hori" target="_blank"><i class="fab fa-tiktok"></i></a>
+          <a href="http://www.youtube.com/@SocialBoostHorizon-d7t" target="_blank"><i class="fab fa-youtube"></i></a>
+        </div>
+      </div>
+      <div>
+        <h3>Ressources</h3>
+        <ul>
+          <li><a href="dashboard.html">Tableau de bord</a></li>
+          <li><a href="services.html">Catalogue d'offres</a></li>
+          <li><a href="parrainage.html">Espace Affiliation</a></li>
+          <li><a href="assistance.html">Support Technique</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Canaux officiels</h3>
+        <p class="footer-contact-item"><i class="fas fa-envelope"></i> socialboosthorizon984@gmail.com</p>
+        <p class="footer-contact-item"><i class="fas fa-phone"></i> +237 699 85 36 65</p>
+        <p class="footer-contact-item"><i class="fas fa-map-marker-alt"></i> Douala, Cameroun</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 Social Boost Horizon. Tous droits réservés.</p>
+      <div class="footer-links-legal">
+        <a href="legal.html">Mentions légales</a>
+        <a href="terms.html">CGV</a>
+        <a href="privacy.html">Confidentialité</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  <script>
+    // Initialisation des animations contrôlées
+    AOS.init({ duration: 850, once: true });
+    
+    // Configuration d'authentification Firebase intégrée
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.appspot.com",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    
+    // Sélections DOM essentielles
+    const soldeDisplay = document.getElementById('soldeDisplay');
+    const activateBtn = document.getElementById('activateResellerBtn');
+    const resignBtn = document.getElementById('resignResellerBtn');
+    const resellerDashboard = document.getElementById('resellerDashboard');
+    const levelsContainer = document.getElementById('levelsContainer');
+    const priceSampleContainer = document.getElementById('priceSampleContainer');
+    
+    // Niveaux d'évaluation
+    const levels = [
+      { name: 'Débutant', minOrders: 0, maxOrders: 6, discount: 5, icon: '🌱' },
+      { name: 'Amateur', minOrders: 7, maxOrders: 9, discount: 10, icon: '🍂' },
+      { name: 'Intermédiaire', minOrders: 10, maxOrders: 19, discount: 15, icon: '🔥' },
+      { name: 'Professionnel', minOrders: 20, maxOrders: Infinity, discount: 20, icon: '👑' }
+    ];
+
+    // Grille de services initiaux pour calcul direct immédiat (20% de remise d'office affichée)
+    const mockServices = [
+      { name: 'Abonnés Instagram Premium', publicPrice: 1250, platform: 'Instagram' },
+      { name: 'Likes TikTok Organiques', publicPrice: 200, platform: 'TikTok' },
+      { name: 'Vues YouTube Haute Rétention', publicPrice: 1500, platform: 'YouTube' },
+      { name: 'Abonnés TikTok Réels', publicPrice: 1100, platform: 'TikTok' }
+    ];
+    
+    // Rendu immédiat de la grille de prix avec calcul automatique à -20% d'office
+    function renderImmediatePrices() {
+      priceSampleContainer.innerHTML = mockServices.map(service => {
+        const vipCalculated = Math.round(service.publicPrice * 0.80); // Application immédiate des 20%
+        return `
+          <div class="premium-price-card">
+            <div class="service-tag">${service.platform}</div>
+            <div class="service-name">${service.name}</div>
+            <div class="price-box-flex">
+              <span class="old-price">${service.publicPrice.toLocaleString('fr-FR')} F</span>
+              <span class="vip-price">${vipCalculated.toLocaleString('fr-FR')} <span style="font-size:1rem;color:var(--sbh-gold);">FCFA</span></span>
+            </div>
+            <div class="save-badge-card"><i class="fas fa-piggy-bank"></i> Économie : 20% Direct</div>
+          </div>
+        `;
+      }).join('');
     }
-  }
-  
-  // Activation revendeur simple
-  activateBtn?.addEventListener('click', async () => {
-    if (!auth.currentUser) return alert('Connectez-vous d\'abord');
-    try {
-      await db.collection('users').doc(auth.currentUser.uid).update({
-        isReseller: true,
-        resellerLevel: 'Débutant',
-        discountRate: 5,
-        resellerWeeklyOrders: 0,
-        resellerTotalOrders: 0
-      });
-      alert('✅ Statut revendeur activé ! Vous bénéficiez de 5% de remise immédiate.');
-      location.reload();
-    } catch(e) { alert('Erreur : ' + e.message); }
-  });
-  
-  // Quitter programme
-  resignBtn?.addEventListener('click', async () => {
-    if (!confirm('Quitter le programme revendeur ? Vous perdrez vos réductions.')) return;
-    try {
-      await db.collection('users').doc(auth.currentUser.uid).update({ isReseller: false });
-      alert('Vous avez quitté le programme.');
-      location.reload();
-    } catch(e) { alert(e.message); }
-  });
-  
-  // FAQ accordéon
-  document.querySelectorAll('.faq-question').forEach(q => {
-    q.addEventListener('click', () => {
-      q.parentElement.classList.toggle('open');
+    
+    function renderLevels(activeLevelName) {
+      levelsContainer.innerHTML = levels.map(lvl => `
+        <div class="level-flow-card ${lvl.name === activeLevelName ? 'active' : ''}">
+          <div class="level-flow-icon">${lvl.icon}</div>
+          <div class="level-flow-title">${lvl.name}</div>
+          <div class="level-flow-discount">${lvl.discount}% Réduction</div>
+          <div style="font-size:0.75rem; color:rgba(255,255,255,0.4);">${lvl.minOrders === 0 ? '0 à 6' : lvl.minOrders + '+'} cmd / sem</div>
+        </div>
+      `).join('');
+    }
+    
+    // Initialisations structurelles immédiates avant connexion
+    renderImmediatePrices();
+    renderLevels('Débutant');
+    
+    // Logique Firestore & synchronisations
+    async function fetchUserOrders(userId) {
+      try {
+        const snap = await db.collection('commandes').where('userId', '==', userId).get();
+        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      } catch(e) { return []; }
+    }
+    
+    function computeStats(orders) {
+      const now = Date.now();
+      const sevenDaysAgo = now - 7*24*3600*1000;
+      const weekly = orders.filter(o => o.createdAt && o.createdAt.toMillis && o.createdAt.toMillis() > sevenDaysAgo).length;
+      const total = orders.length;
+      let level = levels[0];
+      for (let l of levels) {
+        if (weekly >= l.minOrders && weekly <= l.maxOrders) level = l;
+      }
+      return { level, weekly, total, discount: level.discount };
+    }
+    
+    async function updateResellerUI(userId) {
+      const orders = await fetchUserOrders(userId);
+      const { level, weekly, total, discount } = computeStats(orders);
+      
+      await db.collection('users').doc(userId).update({
+        resellerLevel: level.name,
+        discountRate: discount,
+        resellerWeeklyOrders: weekly,
+        resellerTotalOrders: total
+      }).catch(() => {});
+      
+      document.getElementById('currentLevel').innerText = level.name;
+      document.getElementById('weeklyOrders').innerText = weekly;
+      document.getElementById('totalOrders').innerText = total;
+      
+      let savings = 0;
+      orders.forEach(o => { if(o.amount) savings += (o.amount * 0.20); });
+      document.getElementById('totalSavings').innerText = Math.round(savings).toLocaleString('fr-FR') + ' FCFA';
+      renderLevels(level.name);
+    }
+    
+    async function syncUser(user) {
+      if (!user) return;
+      const userDoc = await db.collection('users').doc(user.uid).get();
+      const userData = userDoc.exists ? userDoc.data() : { balance: 0, isReseller: false };
+      soldeDisplay.innerHTML = `<i class="fas fa-wallet"></i> ${(userData.balance || 0).toLocaleString('fr-FR')} FCFA`;
+      
+      if (userData.isReseller === true) {
+        resellerDashboard.style.display = 'block';
+        await updateResellerUI(user.uid);
+      } else {
+        resellerDashboard.style.display = 'none';
+      }
+    }
+    
+    // Actions EventListeners
+    activateBtn?.addEventListener('click', async () => {
+      if (!auth.currentUser) return alert('Veuillez vous connecter à votre compte avant d\'activer cette offre.');
+      try {
+        await db.collection('users').doc(auth.currentUser.uid).update({
+          isReseller: true,
+          resellerLevel: 'Débutant',
+          discountRate: 20, // Attribution directe de la puissance maximale des remises revendeurs
+          resellerWeeklyOrders: 0,
+          resellerTotalOrders: 0
+        });
+        alert('✅ Votre compte a été mis à niveau avec succès ! Profitez de vos privilèges de grossiste.');
+        location.reload();
+      } catch(e) { alert('Erreur d\'écriture : ' + e.message); }
     });
-  });
-  
-  auth.onAuthStateChanged(user => {
-    if (user) syncUser(user);
-    else window.location.href = 'login.html';
-  });
-</script>
+    
+    resignBtn?.addEventListener('click', async () => {
+      if (!confirm('Souhaitez-vous vraiment désactiver votre statut VIP revendeur ? Vos remises automatiques seront suspendues.')) return;
+      try {
+        await db.collection('users').doc(auth.currentUser.uid).update({ isReseller: false });
+        alert('Statut réinitialisé avec succès.');
+        location.reload();
+      } catch(e) { alert(e.message); }
+    });
+    
+    // Système Accordéon FAQ Fluide
+    document.querySelectorAll('.faq-trigger').forEach(trigger => {
+      trigger.addEventListener('click', () => {
+        const parent = trigger.parentElement;
+        const content = parent.querySelector('.faq-content-inside');
+        const isOpen = parent.classList.contains('open');
+        
+        document.querySelectorAll('.faq-wrapper-item').forEach(item => {
+          item.classList.remove('open');
+          item.querySelector('.faq-content-inside').style.display = 'none';
+        });
+        
+        if (!isOpen) {
+          parent.classList.add('open');
+          content.style.display = 'block';
+        }
+      });
+    });
+    
+    auth.onAuthStateChanged(user => {
+      if (user) syncUser(user);
+    });
+  </script>
 </body>
 </html>
