@@ -147,6 +147,38 @@
     }
     .btn-cyan:hover { box-shadow: 0 10px 25px rgba(0, 229, 255, 0.3); }
 
+    /* Bouton rouge pour la révocation */
+    .btn-danger {
+      background: rgba(255, 75, 75, 0.1);
+      color: #ff4b4b;
+      border: 1px solid rgba(255, 75, 75, 0.3);
+    }
+    .btn-danger:hover {
+      background: #ff4b4b;
+      color: #fff;
+      box-shadow: 0 10px 25px rgba(255, 75, 75, 0.3);
+    }
+
+    /* Styles pour la zone de statut revendeur actif */
+    .reseller-status-dashboard {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(0, 229, 255, 0.2);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-top: 1rem;
+    }
+    .status-header-info {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.8rem;
+    }
+    .status-pill {
+      background: rgba(0, 229, 255, 0.15); color: var(--sbh-cyan);
+      padding: 0.2rem 0.8rem; border-radius: 20px; font-size: 0.85rem; font-weight: 700;
+    }
+    .reseller-actions-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 1rem;
+    }
+
     /* ══════════════ HERO SECTION ══════════════ */
     .hero { text-align: center; margin-bottom: 4rem; }
     .hero h1 {
@@ -333,10 +365,13 @@
           <div class="plan-price">Accès Direct Gratuit</div>
           <p>Vous n'avez pas besoin de site web. Vous passez vos commandes manuellement sur Social Boost Horizon pour vos propres clients. Vous fixez librement les tarifs de revente de votre choix.</p>
           <div class="plan-example">
-            <strong>Exemple concret :</strong> Un client vous paye 2 000 FCFA sur WhatsApp pour 1 000 abonnés. Vous venez acheter ces abonnés chez nous à 417 FCFA (Prix réduit). Vous gardez immédiatement 1 583 FCFA de bénéfice net.
+            <strong>Exemple concret :</strong> Un client vous paye 2 000 FCFA sur WhatsApp pour 1 000 abonnés. Vous vient acheter ces abonnés chez nous à 417 FCFA (Prix réduit). Vous gardez immédiatement 1 583 FCFA de bénéfice net.
           </div>
         </div>
-        <button id="activateResellerBtn" class="btn btn-cyan" style="width:100%;">Activer le statut</button>
+        
+        <div id="resellerActionArea">
+          <button id="activateResellerBtn" class="btn btn-cyan" style="width:100%;">Activer le statut</button>
+        </div>
       </div>
 
       <div class="plan-card-premium">
@@ -377,7 +412,7 @@
       </div>
       
       <div class="price-showcase-grid" id="priceSampleContainer">
-        </div>
+      </div>
     </div>
 
     <div class="faq-container" data-aos="fade-up">
@@ -526,29 +561,128 @@
     // Exécution initiale par défaut
     renderPrices('FCFA');
 
-    // Synchronisation de l'utilisateur connecté (Devise + Solde)
+    // Synchronisation de l'utilisateur connecté (Devise + Solde + Statut Revendeur)
     async function syncUserProfile(user) {
       if (!user) return;
       try {
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if (userDoc.exists) {
-          const data = userDoc.data();
-          
-          // Détection de la devise enregistrée dans le compte utilisateur
-          if (data.currency && conversionRates[data.currency]) {
-            currentUserCurrency = data.currency;
-            document.getElementById('currencyUnit').innerText = currentUserCurrency;
+        const userDocRef = db.collection('users').doc(user.uid);
+        
+        // On écoute en temps réel (onSnapshot) pour mettre à jour l'UI dès que le statut ou les commandes changent
+        userDocRef.onSnapshot((doc) => {
+          if (doc.exists) {
+            const data = doc.data();
+            
+            // Détection de la devise enregistrée dans le compte utilisateur
+            if (data.currency && conversionRates[data.currency]) {
+              currentUserCurrency = data.currency;
+              document.getElementById('currencyUnit').innerText = currentUserCurrency;
+            }
+            
+            // Calcul et affichage du solde adapté
+            const balance = data.balance || 0;
+            document.getElementById('balanceValue').innerText = balance.toLocaleString('fr-FR');
+            
+            // Actualisation du catalogue de prix avec la bonne devise
+            renderPrices(currentUserCurrency);
+
+            // Gestion de l'affichage de la zone Revendeur Simple
+            const actionArea = document.getElementById('resellerActionArea');
+            
+            if (data.isReseller === true) {
+              // Récupération ou calcul du nombre de commandes passées
+              const totalOrders = data.totalOrders || 0;
+              let levelName = "Initial";
+              let levelDiscount = 0; // Réduction additionnelle sur le panier
+
+              // Calcul des paliers de réductions par rapport au nombre de commandes
+              if (totalOrders >= 5 && totalOrders <= 9) {
+                levelName = "Bronze";
+                levelDiscount = 5;
+              } else if (totalOrders >= 10 && totalOrders <= 14) {
+                levelName = "Argent";
+                levelDiscount = 10;
+              } else if (totalOrders >= 15 && totalOrders <= 19) {
+                levelName = "Or";
+                levelDiscount = 15;
+              } else if (totalOrders >= 20) {
+                levelName = "Platine";
+                levelDiscount = 20;
+              }
+
+              // Remplacement du bouton d'activation par le mini tableau de bord
+              actionArea.innerHTML = `
+                <div class="reseller-status-dashboard">
+                  <div class="status-header-info">
+                    <span>Statut : <span class="status-pill">Actif</span></span>
+                    <span style="font-size:0.85rem; color:rgba(255,255,255,0.6);">${totalOrders} commande(s)</span>
+                  </div>
+                  <p style="font-size:0.9rem; margin-bottom:0.8rem; color:#fff;">
+                    Niveau : <strong>${levelName}</strong> <span style="color:var(--sbh-cyan); font-weight:700;">(-${levelDiscount}% supp.)</span>
+                  </p>
+                  
+                  <div class="reseller-actions-grid">
+                    <a href="services.html" class="btn btn-cyan" style="padding:0.6rem 1rem; font-size:0.85rem;"><i class="fas fa-shopping-cart"></i> Commander</a>
+                    <a href="dashboard.html" class="btn" style="padding:0.6rem 1rem; font-size:0.85rem;"><i class="fas fa-list"></i> Mes Commandes</a>
+                  </div>
+
+                  <button id="revokeResellerBtn" class="btn btn-danger" style="width:100%; padding:0.5rem; font-size:0.8rem; border-radius:8px;">
+                    <i class="fas fa-times-circle"></i> Quitter le programme
+                  </button>
+                </div>
+              `;
+
+              // Écouteur pour le bouton de révocation
+              document.getElementById('revokeResellerBtn').addEventListener('click', () => revokeResellerStatus(user.uid));
+
+            } else {
+              // L'utilisateur n'est pas revendeur ou a annulé son statut
+              actionArea.innerHTML = `<button id="activateResellerBtn" class="btn btn-cyan" style="width:100%;">Activer le statut</button>`;
+              document.getElementById('activateResellerBtn').addEventListener('click', () => activateResellerStatus(user.uid));
+            }
           }
-          
-          // Calcul et affichage du solde adapté
-          const balance = data.balance || 0;
-          document.getElementById('balanceValue').innerText = balance.toLocaleString('fr-FR');
-          
-          // Actualisation du catalogue de prix avec la bonne devise
-          renderPrices(currentUserCurrency);
-        }
+        });
       } catch (error) {
         console.error("Erreur de synchronisation du profil:", error);
+      }
+    }
+
+    // Fonction d'activation du statut revendeur
+    async function activateResellerStatus(uid) {
+      try {
+        const btn = document.getElementById('activateResellerBtn');
+        if(btn) { btn.innerText = "Activation en cours..."; btn.disabled = true; }
+        
+        await db.collection('users').doc(uid).update({
+          isReseller: true,
+          resellerActivatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        alert("Félicitations ! Votre statut Revendeur Simple est maintenant actif.");
+      } catch (error) {
+        console.error("Erreur lors de l'activation:", error);
+        alert("Une erreur est survenue lors de l'activation. Veuillez réessayer.");
+        renderUserStatusArea(); // reset l'UI en cas d'erreur
+      }
+    }
+
+    // Fonction de révocation du statut revendeur
+    async function revokeResellerStatus(uid) {
+      const confirmRevoke = confirm("Êtes-vous sûr de vouloir quitter le programme Revendeur ? Vous perdrez vos avantages de tarification réduits.");
+      if (!confirmRevoke) return;
+
+      try {
+        const btn = document.getElementById('revokeResellerBtn');
+        if(btn) { btn.innerText = "Désactivation..."; btn.disabled = true; }
+
+        await db.collection('users').doc(uid).update({
+          isReseller: false,
+          resellerRevokedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert("Votre statut de revendeur a été révoqué avec succès.");
+      } catch (error) {
+        console.error("Erreur lors de la révocation:", error);
+        alert("Une erreur est survenue lors de la désactivation.");
       }
     }
 
@@ -575,6 +709,9 @@
     auth.onAuthStateChanged(user => {
       if (user) {
         syncUserProfile(user);
+      } else {
+        // Optionnel : Gestion de la redirection si l'utilisateur se déconnecte
+        // window.location.href = "login.html";
       }
     });
   </script>
