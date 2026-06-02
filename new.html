@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Nouveautés & Astuces – Social Boost Horizon">
+  <title>Nouveautés & Astuces – Social Boost Horizon</title>
+
+  <!-- Firebase SDK Compat -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+
+  <!-- Polices et Icones -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
+
+  <style>
+    /* ══════════════ VARIABLES STYLE EXCLUSIF (CYBER ÉMERAUDE) ══════════════ */
+    :root {
+      --cyber-bg: #030a0d;
+      --cyber-card: #08151a;
+      --cyber-emerald: #00ffa3;
+      --cyber-green-deep: #005234;
+      --cyber-glow: rgba(0, 255, 163, 0.2);
+      --cyber-border: rgba(0, 255, 163, 0.15);
+      --font-title: 'Syne', sans-serif;
+      --font-body: 'Space Grotesk', sans-serif;
+    }
+
+    /* ══════════════ RESET & BASE ══════════════ */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: var(--font-body);
+      background-color: var(--cyber-bg);
+      color: #e2f1ec;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Arrière-plan technologique */
+    .tech-bg {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+      background: radial-gradient(circle at 80% 20%, #062017 0%, #030a0d 80%);
+      pointer-events: none;
+    }
+
+    /* ══════════════ HEADER (IDENTIQUE POUR LE LOGO) ══════════════ */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(3, 10, 13, 0.9); backdrop-filter: blur(20px);
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.7rem 1.8rem;
+      border-bottom: 1px solid var(--cyber-border);
+    }
+    .logo-link { display: flex; align-items: center; text-decoration: none; gap: 10px; }
+    .logo-img {
+      height: 42px; width: 42px; border-radius: 50%; object-fit: cover;
+      border: 2px solid #D4AF37; /* Conserve la marque Or originelle */
+      box-shadow: 0 0 15px rgba(212,175,55,0.3);
+    }
+    .logo-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
+    .logo-text .social { font-size: 0.8rem; font-weight: 600; color: #fff; letter-spacing: 1px; }
+    .logo-text .boost { font-size: 1.4rem; font-weight: 800; color: #D4AF37; line-height: 1; }
+    .logo-text .horizon { font-size: 0.9rem; font-weight: 600; color: #fff; }
+
+    .back-btn {
+      color: var(--cyber-emerald); text-decoration: none; font-weight: 600;
+      display: flex; align-items: center; gap: 8px; border: 1px solid var(--cyber-emerald);
+      padding: 0.5rem 1rem; border-radius: 50px; background: rgba(0, 255, 163, 0.05);
+      transition: 0.3s ease;
+    }
+    .back-btn:hover { background: var(--cyber-emerald); color: var(--cyber-bg); box-shadow: 0 0 15px var(--cyber-emerald); }
+
+    /* ══════════════ CONTENEUR PRINCIPAL ══════════════ */
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem 1rem; }
+
+    .page-title {
+      font-family: var(--font-title); font-size: 2.5rem; font-weight: 800; text-align: center;
+      margin-bottom: 2rem; background: linear-gradient(90deg, #fff, var(--cyber-emerald));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    /* ══════════════ PANNEAU ADMINISTRATEUR SECRÈT ══════════════ */
+    #adminPanel {
+      display: none; background: rgba(8, 21, 26, 0.85); border: 2px dashed var(--cyber-emerald);
+      border-radius: 20px; padding: 2rem; margin-bottom: 3rem; box-shadow: 0 0 25px var(--cyber-glow);
+    }
+    .admin-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; color: var(--cyber-emerald); }
+    .form-group { margin-bottom: 1.2rem; text-align: left; }
+    .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem; }
+    .form-control {
+      width: 100%; padding: 0.8rem 1rem; border-radius: 10px; background: #030a0d;
+      border: 1px solid rgba(0, 255, 163, 0.3); color: #fff; font-family: var(--font-body);
+    }
+    .form-control:focus { outline: none; border-color: var(--cyber-emerald); box-shadow: 0 0 10px var(--cyber-glow); }
+    .btn-submit {
+      background: var(--cyber-emerald); color: var(--cyber-bg); border: none; padding: 0.8rem 2rem;
+      font-family: var(--font-title); font-weight: 700; font-size: 1rem; border-radius: 50px;
+      cursor: pointer; transition: 0.3s; width: 100%;
+    }
+    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(0, 255, 163, 0.4); }
+
+    /* ══════════════ SECTIONS GRILLES ══════════════ */
+    .section-header {
+      font-family: var(--font-title); font-size: 1.8rem; margin: 2rem 0 1.5rem;
+      display: flex; align-items: center; gap: 12px; color: var(--cyber-emerald);
+      border-bottom: 1px solid rgba(0, 255, 163, 0.2); padding-bottom: 0.5rem;
+    }
+    .news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+
+    /* ══════════════ CARTES SUBLEMENTS & NOUVEAUTÉS ══════════════ */
+    .news-card {
+      background: var(--cyber-card); border: 1px solid var(--cyber-border); border-radius: 18px;
+      overflow: hidden; display: flex; flex-direction: column; transition: all 0.35s ease;
+      position: relative;
+    }
+    .news-card:hover {
+      transform: translateY(-5px); border-color: var(--cyber-emerald);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 15px var(--cyber-glow);
+    }
+    .card-img-container { width: 100%; height: 180px; background: #030a0d; overflow: hidden; position: relative; }
+    .card-img { width: 100%; height: 100%; object-fit: cover; transition: 0.5s ease; }
+    .news-card:hover .card-img { transform: scale(1.05); }
+    
+    .card-badge {
+      position: absolute; top: 12px; right: 12px; background: rgba(0, 255, 163, 0.2);
+      color: var(--cyber-emerald); border: 1px solid var(--cyber-emerald); backdrop-filter: blur(5px);
+      padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+    }
+    .card-badge.pinned { background: rgba(255, 77, 77, 0.2); color: #ff4d4d; border-color: #ff4d4d; }
+
+    .card-body { padding: 1.5rem; display: flex; flex-direction: column; flex: 1; }
+    .card-title { font-family: var(--font-title); font-size: 1.25rem; margin-bottom: 0.75rem; color: #fff; line-height: 1.3; }
+    .card-text { font-size: 0.88rem; color: rgba(226, 241, 236, 0.7); line-height: 1.5; margin-bottom: 1.5rem; flex: 1; }
+    
+    .card-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 0.7rem 1.5rem; border-radius: 12px; text-decoration: none; font-weight: 600;
+      font-size: 0.9rem; transition: 0.3s; width: 100%; text-align: center; margin-top: auto;
+    }
+    .btn-emerald { background: var(--cyber-emerald); color: var(--cyber-bg); }
+    .btn-emerald:hover { background: #00e08f; box-shadow: 0 4px 15px rgba(0, 255, 163, 0.3); }
+    .btn-dark { background: rgba(0, 255, 163, 0.08); color: var(--cyber-emerald); border: 1px solid rgba(0, 255, 163, 0.3); }
+    .btn-dark:hover { background: rgba(0, 255, 163, 0.15); border-color: var(--cyber-emerald); }
+
+    /* Loader */
+    #loadingIndicator { text-align: center; padding: 2rem; font-size: 1.2rem; color: var(--cyber-emerald); }
+  </style>
+</head>
+<body>
+
+  <div class="tech-bg"></div>
+
+  <!-- ══════════ HEADER ══════════ -->
+  <header>
+    <a href="dashboard.html" class="logo-link">
+      <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo" class="logo-img">
+      <div class="logo-text">
+        <span class="social">SOCIAL</span>
+        <span class="boost">BOOST</span>
+        <span class="horizon">HORIZON</span>
+      </div>
+    </a>
+    <a href="dashboard.html" class="back-btn"><i class="fas fa-arrow-left"></i> Dashboard</a>
+  </header>
+
+  <!-- ══════════ EN-TÊTE PAGE ══════════ -->
+  <div class="container">
+    <h1 class="page-title" data-aos="zoom-in">Nouveautés & Astuces</h1>
+
+    <!-- ══════════ PANNEAU D'ADMINISTRATION SECRÈT ══════════ -->
+    <div id="adminPanel" data-aos="fade-up">
+      <div class="admin-header">
+        <i class="fas fa-user-shield fa-2x"></i>
+        <h2>Espace de Publication Administrateur</h2>
+      </div>
+      <form id="publishForm">
+        <div class="form-group">
+          <label for="postTitle">Titre de l'annonce / astuce</label>
+          <input type="text" id="postTitle" class="form-control" placeholder="Entrez un titre percutant..." required>
+        </div>
+        <div class="form-group">
+          <label for="postDescription">Description complète</label>
+          <textarea id="postDescription" class="form-control" rows="4" placeholder="Détaillez votre annonce ou astuce ici..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label for="postImageUrl">Lien URL de l'image (Ex: GitHub, Imgur...)</label>
+          <input type="url" id="postImageUrl" class="form-control" placeholder="https://raw.githubusercontent.com/.../image.jpg" required>
+        </div>
+        <button type="submit" class="btn-submit"><i class="fas fa-paper-plane"></i> Publier l'annonce</button>
+      </form>
+    </div>
+
+    <!-- ══════════ SECTION OPPORTUNITÉS (CODÉES EN DUR) ══════════ -->
+    <div class="section-header" data-aos="fade-right">
+      <i class="fas fa-rocket"></i>
+      <h2>Opportunités du Moment</h2>
+    </div>
+    
+    <div class="news-grid" style="margin-bottom: 4rem;">
+      <!-- Opportunité 1: Trixhub -->
+      <div class="news-card" data-aos="fade-up">
+        <span class="card-badge pinned">🔥 Rentable</span>
+        <div class="card-img-container">
+          <img src="https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&w=600&q=80" alt="Argent en ligne" class="card-img">
+        </div>
+        <div class="card-body">
+          <h3 class="card-title">Générer 150 000 FCFA par semaine avec Trixhub</h3>
+          <p class="card-text">Permet de gagner de l'argent en ligne avec un capital de 3 600 francs CFA seulement ! Vous pouvez commencer à générer un minimum de 150 000 FCFA par semaine en invitant des gens et en revendant les formations que vous gagnez directement.</p>
+          <a href="https://trixhub.site" target="_blank" rel="noopener noreferrer" class="card-btn btn-emerald">Visiter le Site <i class="fas fa-external-link-alt"></i></a>
+        </div>
+      </div>
+
+      <!-- Opportunité 2: Texerra -->
+      <div class="news-card" data-aos="fade-up" data-aos-delay="100">
+        <span class="card-badge pinned">🌍 International</span>
+        <div class="card-img-container">
+          <img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80" alt="Numéro virtuel" class="card-img">
+        </div>
+        <div class="card-body">
+          <h3 class="card-title">Avoir un Numéro de Support International avec Texerra</h3>
+          <p class="card-text">Pour donner une image mondiale à votre entreprise, utilisez des numéros virtuels étrangers (États-Unis, Canada, etc.). Idéal pour acheter vos numéros directement depuis votre maison sans vous déplacer dans un centre commercial.</p>
+          <a href="https://texerra.site" target="_blank" rel="noopener noreferrer" class="card-btn btn-emerald">Découvrir l'offre <i class="fas fa-external-link-alt"></i></a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ SECTION ANNONCES & ASTUCES (DYNAMIQUE) ══════════ -->
+    <div class="section-header" data-aos="fade-right">
+      <i class="fas fa-bullhorn"></i>
+      <h2>Fil d'actualité & Astuces</h2>
+    </div>
+
+    <div id="loadingIndicator"><i class="fas fa-spinner fa-spin"></i> Synchronisation en cours...</div>
+    <div class="news-grid" id="dynamicNewsContainer">
+      <!-- Les cartes injectées via Firestore apparaîtront ici -->
+    </div>
+
+  </div>
+
+  <!-- Script d'animation -->
+  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  <script>
+    // ══════════════ CONFIGURATION FIREBASE (REPRISE DE TON PROJET) ══════════════
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.appspot.com",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    const ADMIN_EMAIL = "exaucenapopolo2@gmail.com";
+
+    // Vérification de l'utilisateur connecté et de ses droits
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        if (user.email === ADMIN_EMAIL) {
+          document.getElementById('adminPanel').style.display = 'block';
+        }
+        listenToNews();
+      } else {
+        window.location.href = 'login.html';
+      }
+    });
+
+    // ══════════════ AJOUT D'UNE ANNONCE (ADMIN UNIQUEMENT) ══════════════
+    document.getElementById('publishForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const title = document.getElementById('postTitle').value.trim();
+      const description = document.getElementById('postDescription').value.trim();
+      const imageUrl = document.getElementById('postImageUrl').value.trim();
+      const submitBtn = e.target.querySelector('.btn-submit');
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Publication...`;
+
+      try {
+        await db.collection('news_and_tips').add({
+          title: title,
+          description: description,
+          imageUrl: imageUrl,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert('🎉 Annonce publiée avec succès sur le fil d\'actualité mondial !');
+        document.getElementById('publishForm').reset();
+      } catch (error) {
+        console.error("Erreur lors de l'ajout document: ", error);
+        alert('Une erreur est survenue lors de la publication.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class="fas fa-paper-plane"></i> Publier l'annonce`;
+      }
+    });
+
+    // ══════════════ ÉCOUTE EN TEMPS RÉEL DES PUBLICATIONS ══════════════
+    function listenToNews() {
+      db.collection('news_and_tips').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+        const container = document.getElementById('dynamicNewsContainer');
+        const loader = document.getElementById('loadingIndicator');
+        
+        if (loader) loader.style.display = 'none';
+        container.innerHTML = '';
+
+        if (snapshot.empty) {
+          container.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: rgba(226,241,236,0.4);">Aucune annonce ou astuce n'a encore été publiée.</p>`;
+          return;
+        }
+
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const card = document.createElement('div');
+          card.className = 'news-card';
+          card.setAttribute('data-aos', 'fade-up');
+
+          card.innerHTML = `
+            <span class="card-badge">Astuce</span>
+            <div class="card-img-container">
+              <img src="${data.imageUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80'}" alt="Image annonce" class="card-img" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80'">
+            </div>
+            <div class="card-body">
+              <h3 class="card-title">${escapeHtml(data.title)}</h3>
+              <p class="card-text">${escapeHtml(data.description)}</p>
+              <span class="card-btn btn-dark"><i class="far fa-calendar-alt"></i> Actu SBH</span>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      });
+    }
+
+    // Sécurisation contre l'injection XSS
+    function escapeHtml(text) {
+      if(!text) return '';
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Initialisation des animations au défilement
+    AOS.init({ duration: 800, once: true });
+  </script>
+</body>
+</html>
