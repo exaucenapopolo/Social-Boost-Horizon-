@@ -35,8 +35,11 @@
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    /* Cohérence des tailles de police avec index.html et register.html */
     html { font-size: 14px; }
     @media (min-width: 768px) { html { font-size: 15px; } }
+    @media (max-width: 480px) { html { font-size: 13px; } }
 
     body {
       font-family: var(--font-primary);
@@ -52,20 +55,39 @@
       background: radial-gradient(ellipse at 30% 50%, #0f2040 0%, #080e1a 70%);
     }
 
+    /* --- HEADER & HAMBURGER MENU --- */
     header {
       position: sticky; top: 0; z-index: 100;
       background: rgba(8, 14, 26, 0.85); backdrop-filter: blur(20px);
       display: flex; justify-content: space-between; align-items: center;
       padding: 0.7rem 1.8rem; border-bottom: 1px solid var(--glass-border);
     }
+    @media (max-width: 480px) { header { padding: 0.6rem 1rem; } }
 
     .logo-link { display: flex; align-items: center; text-decoration: none; gap: 10px; }
     .logo-img { height: 42px; width: 42px; border-radius: 50%; border: 2px solid var(--sbh-gold); }
+    @media (max-width: 480px) { .logo-img { height: 36px; width: 36px; } }
+
     .logo-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
     .logo-text .social { font-size: 0.8rem; font-weight: 600; color: #fff; }
     .logo-text .boost { font-size: 1.4rem; font-weight: 800; color: var(--sbh-gold); }
+    @media (max-width: 480px) { .logo-text .boost { font-size: 1.2rem; } }
     .logo-text .horizon { font-size: 0.9rem; font-weight: 600; color: #fff; }
 
+    /* Menu Hamburger Styles */
+    .icon-hamburger { font-size: 1.6rem; cursor: pointer; transition: 0.3s; color: #fff; }
+    .icon-hamburger:hover { color: var(--sbh-gold); }
+    .mobile-menu {
+      display: none; position: absolute; top: 65px; right: 1.8rem;
+      background: rgba(10, 22, 43, 0.95); border: 1px solid var(--glass-border);
+      border-radius: 16px; padding: 1.2rem; flex-direction: column; z-index: 200;
+      min-width: 240px; backdrop-filter: blur(20px);
+    }
+    header.open .mobile-menu { display: flex; }
+    .mobile-menu a { color: #fff; padding: 0.7rem 0.9rem; text-decoration: none; border-radius: 8px; transition: 0.3s; display: flex; align-items: center; gap: 10px; font-size: 0.9rem; }
+    .mobile-menu a:hover { background: rgba(30, 60, 114, 0.5); transform: translateX(5px); }
+
+    /* --- BOUTONS --- */
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
       background: linear-gradient(135deg, var(--sbh-gradient-start), var(--sbh-btn-color));
@@ -78,6 +100,7 @@
     .btn-google { background: #fff; color: #444; }
     .btn-google:hover { background: #f5f5f5; }
 
+    /* --- FORMULAIRE --- */
     main {
       display: flex; justify-content: center; align-items: center;
       padding: 2rem 1rem; min-height: 80vh;
@@ -92,6 +115,8 @@
       font-family: var(--font-display); font-size: 1.8rem; text-align: center;
       color: var(--sbh-gold); margin-bottom: 0.5rem;
     }
+    @media (max-width: 480px) { .form-container h2 { font-size: 1.6rem; } }
+
     .form-container > p { text-align: center; margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--text-light); }
 
     .form-group { margin-bottom: 1.2rem; position: relative; }
@@ -119,6 +144,7 @@
     .forgot-password {
       display: block; text-align: right; margin-top: 6px; font-size: 0.85rem;
       color: var(--sbh-light-blue); cursor: pointer; transition: 0.2s; background: none; border: none; padding: 0;
+      font-family: var(--font-primary); font-weight: 500;
     }
     .forgot-password:hover { text-decoration: underline; color: #fff; }
 
@@ -149,6 +175,7 @@
     .notification.show { opacity: 1; top: 20px; }
     .notification.success { background: linear-gradient(135deg, #2e7d32, #4caf50); }
     .notification.error { background: linear-gradient(135deg, #c62828, #f44336); }
+    .notification.info { background: linear-gradient(135deg, #1E90FF, #4DA6FF); } /* Nouvelle couleur pour info */
 
     /* Loader */
     .loader {
@@ -175,6 +202,14 @@
         <span class="horizon">HORIZON</span>
       </div>
     </a>
+
+    <i class="fa-solid fa-bars icon-hamburger"></i>
+    <div class="mobile-menu">
+      <a href="index.html"><i class="fas fa-home"></i> Accueil</a>
+      <a href="register.html"><i class="fas fa-user-plus"></i> Créer un compte</a>
+      <a href="partenaire.html"><i class="fas fa-handshake"></i> Devenir partenaire</a>
+      <a href="https://chat.whatsapp.com/HRgWJFxTgkiEkEC0Ou2028" target="_blank"><i class="fab fa-whatsapp"></i> Rejoindre la communauté WhatsApp</a>
+    </div>
   </header>
 
   <main>
@@ -214,6 +249,9 @@
         </div>
 
         <div class="link">Pas encore de compte ? <a href="register.html">Créer un compte</a></div>
+        <div class="link" style="margin-top: 0.5rem; font-size: 0.85rem;">
+          Besoin d'aide pour vous connecter ? <a href="galerie.html">Voir le tutoriel vidéo</a>
+        </div>
       </form>
     </div>
   </main>
@@ -239,6 +277,13 @@
     const provider = new firebase.auth.GoogleAuthProvider();
 
     let isAuthenticating = false;
+
+    // ── Gestion du Menu Hamburger ──
+    const header = document.querySelector("header");
+    document.querySelector(".icon-hamburger").addEventListener("click", () => header.classList.toggle("open"));
+    document.addEventListener("click", (e) => { 
+      if (!header.contains(e.target) && header.classList.contains("open")) header.classList.remove("open"); 
+    });
 
     // ── Détection de session automatique (Redirection si déjà connecté) ──
     auth.onAuthStateChanged((user) => {
@@ -285,25 +330,39 @@
       }
     });
 
-    // ── Mot de passe oublié (Envoi du mail) ──
+    // ── Réinitialisation du mot de passe (Envoi du mail) ──
     document.getElementById('forgotPasswordBtn').addEventListener('click', async () => {
       hideAllErrors();
-      const email = document.getElementById('email').value.trim();
+      const emailInput = document.getElementById('email');
+      const email = emailInput.value.trim();
       
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        showFieldError('emailError', '⚠️ Veuillez entrer une adresse email valide pour recevoir le lien de réinitialisation.');
+        showFieldError('emailError', '⚠️ Veuillez d\'abord saisir votre adresse email dans ce champ ci-dessus, puis cliquez à nouveau sur "Mot de passe oublié ?".');
+        emailInput.focus();
         return;
       }
 
+      // Changement du bouton pour indiquer que l'action est en cours
+      const btn = document.getElementById('forgotPasswordBtn');
+      const originalText = btn.textContent;
+      btn.textContent = 'Envoi en cours...';
+      btn.disabled = true;
+
       try {
         await auth.sendPasswordResetEmail(email);
-        showNotification('✅ Un lien de réinitialisation a été envoyé à votre adresse email.', 'success', 6000);
+        showNotification('✅ C\'est fait ! Un lien de réinitialisation sécurisé vient d\'être envoyé à votre adresse email. Vérifiez vos courriers indésirables (Spams) si besoin.', 'success', 8000);
+        document.getElementById('password').value = ''; // On vide le champ mdp par sécurité
       } catch (error) {
         if (error.code === 'auth/user-not-found') {
-          showFieldError('emailError', '⚠️ Aucun compte n\'est associé à cette adresse email.');
+          showFieldError('emailError', '⚠️ Aucun compte n\'est associé à cette adresse email. Veuillez vérifier votre saisie ou créer un compte.');
+        } else if (error.code === 'auth/too-many-requests') {
+          showNotification('⚠️ Trop de requêtes. Veuillez patienter quelques instants avant de réessayer.', 'error');
         } else {
-          showNotification('❌ Erreur lors de l\'envoi de l\'email de réinitialisation.', 'error');
+          showNotification('❌ Erreur lors de l\'envoi de l\'email de réinitialisation. Veuillez réessayer plus tard.', 'error');
         }
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
       }
     });
 
