@@ -16,6 +16,9 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
   
+  <!-- Ajout de la bibliothèque Canvas-Confetti pour l'effet de succès haut de gamme -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  
   <style>
     /* ══════════════ VARIABLES DE BRANDING ÉPURÉES ══════════════ */
     :root {
@@ -115,7 +118,7 @@
 
     /* ══════════════ INTEGRATION DU SOLDE DANS LA PAGE ══════════════ */
     .page-solde-container {
-      display: flex; justify-content: center; margin-bottom: 1rem;
+      display: flex; justify-content: center; align-items: center; gap: 1rem; margin-bottom: 1rem;
     }
     .solde-badge-inline {
       background: rgba(0, 229, 255, 0.05);
@@ -130,6 +133,28 @@
       color: #fff;
     }
     .solde-badge-inline i { color: var(--sbh-cyan); }
+    
+    /* Bouton d'ajout de fonds discret et moderne juxtaposé au solde */
+    .btn-deposit-trigger {
+      background: rgba(0, 229, 255, 0.1);
+      color: var(--sbh-cyan);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      padding: 0.5rem 1.2rem;
+      border-radius: 50px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.3s ease;
+    }
+    .btn-deposit-trigger:hover {
+      background: var(--sbh-cyan);
+      color: var(--sbh-deep-blue);
+      transform: scale(1.05);
+      box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+    }
 
     /* ══════════════ BOUTONS CYAN MODERNES ══════════════ */
     .btn {
@@ -255,7 +280,6 @@
     }
     .service-name { font-weight: 700; font-size: 1.05rem; margin-bottom: 1rem; color: #fff; height: 45px; display: flex; align-items: center; justify-content: center; }
     
-    /* Nouveaux styles pour les prix barrés */
     .old-price {
       text-decoration: line-through;
       color: rgba(255,255,255,0.4);
@@ -283,6 +307,57 @@
     .faq-content-inside {
       display: none; padding: 0 1.8rem 1.4rem; color: rgba(255,255,255,0.7); font-size: 0.95rem; line-height: 1.6;
     }
+
+    /* ══════════════ SYSTÈME DE MODALES HOLLYWOODIENNES ══════════════ */
+    .sbh-modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(4, 8, 16, 0.75); backdrop-filter: blur(12px);
+      z-index: 2000; display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
+      padding: 1rem;
+    }
+    .sbh-modal-overlay.active { opacity: 1; pointer-events: auto; }
+    
+    .sbh-modal-card {
+      background: linear-gradient(145deg, #0A162B, #070D1A);
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      border-radius: 24px; max-width: 450px; width: 100%;
+      padding: 2.2rem; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.6);
+      transform: scale(0.8); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .sbh-modal-overlay.active .sbh-modal-card { transform: scale(1); }
+    
+    .modal-icon {
+      font-size: 3rem; margin-bottom: 1.2rem; display: inline-block;
+    }
+    .modal-icon.success { color: var(--sbh-cyan); filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.4)); }
+    .modal-icon.warning { color: #ff4b4b; filter: drop-shadow(0 0 10px rgba(255, 75, 75, 0.4)); }
+    .modal-icon.wallet { color: #ffca28; filter: drop-shadow(0 0 10px rgba(255, 202, 40, 0.4)); }
+    
+    .sbh-modal-card h3 {
+      font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #fff;
+    }
+    .sbh-modal-card p {
+      color: rgba(255, 255, 255, 0.75); font-size: 1rem; margin-bottom: 2rem;
+    }
+    
+    .modal-button-container {
+      display: flex; gap: 1rem; justify-content: center;
+    }
+    .modal-button-container .btn { width: 100%; }
+    
+    /* Boutons spécifiques pour la sélection des paiements */
+    .payment-option-link {
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border);
+      padding: 1.2rem; border-radius: 14px; text-decoration: none; color: #fff;
+      font-weight: 600; margin-bottom: 1rem; transition: all 0.3s ease;
+    }
+    .payment-option-link:hover {
+      background: rgba(0, 229, 255, 0.06); border-color: var(--sbh-cyan);
+      transform: translateX(4px);
+    }
+    .payment-option-link i { color: var(--sbh-cyan); font-size: 1.2rem; }
 
     /* ══════════════ FOOTER ══════════════ */
     footer {
@@ -344,10 +419,14 @@
   </nav>
 
   <main>
+    <!-- Zone Solde optimisée avec bouton "Déposer" accolé -->
     <div class="page-solde-container" data-aos="fade-up">
       <div class="solde-badge-inline" id="soldeDisplay">
         <i class="fas fa-wallet"></i> <span id="balanceValue">--</span> <span id="currencyUnit">FCFA</span>
       </div>
+      <button class="btn-deposit-trigger" id="openDepositModalBtn">
+        <i class="fas fa-plus-circle"></i> Déposer
+      </button>
     </div>
 
     <div class="hero" data-aos="fade-up">
@@ -453,6 +532,57 @@
     </div>
   </main>
 
+  <!-- ══════════════ STRUCTURES DES MODALES IMMERSIVES ══════════════ -->
+  
+  <!-- Modale : Activation Réussie (Avec bouton OK) -->
+  <div class="sbh-modal-overlay" id="successModal">
+    <div class="sbh-modal-card">
+      <div class="modal-icon success"><i class="fas fa-certificate"></i></div>
+      <h3>Statut Activé !</h3>
+      <p>Félicitations, votre profil Revendeur Simple a été validé avec succès. Vous bénéficiez désormais de nos grilles de prix grossistes.</p>
+      <div class="modal-button-container">
+        <button class="btn btn-cyan" id="closeSuccessModalBtn">Excellent, merci</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modale : Confirmation de Révocation (Demande Oui/Non) -->
+  <div class="sbh-modal-overlay" id="revokeConfirmModal">
+    <div class="sbh-modal-card">
+      <div class="modal-icon warning"><i class="fas fa-exclamation-triangle"></i></div>
+      <h3>Révocation du statut ?</h3>
+      <p>Êtes-vous absolument sûr de vouloir quitter le programme Revendeur ? Vous perdrez immédiatement vos remises exclusives de 20%.</p>
+      <div class="modal-button-container">
+        <button class="btn" id="cancelRevokeBtn">Annuler</button>
+        <button class="btn btn-danger" id="confirmRevokeBtn">Oui, révoquer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modale : Sélection du type de paiement (Fonds / Paid) -->
+  <div class="sbh-modal-overlay" id="depositModal">
+    <div class="sbh-modal-card" style="max-width: 480px;">
+      <div class="modal-icon wallet"><i class="fas fa-wallet"></i></div>
+      <h3>Recharger mon solde</h3>
+      <p style="margin-bottom: 1.5rem;">Choisissez votre passerelle de facturation selon votre localisation géographique :</p>
+      
+      <div style="text-align: left; margin-bottom: 1.5rem;">
+        <a href="fonds.html" class="payment-option-link">
+          <span><i class="fas fa-map-marker-alt" style="margin-right: 10px;"></i> Paiement Cameroun (OM / MoMo)</span>
+          <i class="fas fa-arrow-right"></i>
+        </a>
+        <a href="paid.html" class="payment-option-link">
+          <span><i class="fas fa-globe-africa" style="margin-right: 10px;"></i> Paiement Africain & International</span>
+          <i class="fas fa-arrow-right"></i>
+        </a>
+      </div>
+      
+      <div class="modal-button-container">
+        <button class="btn" id="closeDepositModalBtn" style="border-radius: 10px; padding: 0.6rem;">Fermer la fenêtre</button>
+      </div>
+    </div>
+  </div>
+
   <footer>
     <div class="footer-grid">
       <div>
@@ -521,7 +651,7 @@
       { name: 'Vues TikTok Monétisation', basePriceFCFA: 15, platform: 'TikTok' }
     ];
 
-    // Taux de conversion de devises par défaut (Inspiré du Dashboard centralisé)
+    // Taux de conversion de devises par défaut
     const conversionRates = {
       'FCFA': 1,
       'EUR': 0.0015,
@@ -530,19 +660,19 @@
     };
 
     let currentUserCurrency = 'FCFA';
+    let globalUserId = null; // Stockage global sécurisé de l'UID de l'utilisateur
 
     // Rendu dynamique avec calcul des réductions de 20%
     function renderPrices(currency) {
       const rate = conversionRates[currency] || 1;
       const container = document.getElementById('priceSampleContainer');
       
+      if(!container) return;
+      
       container.innerHTML = officialServices.map(srv => {
-        // Le prix normal (Base)
         const oldPrice = srv.basePriceFCFA * rate;
-        // Le prix revendeur VIP (-20%)
         const discountPrice = oldPrice * 0.8;
         
-        // Formatage (pas de décimales pour FCFA/XOF, 2 décimales pour EUR/USD)
         const displayOldPrice = oldPrice.toFixed(rate === 1 ? 0 : 2);
         const displayVipPrice = discountPrice.toFixed(rate === 1 ? 0 : 2);
 
@@ -558,58 +688,84 @@
       }).join('');
     }
 
-    // Exécution initiale par défaut
     renderPrices('FCFA');
 
-    // Synchronisation de l'utilisateur connecté (Devise + Solde + Statut Revendeur)
+    // ══════════════ FONCTIONS DE CONTRÔLE DES MODALES ══════════════
+    function openModal(modalId) {
+      document.getElementById(modalId).classList.add('active');
+    }
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.remove('active');
+    }
+
+    // Effet de pluie de confettis stylisée (Feu d'artifice)
+    function triggerSuccessConfetti() {
+      const duration = 3 * 1000;
+      const end = Date.now() + duration;
+
+      (function frame() {
+        confetti({
+          particleCount: 4,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors: ['#00E5FF', '#6a0dad', '#ffffff']
+        });
+        confetti({
+          particleCount: 4,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors: ['#00E5FF', '#6a0dad', '#ffffff']
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      }());
+    }
+
+    // Gestion des événements pour la modale de dépôt de fonds
+    document.getElementById('openDepositModalBtn').addEventListener('click', () => openModal('depositModal'));
+    document.getElementById('closeDepositModalBtn').addEventListener('click', () => closeModal('depositModal'));
+    document.getElementById('closeSuccessModalBtn').addEventListener('click', () => closeModal('successModal'));
+    document.getElementById('cancelRevokeBtn').addEventListener('click', () => closeModal('revokeConfirmModal'));
+
+    // Synchronisation de l'utilisateur connecté
     async function syncUserProfile(user) {
       if (!user) return;
+      globalUserId = user.uid;
       try {
         const userDocRef = db.collection('users').doc(user.uid);
         
-        // On écoute en temps réel (onSnapshot) pour mettre à jour l'UI dès que le statut ou les commandes changent
         userDocRef.onSnapshot((doc) => {
           if (doc.exists) {
             const data = doc.data();
             
-            // Détection de la devise enregistrée dans le compte utilisateur
             if (data.currency && conversionRates[data.currency]) {
               currentUserCurrency = data.currency;
               document.getElementById('currencyUnit').innerText = currentUserCurrency;
             }
             
-            // Calcul et affichage du solde adapté
             const balance = data.balance || 0;
             document.getElementById('balanceValue').innerText = balance.toLocaleString('fr-FR');
             
-            // Actualisation du catalogue de prix avec la bonne devise
             renderPrices(currentUserCurrency);
 
-            // Gestion de l'affichage de la zone Revendeur Simple
             const actionArea = document.getElementById('resellerActionArea');
+            if(!actionArea) return;
             
             if (data.isReseller === true) {
-              // Récupération ou calcul du nombre de commandes passées
               const totalOrders = data.totalOrders || 0;
               let levelName = "Initial";
-              let levelDiscount = 0; // Réduction additionnelle sur le panier
+              let levelDiscount = 0;
 
-              // Calcul des paliers de réductions par rapport au nombre de commandes
-              if (totalOrders >= 5 && totalOrders <= 9) {
-                levelName = "Bronze";
-                levelDiscount = 5;
-              } else if (totalOrders >= 10 && totalOrders <= 14) {
-                levelName = "Argent";
-                levelDiscount = 10;
-              } else if (totalOrders >= 15 && totalOrders <= 19) {
-                levelName = "Or";
-                levelDiscount = 15;
-              } else if (totalOrders >= 20) {
-                levelName = "Platine";
-                levelDiscount = 20;
-              }
+              if (totalOrders >= 5 && totalOrders <= 9) { levelName = "Bronze"; levelDiscount = 5; }
+              else if (totalOrders >= 10 && totalOrders <= 14) { levelName = "Argent"; levelDiscount = 10; }
+              else if (totalOrders >= 15 && totalOrders <= 19) { levelName = "Or"; levelDiscount = 15; }
+              else if (totalOrders >= 20) { levelName = "Platine"; levelDiscount = 20; }
 
-              // Remplacement du bouton d'activation par le mini tableau de bord
+              // Intégration des nouvelles routes configurées (commande-revendeur.html et Commandes.html)
               actionArea.innerHTML = `
                 <div class="reseller-status-dashboard">
                   <div class="status-header-info">
@@ -621,8 +777,8 @@
                   </p>
                   
                   <div class="reseller-actions-grid">
-                    <a href="services.html" class="btn btn-cyan" style="padding:0.6rem 1rem; font-size:0.85rem;"><i class="fas fa-shopping-cart"></i> Commander</a>
-                    <a href="dashboard.html" class="btn" style="padding:0.6rem 1rem; font-size:0.85rem;"><i class="fas fa-list"></i> Mes Commandes</a>
+                    <a href="commande-revendeur.html" class="btn btn-cyan" style="padding:0.6rem 1rem; font-size:0.85rem;"><i class="fas fa-shopping-cart"></i> Commander</a>
+                    <a href="Commandes.html" class="btn" style="padding:0.6rem 1rem; font-size:0.85rem;"><i class="fas fa-list"></i> Mes Commandes</a>
                   </div>
 
                   <button id="revokeResellerBtn" class="btn btn-danger" style="width:100%; padding:0.5rem; font-size:0.8rem; border-radius:8px;">
@@ -631,11 +787,9 @@
                 </div>
               `;
 
-              // Écouteur pour le bouton de révocation
-              document.getElementById('revokeResellerBtn').addEventListener('click', () => revokeResellerStatus(user.uid));
+              document.getElementById('revokeResellerBtn').addEventListener('click', () => openModal('revokeConfirmModal'));
 
             } else {
-              // L'utilisateur n'est pas revendeur ou a annulé son statut
               actionArea.innerHTML = `<button id="activateResellerBtn" class="btn btn-cyan" style="width:100%;">Activer le statut</button>`;
               document.getElementById('activateResellerBtn').addEventListener('click', () => activateResellerStatus(user.uid));
             }
@@ -657,61 +811,36 @@
           resellerActivatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        alert("Félicitations ! Votre statut Revendeur Simple est maintenant actif.");
+        // Déclenchement de la pluie de confettis et de la modale graphique
+        triggerSuccessConfetti();
+        openModal('successModal');
+        
       } catch (error) {
         console.error("Erreur lors de l'activation:", error);
-        alert("Une erreur est survenue lors de l'activation. Veuillez réessayer.");
-        renderUserStatusArea(); // reset l'UI en cas d'erreur
+        actionArea.innerHTML = `<button id="activateResellerBtn" class="btn btn-cyan" style="width:100%;">Activer le statut</button>`;
       }
     }
 
-    // Fonction de révocation du statut revendeur
-    async function revokeResellerStatus(uid) {
-      const confirmRevoke = confirm("Êtes-vous sûr de vouloir quitter le programme Revendeur ? Vous perdrez vos avantages de tarification réduits.");
-      if (!confirmRevoke) return;
-
+    // Écouteur pour valider la révocation depuis la modale
+    document.getElementById('confirmRevokeBtn').addEventListener('click', async () => {
+      if (!globalUserId) return;
       try {
-        const btn = document.getElementById('revokeResellerBtn');
-        if(btn) { btn.innerText = "Désactivation..."; btn.disabled = true; }
-
-        await db.collection('users').doc(uid).update({
+        closeModal('revokeConfirmModal');
+        
+        await db.collection('users').doc(globalUserId).update({
           isReseller: false,
           resellerRevokedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        alert("Votre statut de revendeur a été révoqué avec succès.");
       } catch (error) {
         console.error("Erreur lors de la révocation:", error);
-        alert("Une erreur est survenue lors de la désactivation.");
       }
-    }
-
-    // Gestion de l'accordéon FAQ
-    document.querySelectorAll('.faq-trigger').forEach(trigger => {
-      trigger.addEventListener('click', () => {
-        const parent = trigger.parentElement;
-        const content = parent.querySelector('.faq-content-inside');
-        const isOpen = parent.classList.contains('open');
-        
-        document.querySelectorAll('.faq-wrapper-item').forEach(item => {
-          item.classList.remove('open');
-          item.querySelector('.faq-content-inside').style.display = 'none';
-        });
-        
-        if (!isOpen) {
-          parent.classList.add('open');
-          content.style.display = 'block';
-        }
-      });
     });
 
     // Écouteur d'état d'authentification
     auth.onAuthStateChanged(user => {
       if (user) {
         syncUserProfile(user);
-      } else {
-        // Optionnel : Gestion de la redirection si l'utilisateur se déconnecte
-        // window.location.href = "login.html";
       }
     });
   </script>
