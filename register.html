@@ -179,7 +179,13 @@
     .custom-select-option:hover { background: rgba(77,166,255,0.15); color: #fff; }
     .custom-select-option.hidden { display: none; }
 
-    .referral-group { display: flex; gap: 10px; }
+    /* --- TOGGLE DE PARRAINAGE --- */
+    .referral-toggle {
+      color: var(--sbh-light-blue); font-size: 0.95rem; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.3s;
+    }
+    .referral-toggle:hover { color: #fff; }
+    .referral-group { display: flex; gap: 10px; margin-top: 10px; }
     .referral-group input { flex: 1; }
 
     .error {
@@ -201,7 +207,7 @@
       content: ''; flex: 1; border-bottom: 1px solid var(--glass-border);
     }
 
-    .link { text-align: center; margin-top: 1.5rem; font-size: 0.9rem; color: var(--text-light); }
+    .link { text-align: center; margin-top: 1.2rem; font-size: 0.9rem; color: var(--text-light); }
     .link a { color: var(--sbh-light-blue); text-decoration: none; font-weight: 600; }
     .link a:hover { text-decoration: underline; }
 
@@ -376,16 +382,6 @@
         </div>
 
         <div class="form-group">
-          <label for="referral"><i class="fas fa-gift"></i> Code de parrainage <span style="color:rgba(255,255,255,0.4);font-weight:400;">(Pas obligatoire)</span></label>
-          <div class="referral-group">
-            <input type="text" id="referral" placeholder="Ex: A1B2C3D4" autocomplete="off" style="text-transform:uppercase;">
-            <button type="button" id="verifyReferralBtn" class="btn-verify">Vérifier</button>
-          </div>
-          <div class="success-msg" id="referralSuccess"></div>
-          <div class="error" id="referralError"></div>
-        </div>
-
-        <div class="form-group">
           <label for="password"><i class="fas fa-lock"></i> Mot de passe</label>
           <div class="password-toggle">
             <input type="password" id="password" required minlength="6" placeholder="Minimum 6 caractères" autocomplete="new-password">
@@ -394,9 +390,23 @@
           <div class="error" id="passwordError"></div>
         </div>
 
+        <div class="form-group" style="margin-top: 1.5rem;">
+          <div class="referral-toggle" id="referralToggle">
+            <i class="fas fa-gift"></i> J'ai un code de parrainage (Optionnel) <i class="fas fa-chevron-down toggle-icon" style="margin-left: auto;"></i>
+          </div>
+          <div id="referralWrapper" style="display: none;">
+            <div class="referral-group">
+              <input type="text" id="referral" placeholder="Ex: A1B2C3D4" autocomplete="off" style="text-transform:uppercase;">
+              <button type="button" id="verifyReferralBtn" class="btn-verify">Vérifier</button>
+            </div>
+            <div class="success-msg" id="referralSuccess"></div>
+            <div class="error" id="referralError"></div>
+          </div>
+        </div>
+
         <div style="margin-top: 1.8rem; display: flex; flex-direction: column; gap: 12px;">
           <button type="submit" class="btn" id="registerBtn">
-            <span class="btn-text">J'ai terminé ☺️</span>
+            <span class="btn-text">Créer mon compte</span>
             <div class="loader"></div>
           </button>
           <div class="divider">OU</div>
@@ -407,7 +417,10 @@
           </button>
         </div>
 
-        <div class="link">Déjà avancé ? <a href="login.html">Se connecter</a></div>
+        <div class="link" style="margin-top: 1.5rem;">Déjà membre ? <a href="login.html">Se connecter</a></div>
+        <div class="link" style="margin-top: 0.5rem; font-size: 0.85rem;">
+          Besoin d'aide pour s'inscrire ? <a href="galerie.html">Voir le tutoriel vidéo</a>
+        </div>
       </form>
     </div>
   </main>
@@ -434,6 +447,14 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
     const provider = new firebase.auth.GoogleAuthProvider();
+
+    // ── Redirection si déjà connecté (Cookies/Session Firebase) ──
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        // L'utilisateur est déjà reconnu, on l'envoie sur le dashboard
+        window.location.href = 'dashboard.html';
+      }
+    });
 
     // ── Gestion du Menu Hamburger ──
     const header = document.querySelector("header");
@@ -476,7 +497,7 @@
       this.classList.toggle('active');
       customSelectDropdown.classList.toggle('show');
       if (customSelectDropdown.classList.contains('show')) {
-        customSearchInput.focus(); // Focus automatique sur la barre de recherche
+        customSearchInput.focus();
       }
     });
 
@@ -500,7 +521,6 @@
 
     customSearchInput.addEventListener('input', function(e) {
       const term = e.target.value.toLowerCase();
-      
       customOptions.forEach(opt => {
         if(opt.textContent.toLowerCase().includes(term)) {
           opt.classList.remove('hidden');
@@ -509,7 +529,6 @@
         }
       });
 
-      // Cacher les titres de groupes si aucune option n'est visible
       customGroups.forEach(group => {
         const visibleOptions = group.querySelectorAll('.custom-select-option:not(.hidden)');
         const label = group.querySelector('.custom-select-group-label');
@@ -519,6 +538,22 @@
           label.style.display = 'block';
         }
       });
+    });
+
+    // ── Géolocalisation pour Auto-Sélection du Pays ──
+    document.addEventListener('DOMContentLoaded', () => {
+      fetch('https://ipapi.co/json/')
+        .then(response => response.json())
+        .then(data => {
+          if (data.country_code && !paysInput.value) {
+            const countryCode = data.country_code.toLowerCase();
+            const targetOption = document.querySelector(`.custom-select-option[data-value="${countryCode}"]`);
+            if (targetOption) {
+              targetOption.click(); // Sélectionne automatiquement le pays via notre logique existante
+            }
+          }
+        })
+        .catch(error => console.log('Géolocalisation échouée, sélection manuelle requise.'));
     });
 
     // ── Toggle mot de passe ──
@@ -533,12 +568,25 @@
       }
     });
 
-    // ── Majuscules automatiques code parrainage ──
+    // ── Dépliant pour le Code de Parrainage ──
+    const referralToggle = document.getElementById('referralToggle');
+    const referralWrapper = document.getElementById('referralWrapper');
+    const toggleIcon = referralToggle.querySelector('.toggle-icon');
+
+    referralToggle.addEventListener('click', () => {
+      if (referralWrapper.style.display === 'none') {
+        referralWrapper.style.display = 'block';
+        toggleIcon.classList.replace('fa-chevron-down', 'fa-chevron-up');
+      } else {
+        referralWrapper.style.display = 'none';
+        toggleIcon.classList.replace('fa-chevron-up', 'fa-chevron-down');
+      }
+    });
+
     document.getElementById('referral').addEventListener('input', function() {
       this.value = this.value.toUpperCase();
     });
 
-    // ── Vérification du code de parrainage ──
     document.getElementById('verifyReferralBtn').addEventListener('click', async () => {
       const code = document.getElementById('referral').value.trim().toUpperCase();
       hideAllErrors();
@@ -573,6 +621,8 @@
       const params = new URLSearchParams(window.location.search);
       if (params.has('ref')) {
         document.getElementById('referral').value = params.get('ref').toUpperCase();
+        referralWrapper.style.display = 'block'; // On ouvre le bloc automatiquement
+        toggleIcon.classList.replace('fa-chevron-down', 'fa-chevron-up');
         document.getElementById('verifyReferralBtn').click();
       }
     });
@@ -584,7 +634,7 @@
         .replace(/\s+/g, '_').toLowerCase().replace(/[^a-z0-9_]/g, '');
       const newReferralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
 
-      // 1. Sauvegarde rapide Firestore (optimiste) pour que le dashboard charge vite
+      // Sauvegarde rapide Firestore
       await db.collection('users').doc(userId).set({
         userId,
         username: generatedUsername,
@@ -598,7 +648,7 @@
         isFirstAccess: true
       }, { merge: true });
 
-      // 2. Backend : résolution du parrainage + emails (fire-and-forget)
+      // Backend API
       fetch(`${BACKEND_URL}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
