@@ -2,26 +2,24 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Formations - Social Boost Horizon</title>
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
-  <!-- Fonts & Icons -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Inter', sans-serif;
-      background: #f4f6fa; /* fond clair mais professionnel */
-      color: #1e293b;
+      background: #f8fafc;
+      color: #0f172a;
     }
-    /* HEADER inspiré du dashboard mais plus clair */
     header {
-      background: #ffffff;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      background: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -32,10 +30,10 @@
     }
     .logo-link { display: flex; align-items: center; text-decoration: none; gap: 12px; }
     .logo-img { height: 45px; width: 45px; border-radius: 50%; object-fit: cover; border: 2px solid #D4AF37; }
-    .logo-text .social { font-size: 0.75rem; font-weight: 600; color: #4b5563; letter-spacing: 1px; }
-    .logo-text .boost { font-size: 1.4rem; font-weight: 800; color: #D4AF37; line-height: 1; }
-    .logo-text .horizon { font-size: 0.8rem; font-weight: 600; color: #1e293b; }
-    .header-icons { display: flex; align-items: center; gap: 20px; }
+    .logo-text .social { font-size: 0.7rem; font-weight: 600; color: #4b5563; }
+    .logo-text .boost { font-size: 1.3rem; font-weight: 800; color: #D4AF37; line-height: 1; }
+    .logo-text .horizon { font-size: 0.75rem; font-weight: 600; color: #1e293b; }
+    .header-icons { display: flex; gap: 20px; align-items: center; }
     .snap-avatar {
       width: 42px; height: 42px; border-radius: 50%;
       background: linear-gradient(135deg, #1e3c72, #2a5298);
@@ -47,15 +45,14 @@
     .mobile-menu {
       display: none; position: absolute; top: 70px; right: 2rem;
       background: white; border-radius: 20px; padding: 1rem;
-      flex-direction: column; width: 240px; box-shadow: 0 20px 35px rgba(0,0,0,0.1);
+      width: 240px; box-shadow: 0 20px 35px rgba(0,0,0,0.1);
       border: 1px solid #e2e8f0;
     }
-    header.open .mobile-menu { display: flex; }
-    .mobile-menu a { padding: 10px; color: #1e293b; text-decoration: none; display: flex; gap: 10px; border-radius: 12px; }
+    header.open .mobile-menu { display: flex; flex-direction: column; }
+    .mobile-menu a { padding: 10px; color: #1e293b; text-decoration: none; border-radius: 12px; display: flex; gap: 10px; }
     .mobile-menu a:hover { background: #f1f5f9; }
     .menu-divider { border-top: 1px solid #e2e8f0; margin: 8px 0; }
 
-    /* Balance card */
     .balance-card {
       background: white;
       margin: 20px 30px;
@@ -64,31 +61,28 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
       border: 1px solid #e2e8f0;
     }
     .balance-info i { color: #D4AF37; font-size: 1.8rem; margin-right: 12px; }
-    .balance-info span { font-weight: 800; font-size: 1.3rem; color: #0f172a; }
+    .balance-info span { font-weight: 800; font-size: 1.3rem; }
     .btn-outline {
       background: transparent; border: 1px solid #cbd5e1;
       padding: 0.5rem 1.2rem; border-radius: 40px; font-weight: 500;
-      text-decoration: none; color: #1e293b; transition: 0.2s;
+      text-decoration: none; color: #1e293b;
     }
     .btn-outline:hover { border-color: #D4AF37; background: #fffbeb; }
     .btn-gold {
       background: #D4AF37; border: none; padding: 0.5rem 1.2rem;
       border-radius: 40px; font-weight: 600; color: #0f172a;
-      cursor: pointer; transition: 0.2s;
+      cursor: pointer;
     }
-    .btn-gold:hover { background: #b8912e; }
     .welcome-container { text-align: center; margin: 20px 0 10px; }
     .username { color: #D4AF37; font-weight: 800; }
-
-    /* Grille des formations */
     .main-container { max-width: 1300px; margin: 0 auto; padding: 1rem 2rem 3rem; }
     .category-section { margin-bottom: 3rem; }
     .category-title {
-      font-size: 1.6rem; font-weight: 700; margin-bottom: 1.2rem;
+      font-size: 1.5rem; font-weight: 700; margin-bottom: 1.2rem;
       border-left: 5px solid #D4AF37; padding-left: 1rem;
       color: #0f172a;
     }
@@ -102,11 +96,11 @@
       border-radius: 20px;
       overflow: hidden;
       box-shadow: 0 8px 20px rgba(0,0,0,0.05);
-      transition: transform 0.2s, box-shadow 0.2s;
+      transition: transform 0.2s;
       border: 1px solid #edf2f7;
     }
-    .course-card:hover { transform: translateY(-5px); box-shadow: 0 20px 30px -12px rgba(0,0,0,0.15); }
-    .card-img-wrapper { position: relative; height: 160px; background: #f1f5f9; }
+    .course-card:hover { transform: translateY(-5px); box-shadow: 0 20px 30px -12px rgba(0,0,0,0.1); }
+    .card-img-wrapper { position: relative; height: 160px; background: #e2e8f0; }
     .card-img { width: 100%; height: 100%; object-fit: cover; }
     .category-badge {
       position: absolute; top: 12px; left: 12px;
@@ -114,18 +108,16 @@
       border-radius: 30px; font-size: 0.7rem; font-weight: 700;
     }
     .card-content { padding: 1.2rem; display: flex; flex-direction: column; }
-    .card-title { font-size: 1rem; font-weight: 800; margin-bottom: 0.5rem; color: #0f172a; }
+    .card-title { font-size: 1rem; font-weight: 800; margin-bottom: 0.5rem; }
     .card-desc { font-size: 0.8rem; color: #475569; margin-bottom: 1rem; }
     .card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto; }
     .price { font-weight: 800; font-size: 1.2rem; color: #D4AF37; }
     .btn-buy {
       background: #D4AF37; border: none; padding: 0.4rem 1rem;
       border-radius: 40px; font-weight: 600; color: #0f172a;
-      cursor: pointer; transition: 0.2s; display: inline-flex; gap: 6px;
+      cursor: pointer; display: inline-flex; gap: 6px;
     }
     .btn-buy:hover { background: #c2a032; }
-
-    /* Modals */
     .modal {
       display: none; position: fixed; top: 0; left: 0;
       width: 100%; height: 100%; background: rgba(0,0,0,0.5);
@@ -136,11 +128,9 @@
     .modal-box {
       background: white; border-radius: 28px; padding: 1.8rem;
       max-width: 450px; width: 90%; text-align: center;
-      box-shadow: 0 25px 40px rgba(0,0,0,0.2);
     }
     .modal-box h3 { color: #D4AF37; margin-bottom: 1rem; }
     .modal-buttons { display: flex; gap: 12px; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap; }
-
     footer {
       background: #0f172a; color: #cbd5e1; padding: 2rem; margin-top: 2rem;
       text-align: center;
@@ -178,7 +168,7 @@
 
 <div class="welcome-container"><h1>📘 Nos formations <span class="username" id="userNameSpan"></span></h1><p>Achetez avec votre solde, recevez le PDF par WhatsApp après achat.</p></div>
 
-<div class="main-container" id="formationsRoot"></div>
+<div id="formationsContainer" class="main-container"></div>
 
 <!-- Modals -->
 <div id="successModal" class="modal"><div class="modal-box"><h3>✅ Achat réussi !</h3><p id="successMessage"></p><div class="modal-buttons"><button id="contactAdminBtn" class="btn-gold"><i class="fab fa-whatsapp"></i> Contacter l'admin</button><button id="closeSuccessModal" class="btn-outline">Fermer</button></div></div></div>
@@ -187,7 +177,7 @@
 <footer>© 2026 Social Boost Horizon — Tous droits réservés.</footer>
 
 <script>
-  // Firebase config
+  // Configuration Firebase
   const firebaseConfig = {
     apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
     authDomain: "social-boost-horizon.firebaseapp.com",
@@ -204,8 +194,8 @@
   let currentBalance = 0;
   let currentUserName = "";
 
-  // Catalogue complet des formations (catégories claires)
-  const formations = [
+  // ========== LISTE COMPLÈTE DES FORMATIONS (AFFICHAGE IMMÉDIAT) ==========
+  const formationsList = [
     { id: 1, title: "Comment avoir tout Canal+ gratuitement", desc: "Accédez aux bouquets premium légalement.", price: 1500, img: "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/TRIXHUB/canal%2B.jpg", category: "🔥 Populaires", badge: "Premium" },
     { id: 2, title: "Créer un compte TikTok monétisable (Afrique)", desc: "Service très demandé, revendez-le.", price: 1700, img: "https://images.unsplash.com/photo-1611605698335-8b1569810432?auto=format&fit=crop&w=400&q=80", category: "🔥 Populaires", badge: "TikTok PRO" },
     { id: 3, title: "Utiliser l'IA pour améliorer sa vie", desc: "ChatGPT, Gemini : gagnez des heures.", price: 1200, img: "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=400&q=80", category: "🔥 Populaires", badge: "IA" },
@@ -231,28 +221,28 @@
     { id: 23, title: "Comment recruter pour TRIXHUB sans mentir", desc: "Parrainage honnête et efficace.", price: 0, img: "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=400&q=80", category: "🎁 Bonus", badge: "GRATUIT", free: true }
   ];
 
-  // Regrouper par catégorie
-  const categoriesMap = new Map();
-  formations.forEach(f => {
-    if (!categoriesMap.has(f.category)) categoriesMap.set(f.category, []);
-    categoriesMap.get(f.category).push(f);
-  });
-
-  function renderAll() {
-    const root = document.getElementById('formationsRoot');
-    if (!root) return;
-    root.innerHTML = '';
-    for (let [catName, courses] of categoriesMap.entries()) {
+  // Fonction qui affiche immédiatement les formations (sans attendre Firebase)
+  function displayCourses() {
+    const container = document.getElementById('formationsContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    // Regrouper par catégorie
+    const categories = new Map();
+    formationsList.forEach(course => {
+      if (!categories.has(course.category)) categories.set(course.category, []);
+      categories.get(course.category).push(course);
+    });
+    for (let [catName, courses] of categories.entries()) {
       const section = document.createElement('div');
       section.className = 'category-section';
-      section.innerHTML = `<div class="category-title">${catName}</div><div class="grid-cards" id="grid-${catName.replace(/[^a-z0-9]/gi, '')}"></div>`;
-      root.appendChild(section);
+      section.innerHTML = `<div class="category-title">${catName}</div><div class="grid-cards" id="grid-${catName.replace(/\s/g, '')}"></div>`;
+      container.appendChild(section);
       const grid = section.querySelector('.grid-cards');
       courses.forEach(course => {
         const card = document.createElement('div');
         card.className = 'course-card';
         card.innerHTML = `
-          <div class="card-img-wrapper"><span class="category-badge">${course.badge}</span><img src="${course.img}" class="card-img" loading="lazy" onerror="this.src='https://placehold.co/400x200?text=Image+formation'"></div>
+          <div class="card-img-wrapper"><span class="category-badge">${course.badge}</span><img src="${course.img}" class="card-img" loading="lazy" onerror="this.src='https://placehold.co/400x200?text=Formation'"></div>
           <div class="card-content"><h3 class="card-title">${course.title}</h3><p class="card-desc">${course.desc}</p>
           <div class="card-footer"><span class="price">${course.price === 0 ? 'Gratuit' : course.price + ' FCFA'}</span>
           <button class="btn-buy" data-id="${course.id}" data-title="${course.title.replace(/"/g, '&quot;')}" data-price="${course.price}" data-free="${course.free || false}"><i class="fas fa-${course.price === 0 ? 'gift' : 'shopping-cart'}"></i> ${course.price === 0 ? 'Obtenir' : 'Acheter'}</button></div></div>
@@ -260,20 +250,28 @@
         grid.appendChild(card);
       });
     }
-    // Attacher événements après rendu
+    // Attacher les événements après affichage
+    attachBuyEvents();
+  }
+
+  function attachBuyEvents() {
     document.querySelectorAll('.btn-buy').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const title = btn.dataset.title;
-        const price = parseInt(btn.dataset.price);
-        const isFree = btn.dataset.free === 'true';
-        if (isFree || price === 0) handleFree(title);
-        else handlePurchase(title, price);
-      });
+      btn.removeEventListener('click', handleBuyClick);
+      btn.addEventListener('click', handleBuyClick);
     });
   }
 
-  async function handlePurchase(title, price) {
-    if (!currentUser) { alert("Connectez-vous"); return; }
+  function handleBuyClick(e) {
+    const btn = e.currentTarget;
+    const title = btn.dataset.title;
+    const price = parseInt(btn.dataset.price);
+    const isFree = btn.dataset.free === 'true';
+    if (isFree || price === 0) handleFreeCourse(title);
+    else handlePaidPurchase(title, price);
+  }
+
+  async function handlePaidPurchase(title, price) {
+    if (!currentUser) { alert("Veuillez vous connecter."); return; }
     if (currentBalance < price) {
       document.getElementById('insufficientModal').classList.add('active');
       return;
@@ -282,15 +280,19 @@
       await db.collection('users').doc(currentUser.uid).update({
         balance: firebase.firestore.FieldValue.increment(-price)
       });
+      // Mise à jour locale
       currentBalance -= price;
       updateBalanceUI();
       window.lastPurchase = { title, price };
-      document.getElementById('successMessage').innerHTML = `Vous avez acheté "${title}" pour ${price} FCFA. Cliquez ci-dessous pour contacter l'administrateur et recevoir le PDF.`;
+      document.getElementById('successMessage').innerHTML = `Achat confirmé pour "${title}" (${price} FCFA). Cliquez ci-dessous pour recevoir le PDF.`;
       document.getElementById('successModal').classList.add('active');
-    } catch(err) { alert("Erreur lors de l'achat"); console.error(err); }
+    } catch(err) {
+      alert("Erreur lors de l'achat. Réessayez.");
+      console.error(err);
+    }
   }
 
-  function handleFree(title) {
+  function handleFreeCourse(title) {
     window.lastPurchase = { title, price: 0 };
     document.getElementById('successMessage').innerHTML = `Formation gratuite "${title}" débloquée. Contactez l'admin pour la recevoir.`;
     document.getElementById('successModal').classList.add('active');
@@ -299,9 +301,9 @@
   function contactAdmin() {
     if (!window.lastPurchase) return;
     const { title, price } = window.lastPurchase;
-    const adminPhone = "237699853665";
-    const msg = `Bonjour, je suis ${currentUserName}.%0AJe viens d'acheter la formation : "${title}" pour ${price === 0 ? "gratuit" : price+" FCFA"}.%0AMon email: ${currentUser?.email || ""}.%0AMerci de m'envoyer le PDF.`;
-    window.open(`https://wa.me/${adminPhone}?text=${msg}`, '_blank');
+    const phone = "237699853665";
+    const message = `Bonjour, je suis ${currentUserName || "utilisateur"}.%0AJe viens d'acheter la formation : "${title}" pour ${price === 0 ? "gratuit" : price+" FCFA"}.%0AMon email: ${currentUser?.email || ""}.%0AMerci de m'envoyer le PDF.`;
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
   }
 
   function updateBalanceUI() {
@@ -309,7 +311,7 @@
     if (balSpan) balSpan.innerHTML = `${currentBalance.toLocaleString('fr-FR')} FCFA`;
   }
 
-  // Auth listener
+  // Firebase Auth
   auth.onAuthStateChanged(async (user) => {
     if (user) {
       currentUser = user;
@@ -333,7 +335,7 @@
     }
   });
 
-  // UI interactions
+  // Événements UI
   document.getElementById('quickDepositBtn')?.addEventListener('click', () => window.location.href='fonds.html');
   document.getElementById('closeSuccessModal')?.addEventListener('click', () => document.getElementById('successModal').classList.remove('active'));
   document.getElementById('closeInsufficientModal')?.addEventListener('click', () => document.getElementById('insufficientModal').classList.remove('active'));
@@ -341,7 +343,8 @@
   document.getElementById('hamburgerBtn')?.addEventListener('click', () => document.querySelector('header').classList.toggle('open'));
   document.addEventListener('click', (e) => { if (!document.querySelector('header').contains(e.target)) document.querySelector('header').classList.remove('open'); });
 
-  renderAll();
+  // LANCEMENT IMMÉDIAT DE L'AFFICHAGE DES FORMATIONS
+  displayCourses();
 </script>
 </body>
 </html>
