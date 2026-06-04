@@ -3,348 +3,599 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Formations - Social Boost Horizon</title>
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700&display=swap" rel="stylesheet">
+  <title>Mes Formations - TRIXHUB Academy</title>
+  
+  <!-- Polices -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Icônes -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Inter', sans-serif;
-      background: #f8fafc;
-      color: #0f172a;
+    /* ════════ VARIABLES (Design Premium Académie) ════════ */
+    :root {
+      --bg-main: #F4F4F5; /* Gris très clair, luxueux */
+      --surface: #FFFFFF;
+      --text-dark: #09090B; /* Noir carbone */
+      --text-muted: #71717A;
+      --accent: #E11D48; /* Rouge Carmin premium */
+      --accent-hover: #BE123C;
+      --gold: #D97706;
+      --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      --shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      --radius: 12px;
+      --font-main: 'Plus Jakarta Sans', sans-serif;
     }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: var(--font-main);
+      background-color: var(--bg-main);
+      color: var(--text-dark);
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    /* ════════ HEADER & NAVIGATION ════════ */
     header {
-      background: white;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      background: var(--text-dark);
+      color: white;
+      padding: 1rem 2rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0.8rem 2rem;
       position: sticky;
       top: 0;
       z-index: 100;
     }
-    .logo-link { display: flex; align-items: center; text-decoration: none; gap: 12px; }
-    .logo-img { height: 45px; width: 45px; border-radius: 50%; object-fit: cover; border: 2px solid #D4AF37; }
-    .logo-text .social { font-size: 0.7rem; font-weight: 600; color: #4b5563; }
-    .logo-text .boost { font-size: 1.3rem; font-weight: 800; color: #D4AF37; line-height: 1; }
-    .logo-text .horizon { font-size: 0.75rem; font-weight: 600; color: #1e293b; }
-    .header-icons { display: flex; gap: 20px; align-items: center; }
-    .snap-avatar {
-      width: 42px; height: 42px; border-radius: 50%;
-      background: linear-gradient(135deg, #1e3c72, #2a5298);
-      display: flex; align-items: center; justify-content: center;
-      color: white; font-weight: bold; font-size: 1.2rem;
-      cursor: pointer; text-decoration: none;
+    
+    .logo-area { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.2rem; }
+    .logo-area i { color: var(--accent); }
+    
+    .back-btn {
+      color: white;
+      text-decoration: none;
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.9rem; font-weight: 500;
+      transition: 0.3s;
     }
-    .icon-hamburger { font-size: 1.6rem; color: #1e293b; cursor: pointer; }
-    .mobile-menu {
-      display: none; position: absolute; top: 70px; right: 2rem;
-      background: white; border-radius: 20px; padding: 1rem;
-      width: 240px; box-shadow: 0 20px 35px rgba(0,0,0,0.1);
-      border: 1px solid #e2e8f0;
-    }
-    header.open .mobile-menu { display: flex; flex-direction: column; }
-    .mobile-menu a { padding: 10px; color: #1e293b; text-decoration: none; border-radius: 12px; display: flex; gap: 10px; }
-    .mobile-menu a:hover { background: #f1f5f9; }
-    .menu-divider { border-top: 1px solid #e2e8f0; margin: 8px 0; }
+    .back-btn:hover { color: var(--accent); }
 
-    .balance-card {
-      background: white;
-      margin: 20px 30px;
-      padding: 1rem 2rem;
-      border-radius: 28px;
+    /* ════════ BARRE DE STATUT (Dashboard intégré) ════════ */
+    .status-bar {
+      background: var(--surface);
+      padding: 1.5rem 2rem;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
-      border: 1px solid #e2e8f0;
+      flex-wrap: wrap;
+      gap: 2rem;
+      border-bottom: 1px solid #E4E4E7;
+      justify-content: center;
     }
-    .balance-info i { color: #D4AF37; font-size: 1.8rem; margin-right: 12px; }
-    .balance-info span { font-weight: 800; font-size: 1.3rem; }
-    .btn-outline {
-      background: transparent; border: 1px solid #cbd5e1;
-      padding: 0.5rem 1.2rem; border-radius: 40px; font-weight: 500;
-      text-decoration: none; color: #1e293b;
+    .status-item {
+      display: flex; flex-direction: column; align-items: center;
     }
-    .btn-outline:hover { border-color: #D4AF37; background: #fffbeb; }
-    .btn-gold {
-      background: #D4AF37; border: none; padding: 0.5rem 1.2rem;
-      border-radius: 40px; font-weight: 600; color: #0f172a;
-      cursor: pointer;
+    .status-label { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+    .status-value { font-size: 1.5rem; font-weight: 700; color: var(--text-dark); }
+    .status-value.highlight { color: var(--accent); }
+
+    /* ════════ SECTIONS & GRILLES ════════ */
+    main { padding: 4rem 2rem; max-width: 1280px; margin: 0 auto; }
+    
+    .section-header {
+      margin-bottom: 2.5rem;
+      border-left: 4px solid var(--accent);
+      padding-left: 1rem;
     }
-    .welcome-container { text-align: center; margin: 20px 0 10px; }
-    .username { color: #D4AF37; font-weight: 800; }
-    .main-container { max-width: 1300px; margin: 0 auto; padding: 1rem 2rem 3rem; }
-    .category-section { margin-bottom: 3rem; }
-    .category-title {
-      font-size: 1.5rem; font-weight: 700; margin-bottom: 1.2rem;
-      border-left: 5px solid #D4AF37; padding-left: 1rem;
-      color: #0f172a;
-    }
+    .section-header h2 { font-size: 1.8rem; font-weight: 700; }
+    .section-header p { color: var(--text-muted); font-size: 0.95rem; margin-top: 5px; }
+
     .grid-cards {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-      gap: 1.8rem;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-bottom: 5rem;
     }
+
+    /* ════════ DESIGN DES CARTES (Minimaliste) ════════ */
     .course-card {
-      background: white;
-      border-radius: 20px;
+      background: var(--surface);
+      border-radius: var(--radius);
       overflow: hidden;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.05);
-      transition: transform 0.2s;
-      border: 1px solid #edf2f7;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #E4E4E7;
     }
-    .course-card:hover { transform: translateY(-5px); box-shadow: 0 20px 30px -12px rgba(0,0,0,0.1); }
-    .card-img-wrapper { position: relative; height: 160px; background: #e2e8f0; }
-    .card-img { width: 100%; height: 100%; object-fit: cover; }
+    .course-card:hover {
+      transform: translateY(-5px);
+      box-shadow: var(--shadow-hover);
+      border-color: var(--accent);
+    }
+
+    .card-img-wrapper {
+      position: relative;
+      height: 180px;
+      width: 100%;
+      background: #E4E4E7;
+    }
+    .card-img {
+      width: 100%; height: 100%; object-fit: cover;
+    }
     .category-badge {
-      position: absolute; top: 12px; left: 12px;
-      background: #0f172a; color: #D4AF37; padding: 0.2rem 0.8rem;
-      border-radius: 30px; font-size: 0.7rem; font-weight: 700;
+      position: absolute;
+      top: 10px; left: 10px;
+      background: rgba(9, 9, 11, 0.85);
+      color: white;
+      padding: 0.3rem 0.8rem;
+      border-radius: 50px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      backdrop-filter: blur(4px);
     }
-    .card-content { padding: 1.2rem; display: flex; flex-direction: column; }
-    .card-title { font-size: 1rem; font-weight: 800; margin-bottom: 0.5rem; }
-    .card-desc { font-size: 0.8rem; color: #475569; margin-bottom: 1rem; }
-    .card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto; }
-    .price { font-weight: 800; font-size: 1.2rem; color: #D4AF37; }
-    .btn-buy {
-      background: #D4AF37; border: none; padding: 0.4rem 1rem;
-      border-radius: 40px; font-weight: 600; color: #0f172a;
-      cursor: pointer; display: inline-flex; gap: 6px;
+    
+    .card-content { padding: 1.5rem; display: flex; flex-direction: column; flex-grow: 1; }
+    .card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.8rem; line-height: 1.4; }
+    .card-desc { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem; flex-grow: 1; }
+
+    /* Boutons et Prix */
+    .card-footer {
+      display: flex; justify-content: space-between; align-items: center;
+      padding-top: 1rem; border-top: 1px solid #F4F4F5;
     }
-    .btn-buy:hover { background: #c2a032; }
-    .modal {
-      display: none; position: fixed; top: 0; left: 0;
-      width: 100%; height: 100%; background: rgba(0,0,0,0.5);
-      backdrop-filter: blur(4px); z-index: 2000;
-      justify-content: center; align-items: center;
+    .price { font-weight: 700; font-size: 1.1rem; }
+    .price.free { color: #16A34A; }
+    .price.paid { color: var(--text-dark); }
+    
+    .btn {
+      padding: 0.6rem 1.2rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: 0.3s;
+      display: inline-flex; align-items: center; gap: 6px;
+      cursor: pointer; border: none;
     }
-    .modal.active { display: flex; }
-    .modal-box {
-      background: white; border-radius: 28px; padding: 1.8rem;
-      max-width: 450px; width: 90%; text-align: center;
-    }
-    .modal-box h3 { color: #D4AF37; margin-bottom: 1rem; }
-    .modal-buttons { display: flex; gap: 12px; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap; }
+    .btn-download { background: #F4F4F5; color: var(--text-dark); }
+    .btn-download:hover { background: #E4E4E7; }
+    
+    .btn-buy { background: var(--accent); color: white; }
+    .btn-buy:hover { background: var(--accent-hover); }
+
+    /* ════════ FOOTER ════════ */
     footer {
-      background: #0f172a; color: #cbd5e1; padding: 2rem; margin-top: 2rem;
-      text-align: center;
+      background: var(--text-dark); color: #A1A1AA;
+      text-align: center; padding: 3rem 2rem; font-size: 0.9rem;
     }
-    @media (max-width: 700px) { .balance-card { flex-direction: column; gap: 12px; } .main-container { padding: 1rem; } }
+    footer h3 { color: white; margin-bottom: 0.5rem; }
+    .footer-links a { color: var(--accent); text-decoration: none; margin: 0 10px; }
   </style>
 </head>
 <body>
 
-<header>
-  <a href="dashboard.html" class="logo-link">
-    <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo" class="logo-img">
-    <div class="logo-text"><span class="social">SOCIAL</span><span class="boost">BOOST</span><span class="horizon">HORIZON</span></div>
-  </a>
-  <div class="header-icons">
-    <a href="profil.html" class="snap-avatar" id="headerAvatar"><i class="fa-solid fa-user"></i></a>
-    <i class="fa-solid fa-bars icon-hamburger" id="hamburgerBtn"></i>
+  <!-- HEADER -->
+  <header>
+    <div class="logo-area"><i class="fas fa-graduation-cap"></i> TRIXHUB Academy</div>
+    <a href="dashboard.html" class="back-btn"><i class="fas fa-arrow-left"></i> Retour</a>
+  </header>
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <div class="status-item">
+      <span class="status-label">Formations Gratuites</span>
+      <span class="status-value">0 <span style="font-size:1rem; color:var(--text-muted)">/ 15</span></span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Solde Dépôt</span>
+      <span class="status-value highlight">0 FCFA</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Formations Pro</span>
+      <span class="status-value">0 <span style="font-size:1rem; color:var(--text-muted)">/ 8</span></span>
+    </div>
   </div>
-  <div class="mobile-menu">
-    <a href="dashboard.html"><i class="fa-solid fa-house"></i> Accueil</a>
-    <a href="profil.html"><i class="fa-solid fa-user"></i> Mon Profil</a>
-    <a href="fonds.html"><i class="fa-solid fa-wallet"></i> Recharger</a>
-    <hr class="menu-divider">
-    <a href="business.html"><i class="fas fa-chart-simple"></i> Business</a>
-    <a href="formation.html"><i class="fas fa-graduation-cap"></i> Formations</a>
-    <a href="marketing.html"><i class="fas fa-money-bill-wave"></i> Gagner en ligne</a>
-    <a href="https://chat.whatsapp.com/HRgWJFxTgkiEkEC0Ou2028" target="_blank"><i class="fab fa-whatsapp"></i> Communauté</a>
-  </div>
-</header>
 
-<div class="balance-card">
-  <div class="balance-info"><i class="fas fa-coins"></i><span id="balanceDisplay">0 FCFA</span></div>
-  <div><a href="wallet.html" class="btn-outline"><i class="fas fa-wallet"></i> Portefeuille</a> <button id="quickDepositBtn" class="btn-gold"><i class="fas fa-plus-circle"></i> Déposer</button></div>
-</div>
+  <main>
+    <!-- SECTION GRATUITE -->
+    <div class="section-header">
+      <h2>Formations Incluses (15)</h2>
+      <p>En tant que membre actif, télécharge gratuitement une formation par jour en format PDF.</p>
+    </div>
 
-<div class="welcome-container"><h1>📘 Nos formations <span class="username" id="userNameSpan"></span></h1><p>Achetez avec votre solde, recevez le PDF par WhatsApp après achat.</p></div>
+    <div class="grid-cards">
+      <!-- 1 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge">Argent & Finance</span>
+          <img src="https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&w=500&q=80" alt="Finance" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment organiser sa vie financière même avec un petit revenu</h3>
+          <p class="card-desc">Organise ton budget mois par mois, élimine les dépenses inutiles et commence à épargner dès aujourd'hui.</p>
+          <div class="card-footer">
+            <span class="price free">Gratuit</span>
+            <button class="btn btn-download"><i class="fas fa-download"></i> PDF</button>
+          </div>
+        </div>
+      </div>
 
-<div id="formationsContainer" class="main-container"></div>
+      <!-- 2 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge">Argent & Finance</span>
+          <img src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=500&q=80" alt="Argent" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment ne plus finir le mois sans argent</h3>
+          <p class="card-desc">Anticipe tes dépenses, évite les emprunts d'urgence et construis un matelas financier qui te protège.</p>
+          <div class="card-footer">
+            <span class="price free">Gratuit</span>
+            <button class="btn btn-download"><i class="fas fa-download"></i> PDF</button>
+          </div>
+        </div>
+      </div>
 
-<!-- Modals -->
-<div id="successModal" class="modal"><div class="modal-box"><h3>✅ Achat réussi !</h3><p id="successMessage"></p><div class="modal-buttons"><button id="contactAdminBtn" class="btn-gold"><i class="fab fa-whatsapp"></i> Contacter l'admin</button><button id="closeSuccessModal" class="btn-outline">Fermer</button></div></div></div>
-<div id="insufficientModal" class="modal"><div class="modal-box"><h3>⚠️ Solde insuffisant</h3><p>Rechargez votre compte pour continuer.</p><div class="modal-buttons"><a href="fonds.html" class="btn-gold">Recharger</a><button id="closeInsufficientModal" class="btn-outline">Annuler</button></div></div></div>
+      <!-- 3 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge">Argent & Finance</span>
+          <img src="https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?auto=format&fit=crop&w=500&q=80" alt="Revenu" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment créer une deuxième source de revenu sans stress</h3>
+          <p class="card-desc">Identifie 3 sources de revenus adaptées à ton profil et lance la première en moins de 2 semaines.</p>
+          <div class="card-footer">
+            <span class="price free">Gratuit</span>
+            <button class="btn btn-download"><i class="fas fa-download"></i> PDF</button>
+          </div>
+        </div>
+      </div>
 
-<footer>© 2026 Social Boost Horizon — Tous droits réservés.</footer>
+      <!-- 4 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge">Business & Revenus</span>
+          <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=500&q=80" alt="Business" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment bâtir un business stable même en partant de rien</h3>
+          <p class="card-desc">Construis ton activité pas à pas : idée → validation → premiers clients → revenus réguliers.</p>
+          <div class="card-footer">
+            <span class="price free">Gratuit</span>
+            <button class="btn btn-download"><i class="fas fa-download"></i> PDF</button>
+          </div>
+        </div>
+      </div>
 
-<script>
-  // Configuration Firebase
-  const firebaseConfig = {
-    apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-    authDomain: "social-boost-horizon.firebaseapp.com",
-    projectId: "social-boost-horizon",
-    storageBucket: "social-boost-horizon.appspot.com",
-    messagingSenderId: "43658165639",
-    appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
-  const auth = firebase.auth();
+      <!-- 5 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge">Business & Revenus</span>
+          <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=500&q=80" alt="Études et revenus" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment gagner ses premiers revenus sans abandonner ses études</h3>
+          <p class="card-desc">Freelance, affiliation, revente — des méthodes concrètes pour gagner de l'argent en ligne.</p>
+          <div class="card-footer">
+            <span class="price free">Gratuit</span>
+            <button class="btn btn-download"><i class="fas fa-download"></i> PDF</button>
+          </div>
+        </div>
+      </div>
 
-  let currentUser = null;
-  let currentBalance = 0;
-  let currentUserName = "";
+      <!-- 6 (IMAGE SPECIFIQUE CANAL+) -->
+      <div class="course-card" style="border: 1px solid var(--accent);">
+        <div class="card-img-wrapper">
+          <span class="category-badge" style="background: var(--accent);">Astuce Premium</span>
+          <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/TRIXHUB/canal%2B.jpg" alt="Canal+" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment avoir tout Canal+ gratuitement</h3>
+          <p class="card-desc">Accède à Canal+ et ses bouquets premium à prix zéro grâce à des techniques légales méconnues.</p>
+          <div class="card-footer">
+            <span class="price free">Gratuit</span>
+            <button class="btn btn-download"><i class="fas fa-download"></i> PDF</button>
+          </div>
+        </div>
+      </div>
 
-  // ========== LISTE COMPLÈTE DES FORMATIONS (AFFICHAGE IMMÉDIAT) ==========
-  const formationsList = [
-    { id: 1, title: "Comment avoir tout Canal+ gratuitement", desc: "Accédez aux bouquets premium légalement.", price: 1500, img: "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/TRIXHUB/canal%2B.jpg", category: "🔥 Populaires", badge: "Premium" },
-    { id: 2, title: "Créer un compte TikTok monétisable (Afrique)", desc: "Service très demandé, revendez-le.", price: 1700, img: "https://images.unsplash.com/photo-1611605698335-8b1569810432?auto=format&fit=crop&w=400&q=80", category: "🔥 Populaires", badge: "TikTok PRO" },
-    { id: 3, title: "Utiliser l'IA pour améliorer sa vie", desc: "ChatGPT, Gemini : gagnez des heures.", price: 1200, img: "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=400&q=80", category: "🔥 Populaires", badge: "IA" },
-    { id: 4, title: "Devenir viral sur les réseaux sociaux", desc: "Contenu qui se partage seul, sans budget.", price: 970, img: "https://images.unsplash.com/photo-1616469829581-73993eb86b02?auto=format&fit=crop&w=400&q=80", category: "🔥 Populaires", badge: "Viral" },
-    { id: 5, title: "Organiser ses finances avec petit revenu", desc: "Budget, épargne, éliminez les fuites.", price: 970, img: "https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&w=400&q=80", category: "💰 Argent & Finance", badge: "Finance" },
-    { id: 6, title: "Ne plus finir le mois sans argent", desc: "Anticipez les dépenses, évitez les emprunts.", price: 970, img: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=400&q=80", category: "💰 Argent & Finance", badge: "Finance" },
-    { id: 7, title: "Créer une deuxième source de revenu", desc: "3 méthodes adaptées à votre profil.", price: 970, img: "https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?auto=format&fit=crop&w=400&q=80", category: "💰 Argent & Finance", badge: "Revenus" },
-    { id: 8, title: "Bâtir un business stable en partant de rien", desc: "Idée → validation → premiers clients.", price: 1100, img: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=400&q=80", category: "📈 Business & Revenus", badge: "Business" },
-    { id: 9, title: "Gagner de l'argent sans abandonner ses études", desc: "Freelance, affiliation, revente.", price: 970, img: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=400&q=80", category: "📈 Business & Revenus", badge: "Étudiants" },
-    { id: 10, title: "Vendre sur WhatsApp sans forcer", desc: "Messages, statuts, groupes.", price: 1200, img: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=400&q=80", category: "💬 Ventes & Marketing", badge: "WhatsApp" },
-    { id: 11, title: "Convertir ses amis en clients", desc: "Scripts de conversation simples.", price: 1000, img: "https://images.unsplash.com/photo-1556761175-5973dc0f32b7?auto=format&fit=crop&w=400&q=80", category: "💬 Ventes & Marketing", badge: "Conversion" },
-    { id: 12, title: "Avoir confiance en soi", desc: "Même quand personne ne croit en vous.", price: 970, img: "https://images.unsplash.com/photo-1499209974431-9dddcece7f88?auto=format&fit=crop&w=400&q=80", category: "🧠 Mindset & Discipline", badge: "Confiance" },
-    { id: 13, title: "Devenir discipliné en 30 jours", desc: "Plan d'action pour la constance.", price: 970, img: "https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?auto=format&fit=crop&w=400&q=80", category: "🧠 Mindset & Discipline", badge: "Discipline" },
-    { id: 14, title: "Reprendre le contrôle de sa vie en 90 jours", desc: "Santé, finances, relations.", price: 1200, img: "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=400&q=80", category: "🧠 Mindset & Discipline", badge: "Transformation" },
-    { id: 15, title: "Meilleure version de soi (plan concret)", desc: "Évaluation et changements pratiques.", price: 970, img: "https://images.unsplash.com/photo-1552508744-1696d4464960?auto=format&fit=crop&w=400&q=80", category: "🧠 Mindset & Discipline", badge: "Croissance" },
-    { id: 16, title: "Utiliser son téléphone sans gâcher sa vie", desc: "Productivité, pas distraction.", price: 970, img: "https://images.unsplash.com/photo-1511884642898-4c92249e20b6?auto=format&fit=crop&w=400&q=80", category: "🧠 Mindset & Discipline", badge: "Focus" },
-    { id: 17, title: "Utiliser l'IA pour produire et vendre plus vite", desc: "Contenu, visuels, offres en accéléré.", price: 1500, img: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=400&q=80", category: "🤖 Tech & IA", badge: "IA PRO" },
-    { id: 18, title: "Transformer TikTok en source de clients", desc: "Stratégies Afrique pour acquérir.", price: 1500, img: "https://images.unsplash.com/photo-1583321500900-82807e458f3c?auto=format&fit=crop&w=400&q=80", category: "🎯 TikTok & WhatsApp PRO", badge: "TikTok" },
-    { id: 19, title: "Système WhatsApp qui vend tout seul", desc: "Tunnel de vente automatisé.", price: 1500, img: "https://images.unsplash.com/photo-1614680376593-902f74cf0d41?auto=format&fit=crop&w=400&q=80", category: "🎯 TikTok & WhatsApp PRO", badge: "WhatsApp" },
-    { id: 20, title: "Prospecter sur WhatsApp Business Afrique", desc: "Messages qui convertissent.", price: 1000, img: "https://images.unsplash.com/photo-1557426272-fc759fdf7a8d?auto=format&fit=crop&w=400&q=80", category: "🎯 TikTok & WhatsApp PRO", badge: "Prospection" },
-    { id: 21, title: "Base du marketing d'affiliation", desc: "Premières commissions.", price: 1000, img: "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=400&q=80", category: "🎯 TikTok & WhatsApp PRO", badge: "Affiliation" },
-    { id: 22, title: "Business en ligne avec son téléphone", desc: "Zéro ordinateur, uniquement smartphone.", price: 1000, img: "https://images.unsplash.com/photo-1526948128573-703ee1aeb6fa?auto=format&fit=crop&w=400&q=80", category: "🎯 TikTok & WhatsApp PRO", badge: "Mobile" },
-    { id: 23, title: "Comment recruter pour TRIXHUB sans mentir", desc: "Parrainage honnête et efficace.", price: 0, img: "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=400&q=80", category: "🎁 Bonus", badge: "GRATUIT", free: true }
-  ];
+      <!-- 7 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge">Ventes & Marketing</span>
+          <img src="https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=500&q=80" alt="WhatsApp Marketing" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment vendre sur WhatsApp sans forcer les gens</h3>
+          <p class="card-desc">Maîtrise les messages, statuts et groupes WhatsApp pour vendre naturellement, sans harceler tes contacts.</p>
+          <div class="card-footer">
+            <span class="price free">Gratuit</span>
+            <button class="btn btn-download"><i class="fas fa-download"></i> PDF</button>
+          </div>
+        </div>
+      </div>
 
-  // Fonction qui affiche immédiatement les formations (sans attendre Firebase)
-  function displayCourses() {
-    const container = document.getElementById('formationsContainer');
-    if (!container) return;
-    container.innerHTML = '';
-    // Regrouper par catégorie
-    const categories = new Map();
-    formationsList.forEach(course => {
-      if (!categories.has(course.category)) categories.set(course.category, []);
-      categories.get(course.category).push(course);
-    });
-    for (let [catName, courses] of categories.entries()) {
-      const section = document.createElement('div');
-      section.className = 'category-section';
-      section.innerHTML = `<div class="category-title">${catName}</div><div class="grid-cards" id="grid-${catName.replace(/\s/g, '')}"></div>`;
-      container.appendChild(section);
-      const grid = section.querySelector('.grid-cards');
-      courses.forEach(course => {
-        const card = document.createElement('div');
-        card.className = 'course-card';
-        card.innerHTML = `
-          <div class="card-img-wrapper"><span class="category-badge">${course.badge}</span><img src="${course.img}" class="card-img" loading="lazy" onerror="this.src='https://placehold.co/400x200?text=Formation'"></div>
-          <div class="card-content"><h3 class="card-title">${course.title}</h3><p class="card-desc">${course.desc}</p>
-          <div class="card-footer"><span class="price">${course.price === 0 ? 'Gratuit' : course.price + ' FCFA'}</span>
-          <button class="btn-buy" data-id="${course.id}" data-title="${course.title.replace(/"/g, '&quot;')}" data-price="${course.price}" data-free="${course.free || false}"><i class="fas fa-${course.price === 0 ? 'gift' : 'shopping-cart'}"></i> ${course.price === 0 ? 'Obtenir' : 'Acheter'}</button></div></div>
-        `;
-        grid.appendChild(card);
-      });
-    }
-    // Attacher les événements après affichage
-    attachBuyEvents();
-  }
+      <!-- 8 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge">Ventes & Marketing</span>
+          <img src="https://images.unsplash.com/photo-1556761175-5973dc0f32b7?auto=format&fit=crop&w=500&q=80" alt="Clients" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment convertir ses amis et contacts en premiers clients</h3>
+          <p class="card-desc">Transforme ta liste de contacts en clients fidèles avec des scripts de conversation simples.</p>
+          <div class="card-footer">
+            <span class="price free">Gratuit</span>
+            <button class="btn btn-download"><i class="fas fa-download"></i> PDF</button>
+          </div>
+        </div>
+      </div>
 
-  function attachBuyEvents() {
-    document.querySelectorAll('.btn-buy').forEach(btn => {
-      btn.removeEventListener('click', handleBuyClick);
-      btn.addEventListener('click', handleBuyClick);
-    });
-  }
+      <!-- 9 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge">Ventes & Marketing</span>
+          <img src="https://images.unsplash.com/photo-1616469829581-73993eb86b02?auto=format&fit=crop&w=500&q=80" alt="Viralité" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment devenir viral sur les réseaux sociaux</h3>
+          <p class="card-desc">Crée du contenu qui se partage seul : visuels, vidéos courtes, textes accrocheurs — sans budget.</p>
+          <div class="card-footer">
+            <span class="price free">Gratuit</span>
+            <button class="btn btn-download"><i class="fas fa-download"></i> PDF</button>
+          </div>
+        </div>
+      </div>
 
-  function handleBuyClick(e) {
-    const btn = e.currentTarget;
-    const title = btn.dataset.title;
-    const price = parseInt(btn.dataset.price);
-    const isFree = btn.dataset.free === 'true';
-    if (isFree || price === 0) handleFreeCourse(title);
-    else handlePaidPurchase(title, price);
-  }
+      <!-- 10 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge">Mindset & Discipline</span>
+          <img src="https://images.unsplash.com/photo-1499209974431-9dddcece7f88?auto=format&fit=crop&w=500&q=80" alt="Confiance" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment avoir confiance en soi quand personne ne croit en toi</h3>
+          <p class="card-desc">Développe une confiance inébranlable en toi, même dans les moments de doute, de critique ou d'échec.</p>
+          <div class="card-footer">
+            <span class="price free">Gratuit</span>
+            <button class="btn btn-download"><i class="fas fa-download"></i> PDF</button>
+          </div>
+        </div>
+      </div>
 
-  async function handlePaidPurchase(title, price) {
-    if (!currentUser) { alert("Veuillez vous connecter."); return; }
-    if (currentBalance < price) {
-      document.getElementById('insufficientModal').classList.add('active');
-      return;
-    }
-    try {
-      await db.collection('users').doc(currentUser.uid).update({
-        balance: firebase.firestore.FieldValue.increment(-price)
-      });
-      // Mise à jour locale
-      currentBalance -= price;
-      updateBalanceUI();
-      window.lastPurchase = { title, price };
-      document.getElementById('successMessage').innerHTML = `Achat confirmé pour "${title}" (${price} FCFA). Cliquez ci-dessous pour recevoir le PDF.`;
-      document.getElementById('successModal').classList.add('active');
-    } catch(err) {
-      alert("Erreur lors de l'achat. Réessayez.");
-      console.error(err);
-    }
-  }
+      <!-- 11 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge">Mindset & Discipline</span>
+          <img src="https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?auto=format&fit=crop&w=500&q=80" alt="Discipline" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment devenir sérieux et discipliné en 30 jours</h3>
+          <p class="card-desc">Plan d'action de 30 jours pour devenir quelqu'un de fiable, constant et productif dans tous les domaines.</p>
+          <div class="card-footer">
+            <span class="price free">Gratuit</span>
+            <button class="btn btn-download"><i class="fas fa-download"></i> PDF</button>
+          </div>
+        </div>
+      </div>
 
-  function handleFreeCourse(title) {
-    window.lastPurchase = { title, price: 0 };
-    document.getElementById('successMessage').innerHTML = `Formation gratuite "${title}" débloquée. Contactez l'admin pour la recevoir.`;
-    document.getElementById('successModal').classList.add('active');
-  }
+      <!-- 12 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge">Mindset & Discipline</span>
+          <img src="https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=500&q=80" alt="Contrôle" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment reprendre le contrôle de sa vie en 90 jours</h3>
+          <p class="card-desc">Programme de transformation : santé, finances, relations, mental — reprends les rênes.</p>
+          <div class="card-footer">
+            <span class="price free">Gratuit</span>
+            <button class="btn btn-download"><i class="fas fa-download"></i> PDF</button>
+          </div>
+        </div>
+      </div>
 
-  function contactAdmin() {
-    if (!window.lastPurchase) return;
-    const { title, price } = window.lastPurchase;
-    const phone = "237699853665";
-    const message = `Bonjour, je suis ${currentUserName || "utilisateur"}.%0AJe viens d'acheter la formation : "${title}" pour ${price === 0 ? "gratuit" : price+" FCFA"}.%0AMon email: ${currentUser?.email || ""}.%0AMerci de m'envoyer le PDF.`;
-    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
-  }
+      <!-- 13 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge">Mindset & Discipline</span>
+          <img src="https://images.unsplash.com/photo-1552508744-1696d4464960?auto=format&fit=crop&w=500&q=80" alt="Meilleure version" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment devenir une meilleure version de soi (plan concret)</h3>
+          <p class="card-desc">Évalue qui tu es aujourd'hui, décide qui tu veux être demain et applique les changements.</p>
+          <div class="card-footer">
+            <span class="price free">Gratuit</span>
+            <button class="btn btn-download"><i class="fas fa-download"></i> PDF</button>
+          </div>
+        </div>
+      </div>
 
-  function updateBalanceUI() {
-    const balSpan = document.getElementById('balanceDisplay');
-    if (balSpan) balSpan.innerHTML = `${currentBalance.toLocaleString('fr-FR')} FCFA`;
-  }
+      <!-- 14 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge">Mindset & Discipline</span>
+          <img src="https://images.unsplash.com/photo-1511884642898-4c92249e20b6?auto=format&fit=crop&w=500&q=80" alt="Smartphone" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment utiliser son téléphone sans gâcher sa vie</h3>
+          <p class="card-desc">Utilise ton smartphone comme un outil de croissance, pas de distraction : productivité et apprentissage.</p>
+          <div class="card-footer">
+            <span class="price free">Gratuit</span>
+            <button class="btn btn-download"><i class="fas fa-download"></i> PDF</button>
+          </div>
+        </div>
+      </div>
 
-  // Firebase Auth
-  auth.onAuthStateChanged(async (user) => {
-    if (user) {
-      currentUser = user;
-      const docRef = db.collection('users').doc(user.uid);
-      docRef.onSnapshot((doc) => {
-        if (doc.exists) {
-          const data = doc.data();
-          currentBalance = data.balance || 0;
-          currentUserName = data.name || data.username || user.email?.split('@')[0] || 'Membre';
-          document.getElementById('userNameSpan').innerHTML = currentUserName;
-          updateBalanceUI();
-          const avatar = document.getElementById('headerAvatar');
-          if(data.photoURL) avatar.innerHTML = `<img src="${data.photoURL}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
-          else avatar.innerHTML = currentUserName.charAt(0).toUpperCase();
-        } else {
-          await docRef.set({ userId: user.uid, username: user.email?.split('@')[0], email: user.email, balance: 0, country: 'Cameroun', createdAt: new Date() });
-        }
-      });
-    } else {
-      window.location.href = 'login.html';
-    }
-  });
+      <!-- 15 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge">Tech & IA</span>
+          <img src="https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=500&q=80" alt="Intelligence Artificielle" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment utiliser l'intelligence artificielle pour améliorer sa vie</h3>
+          <p class="card-desc">Découvre comment ChatGPT, Gemini et les autres IA peuvent te faire gagner des heures chaque jour.</p>
+          <div class="card-footer">
+            <span class="price free">Gratuit</span>
+            <button class="btn btn-download"><i class="fas fa-download"></i> PDF</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-  // Événements UI
-  document.getElementById('quickDepositBtn')?.addEventListener('click', () => window.location.href='fonds.html');
-  document.getElementById('closeSuccessModal')?.addEventListener('click', () => document.getElementById('successModal').classList.remove('active'));
-  document.getElementById('closeInsufficientModal')?.addEventListener('click', () => document.getElementById('insufficientModal').classList.remove('active'));
-  document.getElementById('contactAdminBtn')?.addEventListener('click', () => { contactAdmin(); document.getElementById('successModal').classList.remove('active'); });
-  document.getElementById('hamburgerBtn')?.addEventListener('click', () => document.querySelector('header').classList.toggle('open'));
-  document.addEventListener('click', (e) => { if (!document.querySelector('header').contains(e.target)) document.querySelector('header').classList.remove('open'); });
+    <!-- SECTION PRO -->
+    <div class="section-header" style="border-left-color: var(--gold); margin-top: 4rem;">
+      <h2>Formations Professionnelles (PRO)</h2>
+      <p>Des compétences à haute valeur monnayable. Achète-les via ton solde de dépôt et revends-les librement.</p>
+    </div>
 
-  // LANCEMENT IMMÉDIAT DE L'AFFICHAGE DES FORMATIONS
-  displayCourses();
-</script>
+    <div class="grid-cards">
+      <!-- PRO 1 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge" style="background: var(--gold);">TikTok PRO</span>
+          <img src="https://images.unsplash.com/photo-1611605698335-8b1569810432?auto=format&fit=crop&w=500&q=80" alt="TikTok" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment créer un compte TikTok monétisable depuis l'Afrique ?</h3>
+          <p class="card-desc">Un service ultra recherché qui se revend entre 2 500 et 7 000 FCFA. Une compétence monnayable immédiatement.</p>
+          <div class="card-footer">
+            <span class="price paid">250 FCFA</span>
+            <button class="btn btn-buy"><i class="fas fa-shopping-cart"></i> Acheter</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRO 2 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge" style="background: var(--gold);">TikTok PRO</span>
+          <img src="https://images.unsplash.com/photo-1583321500900-82807e458f3c?auto=format&fit=crop&w=500&q=80" alt="TikTok Marketing" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment transformer TikTok en source de clients ?</h3>
+          <p class="card-desc">Fais de TikTok ton meilleur outil d'acquisition client. Stratégies concrètes pour attirer et convertir en Afrique.</p>
+          <div class="card-footer">
+            <span class="price paid">150 FCFA</span>
+            <button class="btn btn-buy"><i class="fas fa-shopping-cart"></i> Acheter</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRO 3 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge" style="background: var(--gold);">WhatsApp PRO</span>
+          <img src="https://images.unsplash.com/photo-1614680376593-902f74cf0d41?auto=format&fit=crop&w=500&q=80" alt="WhatsApp Automation" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment créer un système WhatsApp qui vend tout seul ?</h3>
+          <p class="card-desc">Configure WhatsApp Business comme un tunnel de vente automatisé. Ton business génère des ventes 24h/24.</p>
+          <div class="card-footer">
+            <span class="price paid">150 FCFA</span>
+            <button class="btn btn-buy"><i class="fas fa-shopping-cart"></i> Acheter</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRO 4 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge" style="background: var(--gold);">Intelligence Artificielle</span>
+          <img src="https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=500&q=80" alt="IA Vente" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment utiliser l'IA pour produire et vendre plus vite ?</h3>
+          <p class="card-desc">Exploite ChatGPT et les autres IA pour créer du contenu, des offres et des visuels 10x plus vite.</p>
+          <div class="card-footer">
+            <span class="price paid">150 FCFA</span>
+            <button class="btn btn-buy"><i class="fas fa-shopping-cart"></i> Acheter</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRO 5 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge" style="background: var(--gold);">Ventes Pratiques</span>
+          <img src="https://images.unsplash.com/photo-1557426272-fc759fdf7a8d?auto=format&fit=crop&w=500&q=80" alt="Prospection" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment prospecter et vendre sur WhatsApp Business en Afrique ?</h3>
+          <p class="card-desc">Maîtrise la prospection, les messages qui convertissent et la fidélisation — tout adapté au marché africain.</p>
+          <div class="card-footer">
+            <span class="price paid">100 FCFA</span>
+            <button class="btn btn-buy"><i class="fas fa-shopping-cart"></i> Acheter</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRO 6 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge" style="background: var(--gold);">Affiliation</span>
+          <img src="https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=500&q=80" alt="Affiliation" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">La base du marketing d'affiliation</h3>
+          <p class="card-desc">Comprends les fondements du marketing d'affiliation et commence à générer tes premières commissions.</p>
+          <div class="card-footer">
+            <span class="price paid">100 FCFA</span>
+            <button class="btn btn-buy"><i class="fas fa-shopping-cart"></i> Acheter</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRO 7 -->
+      <div class="course-card">
+        <div class="card-img-wrapper">
+          <span class="category-badge" style="background: var(--gold);">Business Digital</span>
+          <img src="https://images.unsplash.com/photo-1526948128573-703ee1aeb6fa?auto=format&fit=crop&w=500&q=80" alt="Téléphone Business" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Créer un business en ligne avec son téléphone</h3>
+          <p class="card-desc">Zéro bureau, zéro ordinateur. Démarre et développe ton activité digitale avec uniquement ton smartphone.</p>
+          <div class="card-footer">
+            <span class="price paid">100 FCFA</span>
+            <button class="btn btn-buy"><i class="fas fa-shopping-cart"></i> Acheter</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRO 8 (BONUS) -->
+      <div class="course-card" style="border: 2px solid var(--gold);">
+        <div class="card-img-wrapper">
+          <span class="category-badge" style="background: var(--text-dark);">Bonus Exclusif</span>
+          <img src="https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=500&q=80" alt="Mentoring" class="card-img">
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Comment recruter pour TRIXHUB sans mentir ?</h3>
+          <p class="card-desc">La méthode honnête pour parrainer avec succès. Présente TRIXHUB avec intégrité et convertis mieux — sans fausses promesses.</p>
+          <div class="card-footer">
+            <span class="price free">Gratuit</span>
+            <button class="btn btn-download" style="background: var(--text-dark); color: white;"><i class="fas fa-gift"></i> Obtenir</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    <h3>TRIXHUB Academy</h3>
+    <p style="margin-bottom: 1.5rem;">Un projet propulsé par Social Succès Group.</p>
+    <div class="footer-links">
+      <a href="#">Télécharger Lokke</a> | 
+      <a href="#">Visiter Social Boost Horizon (visibilité | croissance | impact)</a> | 
+      <a href="#">L'Application Mobile</a>
+    </div>
+    <p style="margin-top: 2rem; color: #71717A;">© 2026 TRIXHUB · Tous droits réservés.</p>
+  </footer>
+
 </body>
 </html>
