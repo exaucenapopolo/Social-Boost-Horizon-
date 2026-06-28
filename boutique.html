@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boutique Partenaire</title> <!-- Le titre changera dynamiquement -->
+  
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+  <style>
+    /* Variables CSS dynamiques : elles seront écrasées par le JS selon les choix du revendeur */
+    :root {
+      --brand-primary: #00E5FF; /* Par défaut */
+      --brand-bg: #080e1a; /* Par défaut */
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background: var(--brand-bg);
+      color: #fff;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Navbar */
+    header {
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(10px);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      border-bottom: 2px solid var(--brand-primary);
+    }
+    .store-logo { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
+    .store-title { font-size: 1.5rem; font-weight: 800; margin: 0; }
+    
+    /* Hero Section */
+    .hero {
+      text-align: center; padding: 4rem 1rem;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.2), var(--brand-bg));
+    }
+    .hero h1 { font-size: 2.5rem; color: var(--brand-primary); }
+    .hero p { font-size: 1.1rem; max-width: 600px; margin: 10px auto; color: rgba(255,255,255,0.8); }
+
+    /* Grille des services */
+    .services-container { max-width: 1000px; margin: 0 auto; padding: 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+    
+    .service-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 15px; padding: 20px; text-align: center;
+      transition: 0.3s;
+    }
+    .service-card:hover { border-color: var(--brand-primary); transform: translateY(-5px); }
+    .platform-badge { background: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; color: var(--brand-primary); }
+    .service-price { font-size: 2rem; font-weight: 800; margin: 15px 0; }
+    
+    .btn-buy {
+      background: var(--brand-primary); color: #000;
+      border: none; padding: 12px 20px; width: 100%; border-radius: 8px;
+      font-weight: bold; cursor: pointer; font-size: 1rem;
+    }
+
+    #loading { text-align: center; padding: 5rem; font-size: 1.5rem; color: #fff; }
+    #errorMsg { display: none; text-align: center; padding: 5rem; color: red; }
+  </style>
+</head>
+<body>
+
+  <div id="loading"><i class="fas fa-spinner fa-spin"></i> Chargement de la boutique...</div>
+  <div id="errorMsg"><h2>Oups ! Cette boutique n'existe pas ou a été désactivée.</h2></div>
+
+  <div id="storeContent" style="display: none;">
+    <header>
+      <img id="displayLogo" class="store-logo" src="" alt="Logo">
+      <h2 id="displayTitle" class="store-title"></h2>
+    </header>
+
+    <div class="hero">
+      <h1 id="displaySlogan"></h1>
+      <p id="displayDesc"></p>
+    </div>
+
+    <div class="services-container" id="servicesGrid">
+      <!-- Les services avec les prix gonflés seront générés ici -->
+    </div>
+  </div>
+
+  <script>
+    // Initialisation Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Catalogue de base de Social Boost Horizon (Ce sont TES prix de gros initiaux)
+    const baseServices = [
+      { name: 'Abonnés Instagram', basePrice: 522, platform: 'Instagram' },
+      { name: 'Likes TikTok', basePrice: 33, platform: 'TikTok' },
+      { name: 'Vues YouTube', basePrice: 657, platform: 'YouTube' },
+      { name: 'Abonnés TikTok', basePrice: 987, platform: 'TikTok' }
+    ];
+
+    // Récupérer l'ID de la boutique dans l'URL (ex: ?id=jordan)
+    const urlParams = new URLSearchParams(window.location.search);
+    const storeId = urlParams.get('id');
+
+    if (!storeId) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('errorMsg').style.display = 'block';
+    } else {
+      loadStoreData(storeId);
+    }
+
+    async function loadStoreData(id) {
+      try {
+        const storeDoc = await db.collection('stores').doc(id).get();
+        
+        if (storeDoc.exists) {
+          const storeData = storeDoc.data();
+          
+          // 1. Appliquer les couleurs CSS du revendeur
+          document.documentElement.style.setProperty('--brand-primary', storeData.primaryColor);
+          document.documentElement.style.setProperty('--brand-bg', storeData.secondaryColor);
+
+          // 2. Remplir le HTML
+          document.title = storeData.name + " - Propulsé par SBH";
+          document.getElementById('displayTitle').innerText = storeData.name;
+          document.getElementById('displayLogo').src = storeData.logoUrl;
+          document.getElementById('displaySlogan').innerText = storeData.slogan;
+          document.getElementById('displayDesc').innerText = storeData.description || "";
+
+          // 3. Générer les services avec LA MARGE DU REVENDEUR
+          const marginMultiplier = 1 + (storeData.profitMargin / 100); // Ex: 50% = 1.5
+          const grid = document.getElementById('servicesGrid');
+          
+          let servicesHTML = '';
+          baseServices.forEach(srv => {
+            // Calcul du prix final pour le client du revendeur
+            const finalPrice = Math.ceil(srv.basePrice * marginMultiplier);
+            
+            servicesHTML += `
+              <div class="service-card">
+                <span class="platform-badge">${srv.platform}</span>
+                <h3>${srv.name}</h3>
+                <div class="service-price">${finalPrice} FCFA</div>
+                <p style="font-size:0.8rem; color:gray;">Pour 1000 unités</p>
+                <button class="btn-buy" onclick="alert('Redirection vers le paiement de ${storeData.name}')">Commander</button>
+              </div>
+            `;
+          });
+          
+          grid.innerHTML = servicesHTML;
+
+          // Afficher la page
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('storeContent').style.display = 'block';
+
+        } else {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('errorMsg').style.display = 'block';
+        }
+      } catch (error) {
+        console.error("Erreur de chargement:", error);
+      }
+    }
+  </script>
+</body>
+</html>

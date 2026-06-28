@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configuration Boutique - Social Boost Horizon</title>
+  
+  <!-- Firebase & Polices -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+  <style>
+    /* Reprise de ta charte graphique */
+    :root {
+      --sbh-deep-blue: #080e1a;
+      --sbh-dark-blue: #0A162B;
+      --sbh-cyan: #00E5FF;
+      --glass-bg: rgba(15, 25, 45, 0.6);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    body { background: var(--sbh-deep-blue); color: #fff; margin: 0; padding: 2rem; }
+    
+    .container { max-width: 800px; margin: 0 auto; }
+    .card {
+      background: linear-gradient(145deg, rgba(16,26,46,0.75), rgba(8,14,28,0.85));
+      border: 1px solid var(--glass-border); border-radius: 20px; padding: 2rem;
+      backdrop-filter: blur(10px);
+    }
+    h1 { color: var(--sbh-cyan); text-align: center; }
+    
+    .form-group { margin-bottom: 1.5rem; }
+    label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: rgba(255,255,255,0.8); }
+    input[type="text"], input[type="number"], textarea, input[type="color"] {
+      width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);
+      background: rgba(0,0,0,0.3); color: #fff; font-family: inherit;
+    }
+    input[type="color"] { padding: 0; height: 50px; cursor: pointer; }
+    
+    .btn {
+      width: 100%; padding: 15px; border-radius: 12px; border: none; font-weight: 800;
+      background: linear-gradient(135deg, #00b3cc, var(--sbh-cyan)); color: #080e1a;
+      cursor: pointer; font-size: 1.1rem; transition: 0.3s;
+    }
+    .btn:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0, 229, 255, 0.3); }
+
+    .logo-preview {
+      width: 100px; height: 100px; border-radius: 50%; border: 2px dashed var(--sbh-cyan);
+      display: flex; align-items: center; justify-content: center; margin-top: 10px; overflow: hidden;
+    }
+    .logo-preview img { width: 100%; height: 100%; object-fit: cover; }
+    
+    #loader { display: none; text-align: center; color: var(--sbh-cyan); }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="card" id="authCheck">
+      <h2 style="text-align: center;">Vérification de votre compte... <i class="fas fa-spinner fa-spin"></i></h2>
+    </div>
+
+    <div class="card" id="storeConfigurator" style="display: none;">
+      <h1><i class="fas fa-store"></i> Créer ma Boutique</h1>
+      <p style="text-align: center; color: gray;">Configurez votre site de revente à votre image.</p>
+      
+      <form id="storeForm">
+        <!-- Informations de base -->
+        <div class="form-group">
+          <label>Nom de votre boutique</label>
+          <input type="text" id="storeName" placeholder="Ex: Jordan Boost" required>
+        </div>
+        
+        <div class="form-group">
+          <label>Identifiant unique (Lien de votre boutique)</label>
+          <input type="text" id="storeId" placeholder="ex: jordan (donnera socialboosthorizon.com/boutique.html?id=jordan)" required pattern="[a-zA-Z0-9-]+" title="Uniquement des lettres, chiffres et tirets sans espaces">
+        </div>
+
+        <div class="form-group">
+          <label>Slogan / Description courte</label>
+          <textarea id="storeSlogan" rows="2" placeholder="Propulsez vos réseaux sociaux avec nous !" required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Description détaillée (Pour rassurer vos clients)</label>
+          <textarea id="storeDescription" rows="4" placeholder="Bienvenue sur ma boutique. Je vous propose des services rapides et fiables..."></textarea>
+        </div>
+
+        <!-- Identité visuelle -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+          <div class="form-group">
+            <label>Couleur Principale</label>
+            <input type="color" id="primaryColor" value="#00E5FF">
+          </div>
+          <div class="form-group">
+            <label>Couleur Secondaire (Fond)</label>
+            <input type="color" id="secondaryColor" value="#0A162B">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Logo de la boutique</label>
+          <input type="file" id="storeLogo" accept="image/*">
+          <div class="logo-preview" id="logoPreviewWrapper">
+            <span style="font-size: 0.8rem; text-align: center; color: gray;">Aperçu</span>
+          </div>
+        </div>
+
+        <!-- Tarification -->
+        <div class="form-group" style="background: rgba(0, 229, 255, 0.1); padding: 15px; border-radius: 10px; border: 1px solid var(--sbh-cyan);">
+          <label><i class="fas fa-coins"></i> Votre Marge de Bénéfice (%)</label>
+          <p style="font-size: 0.85rem; color: #ccc;">Quel pourcentage voulez-vous ajouter à nos prix de gros VIP ? (Ex: Si vous mettez 100%, un service à 500 FCFA sera vendu 1000 FCFA sur votre site).</p>
+          <input type="number" id="profitMargin" min="0" value="50" required>
+        </div>
+
+        <button type="submit" class="btn" id="submitBtn">Publier ma boutique en ligne <i class="fas fa-rocket"></i></button>
+        <div id="loader" style="margin-top: 15px;">Création de la boutique en cours... veuillez patienter.</div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Configuration Firebase (Garde les mêmes que dans tes fichiers)
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.appspot.com",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const storage = firebase.storage(); // Pour l'hébergement d'images
+
+    let globalUserId = null;
+
+    // 1. Vérification de l'utilisateur (est-il connecté et revendeur ?)
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        globalUserId = user.uid;
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        
+        if (userDoc.exists && userDoc.data().isReseller === true) {
+          document.getElementById('authCheck').style.display = 'none';
+          document.getElementById('storeConfigurator').style.display = 'block';
+          
+          // Si la boutique existe déjà, on pré-remplit les champs
+          if(userDoc.data().storeId) {
+             loadExistingStore(userDoc.data().storeId);
+          }
+        } else {
+          document.getElementById('authCheck').innerHTML = `
+            <h2 style="color: red; text-align: center;"><i class="fas fa-lock"></i> Accès Refusé</h2>
+            <p style="text-align: center;">Vous devez avoir le statut Revendeur VIP pour créer une boutique.</p>
+            <a href="revendeurs.html" class="btn" style="text-decoration:none; display:block; text-align:center; margin-top:20px;">Devenir Revendeur</a>
+          `;
+        }
+      } else {
+        window.location.href = "login.html"; // Rediriger si non connecté
+      }
+    });
+
+    // Prévisualisation du logo
+    let logoFile = null;
+    document.getElementById('storeLogo').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        logoFile = file;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('logoPreviewWrapper').innerHTML = `<img src="${e.target.result}" alt="Logo">`;
+        }
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // 2. Soumission et enregistrement de la boutique
+    document.getElementById('storeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      document.getElementById('submitBtn').style.display = 'none';
+      document.getElementById('loader').style.display = 'block';
+
+      const storeId = document.getElementById('storeId').value.toLowerCase().replace(/\s+/g, '-');
+      let logoUrl = "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg"; // Logo par défaut
+
+      try {
+        // A. Vérifier si l'ID de boutique est déjà pris par un autre utilisateur
+        const storeRef = db.collection('stores').doc(storeId);
+        const storeDoc = await storeRef.get();
+        if (storeDoc.exists && storeDoc.data().ownerId !== globalUserId) {
+          alert("Cet identifiant de boutique est déjà utilisé. Choisissez-en un autre (ex: jordan-boost-2).");
+          throw new Error("ID pris");
+        }
+
+        // B. Uploader l'image sur Firebase Storage (si une image a été sélectionnée)
+        if (logoFile) {
+          const storageRef = storage.ref(`logos_boutiques/${storeId}_${Date.now()}`);
+          await storageRef.put(logoFile);
+          logoUrl = await storageRef.getDownloadURL();
+        }
+
+        // C. Enregistrer les données dans la collection 'stores'
+        const storeData = {
+          ownerId: globalUserId,
+          name: document.getElementById('storeName').value,
+          slug: storeId,
+          slogan: document.getElementById('storeSlogan').value,
+          description: document.getElementById('storeDescription').value,
+          primaryColor: document.getElementById('primaryColor').value,
+          secondaryColor: document.getElementById('secondaryColor').value,
+          profitMargin: parseFloat(document.getElementById('profitMargin').value),
+          logoUrl: logoUrl,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await storeRef.set(storeData);
+
+        // D. Lier la boutique au profil de l'utilisateur
+        await db.collection('users').doc(globalUserId).update({
+          hasStore: true,
+          storeId: storeId,
+          storeUrl: `https://socialboosthorizon.com/boutique.html?id=${storeId}` // A ADAPTER SELON TON VRAI DOMAINE
+        });
+
+        alert("Félicitations ! Votre boutique est en ligne !");
+        window.location.href = `boutique.html?id=${storeId}`; // Redirection vers sa nouvelle boutique
+
+      } catch (error) {
+        console.error("Erreur:", error);
+        document.getElementById('submitBtn').style.display = 'block';
+        document.getElementById('loader').style.display = 'none';
+      }
+    });
+
+    // Fonction pour charger une boutique existante
+    async function loadExistingStore(storeId) {
+      const doc = await db.collection('stores').doc(storeId).get();
+      if(doc.exists) {
+        const data = doc.data();
+        document.getElementById('storeName').value = data.name;
+        document.getElementById('storeId').value = data.slug;
+        document.getElementById('storeId').readOnly = true; // On empêche de changer l'ID une fois créé
+        document.getElementById('storeSlogan').value = data.slogan;
+        document.getElementById('storeDescription').value = data.description || "";
+        document.getElementById('primaryColor').value = data.primaryColor;
+        document.getElementById('secondaryColor').value = data.secondaryColor;
+        document.getElementById('profitMargin').value = data.profitMargin;
+        document.getElementById('logoPreviewWrapper').innerHTML = `<img src="${data.logoUrl}" alt="Logo">`;
+        
+        document.getElementById('submitBtn').innerHTML = "Mettre à jour ma boutique <i class='fas fa-sync'></i>";
+      }
+    }
+  </script>
+</body>
+</html>
