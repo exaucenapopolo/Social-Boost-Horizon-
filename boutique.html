@@ -2,535 +2,191 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ma Boutique Revendeur - Social Boost Horizon</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Boutique</title>
 
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
 
-  <!-- Polices et Icônes -->
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Syne:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
   <style>
+    /* Variables dynamiques écrasées par le JS */
     :root {
-      --bg-main: #0a192f;
-      --bg-card: #112240;
-      --text-main: #e6f1ff;
-      --text-muted: #8892b0;
-      --accent-primary: #059669; /* Ton vert professionnel */
-      --accent-secondary: #047857;
-      --border-color: rgba(255, 255, 255, 0.08);
-      font-family: 'Space Grotesk', sans-serif;
+      --bg: #F8F9FA;
+      --text: #212529;
+      --card: #FFFFFF;
+      --border: rgba(0,0,0,0.1);
+      --accent: #F0A500;
+      font-family: 'Plus Jakarta Sans', sans-serif;
     }
 
-    body {
-      background-color: var(--bg-main);
-      color: var(--text-main);
-      margin: 0;
-      padding: 0;
-      min-height: 100vh;
-    }
+    * { box-sizing: border-box; }
+    body { background-color: var(--bg); color: var(--text); margin: 0; padding: 0; overflow-x: hidden; transition: 0.3s; }
 
-    /* Navbar simple */
-    header {
-      background: rgba(10, 25, 47, 0.9);
-      backdrop-filter: blur(10px);
-      padding: 1rem 2rem;
-      border-bottom: 1px solid var(--border-color);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      position: sticky;
-      top: 0;
-      z-index: 100;
+    /* Header Boutique */
+    .store-header {
+      text-align: center; padding: 40px 20px 20px;
+      background: var(--card); border-bottom: 1px solid var(--border);
     }
+    .logo { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent); margin-bottom: 10px; display: none; background: #fff;}
+    .title { font-size: 1.5rem; margin: 0; font-weight: 700; }
+    .slogan { font-size: 0.9rem; opacity: 0.7; margin-top: 5px; }
+    .desc { font-size: 0.95rem; padding: 20px; text-align: center; line-height: 1.5; max-width: 600px; margin: 0 auto; opacity: 0.9;}
+
+    /* Contenu */
+    .container { max-width: 800px; margin: 0 auto; padding: 15px; }
+    .platform-title { font-size: 0.85rem; text-transform: uppercase; font-weight: 700; margin: 25px 0 10px 0; opacity: 0.6; }
     
-    .header-title { font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--accent-primary); }
-
-    /* Layout Principal : Split Screen (Formulaire à gauche, Aperçu à droite) */
-    .dashboard-container {
-      display: grid;
-      grid-template-columns: 1fr 400px;
-      gap: 2rem;
-      max-width: 1400px;
-      margin: 2rem auto;
-      padding: 0 2rem;
+    .service-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 15px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
     }
+    .service-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;}
+    .service-name { font-weight: 600; font-size: 0.95rem; line-height: 1.3;}
+    .service-price { color: var(--accent); font-weight: 800; font-size: 1.2rem; white-space: nowrap;}
+    .service-unit { font-size: 0.75rem; opacity: 0.6; font-weight: 500;}
 
-    @media (max-width: 1024px) {
-      .dashboard-container { grid-template-columns: 1fr; }
-    }
-
-    /* Cartes et Formulaires */
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 16px;
-      padding: 2rem;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    .btn-buy {
+      width: 100%; padding: 12px; border-radius: 8px; border: none; cursor: pointer;
+      background: var(--accent); color: #fff; font-weight: 700; font-size: 1rem;
+      display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;
     }
 
-    h2 { font-family: 'Syne', sans-serif; color: var(--text-main); margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; }
-
-    .form-group { margin-bottom: 1.5rem; }
-    .form-group label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-muted); font-weight: 500; }
-    .form-control {
-      width: 100%; padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border-color);
-      background: rgba(10, 25, 47, 0.5); color: var(--text-main); font-family: inherit; transition: 0.3s;
-      box-sizing: border-box;
-    }
-    .form-control:focus { outline: none; border-color: var(--accent-primary); }
-
-    /* Boutons */
-    .btn {
-      padding: 12px 24px; border-radius: 8px; font-weight: 600; font-family: inherit; cursor: pointer;
-      transition: all 0.3s ease; border: none; display: inline-flex; align-items: center; gap: 8px;
-    }
-    .btn-primary { background: var(--accent-primary); color: white; }
-    .btn-primary:hover { background: var(--accent-secondary); transform: translateY(-2px); }
-    .btn-outline { background: transparent; border: 1px solid var(--accent-primary); color: var(--accent-primary); }
-    .btn-outline:hover { background: rgba(5, 150, 105, 0.1); }
-    .btn-publish { background: #3b82f6; color: white; width: 100%; justify-content: center; font-size: 1.1rem; padding: 15px;}
-    .btn-publish:hover { background: #2563eb; }
-    .btn-disabled { opacity: 0.5; cursor: not-allowed; }
-
-    /* Section Cloudinary */
-    .upload-area {
-      border: 2px dashed var(--border-color); border-radius: 8px; padding: 1.5rem; text-align: center;
-      transition: 0.3s; cursor: pointer;
-    }
-    .upload-area:hover { border-color: var(--accent-primary); background: rgba(5, 150, 105, 0.05); }
-    .upload-status { font-size: 0.85rem; margin-top: 10px; color: var(--accent-primary); }
-
-    /* ZONE D'APERÇU (PHONE MOCKUP) */
-    .preview-wrapper {
-      position: sticky; top: 100px;
-    }
-    .phone-mockup {
-      width: 320px; height: 650px; border: 12px solid #000; border-radius: 40px; margin: 0 auto;
-      background: var(--bg-main); overflow-y: auto; position: relative; box-shadow: 0 25px 50px rgba(0,0,0,0.5);
-    }
-    .phone-mockup::-webkit-scrollbar { display: none; }
-    
-    /* Intérieur de l'aperçu */
-    .pv-header { padding: 20px; text-align: center; border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.2); }
-    .pv-logo { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-primary); margin-bottom: 10px; display: none;}
-    .pv-title { font-family: 'Syne', sans-serif; font-size: 1.2rem; margin: 0; font-weight: 700; }
-    .pv-slogan { font-size: 0.8rem; color: var(--text-muted); margin-top: 5px; }
-    .pv-desc { font-size: 0.85rem; padding: 15px; text-align: center; color: rgba(255,255,255,0.8); }
-    
-    .pv-services { padding: 10px 15px; }
-    .pv-service-card {
-      background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px;
-      padding: 15px; margin-bottom: 15px;
-    }
-    .pv-service-name { font-weight: 600; font-size: 0.9rem; margin-bottom: 5px; }
-    .pv-service-price { color: var(--accent-primary); font-weight: 700; font-size: 1.1rem; }
-    .pv-platform-title { font-size: 0.75rem; color: var(--accent-primary); text-transform: uppercase; font-weight: bold; margin: 15px 0 10px 0; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;}
-
-    /* Status et Liens */
-    .status-banner {
-      background: rgba(59, 130, 246, 0.1); border: 1px solid #3b82f6; padding: 15px; border-radius: 8px;
-      margin-bottom: 20px; display: none; align-items: center; justify-content: space-between;
-    }
-    .store-link-box {
-      background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; border: 1px solid var(--border-color);
-      display: flex; align-items: center; gap: 10px; font-family: monospace; color: var(--accent-primary);
-    }
-
-    /* Loader global */
-    #globalLoader { text-align: center; padding: 5rem; font-size: 1.2rem; }
-    #mainContent { display: none; }
+    #loader { text-align: center; padding: 100px 20px; font-weight: 600; color: var(--accent); }
+    #storeContent { display: none; }
   </style>
 </head>
 <body>
 
-  <header>
-    <div class="header-title"><i class="fas fa-store"></i> Espace Création Boutique</div>
-    <a href="dashboard.html" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Retour</a>
-  </header>
+  <div id="loader"><i class="fas fa-spinner fa-spin fa-2x"></i><br><br>Chargement de la boutique...</div>
 
-  <div id="globalLoader"><i class="fas fa-spinner fa-spin"></i> Authentification et chargement de votre profil...</div>
-
-  <div id="mainContent" class="dashboard-container">
+  <div id="storeContent">
+    <div class="store-header">
+      <img id="sLogo" class="logo" src="">
+      <h1 id="sTitle" class="title">Boutique</h1>
+      <div id="sSlogan" class="slogan"></div>
+    </div>
     
-    <!-- COLONNE GAUCHE : FORMULAIRE -->
-    <div class="card">
-      <div id="statusBanner" class="status-banner">
-        <div>
-          <h3 style="margin:0; font-size: 1rem; color: #3b82f6;"><i class="fas fa-check-circle"></i> Boutique Créée & Publiée !</h3>
-          <p style="margin:5px 0 0 0; font-size: 0.85rem;">Partagez ce lien avec vos clients :</p>
-        </div>
-        <div class="store-link-box">
-          <span id="storeLinkDisplay">...</span>
-          <button class="btn btn-primary" style="padding: 5px 10px;" onclick="copyLink()"><i class="fas fa-copy"></i></button>
-        </div>
+    <div id="sDesc" class="desc"></div>
+
+    <div class="container" id="catalog">
       </div>
-
-      <h2>1. Informations de votre Agence</h2>
-      <form id="storeForm">
-        <div class="form-group">
-          <label>Nom de la boutique / Agence *</label>
-          <input type="text" id="storeName" class="form-control" placeholder="Ex: Digital Boost Pro" required oninput="updatePreview()">
-        </div>
-
-        <div class="form-group">
-          <label>Slogan (Optionnel)</label>
-          <input type="text" id="storeSlogan" class="form-control" placeholder="Propulsez votre visibilité" oninput="updatePreview()">
-        </div>
-
-        <div class="form-group">
-          <label>Message de bienvenue / Description (Optionnel)</label>
-          <textarea id="storeDesc" class="form-control" rows="3" placeholder="Bienvenue sur notre agence..." oninput="updatePreview()"></textarea>
-        </div>
-
-        <div class="form-group">
-          <label>Logo de la boutique (Optionnel)</label>
-          <input type="file" id="logoUpload" accept="image/*" style="display: none;">
-          <div class="upload-area" onclick="document.getElementById('logoUpload').click()">
-            <i class="fas fa-cloud-upload-alt fa-2x" style="color: var(--text-muted); margin-bottom: 10px;"></i>
-            <p style="margin: 0; font-size: 0.9rem;">Cliquez pour choisir une image</p>
-          </div>
-          <div id="uploadStatus" class="upload-status"></div>
-          <input type="hidden" id="logoUrl">
-        </div>
-
-        <div style="display: flex; gap: 15px; margin-top: 2rem;">
-          <button type="button" id="btnSaveDraft" class="btn btn-outline" style="flex: 1;" onclick="saveStore(false)">
-            <i class="fas fa-save"></i> Enregistrer les modifications
-          </button>
-          <!-- Le bouton Publier n'apparait que si la boutique est enregistrée -->
-          <button type="button" id="btnPublish" class="btn btn-publish" style="display: none;" onclick="publishStore()">
-            <i class="fas fa-rocket"></i> Publier la boutique en ligne
-          </button>
-        </div>
-      </form>
-    </div>
-
-    <!-- COLONNE DROITE : APERÇU EN DIRECT -->
-    <div class="preview-wrapper">
-      <h3 style="text-align: center; margin-top:0;"><i class="fas fa-mobile-alt"></i> Aperçu en direct</h3>
-      <div class="phone-mockup">
-        
-        <div class="pv-header">
-          <img id="pvLogo" class="pv-logo" src="" alt="Logo">
-          <h1 id="pvTitle" class="pv-title">Votre Nom</h1>
-          <div id="pvSlogan" class="pv-slogan">Votre slogan ici</div>
-        </div>
-        
-        <div id="pvDesc" class="pv-desc">Votre description apparaîtra ici.</div>
-
-        <div class="pv-services">
-          <p style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 10px;">Vos Services (Prix réduits appliqués)</p>
-          <div id="pvServicesList">
-            <!-- Les services seront chargés via l'API ici -->
-            <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.85rem;">
-              <i class="fas fa-spinner fa-spin"></i> Chargement de votre catalogue...
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
   </div>
 
   <script>
-    // ══════════════ CONFIGURATION FIREBASE ══════════════
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
-      authDomain: "social-boost-horizon.firebaseapp.com",
       projectId: "social-boost-horizon",
-      storageBucket: "social-boost-horizon.appspot.com",
-      messagingSenderId: "43658165639",
-      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
     };
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-    const auth = firebase.auth();
 
-    const BACKEND_URL = 'https://social-boost-exaucenapopolo2.replit.app';
+    // 1. Récupérer l'ID dans l'URL
+    const params = new URLSearchParams(window.location.search);
+    const storeId = params.get('id');
 
-    let currentUser = null;
-    let userDiscount = 0; // % de réduction basé sur son niveau revendeur
-    let currentStoreId = null;
+    let storeData = null;
+    let resellerWa = "";
+    let resellerDiscount = 0;
 
-    // ══════════════ AUTHENTIFICATION ET CHARGEMENT INITIAL ══════════════
-    auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        currentUser = user;
-        
-        // Récupérer le niveau revendeur de l'utilisateur
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if(userDoc.exists) {
-          const userData = userDoc.data();
-          if(!userData.isReseller) {
-            alert("Accès refusé. Vous devez être un revendeur certifié pour créer une boutique.");
-            window.location.href = "dashboard.html";
-            return;
-          }
-          
-          // Définir la réduction du revendeur en s'assurant de prendre la bonne variable (discountRate comme dans tes commandes)
-          userDiscount = userData.discountRate || userData.discountPercent || 0; 
-          
-          // Vérifier s'il a déjà une boutique
-          if(userData.storeId) {
-            currentStoreId = userData.storeId;
-            await loadExistingStore();
-          }
-
-          // Charger les vrais services de l'API pour l'aperçu
-          await loadServicesFromAPI();
-
-          document.getElementById('globalLoader').style.display = 'none';
-          document.getElementById('mainContent').style.display = 'grid';
-        }
-      } else {
-        window.location.href = "login.html";
-      }
-    });
-
-    // ══════════════ UPLOAD D'IMAGE CLOUDINARY ══════════════
-    document.getElementById('logoUpload').addEventListener('change', async function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const statusText = document.getElementById('uploadStatus');
-      statusText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Hébergement sécurisé de l\'image en cours...';
-
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", "afrikdigitalo_upload");
+    async function initStore() {
+      if(!storeId) return document.getElementById('loader').innerText = "Lien invalide.";
 
       try {
-        const res = await fetch("https://api.cloudinary.com/v1_1/do83voiqy/image/upload", { method: "POST", body: formData });
-        const data = await res.json();
-        
-        if (data.secure_url) {
-          document.getElementById('logoUrl').value = data.secure_url;
-          statusText.innerHTML = '<i class="fas fa-check"></i> Logo chargé avec succès !';
-          updatePreview(); // Mettre à jour l'aperçu du téléphone
+        // 2. Charger les infos de la boutique
+        const storeDoc = await db.collection('stores').doc(storeId).get();
+        if(!storeDoc.exists || storeDoc.data().status !== 'published') {
+          return document.getElementById('loader').innerText = "Boutique introuvable ou hors ligne.";
         }
+        
+        storeData = storeDoc.data();
+        
+        // 3. Charger le profil du revendeur (pour la remise)
+        const userDoc = await db.collection('users').doc(storeData.ownerId).get();
+        if(userDoc.exists) {
+          resellerDiscount = userDoc.data().discountRate || 0;
+        }
+
+        resellerWa = storeData.whatsapp || "";
+
+        // 4. Appliquer le design (Couleur & Thème)
+        document.documentElement.style.setProperty('--accent', storeData.themeColor || '#F0A500');
+        if(storeData.themeMode === 'dark') {
+          document.documentElement.style.setProperty('--bg', '#06060A');
+          document.documentElement.style.setProperty('--text', '#FFFFFF');
+          document.documentElement.style.setProperty('--card', '#111122');
+          document.documentElement.style.setProperty('--border', 'rgba(255,255,255,0.1)');
+        }
+
+        // 5. Remplir l'en-tête
+        document.title = storeData.name;
+        document.getElementById('sTitle').innerText = storeData.name;
+        document.getElementById('sSlogan').innerText = storeData.slogan || "";
+        document.getElementById('sDesc').innerText = storeData.description || "";
+        if(storeData.logoUrl) {
+          document.getElementById('sLogo').src = storeData.logoUrl;
+          document.getElementById('sLogo').style.display = 'inline-block';
+        }
+
+        // 6. Charger le catalogue via API
+        await loadCatalog();
+
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('storeContent').style.display = 'block';
+
       } catch (error) {
-        console.error("Erreur Cloudinary:", error);
-        statusText.innerHTML = '<i class="fas fa-times" style="color:#ef4444;"></i> Erreur de téléchargement.';
-      }
-    });
-
-    // ══════════════ GESTION DE L'APERÇU EN TEMPS RÉEL ══════════════
-    function updatePreview() {
-      const name = document.getElementById('storeName').value || "Votre Nom";
-      const slogan = document.getElementById('storeSlogan').value;
-      const desc = document.getElementById('storeDesc').value;
-      const logo = document.getElementById('logoUrl').value;
-
-      document.getElementById('pvTitle').innerText = name;
-      
-      const sloganEl = document.getElementById('pvSlogan');
-      sloganEl.innerText = slogan;
-      sloganEl.style.display = slogan ? 'block' : 'none';
-
-      const descEl = document.getElementById('pvDesc');
-      descEl.innerText = desc;
-      descEl.style.display = desc ? 'block' : 'none';
-
-      const logoEl = document.getElementById('pvLogo');
-      if(logo) {
-        logoEl.src = logo;
-        logoEl.style.display = 'inline-block';
+        document.getElementById('loader').innerText = "Erreur de chargement.";
       }
     }
 
-    // ══════════════ CHARGEMENT DES SERVICES VIA API ══════════════
-    async function loadServicesFromAPI() {
-      const pvServicesList = document.getElementById('pvServicesList');
-      
+    async function loadCatalog() {
       try {
-        const response = await fetch(`${BACKEND_URL}/api/exo-services`);
-        const data = await response.json();
-
-        if (!data.success) throw new Error("Erreur de chargement depuis l'API");
-
-        const platforms = data.platforms;
+        const res = await fetch('https://social-boost-exaucenapopolo2.replit.app/api/exo-services');
+        const data = await res.json();
+        const catalogDiv = document.getElementById('catalog');
         let html = "";
 
-        // On boucle sur chaque plateforme existante
-        Object.keys(platforms).forEach(platform => {
-          if (platforms[platform] && platforms[platform].length > 0) {
+        Object.keys(data.platforms).forEach(platform => {
+          const services = data.platforms[platform];
+          if(services && services.length > 0) {
+            html += `<div class="platform-title"><i class="fas fa-layer-group"></i> ${platform}</div>`;
             
-            // On affiche le nom de la plateforme
-            html += `<div class="pv-platform-title">${platform}</div>`;
-            
-            // Pour l'aperçu, on limite à 2 ou 3 services par plateforme pour ne pas bloquer le visuel du faux téléphone
-            const servicesToShow = platforms[platform].slice(0, 3);
-            
-            servicesToShow.forEach(service => {
-              // Calcul du prix réduit pour le revendeur basé sur priceXAF
-              const originalPrice = parseFloat(service.priceXAF) || 0;
-              const discountAmt = originalPrice * (userDiscount / 100);
-              const finalPrice = Math.ceil(originalPrice - discountAmt);
+            services.forEach(svc => {
+              // Calcul du prix final
+              const price = parseFloat(svc.priceXAF) || 0;
+              const finalPrice = Math.ceil(price - (price * (resellerDiscount / 100)));
+              const unit = (svc.isPerOne || svc.isPackage) ? '/ unité' : '/ 1000';
               
-              // Affichage conditionnel unitaire ou par 1000
-              const labelPrice = (service.isPerOne || service.isPackage) ? '/ unité' : '/ 1000';
+              // Préparation du message WhatsApp
+              const msg = encodeURIComponent(`Bonjour, je souhaite commander ce service sur votre boutique :\n\n📌 Service: ${svc.name}\n💰 Prix estimé: ${finalPrice} FCFA ${unit}`);
+              const waLink = `https://wa.me/${resellerWa.replace('+', '')}?text=${msg}`;
 
               html += `
-                <div class="pv-service-card">
-                  <div class="pv-service-name">${service.name}</div>
-                  <div class="pv-service-price">${finalPrice} FCFA <span style="font-size:0.7rem; color: gray; font-weight:normal;">${labelPrice}</span></div>
-                  <button style="margin-top:10px; width:100%; padding:8px; border-radius:5px; border:none; background:rgba(255,255,255,0.1); color:white;">Acheter</button>
+                <div class="service-card">
+                  <div class="service-header">
+                    <div class="service-name">${svc.name}</div>
+                    <div style="text-align:right;">
+                      <div class="service-price">${finalPrice} FCFA</div>
+                      <div class="service-unit">${unit}</div>
+                    </div>
+                  </div>
+                  <a href="${waLink}" target="_blank" class="btn-buy"><i class="fab fa-whatsapp"></i> Commander</a>
                 </div>
               `;
             });
           }
         });
 
-        if (html === "") {
-            html = '<div style="text-align: center; color: var(--text-muted); font-size: 0.85rem;">Aucun service disponible.</div>';
-        }
-
-        pvServicesList.innerHTML = html;
-
-      } catch (error) {
-        console.error("Erreur récupération API:", error);
-        pvServicesList.innerHTML = '<div style="color:red; font-size: 0.8rem; text-align:center;">Impossible de charger votre catalogue pour le moment.</div>';
+        catalogDiv.innerHTML = html;
+      } catch(e) {
+        document.getElementById('catalog').innerHTML = "<p style='text-align:center'>Catalogue momentanément indisponible.</p>";
       }
     }
 
-    // ══════════════ CRÉATION / SAUVEGARDE DE LA BOUTIQUE ══════════════
-    async function saveStore(isPublishing = false) {
-      const name = document.getElementById('storeName').value.trim();
-      if(!name) {
-        alert("Veuillez au moins renseigner le nom de la boutique.");
-        return;
-      }
-
-      const btnSave = document.getElementById('btnSaveDraft');
-      const originalText = btnSave.innerHTML;
-      btnSave.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
-      btnSave.classList.add('btn-disabled');
-
-      const storeData = {
-        ownerId: currentUser.uid,
-        name: name,
-        slogan: document.getElementById('storeSlogan').value,
-        description: document.getElementById('storeDesc').value,
-        logoUrl: document.getElementById('logoUrl').value,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-
-      try {
-        if(!currentStoreId) {
-          // 1ère Création (Statut Brouillon par défaut)
-          storeData.status = "draft";
-          storeData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-          
-          const newDoc = await db.collection('stores').add(storeData);
-          currentStoreId = newDoc.id;
-          
-          // Lier à l'utilisateur
-          await db.collection('users').doc(currentUser.uid).update({ storeId: currentStoreId });
-          
-          alert("Boutique créée avec succès ! Vous pouvez maintenant vérifier l'aperçu et la publier quand vous serez prêt.");
-        } else {
-          // Mise à jour
-          if(isPublishing) storeData.status = "published";
-          await db.collection('stores').doc(currentStoreId).update(storeData);
-          if(!isPublishing) alert("Modifications enregistrées !");
-        }
-
-        // Afficher le bouton publier si c'est enregistré
-        document.getElementById('btnPublish').style.display = 'flex';
-        checkPublishStatus(storeData.status || "draft");
-
-      } catch (error) {
-        console.error("Erreur de sauvegarde:", error);
-        alert("Erreur lors de l'enregistrement.");
-      } finally {
-        btnSave.innerHTML = originalText;
-        btnSave.classList.remove('btn-disabled');
-      }
-    }
-
-    // ══════════════ PUBLICATION DE LA BOUTIQUE (Génération du lien) ══════════════
-    async function publishStore() {
-      if(!currentStoreId) {
-        alert("Veuillez d'abord enregistrer la boutique.");
-        return;
-      }
-      
-      const confirmPublish = confirm("Êtes-vous sûr de vouloir publier cette boutique ? Elle sera visible par vos clients.");
-      if(!confirmPublish) return;
-
-      const btnPub = document.getElementById('btnPublish');
-      btnPub.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publication en cours...';
-
-      // On crée un identifiant URL propre basé sur le nom (ex: "Digital Boost" -> "digital-boost")
-      const slug = document.getElementById('storeName').value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-      const finalUrl = `https://socialboosthorizon.com/b/${slug}-${currentStoreId.substring(0,4)}`; // Assure l'unicité
-
-      try {
-        await db.collection('stores').doc(currentStoreId).update({
-          status: "published",
-          storeUrl: finalUrl
-        });
-
-        alert("Félicitations ! Votre boutique est maintenant en ligne.");
-        
-        // Mettre à jour l'interface
-        document.getElementById('storeLinkDisplay').innerText = finalUrl;
-        document.getElementById('statusBanner').style.display = 'flex';
-        btnPub.innerHTML = '<i class="fas fa-rocket"></i> Mettre à jour la boutique en ligne'; // Change le texte du bouton
-        
-      } catch (error) {
-        console.error(error);
-        alert("Erreur lors de la publication.");
-        btnPub.innerHTML = '<i class="fas fa-rocket"></i> Publier la boutique en ligne';
-      }
-    }
-
-    // ══════════════ CHARGER UNE BOUTIQUE EXISTANTE ══════════════
-    async function loadExistingStore() {
-      try {
-        const doc = await db.collection('stores').doc(currentStoreId).get();
-        if(doc.exists) {
-          const data = doc.data();
-          
-          document.getElementById('storeName').value = data.name || "";
-          document.getElementById('storeSlogan').value = data.slogan || "";
-          document.getElementById('storeDesc').value = data.description || "";
-          document.getElementById('logoUrl').value = data.logoUrl || "";
-          
-          updatePreview();
-          document.getElementById('btnPublish').style.display = 'flex';
-          
-          checkPublishStatus(data.status, data.storeUrl);
-        }
-      } catch (error) {
-        console.error("Erreur chargement boutique", error);
-      }
-    }
-
-    function checkPublishStatus(status, url) {
-      if(status === "published") {
-        document.getElementById('statusBanner').style.display = 'flex';
-        document.getElementById('storeLinkDisplay').innerText = url || "Lien généré en cours...";
-        document.getElementById('btnPublish').innerHTML = '<i class="fas fa-sync-alt"></i> Mettre à jour la boutique en ligne';
-      } else {
-        document.getElementById('statusBanner').style.display = 'none';
-        document.getElementById('btnPublish').innerHTML = '<i class="fas fa-rocket"></i> Publier la boutique en ligne';
-      }
-    }
-
-    // ══════════════ COPIER LE LIEN ══════════════
-    function copyLink() {
-      const link = document.getElementById('storeLinkDisplay').innerText;
-      navigator.clipboard.writeText(link).then(() => {
-        alert("Lien copié dans le presse-papier !");
-      });
-    }
+    initStore();
   </script>
 </body>
 </html>
