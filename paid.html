@@ -574,7 +574,7 @@
         if (userDoc.exists) {
           userData = userDoc.data();
           
-          // 1. Pré‑remplir le numéro de paiement (paymentPhone) si existant
+          // 1. Pré-remplir le numéro de paiement (paymentPhone) si existant
           const phoneInput = document.getElementById('phone');
           if (userData.paymentPhone) {
             phoneInput.value = userData.paymentPhone;
@@ -582,7 +582,7 @@
             phoneInput.value = ''; // Laisser vide si non défini
           }
 
-          // 2. Pré‑sélectionner le pays en fonction du document utilisateur
+          // 2. Pré-sélectionner le pays en fonction du document utilisateur
           if (userData.country && COUNTRIES_CONFIG[userData.country]) {
             selectedCountry = userData.country;
             document.getElementById('country').value = selectedCountry;
@@ -638,6 +638,7 @@
       document.getElementById('loadingOverlay').classList.toggle('active', show);
     }
 
+    // MODIFICATION 1 : Le BACKEND_URL est maintenant vide
     const BACKEND_URL = '';
 
     document.getElementById('paymentForm').addEventListener('submit', async (e) => {
@@ -683,11 +684,12 @@
         currency:  currencyCode
       };
 
-      console.log('Envoi requête vers:', BACKEND_URL + '/create-payment');
+      // MODIFICATION 2 : On cible l'API de création Swychr
+      console.log('Envoi requête vers:', BACKEND_URL + '/api/create-swychr');
       showAlert(`Envoi en cours… ${amountLocal.toLocaleString('fr-FR')} ${currencySymbol}`, 'success');
 
       try {
-        const response = await fetch(BACKEND_URL + '/create-payment', {
+        const response = await fetch(BACKEND_URL + '/api/create-swychr', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody)
@@ -739,7 +741,8 @@
 
     async function checkPaymentStatus(transactionId) {
       try {
-        const response = await fetch(`${BACKEND_URL}/confirm/${transactionId}`);
+        // MODIFICATION 3 : On cible l'API de confirmation Swychr
+        const response = await fetch(`${BACKEND_URL}/api/confirm-swychr?transactionId=${transactionId}`);
         const data = await response.json();
         if (data.isPaid) {
           localStorage.removeItem('pendingPayment');
