@@ -15,13 +15,33 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
+// Nouvelle fonction : Détecter la plateforme en fonction du nom du service et du lien
+// Cela va nous permettre de stocker une information claire dans la base de données
+function detectPlatform(serviceName, link) {
+    const nameLower = (serviceName || '').toLowerCase();
+    const linkLower = (link || '').toLowerCase();
+    
+    if (nameLower.includes('facebook') || linkLower.includes('facebook.com') || linkLower.includes('fb.')) return 'Facebook';
+    if (nameLower.includes('instagram') || linkLower.includes('instagram.com')) return 'Instagram';
+    if (nameLower.includes('tiktok') || linkLower.includes('tiktok.com')) return 'TikTok';
+    if (nameLower.includes('twitter') || nameLower.includes(' x ') || linkLower.includes('twitter.com') || linkLower.includes('x.com')) return 'X (Twitter)';
+    if (nameLower.includes('youtube') || linkLower.includes('youtube.com') || linkLower.includes('youtu.be')) return 'YouTube';
+    if (nameLower.includes('telegram') || linkLower.includes('t.me')) return 'Telegram';
+    if (nameLower.includes('spotify') || linkLower.includes('spotify.com')) return 'Spotify';
+    if (nameLower.includes('linkedin') || linkLower.includes('linkedin.com')) return 'LinkedIn';
+    if (nameLower.includes('twitch') || linkLower.includes('twitch.tv')) return 'Twitch';
+    
+    // Si on ne trouve rien, on met 'Autre'
+    return 'Autre'; 
+}
+
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ success: false, error: 'Méthode non autorisée' });
     }
 
     try {
-        // 2. Vérification de la sécurité (Le client est-il bien connecté ?)
+        // 2. Vérification de la sécurité
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({ success: false, error: 'Vous devez être connecté.' });
@@ -70,7 +90,7 @@ export default async function handler(req, res) {
             cost = (priceXAFPer1000 / 1000) * quantity;
         }
 
-        // Refus immédiat si l'argent n'est pas suffisant avant même de contacter le fournisseur
+        // Refus immédiat si l'argent n'est pas suffisant
         if (currentBalance < cost) {
             return res.status(400).json({ success: false, error: 'Solde insuffisant pour cette commande.' });
         }
@@ -99,48 +119,46 @@ export default async function handler(req, res) {
             });
         }
 
-        // 7. TRANSACTION FIREBASE : Mise à jour sécurisée du compteur, du solde et création de la commande
-        let finalOrderId;
+        // 7. TRANSACTION FIREBASE : Mise à jour et formatage professionnel
+        let finalFormattedOrderId; // Pour stocker le format "SBH-XXX"
         let newBalance;
 
         await db.runTransaction(async (transaction) => {
-            // Références des documents à lire/modifier
             const counterRef = db.collection('counters').doc('commandes');
             const currentUserRef = db.collection('users').doc(uid);
             
-            // On lit les données actuelles dans la transaction
             const counterDoc = await transaction.get(counterRef);
             const currentUserDoc = await transaction.get(currentUserRef);
 
-            // Vérification finale du solde (au cas où il a dépensé entre-temps)
             const balanceInTransaction = currentUserDoc.data().balance || 0;
             if (balanceInTransaction < cost) {
                 throw new Error("Solde devenu insuffisant pendant le traitement.");
             }
 
-            // Calcul du nouveau numéro de commande
-            let nextOrderId = 1; // Si c'est la toute première commande du site
+            // A. Gestion du compteur
+            let nextOrderId = 1; 
             if (counterDoc.exists && counterDoc.data().lastId) {
                 nextOrderId = counterDoc.data().lastId + 1;
             }
 
-            // Sauvegarde des variables pour les renvoyer au frontend
-            finalOrderId = nextOrderId;
+            // FORMATAGE DE L'ID DE COMMANDE ICI (Ex: SBH-15362)
+            finalFormattedOrderId = `SBH-${nextOrderId}`;
             newBalance = balanceInTransaction - cost;
 
-            // A. On met à jour le compteur global
-            transaction.set(counterRef, { lastId: nextOrderId }, { merge: true });
+            // B. Détection de la plateforme (Facebook, Instagram, etc.)
+            const detectedPlatform = detectPlatform(service.name, link);
 
-            // B. On déduit le solde de l'utilisateur
+            // C. Mise à jour du compteur et du solde
+            transaction.set(counterRef, { lastId: nextOrderId }, { merge: true });
             transaction.update(currentUserRef, { balance: newBalance });
 
-            // C. On crée la commande dans la collection 'commandes'
-            // On utilise un ID automatique pour le document, mais on enregistre notre propre numéro dedans
+            // D. Enregistrement de la commande avec les nouvelles données
             const newOrderRef = db.collection('commandes').doc(); 
             transaction.set(newOrderRef, {
-                numeroCommande: finalOrderId, // Ton propre compteur !
+                orderId: finalFormattedOrderId, // On enregistre "SBH-XXX" au lieu d'un simple chiffre
+                platform: detectedPlatform, // On enregistre le nom de la plateforme
                 userId: uid,
-                exoOrderId: orderResult.order, // On garde quand même l'ID du fournisseur au cas où on doit lui faire une réclamation
+                exoOrderId: orderResult.order, 
                 serviceId: exoServiceId,
                 serviceName: service.name,
                 link: link,
@@ -152,22 +170,19 @@ export default async function handler(req, res) {
             });
         });
 
-        // 8. On renvoie la validation finale au frontend avec notre propre numéro
+        // 8. On renvoie la validation au frontend avec le bel ID
         return res.status(200).json({ 
             success: true, 
-            orderId: finalOrderId, // Retourne ton propre numéro au client
+            orderId: finalFormattedOrderId, 
             newBalance: newBalance 
         });
 
     } catch (error) {
         console.error("Erreur de commande:", error);
-        
-        // Gestion de l'erreur si le solde a changé pendant la transaction
         if (error.message === "Solde devenu insuffisant pendant le traitement.") {
              return res.status(400).json({ success: false, error: error.message });
         }
-
         return res.status(500).json({ success: false, error: 'Une erreur technique est survenue. Réessayez plus tard.' });
     }
-            }
-    
+    }
+                                
