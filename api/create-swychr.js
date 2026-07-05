@@ -1,8 +1,6 @@
-// Fichier : api/create-swychr.js
 const { db } = require('./_firebase');
 
-export default async function handler(req, res) {
-  // Autoriser uniquement les requêtes POST
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Méthode non autorisée' });
   }
@@ -10,7 +8,6 @@ export default async function handler(req, res) {
   try {
     const { email, userId, username, country, phone, amount, amountXAF, currency } = req.body;
 
-    // 1. Authentification Swychr Connect
     const authRes = await fetch('https://api.accountpe.com/api/payin/admin/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -25,11 +22,9 @@ export default async function handler(req, res) {
       throw new Error('Échec de l\'authentification Swychr');
     }
 
-    // 2. Préparation de la transaction
     const transactionId = `txn_${Date.now()}_${userId}`;
-    const baseUrl = `https://${req.headers.host}`; // Récupère ton URL Vercel automatiquement
+    const baseUrl = `https://${req.headers.host}`;
 
-    // Sauvegarde en attente dans Firestore (très important pour le webhook)
     await db.collection('transactions').doc(transactionId).set({
       userId: userId,
       amountXAF: amountXAF,
@@ -37,13 +32,12 @@ export default async function handler(req, res) {
       createdAt: new Date().toISOString()
     });
 
-    // 3. Création du lien de paiement Swychr
     const paymentRes = await fetch('https://api.accountpe.com/api/payin/create_payment_links', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authData.token}`,
-        'Idempotency-Key': transactionId // Empêche les doublons
+        'Idempotency-Key': transactionId
       },
       body: JSON.stringify({
         country_code: country,
@@ -55,7 +49,7 @@ export default async function handler(req, res) {
         transaction_id: transactionId,
         description: 'Recharge Solde Social Boost Horizon',
         pass_digital_charge: true,
-        callback_url: `${baseUrl}/api/webhook-swychr` // Swychr enverra la confirmation ici
+        callback_url: `${baseUrl}/api/webhook-swychr`
       })
     });
 
@@ -68,11 +62,10 @@ export default async function handler(req, res) {
         transactionId: transactionId
       });
     } else {
-      throw new Error(paymentData.message || 'Erreur lors de la création du lien');
+      throw new Error(paymentData.message || 'Erreur API Swychr');
     }
-
   } catch (error) {
     console.error('Erreur create-swychr:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
-}
+};
