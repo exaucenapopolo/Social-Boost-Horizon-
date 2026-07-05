@@ -10,7 +10,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
-
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
   <style>
@@ -220,22 +219,28 @@
       flex-wrap: wrap; gap: 10px;
     }
     .order-id {
-      font-weight: 700; font-size: 1rem; color: var(--light-blue);
+      font-weight: 700; font-size: 1.15rem; color: var(--gold);
       font-family: var(--font-display);
+      text-shadow: 0 2px 10px rgba(212,175,55,0.3);
     }
     .order-meta {
       display: flex; align-items: center; gap: 15px; flex-wrap: wrap;
       font-size: 0.85rem; color: var(--text-light);
     }
-    .order-platform i { margin-right: 5px; }
+    .platform-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255, 255, 255, 0.1); padding: 5px 12px;
+      border-radius: 20px; font-weight: 600; color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
     .order-status-badge {
-      padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;
+      padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;
       text-transform: uppercase;
     }
-    .status-completed { background: rgba(76,175,80,0.2); color: #4CAF50; }
-    .status-processing { background: rgba(255,184,0,0.2); color: #FFB800; }
-    .status-pending { background: rgba(255,152,0,0.2); color: #FF9800; }
-    .status-cancelled { background: rgba(255,107,107,0.2); color: #FF6B6B; }
+    .status-completed { background: rgba(76,175,80,0.2); color: #4CAF50; border: 1px solid rgba(76,175,80,0.3); }
+    .status-processing { background: rgba(255,184,0,0.2); color: #FFB800; border: 1px solid rgba(255,184,0,0.3); }
+    .status-pending { background: rgba(255,152,0,0.2); color: #FF9800; border: 1px solid rgba(255,152,0,0.3); }
+    .status-cancelled { background: rgba(255,107,107,0.2); color: #FF6B6B; border: 1px solid rgba(255,107,107,0.3); }
 
     .progress-bar-container {
       display: flex; align-items: center; gap: 10px; margin-top: 15px;
@@ -570,7 +575,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
   <script>
-    // ========== SCRIPT ORIGINAL (INTACT) + AJOUTS (tri) ==========
     document.addEventListener("DOMContentLoaded", function () {
       if (typeof AOS !== 'undefined') {
         AOS.init({ duration: 800, once: true, offset: 100 });
@@ -664,7 +668,7 @@
       // --- FONCTION DE PARTAGE ---
       function generateShareMessage(orderData) {
         const lines = [];
-        lines.push(`📋 *Commande #${orderData.orderId}*`);
+        lines.push(`📋 *Commande ${orderData.orderId}*`);
         lines.push(`📅 Date : ${orderData.dateStr}`);
         lines.push(`🌐 Plateforme : ${orderData.platform || 'N/A'}`);
         lines.push(`🛠 Service : ${orderData.service}`);
@@ -729,7 +733,7 @@
       let displayedOrders = [];
       let currentDisplayLimit = 50;
       let currentFilter = 'all';
-      let currentSort = 'date-desc'; // tri par défaut
+      let currentSort = 'date-desc';
 
       auth.onAuthStateChanged(user => {
         if (!user) { window.location.href = 'login.html'; }
@@ -875,6 +879,24 @@
         totalAmountElem.textContent = formatAmount(totalXAF);
       }
 
+      // NOUVELLE FONCTION: Devine la plateforme si elle manque (pour les anciennes commandes)
+      function guessPlatform(serviceName, linkUrl) {
+          const nameLower = (serviceName || '').toLowerCase();
+          const linkLower = (linkUrl || '').toLowerCase();
+          
+          if (nameLower.includes('facebook') || linkLower.includes('facebook.com') || linkLower.includes('fb.')) return 'Facebook';
+          if (nameLower.includes('instagram') || linkLower.includes('instagram.com')) return 'Instagram';
+          if (nameLower.includes('tiktok') || linkLower.includes('tiktok.com')) return 'TikTok';
+          if (nameLower.includes('twitter') || nameLower.includes(' x ') || linkLower.includes('twitter.com') || linkLower.includes('x.com')) return 'X (Twitter)';
+          if (nameLower.includes('youtube') || linkLower.includes('youtube.com') || linkLower.includes('youtu.be')) return 'YouTube';
+          if (nameLower.includes('telegram') || linkLower.includes('t.me')) return 'Telegram';
+          if (nameLower.includes('spotify') || linkLower.includes('spotify.com')) return 'Spotify';
+          if (nameLower.includes('linkedin') || linkLower.includes('linkedin.com')) return 'LinkedIn';
+          if (nameLower.includes('twitch') || linkLower.includes('twitch.tv')) return 'Twitch';
+          
+          return 'Autre';
+      }
+
       function displayOrders() {
         if (!ordersList) return;
         const ordersToShow = displayedOrders.slice(0, currentDisplayLimit);
@@ -894,18 +916,32 @@
           else createdAtDate = new Date();
           const dateStr = createdAtDate.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-          const orderId = order.orderId || order.id || 'N/A';
-          const docId = order.id || orderId;
+          const docId = order.id;
+          
+          // FORMATAGE DE L'ID: Utilise l'ID du backend (SBH-XXX). Si introuvable, on raccourcit l'ID Firebase.
+          let displayOrderId = order.orderId || (order.numeroCommande ? `SBH-${order.numeroCommande}` : docId);
+          if (displayOrderId.length > 15 && !displayOrderId.startsWith('SBH-')) {
+             displayOrderId = `#${displayOrderId.substring(0, 8).toUpperCase()}`;
+          }
+
           const service = order.service || order.serviceName || 'N/A';
-          const platform = order.platform || '';
+          const link = order.link || '';
+
+          // AFFICHER LA BONNE PLATEFORME
+          const platform = order.platform || guessPlatform(service, link);
+          
+          // CHERCHER LA BONNE ICÔNE
           let platformIcon = 'fas fa-globe';
           const pf = platform.toLowerCase();
           if (pf.includes("instagram")) platformIcon = "fab fa-instagram";
           else if (pf.includes("facebook")) platformIcon = "fab fa-facebook";
           else if (pf.includes("tiktok")) platformIcon = "fab fa-tiktok";
           else if (pf.includes("youtube")) platformIcon = "fab fa-youtube";
-          else if (pf.includes("twitter")) platformIcon = "fab fa-twitter";
+          else if (pf.includes("twitter") || pf.includes("x (twitter)")) platformIcon = "fab fa-x-twitter"; 
           else if (pf.includes("telegram")) platformIcon = "fab fa-telegram";
+          else if (pf.includes("spotify")) platformIcon = "fab fa-spotify";
+          else if (pf.includes("linkedin")) platformIcon = "fab fa-linkedin";
+          else if (pf.includes("twitch")) platformIcon = "fab fa-twitch";
 
           function detectQuality(serviceName) {
             const nameLower = (serviceName || '').toLowerCase();
@@ -919,7 +955,6 @@
           const quality = order.quality && order.quality !== 'N/A' ? order.quality : detectQuality(service);
           const quantity = order.quantity != null ? Number(order.quantity) : 0;
           const totalCost = order.totalCost != null ? order.totalCost : (order.finalCost != null ? order.finalCost : (order.originalPrice != null ? order.originalPrice : (order.cost != null ? order.cost : 0)));
-          const link = order.link || '';
           const statusText = order.status || 'N/A';
           const contact = order.contact || order.contactInfo || '';
           const isExoOrder = order.isAutoOrder && order.exoOrderId;
@@ -932,18 +967,18 @@
           
           let customComments = order.customComments || order.commentaires || order.commentaires_personnalises || order.comments || '';
 
-          // Données pour le partage
+          // Données pour le partage (utilisation du bel ID)
           const shareData = {
-            orderId, dateStr, platform, service, quality, quantity: quantity.toLocaleString('fr-FR'),
+            orderId: displayOrderId, dateStr, platform, service, quality, quantity: quantity.toLocaleString('fr-FR'),
             formattedAmount, statusLabel, link, contact, comments: customComments
           };
 
           html += `
             <div class="order-card" data-docid="${docId}">
               <div class="order-card-header">
-                <span class="order-id">#${orderId}</span>
+                <span class="order-id">${displayOrderId}</span>
                 <div class="order-meta">
-                  <span><i class="${platformIcon}"></i> ${platform || 'N/A'}</span>
+                  <span class="platform-badge"><i class="${platformIcon}"></i> ${platform}</span>
                   <span>${service}</span>
                   <span class="order-status-badge ${statusClass}">${statusLabel}</span>
                 </div>
@@ -963,8 +998,8 @@
                   <div class="detail-item">
                     <div class="detail-label">ID commande</div>
                     <div class="detail-value">
-                      ${orderId}
-                      <button class="copy-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${orderId.replace(/'/g, "\\'")}').then(() => { const t = this.nextElementSibling; if(t) { t.style.opacity = '1'; setTimeout(() => t.style.opacity = '0', 1500); } })" title="Copier"><i class="far fa-copy"></i></button>
+                      ${displayOrderId}
+                      <button class="copy-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${displayOrderId.replace(/'/g, "\\'")}').then(() => { const t = this.nextElementSibling; if(t) { t.style.opacity = '1'; setTimeout(() => t.style.opacity = '0', 1500); } })" title="Copier"><i class="far fa-copy"></i></button>
                       <span class="copied-tooltip">Copié !</span>
                     </div>
                   </div>
@@ -978,7 +1013,7 @@
                   </div>
                   <div class="detail-item">
                     <div class="detail-label">Plateforme</div>
-                    <div class="detail-value">${platform || 'N/A'}</div>
+                    <div class="detail-value"><i class="${platformIcon}" style="margin-right:5px;"></i> ${platform}</div>
                   </div>
                   <div class="detail-item">
                     <div class="detail-label">Service</div>
@@ -1078,14 +1113,12 @@
         updateTotalAmount();
       }
 
-      // FONCTION FETCHORDERS CORRIGÉE
       async function fetchOrders() {
         if (!currentUid) return;
         ordersList.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--light-blue);"></i><p>Chargement...</p></div>';
         loadMoreContainer.style.display = 'none';
         
         try {
-          // On retire le orderBy pour éviter l'erreur silencieuse d'index composite Firebase
           const querySnapshot = await db.collection("commandes").where("userId", "==", currentUid).get();
           
           if (querySnapshot.empty) {
@@ -1098,8 +1131,6 @@
           querySnapshot.forEach(doc => { 
             const o = doc.data(); 
             o.id = doc.id; 
-            
-            // Sécurité pour la date : si "date" est enregistré au lieu de "createdAt"
             if (!o.createdAt && o.date) {
                 o.createdAt = o.date;
             }
@@ -1107,8 +1138,6 @@
           });
           
           displayedOrders = [...allOrders];
-          
-          // Le tri se fait maintenant ici en JavaScript !
           sortOrders(currentSort);
           displayOrders();
           updateStats(allOrders);
