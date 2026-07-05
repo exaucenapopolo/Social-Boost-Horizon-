@@ -1071,7 +1071,8 @@
                 ${shareOrder(shareData)}
                 ${isExoOrder ? `
                 <div class="exo-actions">
-                  <button class="exo-btn status" onclick="event.stopPropagation(); checkExoStatus('${docId}')"><i class="fas fa-sync"></i> Actualiser</button>
+                  <!-- Modification principale : Nouveau bouton "Vérifier le statut" -->
+                  <button class="exo-btn status" onclick="event.stopPropagation(); checkExoStatus('${docId}')"><i class="fas fa-search"></i> Vérifier le statut</button>
                   ${!['succès','annulée','completed','canceled','partiel','success'].some(s => (order.status||'').toLowerCase().includes(s)) ? `
                   <button class="exo-btn refill" onclick="event.stopPropagation(); requestExoRefill('${docId}')"><i class="fas fa-redo"></i> Refill</button>
                   <button class="exo-btn cancel" onclick="event.stopPropagation(); cancelExoOrder('${docId}')"><i class="fas fa-times"></i> Annuler</button>
@@ -1162,16 +1163,32 @@
         setTimeout(() => { n.style.animation = 'slideOut 0.3s ease'; setTimeout(() => n.remove(), 300); }, 4000);
       }
 
+      // Modification principale : Fonction pour interroger notre backend de manière sécurisée
       async function checkExoStatus(orderId) {
         try {
-          showNotification('Vérification...', 'info');
+          showNotification('Interrogation du fournisseur en cours...', 'info');
           const idToken = await auth.currentUser.getIdToken();
-          const response = await fetch(`${BACKEND_URL}/api/exo/order-status/${orderId}`, { headers: { 'Authorization': `Bearer ${idToken}` } });
+          
+          // On appelle notre nouveau backend api/exo-status en POST
+          const response = await fetch(`${BACKEND_URL}/api/exo-status`, { 
+              method: 'POST',
+              headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${idToken}` 
+              },
+              body: JSON.stringify({ orderId: orderId })
+          });
+          
           const data = await response.json();
-          if (!data.success) throw new Error(data.error || 'Erreur');
-          showNotification(`Statut: ${data.status}`, 'success');
+          if (!data.success) throw new Error(data.error || 'Erreur lors de la vérification');
+          
+          showNotification(`Nouveau statut : ${data.status}`, 'success');
+          
+          // On rafraîchit automatiquement les commandes pour afficher le nouveau statut
           fetchOrders();
-        } catch (error) { showNotification(error.message, 'error'); }
+        } catch (error) { 
+          showNotification(error.message, 'error'); 
+        }
       }
 
       async function requestExoRefill(orderId) {
