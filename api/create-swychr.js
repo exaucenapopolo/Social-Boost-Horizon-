@@ -8,6 +8,7 @@ module.exports = async function handler(req, res) {
   try {
     const { email, userId, username, country, phone, amount, amountXAF, currency } = req.body;
 
+    // 1. Authentification auprès de Swychr
     const authRes = await fetch('https://api.accountpe.com/api/payin/admin/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -22,9 +23,33 @@ module.exports = async function handler(req, res) {
       throw new Error('Échec de l\'authentification Swychr');
     }
 
-    const transactionId = `txn_${Date.now()}_${userId}`;
+    // 2. NOUVEAU SYSTÈME : Génération d'un ID de transaction unique et incrémenté
+    // Nous ciblons le document 'transactions' dans la collection 'counters'
+    const counterRef = db.collection('counters').doc('transactions');
+    
+    const transactionId = await db.runTransaction(async (transaction) => {
+      // On récupère l'état actuel du compteur
+      const counterDoc = await transaction.get(counterRef);
+      let currentCount = 0;
+      
+      // Si le compteur existe déjà, on prend sa valeur
+      if (counterDoc.exists) {
+        currentCount = counterDoc.data().count || 0;
+      }
+      
+      // On incrémente de +1
+      const nextCount = currentCount + 1;
+      
+      // On sauvegarde la nouvelle valeur dans la base de données
+      transaction.set(counterRef, { count: nextCount }, { merge: true });
+      
+      // On retourne le format désiré, par exemple : SBH-PAY-3988
+      return `SBH-PAY-${nextCount}`;
+    });
+
     const baseUrl = `https://${req.headers.host}`;
 
+    // 3. Création de la transaction dans ta base de données avec le nouvel ID
     await db.collection('transactions').doc(transactionId).set({
       userId: userId,
       amountXAF: amountXAF,
@@ -32,6 +57,7 @@ module.exports = async function handler(req, res) {
       createdAt: new Date().toISOString()
     });
 
+    // 4. Initialisation du paiement avec le partenaire Swychr
     const paymentRes = await fetch('https://api.accountpe.com/api/payin/create_payment_links', {
       method: 'POST',
       headers: {
@@ -55,6 +81,7 @@ module.exports = async function handler(req, res) {
 
     const paymentData = await paymentRes.json();
 
+    // 5. Retour du lien de paiement au frontend
     if (paymentData.status === 200 || paymentData.status === 201) {
       return res.status(200).json({
         success: true,
@@ -69,3 +96,4 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ success: false, error: error.message });
   }
 };
+    
