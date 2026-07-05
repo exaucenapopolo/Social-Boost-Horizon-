@@ -5,15 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes"/>
   <title>Mes commandes · Social Boost Horizon</title>
 
-  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <!-- AOS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
 
-  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
   <style>
@@ -403,7 +400,6 @@
   <div class="bg-animation"></div>
   <div class="stars"></div>
 
-  <!-- HEADER -->
   <header>
     <a href="dashboard.html" class="logo-link">
       <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo" class="logo-img">
@@ -431,7 +427,6 @@
       <h1><i class="fas fa-clipboard-list" style="margin-right:10px;"></i>Mes commandes</h1>
     </div>
 
-    <!-- Stats -->
     <div class="stats-grid" data-aos="fade-up" data-aos-delay="100">
       <div class="stat-card stat-total">
         <i class="fas fa-shopping-cart"></i>
@@ -465,7 +460,6 @@
       </div>
     </div>
 
-    <!-- Contrôles -->
     <div class="controls-bar" data-aos="fade-up">
       <div class="filters">
         <button class="filter-btn active" data-filter="all">Toutes</button>
@@ -519,7 +513,6 @@
       </div>
     </div>
 
-    <!-- Liste des commandes -->
     <div class="orders-list" id="ordersList" data-aos="fade-up" data-aos-delay="200">
       <div style="text-align:center;padding:40px;">
         <i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--light-blue);"></i>
@@ -532,7 +525,6 @@
     </div>
   </main>
 
-  <!-- Modale Commander -->
   <div class="modal-overlay" id="orderModal">
     <div class="modal-box">
       <h3><i class="fas fa-rocket"></i> Type de commande</h3>
@@ -572,7 +564,6 @@
     <p>© 2026 Social Boost Horizon · Mc Exau. Tous droits réservés.</p>
   </footer>
 
-  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -695,7 +686,6 @@
         const message = generateShareMessage(orderData);
         const encoded = encodeURIComponent(message);
 
-        // Créer les boutons de partage dans la section share
         return `
           <div class="share-section">
             <button class="share-btn" onclick="event.stopPropagation(); window.open('https://api.whatsapp.com/send?text=${encoded}', '_blank')" title="Partager sur WhatsApp">
@@ -818,15 +808,15 @@
             break;
           case 'amount-desc':
             displayedOrders.sort((a, b) => {
-              const amountA = a.totalCost != null ? a.totalCost : (a.finalCost != null ? a.finalCost : (a.originalPrice != null ? a.originalPrice : 0));
-              const amountB = b.totalCost != null ? b.totalCost : (b.finalCost != null ? b.finalCost : (b.originalPrice != null ? b.originalPrice : 0));
+              const amountA = a.totalCost != null ? a.totalCost : (a.finalCost != null ? a.finalCost : (a.originalPrice != null ? a.originalPrice : (a.cost != null ? a.cost : 0)));
+              const amountB = b.totalCost != null ? b.totalCost : (b.finalCost != null ? b.finalCost : (b.originalPrice != null ? b.originalPrice : (b.cost != null ? b.cost : 0)));
               return amountB - amountA;
             });
             break;
           case 'amount-asc':
             displayedOrders.sort((a, b) => {
-              const amountA = a.totalCost != null ? a.totalCost : (a.finalCost != null ? a.finalCost : (a.originalPrice != null ? a.originalPrice : 0));
-              const amountB = b.totalCost != null ? b.totalCost : (b.finalCost != null ? b.finalCost : (b.originalPrice != null ? b.originalPrice : 0));
+              const amountA = a.totalCost != null ? a.totalCost : (a.finalCost != null ? a.finalCost : (a.originalPrice != null ? a.originalPrice : (a.cost != null ? a.cost : 0)));
+              const amountB = b.totalCost != null ? b.totalCost : (b.finalCost != null ? b.finalCost : (b.originalPrice != null ? b.originalPrice : (b.cost != null ? b.cost : 0)));
               return amountA - amountB;
             });
             break;
@@ -879,7 +869,7 @@
         if (!totalAmountElem) return;
         const ordersToSum = currentFilter === 'all' ? allOrders : displayedOrders;
         const totalXAF = ordersToSum.reduce((sum, order) => {
-          const cost = order.totalCost != null ? order.totalCost : (order.finalCost != null ? order.finalCost : (order.originalPrice != null ? order.originalPrice : 0));
+          const cost = order.totalCost != null ? order.totalCost : (order.finalCost != null ? order.finalCost : (order.originalPrice != null ? order.originalPrice : (order.cost != null ? order.cost : 0)));
           return sum + Number(cost);
         }, 0);
         totalAmountElem.textContent = formatAmount(totalXAF);
@@ -906,7 +896,7 @@
 
           const orderId = order.orderId || order.id || 'N/A';
           const docId = order.id || orderId;
-          const service = order.service || 'N/A';
+          const service = order.service || order.serviceName || 'N/A';
           const platform = order.platform || '';
           let platformIcon = 'fas fa-globe';
           const pf = platform.toLowerCase();
@@ -928,10 +918,10 @@
           
           const quality = order.quality && order.quality !== 'N/A' ? order.quality : detectQuality(service);
           const quantity = order.quantity != null ? Number(order.quantity) : 0;
-          const totalCost = order.totalCost != null ? order.totalCost : (order.finalCost != null ? order.finalCost : (order.originalPrice != null ? order.originalPrice : 0));
+          const totalCost = order.totalCost != null ? order.totalCost : (order.finalCost != null ? order.finalCost : (order.originalPrice != null ? order.originalPrice : (order.cost != null ? order.cost : 0)));
           const link = order.link || '';
           const statusText = order.status || 'N/A';
-          const contact = order.contact || '';
+          const contact = order.contact || order.contactInfo || '';
           const isExoOrder = order.isAutoOrder && order.exoOrderId;
           const exoRemains = order.exoRemains !== undefined ? order.exoRemains : quantity;
           const delivered = quantity - exoRemains;
@@ -1088,24 +1078,41 @@
         updateTotalAmount();
       }
 
+      // FONCTION FETCHORDERS CORRIGÉE
       async function fetchOrders() {
         if (!currentUid) return;
         ordersList.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--light-blue);"></i><p>Chargement...</p></div>';
         loadMoreContainer.style.display = 'none';
+        
         try {
-          const querySnapshot = await db.collection("commandes").where("userId", "==", currentUid).orderBy("createdAt", "desc").get();
+          // On retire le orderBy pour éviter l'erreur silencieuse d'index composite Firebase
+          const querySnapshot = await db.collection("commandes").where("userId", "==", currentUid).get();
+          
           if (querySnapshot.empty) {
-            ordersList.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light);"><i class="fas fa-inbox" style="font-size:3rem;opacity:0.3;"></i><p>Aucune commande</p></div>';
+            ordersList.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light);"><i class="fas fa-inbox" style="font-size:3rem;opacity:0.3;"></i><p>Aucune commande trouvée</p></div>';
             updateStats([]);
             return;
           }
+          
           allOrders = [];
-          querySnapshot.forEach(doc => { const o = doc.data(); o.id = doc.id; allOrders.push(o); });
+          querySnapshot.forEach(doc => { 
+            const o = doc.data(); 
+            o.id = doc.id; 
+            
+            // Sécurité pour la date : si "date" est enregistré au lieu de "createdAt"
+            if (!o.createdAt && o.date) {
+                o.createdAt = o.date;
+            }
+            allOrders.push(o); 
+          });
+          
           displayedOrders = [...allOrders];
-          // Appliquer le tri choisi (par défaut date-desc)
+          
+          // Le tri se fait maintenant ici en JavaScript !
           sortOrders(currentSort);
           displayOrders();
           updateStats(allOrders);
+          
         } catch (err) {
           ordersList.innerHTML = `<div style="text-align:center;padding:40px;color:#FF6B6B;"><i class="fas fa-exclamation-triangle"></i><p>Erreur: ${err.message}</p></div>`;
         }
@@ -1113,7 +1120,7 @@
 
       if (refreshBtn) refreshBtn.addEventListener('click', fetchOrders);
 
-      // --- Fonctions ExoSupplier (identiques) ---
+      // --- Fonctions ExoSupplier ---
       function showNotification(message, type = 'info') {
         const existing = document.querySelector('.exo-notification');
         if (existing) existing.remove();
