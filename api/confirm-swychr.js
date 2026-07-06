@@ -55,8 +55,7 @@ module.exports = async function handler(req, res) {
       throw new Error("Format de réponse invalide (Pas du JSON)");
     }
 
-    // 4. CORRECTION MAJEURE : EXTRACTION DU VRAI STATUT IMBRIQUÉ
-    // Swychr renvoie : statusData.data.data.attributes.status
+    // 4. EXTRACTION DU VRAI STATUT IMBRIQUÉ
     const attributes = statusData?.data?.data?.attributes || statusData?.data?.attributes || {};
     const realPartnerStatus = attributes.status || "inconnu";
     
@@ -86,7 +85,7 @@ module.exports = async function handler(req, res) {
         throw new Error("Transaction introuvable dans Firebase");
       }
 
-      const txData = txDoc.data();
+      const txData = txDoc.get ? txDoc.data() : txDoc;
 
       // Sécurité anti-double rechargement
       if (txData.status === 'completed') {
@@ -97,10 +96,18 @@ module.exports = async function handler(req, res) {
       // Si c'est un succès, on valide l'argent !
       if (interpretedStatus === 'success') {
         const userRef = db.collection('users').doc(txData.userId);
+        const userDoc = await transaction.get(userRef);
         
-        // Incrémente le solde du montant XAF sauvegardé à la création
+        let currentBalance = 0;
+        if (userDoc.exists) {
+          currentBalance = userDoc.data().balance || 0;
+        }
+
+        // CORRECTION SÉCURISÉE : Calcul manuel direct dans la transaction pour éviter le bug d'import 'admin'
+        const newBalance = currentBalance + Number(txData.amountXAF);
+        
         transaction.update(userRef, {
-          balance: admin.firestore.FieldValue.increment(txData.amountXAF)
+          balance: newBalance
         });
         
         // Clôture la transaction
@@ -110,7 +117,7 @@ module.exports = async function handler(req, res) {
           paidAt: new Date().toISOString()
         });
         
-        console.log(`💰 SUCCÈS : Utilisateur ${txData.userId} crédité de +${txData.amountXAF} XAF !`);
+        console.log(`💰 SUCCÈS : Utilisateur ${txData.userId} crédité ! Nouveau solde: ${newBalance} XAF`);
         return { finalStatus: 'success', message: 'Solde mis à jour avec succès' };
       } 
       
@@ -133,4 +140,4 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: error.message, finalStatus: 'pending' });
   }
 };
-      
+        
