@@ -1,7 +1,7 @@
 const { db, admin } = require('./_firebase');
 
 module.exports = async function handler(req, res) {
-  // AJOUT : En-têtes CORS
+  // En-têtes CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -17,7 +17,6 @@ module.exports = async function handler(req, res) {
   try {
     const payload = req.body;
     
-    // TRÈS IMPORTANT : On log le webhook reçu pour pouvoir débuguer dans la console Replit
     console.log('--- NOUVEAU WEBHOOK REÇU ---');
     console.log(JSON.stringify(payload, null, 2));
 
@@ -35,32 +34,44 @@ module.exports = async function handler(req, res) {
     // Vérifie si le statut est "succès" (1) selon l'API Swychr/AccountPe
     if (status === 1 || status === "success" || status === "COMPLETED") { 
       const txRef = db.collection('transactions').doc(transaction_id);
-      const txDoc = await txRef.get();
 
-      if (txDoc.exists) {
-        if (txDoc.data().status === 'pending') {
-          const { userId, amountXAF } = txDoc.data();
-          
-          console.log(`Mise à jour du solde pour l'utilisateur ${userId} (+${amountXAF} XAF)`);
+      // CORRECTION : Utilisation de runTransaction pour sécuriser à 100% contre le double-crédit
+      await db.runTransaction(async (transaction) => {
+        const txDoc = await transaction.get(txRef);
 
-          // Met à jour le solde utilisateur
-          await db.collection('users').doc(userId).update({
-            balance: admin.firestore.FieldValue.increment(amountXAF)
-          });
-
-          // Marque la transaction comme complétée
-          await txRef.update({
-            status: 'completed',
-            paidAt: new Date().toISOString()
-          });
-          
-          console.log(`Transaction ${transaction_id} terminée avec succès.`);
-        } else {
-          console.log(`La transaction ${transaction_id} a déjà été traitée (Statut actuel: ${txDoc.data().status}).`);
+        if (!txDoc.exists) {
+          console.error(`Document de transaction introuvable pour l'ID: ${transaction_id}`);
+          return; // Sort de la transaction
         }
-      } else {
-        console.error(`Document de transaction introuvable pour l'ID: ${transaction_id}`);
-      }
+
+        const txData = txDoc.data();
+
+        // Si la transaction n'est plus en attente, c'est qu'elle a déjà été créditée
+        if (txData.status !== 'pending') {
+          console.log(`La transaction ${transaction_id} a déjà été traitée (Statut actuel: ${txData.status}).`);
+          return; 
+        }
+
+        const { userId, amountXAF } = txData;
+        const userRef = db.collection('users').doc(userId);
+        
+        console.log(`Mise à jour du solde pour l'utilisateur ${userId} (+${amountXAF} XAF)`);
+
+        // 1. Met à jour le solde utilisateur
+        transaction.update(userRef, {
+          balance: admin.firestore.FieldValue.increment(amountXAF)
+        });
+
+        // 2. Marque la transaction comme complétée de manière synchrone
+        transaction.update(txRef, {
+          status: 'completed',
+          paidAt: new Date().toISOString(),
+          verifiedBy: 'webhook'
+        });
+        
+        console.log(`Transaction ${transaction_id} terminée avec succès par le webhook.`);
+      });
+
     } else {
       console.log(`Statut non pris en compte pour la recharge: ${status}`);
     }
@@ -73,4 +84,4 @@ module.exports = async function handler(req, res) {
     return res.status(500).send('Erreur interne');
   }
 };
-        
+            
