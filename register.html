@@ -431,7 +431,9 @@
 
   <script>
     // Configuration de l'URL de l'API s'adaptant à Vercel (relatif) ou Localhost
-    const BACKEND_URL = 'https://socialboosthorizon.com/';
+    const BACKEND_URL = window.location.hostname.includes('localhost')
+      ? 'http://localhost:3000'
+      : window.location.origin;
 
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
@@ -646,10 +648,16 @@
         isFirstAccess: true
       }, { merge: true });
 
-      // Appel de la Serverless Function de Vercel pour l'envoi de l'email
+      // NOUVEAU : On récupère le token d'autorisation du nouvel utilisateur
+      const token = await user.getIdToken();
+
+      // Appel de notre Serverless Function d'index.js
       fetch(`${BACKEND_URL}/api/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // On transmet le token pour que ça marche !
+        },
         body: JSON.stringify({
           userId,
           username: generatedUsername,
