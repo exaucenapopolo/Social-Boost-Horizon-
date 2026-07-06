@@ -651,52 +651,37 @@
     }
 
     let isRegistering = false;
-
-    // ── Soumission du formulaire ──
+        // ── Soumission du formulaire (Email) ──
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (isRegistering) return;
       hideAllErrors();
 
-      const email    = document.getElementById('email').value.trim();
-      const pays     = document.getElementById('pays').value;
+      const email = document.getElementById('email').value.trim();
+      const pays = document.getElementById('pays').value;
       const password = document.getElementById('password').value;
-      const refCode  = document.getElementById('referral').value.trim().toUpperCase();
+      const refCode = document.getElementById('referral').value.trim().toUpperCase();
 
-      if (!email)             return showFieldError('emailError', 'L\'adresse email est requise.');
-      if (!pays)              return showFieldError('countryError', 'Veuillez sélectionner votre pays dans la liste.');
-      if (password.length < 6) return showFieldError('passwordError', 'Le mot de passe doit contenir au moins 6 caractères.');
+      if (!email) return showFieldError('emailError', 'L\'email est requis.');
+      if (!pays) return showFieldError('countryError', 'Sélectionnez votre pays.');
+      if (password.length < 6) return showFieldError('passwordError', 'Minimum 6 caractères.');
 
       isRegistering = true;
       const btn = document.getElementById('registerBtn');
       btn.classList.add('btn-loading');
 
       try {
-        // Création du compte Firebase
         const userCred = await auth.createUserWithEmailAndPassword(email, password);
         
-        // Finalisation + Attente de l'envoi de l'email
+        // ATTENTION : Le "await" ici est crucial pour attendre le serveur
         await finalizeRegistration(userCred.user, email, pays, refCode);
 
-        // Une fois terminé SEULEMENT, on affiche le succès et on redirige
         btn.classList.remove('btn-loading');
-        btn.style.background = '#4CAF50';
-        btn.innerHTML = '<span>✅ Compte créé ! Redirection...</span>';
-        showNotification('🎉 Bienvenue ! Votre compte est prêt. Redirection...', 'success', 4000);
-        
-        setTimeout(() => { window.location.href = 'dashboard.html'; }, 3000);
-
+        showNotification('🎉 Inscription réussie !', 'success');
+        setTimeout(() => { window.location.href = 'dashboard.html'; }, 2000);
       } catch (error) {
         btn.classList.remove('btn-loading');
-        if (error.code === 'auth/email-already-in-use') {
-          showFieldError('emailError', '⚠️ Cette adresse email est déjà utilisée. Connectez-vous.');
-        } else if (error.code === 'auth/invalid-email') {
-          showFieldError('emailError', '⚠️ Le format de l\'email est incorrect.');
-        } else if (error.code === 'auth/weak-password') {
-          showFieldError('passwordError', '⚠️ Mot de passe trop faible. Utilisez au moins 6 caractères.');
-        } else {
-          showNotification('❌ Erreur lors de l\'inscription. Vérifiez vos informations.', 'error');
-        }
+        showNotification('❌ Erreur : ' + error.message, 'error');
         isRegistering = false;
       }
     });
@@ -709,33 +694,48 @@
       btn.classList.add('btn-loading');
 
       try {
-        // Création du compte Google
         const result = await auth.signInWithPopup(provider);
-        const user   = result.user;
-        const pays   = document.getElementById('pays').value;
-        const refCode = document.getElementById('referral').value.trim().toUpperCase()
-          || new URLSearchParams(window.location.search).get('ref') || '';
+        const user = result.user;
+        const pays = document.getElementById('pays').value;
+        const refCode = document.getElementById('referral').value.trim().toUpperCase();
 
-        // Finalisation + Attente de l'envoi de l'email
+        // ATTENTION : Le "await" ici force le navigateur à attendre la réponse du serveur
         await finalizeRegistration(user, user.email, pays, refCode);
 
-        // Une fois terminé SEULEMENT, on affiche le succès et on redirige
         btn.classList.remove('btn-loading');
-        btn.style.background = '#4CAF50';
-        btn.style.color = '#fff';
-        btn.innerHTML = '<span>✅ Compte créé ! Redirection...</span>';
-        showNotification('🎉 Compte Google validé ! Redirection...', 'success', 4000);
-        
-        setTimeout(() => { window.location.href = 'dashboard.html'; }, 3000);
-
+        showNotification('🎉 Connexion Google réussie !', 'success');
+        setTimeout(() => { window.location.href = 'dashboard.html'; }, 2000);
       } catch (error) {
         btn.classList.remove('btn-loading');
         if (error.code !== 'auth/popup-closed-by-user') {
-          showNotification(`❌ Erreur Google : ${error.message}`, 'error');
+          showNotification('❌ Erreur Google : ' + error.message, 'error');
         }
         isRegistering = false;
       }
     });
+
+    // Fonction de finalisation utilisée par les deux méthodes
+    async function finalizeRegistration(user, email, pays, refCode) {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+          email,
+          country: pays,
+          referralCodeUsed: refCode
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error("Le serveur n'a pas pu envoyer l'email.");
+      }
+    }
+    
   </script>
 </body>
 </html>
