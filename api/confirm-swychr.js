@@ -31,12 +31,11 @@ module.exports = async function handler(req, res) {
 
     const authData = await authRes.json();
     if (!authData.token) {
-      console.error('❌ ERREUR AUTHENTIFICATION:', authData);
+      console.error('❌ ERREUR AUTHENTIFICATION CONTRE LE PARTENAIRE');
       throw new Error("Impossible de s'authentifier chez Swychr");
     }
 
     // 3. APPEL API VERS SWYCHR
-    console.log(`🔍 Interrogation de AccountPe pour le statut...`);
     const statusRes = await fetch('https://api.accountpe.com/api/payin/payment_link_status', {
       method: 'POST',
       headers: {
@@ -48,26 +47,25 @@ module.exports = async function handler(req, res) {
       })
     });
 
-    // 🛡️ SÉCURITÉ : On lit la réponse en texte brut d'abord au cas où Swychr renvoie une page d'erreur
     const textResponse = await statusRes.text();
-    console.log(`📦 RÉPONSE BRUTE DE SWYCHR :`, textResponse);
-
     let statusData;
     try {
       statusData = JSON.parse(textResponse);
     } catch (e) {
-      console.error("❌ SWYCHR N'A PAS RENVOYÉ DU JSON !");
-      throw new Error("Format de réponse invalide");
+      throw new Error("Format de réponse invalide (Pas du JSON)");
     }
 
-    // 4. ANALYSE DU STATUT
-    const partnerStatus = statusData?.data?.status ?? statusData?.status;
-    const rawStatus = String(partnerStatus).toLowerCase();
+    // 4. CORRECTION MAJEURE : EXTRACTION DU VRAI STATUT IMBRIQUÉ
+    // Swychr renvoie : statusData.data.data.attributes.status
+    const attributes = statusData?.data?.data?.attributes || statusData?.data?.attributes || {};
+    const realPartnerStatus = attributes.status || "inconnu";
     
-    console.log(`📊 Statut extrait du JSON : "${rawStatus}"`);
+    const rawStatus = String(realPartnerStatus).toLowerCase().trim();
+    console.log(`📊 VRAI statut extrait du paiement : "${rawStatus}"`);
 
+    // Listes de correspondances de statuts
     const statusSucces = ["1", "success", "completed", "terminé", "succès", "reussi", "successful", "paid"];
-    const statusEchec = ["-1", "2", "failed", "echec", "annulé", "cancelled", "rejected", "error", "undefined", "null"];
+    const statusEchec = ["-1", "2", "failed", "echec", "annulé", "cancelled", "rejected", "error"];
     
     let interpretedStatus = "pending";
     if (statusSucces.includes(rawStatus)) {
@@ -76,61 +74,63 @@ module.exports = async function handler(req, res) {
       interpretedStatus = "failed";
     }
 
-    console.log(`🎯 Statut interprété par notre code : "${interpretedStatus}"`);
+    console.log(`🎯 Statut interprété par notre logique : "${interpretedStatus}"`);
 
-    // 5. MISE À JOUR FIREBASE
+    // 5. MISE À JOUR DE LA BASE DE DONNÉES FIREBASE
     const txRef = db.collection('transactions').doc(transactionId);
     
     const result = await db.runTransaction(async (transaction) => {
       const txDoc = await transaction.get(txRef);
 
       if (!txDoc.exists) {
-        console.error("❌ Transaction introuvable dans Firebase");
-        throw new Error("Transaction introuvable");
+        throw new Error("Transaction introuvable dans Firebase");
       }
 
       const txData = txDoc.data();
 
-      // Anti-double paiement
+      // Sécurité anti-double rechargement
       if (txData.status === 'completed') {
-        console.log("✅ Transaction déjà complétée auparavant.");
+        console.log("✅ Déjà crédité précédemment.");
         return { finalStatus: 'success', message: 'Déjà crédité' };
       }
 
+      // Si c'est un succès, on valide l'argent !
       if (interpretedStatus === 'success') {
         const userRef = db.collection('users').doc(txData.userId);
+        
+        // Incrémente le solde du montant XAF sauvegardé à la création
         transaction.update(userRef, {
           balance: admin.firestore.FieldValue.increment(txData.amountXAF)
         });
+        
+        // Clôture la transaction
         transaction.update(txRef, {
           status: 'completed',
-          verifiedBy: 'api_direct_check',
+          verifiedBy: 'api_direct_check_success',
           paidAt: new Date().toISOString()
         });
-        console.log("💰 Solde mis à jour avec succès dans Firebase !");
+        
+        console.log(`💰 SUCCÈS : Utilisateur ${txData.userId} crédité de +${txData.amountXAF} XAF !`);
         return { finalStatus: 'success', message: 'Solde mis à jour avec succès' };
       } 
       
-      if (interpretedStatus === 'failed') {
+      else if (interpretedStatus === 'failed') {
         transaction.update(txRef, {
           status: 'failed',
-          verifiedBy: 'api_direct_check'
+          verifiedBy: 'api_direct_check_failed'
         });
-        console.log("❌ Paiement marqué comme échoué dans Firebase.");
         return { finalStatus: 'failed', message: 'Paiement échoué ou annulé' };
       }
 
-      console.log("⏳ La transaction est toujours marquée 'en cours'.");
-      // On inclut les détails de Swychr pour le voir côté Frontend au besoin
-      return { finalStatus: 'pending', message: 'Toujours en attente', swychrResponse: statusData };
+      return { finalStatus: 'pending', message: 'Toujours en attente chez l\'opérateur' };
     });
 
     console.log(`=== FIN VÉRIFICATION ===\n`);
     return res.status(200).json(result);
 
   } catch (error) {
-    console.error('💥 ERREUR CRITIQUE confirm-swychr:', error);
+    console.error('💥 ERREUR CRITIQUE:', error);
     return res.status(500).json({ error: error.message, finalStatus: 'pending' });
   }
 };
-                         
+      
