@@ -160,8 +160,9 @@
   </div>
 
   <script>
-    // Correction de l'URL pour être cohérent avec ton fichier deposit.html
-    const BACKEND_URL = '';
+    const BACKEND_URL = window.location.hostname.includes('replit')
+      ? ''
+      : 'https://social-boost-exaucenapopolo2.replit.app';
 
     // 1. Lire txid depuis l'URL (?txid=...) en priorité
     const urlParams = new URLSearchParams(window.location.search);
@@ -191,9 +192,17 @@
 
       const check = async () => {
         try {
-          // MODIFICATION CLÉ ICI : On appelle la bonne URL (api/confirm-swychr) avec le bon paramètre (?transactionId=)
+          console.log(`Vérification de la transaction: ${transactionId}`);
+          
+          // CORRECTION ICI : L'URL correspond maintenant à ce que ton backend attend (?transactionId=...)
           const response = await fetch(`${BACKEND_URL}/api/confirm-swychr?transactionId=${transactionId}`);
+          
+          if (!response.ok) {
+            throw new Error(`Erreur réseau: ${response.status}`);
+          }
+
           const data = await response.json();
+          console.log('Réponse du serveur:', data);
 
           if (data.isPaid) {
             localStorage.removeItem('pendingPayment');
@@ -204,7 +213,7 @@
             document.querySelector('.success-icon i').className = 'fas fa-check-double';
             document.querySelector('h1').textContent = 'Paiement confirmé !';
 
-            // Redirection automatique vers le dashboard après 3 secondes
+            // Redirection automatique
             let countdown = 3;
             const countdownEl = document.createElement('p');
             countdownEl.style.cssText = 'color:rgba(255,255,255,0.7);font-size:0.95rem;margin-top:10px;';
@@ -237,6 +246,10 @@
           attempts++;
           if (attempts < maxAttempts) {
             setTimeout(check, 5000);
+          } else {
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('statusText').textContent =
+              'Erreur lors de la vérification. Veuillez vérifier votre solde dans votre portefeuille.';
           }
         }
       };
