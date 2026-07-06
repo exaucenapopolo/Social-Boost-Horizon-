@@ -552,6 +552,7 @@
       this.value = this.value.toUpperCase();
     });
 
+    // ── Vérification du Code de Parrainage ──
     document.getElementById('verifyReferralBtn').addEventListener('click', async () => {
       const code = document.getElementById('referral').value.trim().toUpperCase();
       hideAllErrors();
@@ -596,33 +597,22 @@
     async function finalizeRegistration(user, email, pays, referralCodeUsed) {
       const userId = user.uid;
       
-      // --- NOUVELLE LOGIQUE POUR EXTRAIRE LE PRÉNOM ---
+      // Extraction du prénom
       let prenom = "";
-      
       if (user.displayName) {
-        // Si l'utilisateur s'inscrit via Google, on prend le premier mot (le prénom)
         prenom = user.displayName.split(' ')[0];
       } else {
-        // Si c'est une inscription par e-mail, on prend la partie avant le @
         let emailPart = email.split('@')[0];
-        // On remplace les points, tirets ou chiffres par des espaces
         emailPart = emailPart.replace(/[^a-zA-Z]/g, ' ').trim();
-        // On prend le premier mot trouvé
         prenom = emailPart.split(' ')[0];
       }
-      
-      // Sécurité : si on n'a rien trouvé, on met "Membre" par défaut
       if (!prenom || prenom.length === 0) {
           prenom = "Membre";
       }
-
-      // On formate le prénom : Première lettre en majuscule, le reste en minuscule (Ex: marie -> Marie)
       const finalUsername = prenom.charAt(0).toUpperCase() + prenom.slice(1).toLowerCase();
-      // --------------------------------------------------
-
       const newReferralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
 
-      // Sauvegarde rapide Firestore avec le nouveau prénom formaté
+      // Sauvegarde Firestore
       await db.collection('users').doc(userId).set({
         userId,
         username: finalUsername, 
@@ -636,36 +626,25 @@
         isFirstAccess: true
       }, { merge: true });
 
-      try {
-        // On récupère le token Firebase
-        const token = await user.getIdToken();
+      // Envoi de l'e-mail au serveur (On vérifie obligatoirement que l'envoi a réussi)
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId,
+          username: finalUsername, 
+          email,
+          country: pays || '',
+          referralCode: newReferralCode,
+          referralCodeUsed: referralCodeUsed || null,
+          isFirstAccess: true
+        })
+      });
 
-        // Envoi au backend avec le username propre
-        const response = await fetch('/api/register', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` 
-          },
-          body: JSON.stringify({
-            userId,
-            username: finalUsername, // <-- Le prénom est envoyé ici pour l'e-mail !
-            email,
-            country: pays || '',
-            referralCode: newReferralCode,
-            referralCodeUsed: referralCodeUsed || null,
-            isFirstAccess: true
-          })
-        });
-
-        if (!response.ok) {
-           const errData = await response.json();
-           console.error("Erreur renvoyée par le backend:", errData);
-        } else {
-           console.log("✅ Email de bienvenue envoyé avec succès par le backend !");
-        }
-      } catch (err) {
-        console.error("La requête vers l'API a été bloquée ou a échoué (réseau):", err);
+      if (!response.ok) {
+         throw new Error("L'e-mail de bienvenue n'a pas pu être envoyé. Le serveur a rencontré un problème.");
       }
 
       return true;
@@ -673,7 +652,7 @@
 
     let isRegistering = false;
 
-    // ── Soumission du formulaire ──
+    // ── Soumission du formulaire d'inscription classique ──
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (isRegistering) return;
@@ -693,13 +672,11 @@
       btn.classList.add('btn-loading');
 
       try {
-        // Création du compte Firebase
         const userCred = await auth.createUserWithEmailAndPassword(email, password);
         
-        // Finalisation + Attente de l'envoi de l'email
+        // Exécution de l'enregistrement en base ET de l'envoi d'e-mail
         await finalizeRegistration(userCred.user, email, pays, refCode);
 
-        // Une fois terminé SEULEMENT, on affiche le succès et on redirige
         btn.classList.remove('btn-loading');
         btn.style.background = '#4CAF50';
         btn.innerHTML = '<span>✅ Compte créé ! Redirection...</span>';
@@ -709,7 +686,10 @@
 
       } catch (error) {
         btn.classList.remove('btn-loading');
-        if (error.code === 'auth/email-already-in-use') {
+        
+        if (error.message.includes("L'e-mail de bienvenue n'a pas pu être envoyé")) {
+           showNotification('❌ Le serveur a refusé l\'envoi de l\'email. L\'inscription est bloquée.', 'error');
+        } else if (error.code === 'auth/email-already-in-use') {
           showFieldError('emailError', '⚠️ Cette adresse email est déjà utilisée. Connectez-vous.');
         } else if (error.code === 'auth/invalid-email') {
           showFieldError('emailError', '⚠️ Le format de l\'email est incorrect.');
@@ -730,17 +710,14 @@
       btn.classList.add('btn-loading');
 
       try {
-        // Création du compte Google
         const result = await auth.signInWithPopup(provider);
         const user   = result.user;
         const pays   = document.getElementById('pays').value;
         const refCode = document.getElementById('referral').value.trim().toUpperCase()
           || new URLSearchParams(window.location.search).get('ref') || '';
 
-        // Finalisation + Attente de l'envoi de l'email
         await finalizeRegistration(user, user.email, pays, refCode);
 
-        // Une fois terminé SEULEMENT, on affiche le succès et on redirige
         btn.classList.remove('btn-loading');
         btn.style.background = '#4CAF50';
         btn.style.color = '#fff';
@@ -752,7 +729,7 @@
       } catch (error) {
         btn.classList.remove('btn-loading');
         if (error.code !== 'auth/popup-closed-by-user') {
-          showNotification(`❌ Erreur Google : ${error.message}`, 'error');
+          showNotification(`❌ Erreur Google ou Serveur : ${error.message}`, 'error');
         }
         isRegistering = false;
       }
