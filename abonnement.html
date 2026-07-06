@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes"/>
+  <meta name="description" content="Abonnements Premium – Social Boost Horizon">
+  <title>Abonnements – Social Boost Horizon</title>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#080e1a">
+
+  <style>
+    /* ══════════════════════════════════════════
+       VARIABLES & RESET
+    ══════════════════════════════════════════ */
+    :root {
+      --deep:        #080e1a;
+      --dark:        #0A162B;
+      --grad-start:  #1e3c72;
+      --grad-end:    #6a0dad;
+      --gold:        #D4AF37;
+      --gold-deep:   #B8860B;
+      --glass:       rgba(15,25,45,0.55);
+      --glass-b:     rgba(255,255,255,0.08);
+      --shadow:      0 20px 40px rgba(0,0,0,0.4);
+      --fp:          'Plus Jakarta Sans', sans-serif;
+      --fd:          'Space Grotesk', sans-serif;
+
+      /* plan colors */
+      --c-starter:  #06B6D4;
+      --c-pro:      #8B5CF6;
+      --c-elite:    #D4AF37;
+    }
+    *,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+    html { font-size:14px; scroll-behavior:smooth; }
+    @media(min-width:768px){ html{ font-size:15px; } }
+    @media(max-width:480px){ html{ font-size:13px; } }
+    body {
+      font-family: var(--fp);
+      color: #fff;
+      background: var(--deep);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    h1,h2,h3,h4 { font-family: var(--fd); }
+    a { text-decoration:none; }
+
+    /* ══════════════════════════════════════════
+       BACKGROUND
+    ══════════════════════════════════════════ */
+    .bg-base {
+      position:fixed; inset:0; z-index:-2;
+      background: radial-gradient(ellipse at 20% 50%, #0f2040 0%, #080e1a 70%);
+    }
+    .bg-grid {
+      position:fixed; inset:0; z-index:-1; pointer-events:none;
+      background-image:
+        linear-gradient(rgba(212,175,55,.04) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(212,175,55,.04) 1px,transparent 1px);
+      background-size:60px 60px;
+    }
+    .bg-orb {
+      position:fixed; border-radius:50%; pointer-events:none; filter:blur(100px); z-index:-1;
+    }
+    .orb1 { width:500px;height:500px;top:-150px;right:-100px; background:rgba(139,92,246,.12); }
+    .orb2 { width:400px;height:400px;bottom:-100px;left:-80px; background:rgba(6,182,212,.08); }
+
+    /* ══════════════════════════════════════════
+       HEADER
+    ══════════════════════════════════════════ */
+    header {
+      position:sticky; top:0; z-index:100;
+      background:rgba(8,14,26,.9); backdrop-filter:blur(20px);
+      display:flex; justify-content:space-between; align-items:center;
+      padding:.7rem 1.8rem;
+      border-bottom:1px solid var(--glass-b);
+    }
+    @media(max-width:480px){ header{ padding:.6rem 1rem; } }
+
+    .logo-link { display:flex; align-items:center; gap:10px; }
+    .logo-img {
+      height:40px; width:40px; border-radius:50%; object-fit:cover;
+      border:2px solid var(--gold); box-shadow:0 0 12px rgba(212,175,55,.3);
+    }
+    .logo-text { display:flex; flex-direction:column; line-height:1.15; }
+    .logo-text .ln1 { font-size:.78rem; font-weight:600; color:#fff; letter-spacing:1px; }
+    .logo-text .ln2 { font-size:1.3rem; font-weight:800; color:var(--gold); line-height:1; }
+    .logo-text .ln3 { font-size:.85rem; font-weight:600; color:#fff; }
+
+    .header-right { display:flex; align-items:center; gap:14px; }
+    .balance-pill {
+      display:flex; align-items:center; gap:7px;
+      background:rgba(212,175,55,.1); border:1px solid rgba(212,175,55,.3);
+      border-radius:50px; padding:.38rem .9rem;
+      font-size:.82rem; font-weight:700; color:var(--gold); cursor:pointer;
+    }
+    .balance-pill i { font-size:.8rem; }
+    .avatar-btn {
+      width:38px; height:38px; border-radius:50%;
+      background:linear-gradient(135deg,var(--grad-start),var(--grad-end));
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.1rem; font-weight:700; color:#fff;
+      border:2px solid rgba(255,255,255,.3); cursor:pointer;
+      transition:.3s; overflow:hidden;
+    }
+    .avatar-btn img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+    .avatar-btn:hover { border-color:var(--gold); }
+    .hamburger { font-size:1.5rem; cursor:pointer; transition:.3s; background:none; border:none; color:#fff; }
+    .hamburger:hover { color:var(--gold); }
+
+    /* Mobile menu */
+    .mob-menu {
+      display:none; position:absolute; top:62px; right:1.8rem;
+      background:rgba(10,22,43,.97); border:1px solid var(--glass-b);
+      border-radius:16px; padding:1rem; flex-direction:column;
+      z-index:200; min-width:230px; backdrop-filter:blur(20px);
+      box-shadow:0 20px 40px rgba(0,0,0,.5);
+    }
+    header.open .mob-menu { display:flex; }
+    .mob-menu a {
+      color:#fff; padding:.65rem .85rem;
+      border-radius:8px; transition:.3s;
+      display:flex; align-items:center; gap:10px; font-size:.88rem;
+    }
+    .mob-menu a i { width:16px; text-align:center; }
+    .mob-menu a:hover { background:rgba(30,60,114,.5); color:var(--gold); }
+    .mob-menu a.active-link { background:rgba(212,175,55,.12); color:var(--gold); }
+    .mob-divider { border:none; border-top:1px solid rgba(255,255,255,.07); margin:5px 0; }
+    .mob-label {
+      font-size:.68rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase;
+      color:rgba(255,255,255,.3); padding:3px 9px 2px;
+    }
+
+    /* ══════════════════════════════════════════
+       PAGE STRUCTURE
+    ══════════════════════════════════════════ */
+    .page-wrap { max-width:1000px; margin:0 auto; padding:0 16px 80px; }
+
+    /* ── Hero ── */
+    .hero {
+      text-align:center; padding:2.5rem 1rem 1.5rem;
+    }
+    .hero-badge {
+      display:inline-flex; align-items:center; gap:8px;
+      padding:.4rem 1.1rem; border-radius:50px;
+      background:rgba(139,92,246,.12); border:1px solid rgba(139,92,246,.3);
+      font-size:.78rem; font-weight:700; letter-spacing:2px; text-transform:uppercase;
+      color:#a78bfa; margin-bottom:1.2rem;
+    }
+    .hero h1 { font-size:clamp(1.7rem,4vw,2.6rem); font-weight:800; line-height:1.15; margin-bottom:.8rem; }
+    .hero h1 span {
+      background:linear-gradient(135deg,#8B5CF6,#06B6D4,#D4AF37);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    }
+    .hero p { font-size:.95rem; color:rgba(255,255,255,.55); max-width:520px; margin:0 auto 1.5rem; line-height:1.65; }
+
+    /* ── Solde card ── */
+    .solde-card {
+      background:linear-gradient(135deg,rgba(14,24,44,.9),rgba(8,14,28,.95));
+      border:1px solid rgba(212,175,55,.3); border-radius:18px;
+      padding:1rem 1.5rem; margin-bottom:1.8rem;
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      flex-wrap:wrap;
+    }
+    .solde-left { display:flex; align-items:center; gap:12px; }
+    .solde-left i { font-size:1.6rem; color:var(--gold); }
+    .solde-label { font-size:.75rem; color:rgba(255,255,255,.45); }
+    .solde-val { font-size:1.25rem; font-weight:800; color:var(--gold); }
+    .solde-right { font-size:.78rem; color:rgba(255,255,255,.4); }
+
+    /* ── Plan actuel ── */
+    .current-plan-bar {
+      display:flex; align-items:center; gap:12px;
+      background:rgba(15,25,45,.7); border:1px solid var(--glass-b);
+      border-radius:14px; padding:.9rem 1.2rem; margin-bottom:2rem;
+      flex-wrap:wrap; gap:10px;
+    }
+    .cp-icon { font-size:1.5rem; }
+    .cp-info { flex:1; }
+    .cp-label { font-size:.72rem; color:rgba(255,255,255,.4); text-transform:uppercase; letter-spacing:1px; }
+    .cp-name { font-size:1rem; font-weight:700; }
+    .cp-name.free    { color:rgba(255,255,255,.7); }
+    .cp-name.starter { color:var(--c-starter); }
+    .cp-name.pro     { color:var(--c-pro); }
+    .cp-name.elite   { color:var(--c-elite); }
+    .cp-expires { font-size:.75rem; color:rgba(255,255,255,.4); margin-top:2px; }
+    .cp-badge {
+      padding:.3rem .9rem; border-radius:50px; font-size:.72rem; font-weight:700;
+      letter-spacing:1px; text-transform:uppercase;
+    }
+    .cp-badge.active   { background:rgba(34,197,94,.15); color:#4ade80; border:1px solid rgba(34,197,94,.3); }
+    .cp-badge.expired  { background:rgba(239,68,68,.12); color:#f87171; border:1px solid rgba(239,68,68,.25); }
+    .cp-badge.none     { background:rgba(255,255,255,.06); color:rgba(255,255,255,.4); border:1px solid rgba(255,255,255,.1); }
+
+    /* ══════════════════════════════════════════
+       TOGGLE BILLING (mensuel/annuel)
+    ══════════════════════════════════════════ */
+    .billing-toggle {
+      display:flex; align-items:center; justify-content:center; gap:12px;
+      margin-bottom:2rem; font-size:.88rem;
+    }
+    .billing-toggle label { cursor:pointer; color:rgba(255,255,255,.5); transition:.3s; }
+    .billing-toggle label.active { color:#fff; font-weight:600; }
+    .toggle-sw {
+      position:relative; width:48px; height:26px; cursor:pointer;
+    }
+    .toggle-sw input { opacity:0; width:0; height:0; }
+    .toggle-slider {
+      position:absolute; inset:0;
+      background:rgba(255,255,255,.1); border-radius:50px;
+      border:1px solid rgba(255,255,255,.15); transition:.35s;
+    }
+    .toggle-slider::before {
+      content:''; position:absolute;
+      height:18px; width:18px; left:3px; bottom:3px;
+      border-radius:50%; background:#fff;
+      transition:.35s; box-shadow:0 2px 6px rgba(0,0,0,.3);
+    }
+    .toggle-sw input:checked + .toggle-slider { background:linear-gradient(135deg,#8B5CF6,#06B6D4); border-color:transparent; }
+    .toggle-sw input:checked + .toggle-slider::before { transform:translateX(22px); }
+    .save-badge {
+      background:rgba(34,197,94,.15); color:#4ade80;
+      border:1px solid rgba(34,197,94,.25); border-radius:50px;
+      padding:.15rem .7rem; font-size:.7rem; font-weight:700;
+    }
+
+    /* ══════════════════════════════════════════
+       PLANS GRID
+    ══════════════════════════════════════════ */
+    .plans-grid {
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px,1fr));
+      gap:18px; margin-bottom:2.5rem;
+    }
+    @media(max-width:600px){ .plans-grid{ grid-template-columns:1fr; } }
+
+    .plan-card {
+      position:relative; border-radius:22px; overflow:hidden;
+      border:1.5px solid var(--glass-b);
+      background:linear-gradient(145deg,rgba(14,24,44,.92),rgba(8,14,28,.95));
+      padding:1.6rem 1.4rem 1.4rem;
+      display:flex; flex-direction:column; gap:1rem;
+      transition:all .35s cubic-bezier(.4,0,.2,1);
+    }
+    .plan-card:hover { transform:translateY(-6px); box-shadow:0 20px 50px rgba(0,0,0,.5); }
+    .plan-card.popular { border-color:rgba(139,92,246,.5); }
+    .plan-card.current-active { border-color:rgba(212,175,55,.5); }
+    .plan-card::before {
+      content:''; position:absolute; top:0; left:0; right:0; height:3px;
+      border-radius:22px 22px 0 0; opacity:.8;
+    }
+    .plan-card.plan-free::before    { background:rgba(255,255,255,.2); }
+    .plan-card.plan-starter::before { background:linear-gradient(90deg,#06B6D4,#3B82F6); }
+    .plan-card.plan-pro::before     { background:linear-gradient(90deg,#8B5CF6,#EC4899); }
+    .plan-card.plan-elite::before   { background:linear-gradient(90deg,#D4AF37,#F59E0B,#D4AF37); }
+
+    /* Popular badge */
+    .popular-badge {
+      position:absolute; top:14px; right:14px;
+      background:linear-gradient(135deg,#8B5CF6,#EC4899);
+      color:#fff; font-size:.65rem; font-weight:700; letter-spacing:1.5px;
+      text-transform:uppercase; padding:.25rem .75rem; border-radius:50px;
+    }
+    .current-badge {
+      position:absolute; top:14px; right:14px;
+      background:rgba(212,175,55,.2); color:var(--gold);
+      border:1px solid rgba(212,175,55,.4);
+      font-size:.65rem; font-weight:700; letter-spacing:1.5px;
+      text-transform:uppercase; padding:.25rem .75rem; border-radius:50px;
+    }
+
+    /* Plan header */
+    .plan-header { }
+    .plan-icon {
+      width:48px; height:48px; border-radius:14px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.5rem; margin-bottom:.75rem;
+    }
+    .plan-card.plan-free    .plan-icon { background:rgba(255,255,255,.07); }
+    .plan-card.plan-starter .plan-icon { background:rgba(6,182,212,.12); }
+    .plan-card.plan-pro     .plan-icon { background:rgba(139,92,246,.12); }
+    .plan-card.plan-elite   .plan-icon { background:rgba(212,175,55,.12); }
+
+    .plan-name { font-size:1.1rem; font-weight:800; margin-bottom:.25rem; }
+    .plan-card.plan-free    .plan-name { color:rgba(255,255,255,.7); }
+    .plan-card.plan-starter .plan-name { color:var(--c-starter); }
+    .plan-card.plan-pro     .plan-name { color:var(--c-pro); }
+    .plan-card.plan-elite   .plan-name { color:var(--c-elite); }
+
+    .plan-tagline { font-size:.78rem; color:rgba(255,255,255,.4); line-height:1.5; }
+
+    /* Pricing */
+    .plan-price { }
+    .price-row { display:flex; align-items:baseline; gap:6px; }
+    .price-main { font-size:2rem; font-weight:800; line-height:1; }
+    .plan-card.plan-free    .price-main { color:rgba(255,255,255,.7); }
+    .plan-card.plan-starter .price-main { color:var(--c-starter); }
+    .plan-card.plan-pro     .price-main { color:var(--c-pro); }
+    .plan-card.plan-elite   .price-main { color:var(--c-elite); }
+    .price-unit { font-size:.8rem; color:rgba(255,255,255,.35); }
+    .price-annual {
+      font-size:.72rem; color:rgba(255,255,255,.35); margin-top:.2rem;
+      display:none;
+    }
+    .price-annual.shown { display:block; }
+    .price-annual s { color:rgba(255,255,255,.25); }
+    .price-annual .save-green { color:#4ade80; font-weight:700; }
+
+    /* Features list */
+    .plan-features { flex:1; }
+    .feat-list { list-style:none; display:flex; flex-direction:column; gap:.6rem; }
+    .feat-list li {
+      font-size:.82rem; color:rgba(255,255,255,.65);
+      display:flex; align-items:flex-start; gap:.6rem; line-height:1.45;
+    }
+    .feat-list li i {
+      font-size:.75rem; margin-top:.2rem; flex-shrink:0;
+    }
+    .feat-list li.yes i { color:#4ade80; }
+    .feat-list li.no  i { color:rgba(255,255,255,.2); }
+    .feat-list li.no  span { color:rgba(255,255,255,.25); }
+    .feat-list li strong { color:rgba(255,255,255,.9); font-weight:600; }
+
+    /* CTA button */
+    .plan-btn {
+      width:100%; padding:.7rem 1rem; border-radius:12px;
+      font-family:var(--fp); font-size:.88rem; font-weight:700;
+      cursor:pointer; border:none; transition:all .3s;
+      display:flex; align-items:center; justify-content:center; gap:8px;
+    }
+    .plan-card.plan-free    .plan-btn {
+      background:rgba(255,255,255,.07); color:rgba(255,255,255,.5);
+      border:1px solid rgba(255,255,255,.1); cursor:default;
+    }
+    .plan-card.plan-starter .plan-btn {
+      background:rgba(6,182,212,.15); color:var(--c-starter);
+      border:1px solid rgba(6,182,212,.35);
+    }
+    .plan-card.plan-starter .plan-btn:hover { background:rgba(6,182,212,.25); transform:translateY(-2px); }
+    .plan-card.plan-pro .plan-btn {
+      background:linear-gradient(135deg,#8B5CF6,#7C3AED);
+      color:#fff; box-shadow:0 8px 20px rgba(139,92,246,.3);
+    }
+    .plan-card.plan-pro .plan-btn:hover { box-shadow:0 12px 30px rgba(139,92,246,.5); transform:translateY(-2px); }
+    .plan-card.plan-elite .plan-btn {
+      background:linear-gradient(135deg,var(--gold-deep),var(--gold));
+      color:#080e1a; box-shadow:0 8px 20px rgba(212,175,55,.3);
+    }
+    .plan-card.plan-elite .plan-btn:hover { box-shadow:0 12px 30px rgba(212,175,55,.5); transform:translateY(-2px); }
+    .plan-btn.is-current {
+      background:rgba(34,197,94,.1) !important; color:#4ade80 !important;
+      border:1px solid rgba(34,197,94,.25) !important;
+      cursor:default !important; transform:none !important;
+      box-shadow:none !important;
+    }
+    .plan-btn.is-current::before { display:none; }
+    .plan-btn:disabled { opacity:.5; cursor:not-allowed; transform:none !important; }
+
+    /* ══════════════════════════════════════════
+       COMPARISON TABLE
+    ══════════════════════════════════════════ */
+    .compare-section { margin-bottom:2.5rem; }
+    .section-title {
+      font-size:1.1rem; font-weight:700; margin-bottom:1rem;
+      display:flex; align-items:center; gap:10px; color:rgba(255,255,255,.85);
+    }
+    .section-title i { color:var(--gold); }
+    .compare-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+    .compare-table thead th {
+      padding:.7rem .8rem; text-align:center; font-weight:700;
+      border-bottom:1px solid rgba(255,255,255,.07);
+    }
+    .compare-table thead th:first-child { text-align:left; color:rgba(255,255,255,.5); }
+    .th-free    { color:rgba(255,255,255,.5); }
+    .th-starter { color:var(--c-starter); }
+    .th-pro     { color:var(--c-pro); }
+    .th-elite   { color:var(--c-elite); }
+    .compare-table tbody tr {
+      border-bottom:1px solid rgba(255,255,255,.04);
+      transition:.2s;
+    }
+    .compare-table tbody tr:hover { background:rgba(255,255,255,.02); }
+    .compare-table td {
+      padding:.65rem .8rem; color:rgba(255,255,255,.6); text-align:center;
+    }
+    .compare-table td:first-child { text-align:left; color:rgba(255,255,255,.7); }
+    .compare-table td i.fa-check { color:#4ade80; }
+    .compare-table td i.fa-xmark { color:rgba(255,255,255,.18); }
+    .compare-table .row-cat {
+      background:rgba(255,255,255,.03);
+      font-size:.72rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase;
+      color:rgba(255,255,255,.25); padding:.45rem .8rem;
+    }
+    .compare-table .row-cat td { text-align:left; padding:.45rem .8rem; }
+
+    /* ══════════════════════════════════════════
+       FAQ / ROI SECTION
+    ══════════════════════════════════════════ */
+    .roi-section { margin-bottom:2.5rem; }
+    .roi-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; }
+    .roi-card {
+      background:linear-gradient(145deg,rgba(14,24,44,.9),rgba(8,14,28,.95));
+      border:1px solid var(--glass-b); border-radius:16px; padding:1.1rem;
+    }
+    .roi-card .roi-plan { font-size:.7rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; margin-bottom:.5rem; }
+    .roi-card.c-starter .roi-plan { color:var(--c-starter); }
+    .roi-card.c-pro     .roi-plan { color:var(--c-pro); }
+    .roi-card.c-elite   .roi-plan { color:var(--c-elite); }
+    .roi-card .roi-q { font-size:.8rem; color:rgba(255,255,255,.45); margin-bottom:.3rem; }
+    .roi-card .roi-a { font-size:.9rem; font-weight:700; color:#fff; }
+    .roi-card .roi-sub { font-size:.74rem; color:rgba(255,255,255,.35); margin-top:.25rem; line-height:1.45; }
+
+    /* ══════════════════════════════════════════
+       MODAL
+    ══════════════════════════════════════════ */
+    .modal-overlay {
+      display:none; position:fixed; inset:0;
+      background:rgba(0,0,0,.8); z-index:999;
+      align-items:center; justify-content:center;
+      backdrop-filter:blur(6px);
+    }
+    .modal-overlay.open { display:flex; }
+    .modal-box {
+      background:linear-gradient(145deg,rgba(12,22,42,.97),rgba(8,14,28,.98));
+      border:1px solid rgba(255,255,255,.1); border-radius:24px;
+      padding:2rem; width:90%; max-width:420px;
+      animation:mSlide .3s ease; position:relative;
+    }
+    @keyframes mSlide { from{opacity:0;transform:translateY(-28px)} to{opacity:1;transform:translateY(0)} }
+    .modal-close {
+      position:absolute; top:14px; right:16px;
+      background:none; border:none; color:rgba(255,255,255,.4);
+      font-size:1.3rem; cursor:pointer; transition:.2s;
+    }
+    .modal-close:hover { color:#fff; }
+    .modal-icon {
+      width:64px; height:64px; border-radius:18px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:2rem; margin:0 auto 1rem;
+    }
+    .modal-icon.starter { background:rgba(6,182,212,.15); }
+    .modal-icon.pro     { background:rgba(139,92,246,.15); }
+    .modal-icon.elite   { background:rgba(212,175,55,.15); }
+    .modal-icon.cancel  { background:rgba(239,68,68,.12); }
+    .modal-title { font-size:1.25rem; font-weight:800; text-align:center; margin-bottom:.4rem; }
+    .modal-sub   { font-size:.82rem; color:rgba(255,255,255,.45); text-align:center; margin-bottom:1.3rem; line-height:1.55; }
+    .modal-info-row {
+      display:flex; justify-content:space-between; align-items:center;
+      background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+      border-radius:12px; padding:.7rem 1rem; margin-bottom:.6rem;
+      font-size:.84rem;
+    }
+    .modal-info-row .mi-label { color:rgba(255,255,255,.45); }
+    .modal-info-row .mi-val   { font-weight:700; color:#fff; }
+    .modal-info-row .mi-val.green { color:#4ade80; }
+    .modal-info-row .mi-val.red   { color:#f87171; }
+    .modal-balance-check {
+      margin:.8rem 0; padding:.8rem 1rem;
+      border-radius:12px; font-size:.82rem; font-weight:600;
+      display:flex; align-items:center; gap:10px;
+    }
+    .modal-balance-check.ok  { background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.2); color:#4ade80; }
+    .modal-balance-check.err { background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.2); color:#f87171; }
+    .modal-actions { display:flex; gap:10px; margin-top:1.2rem; }
+    .modal-actions button {
+      flex:1; padding:.75rem; border-radius:12px;
+      font-family:var(--fp); font-size:.88rem; font-weight:700;
+      cursor:pointer; border:none; transition:.3s;
+    }
+    .btn-cancel-m {
+      background:rgba(255,255,255,.06); color:rgba(255,255,255,.6);
+      border:1px solid rgba(255,255,255,.1) !important;
+    }
+    .btn-cancel-m:hover { background:rgba(255,255,255,.1); }
+    .btn-confirm-starter { background:rgba(6,182,212,.2); color:var(--c-starter); border:1px solid rgba(6,182,212,.4) !important; }
+    .btn-confirm-starter:hover { background:rgba(6,182,212,.3); }
+    .btn-confirm-pro { background:linear-gradient(135deg,#8B5CF6,#7C3AED); color:#fff; }
+    .btn-confirm-pro:hover { box-shadow:0 8px 20px rgba(139,92,246,.4); }
+    .btn-confirm-elite { background:linear-gradient(135deg,#B8860B,#D4AF37); color:#080e1a; }
+    .btn-confirm-elite:hover { box-shadow:0 8px 20px rgba(212,175,55,.4); }
+    .btn-confirm-cancel { background:rgba(239,68,68,.15); color:#f87171; border:1px solid rgba(239,68,68,.3) !important; }
+    .btn-confirm-cancel:hover { background:rgba(239,68,68,.25); }
+
+    /* ══════════════════════════════════════════
+       CANCEL SUBSCRIPTION AREA
+    ══════════════════════════════════════════ */
+    .cancel-section {
+      display:none; margin-bottom:2rem;
+      background:rgba(239,68,68,.05); border:1px solid rgba(239,68,68,.15);
+      border-radius:16px; padding:1.1rem 1.3rem;
+      display:none; align-items:center; justify-content:space-between;
+      gap:12px; flex-wrap:wrap;
+    }
+    .cancel-section.shown { display:flex; }
+    .cancel-left { }
+    .cancel-left h4 { font-size:.88rem; font-weight:700; color:#f87171; margin-bottom:.2rem; }
+    .cancel-left p  { font-size:.76rem; color:rgba(255,255,255,.4); }
+    .btn-cancel-sub {
+      background:rgba(239,68,68,.1); color:#f87171;
+      border:1px solid rgba(239,68,68,.25); border-radius:10px;
+      padding:.5rem 1rem; font-size:.8rem; font-weight:700;
+      cursor:pointer; font-family:var(--fp); transition:.3s; white-space:nowrap;
+    }
+    .btn-cancel-sub:hover { background:rgba(239,68,68,.2); }
+
+    /* ══════════════════════════════════════════
+       TOAST
+    ══════════════════════════════════════════ */
+    .toast {
+      position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(100px);
+      background:rgba(10,22,42,.97); border:1px solid var(--glass-b);
+      border-radius:14px; padding:.8rem 1.4rem;
+      display:flex; align-items:center; gap:10px;
+      font-size:.85rem; font-weight:600; z-index:9999;
+      transition:transform .4s cubic-bezier(.4,0,.2,1);
+      white-space:nowrap; max-width:90vw;
+    }
+    .toast.show { transform:translateX(-50%) translateY(0); }
+    .toast.ok  { border-color:rgba(34,197,94,.3); color:#4ade80; }
+    .toast.err { border-color:rgba(239,68,68,.3); color:#f87171; }
+    .toast i { font-size:1.1rem; }
+
+    /* ══════════════════════════════════════════
+       LOADING STATE
+    ══════════════════════════════════════════ */
+    .spinner-wrap {
+      display:flex; align-items:center; justify-content:center;
+      padding:4rem 0; gap:14px; color:rgba(255,255,255,.35); font-size:.9rem;
+    }
+    .spin { animation:spinA .8s linear infinite; }
+    @keyframes spinA { to{ transform:rotate(360deg); } }
+
+    /* ══════════════════════════════════════════
+       FOOTER
+    ══════════════════════════════════════════ */
+    footer {
+      text-align:center; padding:1.5rem 1rem;
+      font-size:.75rem; color:rgba(255,255,255,.2);
+      border-top:1px solid rgba(255,255,255,.05);
+    }
+    footer a { color:rgba(212,175,55,.4); }
+
+    /* ══════════════════════════════════════════
+       RESPONSIVE
+    ══════════════════════════════════════════ */
+    @media(max-width:480px){
+      .hero h1 { font-size:1.55rem; }
+      .plans-grid { gap:14px; }
+      .plan-card { padding:1.3rem 1.1rem; }
+      .compare-table { font-size:.75rem; }
+      .compare-table td, .compare-table th { padding:.5rem .5rem; }
+      .modal-box { padding:1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-base"></div>
+<div class="bg-grid"></div>
+<div class="bg-orb orb1"></div>
+<div class="bg-orb orb2"></div>
+
+<!-- ══════════ HEADER ══════════ -->
+<header id="mainHeader">
+  <a href="dashboard.html" class="logo-link">
+    <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg"
+         alt="SBH" class="logo-img">
+    <div class="logo-text">
+      <span class="ln1">SOCIAL</span>
+      <span class="ln2">BOOST</span>
+      <span class="ln3">HORIZON</span>
+    </div>
+  </a>
+
+  <div class="header-right">
+    <div class="balance-pill" id="headerBalance" onclick="window.location.href='fonds.html'">
+      <i class="fa-solid fa-wallet"></i>
+      <span id="headerBalanceVal">—</span>
+    </div>
+    <a href="profil.html" class="avatar-btn" id="headerAvatar">
+      <i class="fa-solid fa-user"></i>
+    </a>
+    <button class="hamburger" id="hamBtn" aria-label="Menu">
+      <i class="fa-solid fa-bars"></i>
+    </button>
+  </div>
+
+  <!-- Mobile menu -->
+  <nav class="mob-menu" id="mobMenu">
+    <a href="dashboard.html"><i class="fa-solid fa-house"></i> Tableau de bord</a>
+    <a href="commander.html"><i class="fa-solid fa-cart-shopping"></i> Commander</a>
+    <a href="commande-automatique.html"><i class="fa-solid fa-bolt"></i> Automatique</a>
+    <a href="commande-avancee.html"><i class="fa-solid fa-star"></i> Avancée</a>
+    <a href="commande-revendeur.html"><i class="fa-solid fa-tags"></i> Revendeur</a>
+    <hr class="mob-divider">
+    <div class="mob-label">Mon compte</div>
+    <a href="fonds.html"><i class="fa-solid fa-wallet"></i> Recharger</a>
+    <a href="mes-commandes.html"><i class="fa-solid fa-list-check"></i> Mes commandes</a>
+    <a href="abonnement.html" class="active-link"><i class="fa-solid fa-crown"></i> Abonnements</a>
+    <a href="profil.html"><i class="fa-solid fa-user-gear"></i> Profil</a>
+    <hr class="mob-divider">
+    <a href="#" id="mobLogout"><i class="fa-solid fa-right-from-bracket"></i> Déconnexion</a>
+  </nav>
+</header>
+
+<!-- ══════════ CONTENU PRINCIPAL ══════════ -->
+<div class="page-wrap">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-badge"><i class="fa-solid fa-crown"></i> Plans Premium</div>
+    <h1>Boostez votre<br><span>expérience SBH</span></h1>
+    <p>Choisissez le plan qui correspond à votre ambition. Remises automatiques sur toutes vos commandes, outils exclusifs et support dédié.</p>
+  </div>
+
+  <!-- Loading -->
+  <div class="spinner-wrap" id="loadingState">
+    <i class="fa-solid fa-circle-notch spin fa-lg"></i>
+    <span>Chargement de votre abonnement…</span>
+  </div>
+
+  <!-- Contenu (affiché après chargement) -->
+  <div id="mainContent" style="display:none;">
+
+    <!-- Solde card -->
+    <div class="solde-card">
+      <div class="solde-left">
+        <i class="fa-solid fa-wallet"></i>
+        <div>
+          <div class="solde-label">Solde disponible</div>
+          <div class="solde-val" id="soldeVal">—</div>
+        </div>
+      </div>
+      <div class="solde-right">
+        <a href="fonds.html" style="color:rgba(212,175,55,.6);font-size:.78rem;font-weight:600;">
+          + Recharger <i class="fa-solid fa-arrow-right"></i>
+        </a>
+      </div>
+    </div>
+
+    <!-- Plan actuel -->
+    <div class="current-plan-bar">
+      <div class="cp-icon" id="cpIcon">🚀</div>
+      <div class="cp-info">
+        <div class="cp-label">Votre plan actuel</div>
+        <div class="cp-name" id="cpName">Gratuit</div>
+        <div class="cp-expires" id="cpExpires"></div>
+      </div>
+      <div class="cp-badge" id="cpBadge">Actif</div>
+    </div>
+
+    <!-- Toggle mensuel/annuel -->
+    <div class="billing-toggle">
+      <label id="lblMonthly" class="active">Mensuel</label>
+      <label class="toggle-sw">
+        <input type="checkbox" id="annualToggle">
+        <span class="toggle-slider"></span>
+      </label>
+      <label id="lblAnnual">Annuel</label>
+      <span class="save-badge">−17%</span>
+    </div>
+
+    <!-- Plans grid -->
+    <div class="plans-grid" id="plansGrid">
+
+      <!-- FREE -->
+      <div class="plan-card plan-free" id="card-free">
+        <div class="plan-header">
+          <div class="plan-icon">🆓</div>
+          <div class="plan-name">Gratuit</div>
+          <div class="plan-tagline">L'essentiel pour commencer</div>
+        </div>
+        <div class="plan-price">
+          <div class="price-row">
+            <div class="price-main">0</div>
+            <div class="price-unit">FCFA/mois</div>
+          </div>
+        </div>
+        <div class="plan-features">
+          <ul class="feat-list">
+            <li class="yes"><i class="fa-solid fa-check"></i><span>Accès aux 4 pages de commande</span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span>Historique <strong>30 jours</strong></span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span>Support WhatsApp standard</span></li>
+            <li class="no"><i class="fa-solid fa-xmark"></i><span>Remise sur commandes</span></li>
+            <li class="no"><i class="fa-solid fa-xmark"></i><span>Commandes favorites</span></li>
+            <li class="no"><i class="fa-solid fa-xmark"></i><span>Planificateur</span></li>
+          </ul>
+        </div>
+        <button class="plan-btn" disabled>
+          <i class="fa-solid fa-check"></i> Plan de base
+        </button>
+      </div>
+
+      <!-- STARTER -->
+      <div class="plan-card plan-starter" id="card-starter">
+        <div class="plan-header">
+          <div class="plan-icon">⚡</div>
+          <div class="plan-name">Starter</div>
+          <div class="plan-tagline">Pour les utilisateurs réguliers</div>
+        </div>
+        <div class="plan-price">
+          <div class="price-row">
+            <div class="price-main" id="price-starter-main">2 990</div>
+            <div class="price-unit">FCFA/mois</div>
+          </div>
+          <div class="price-annual" id="price-starter-annual">
+            soit <s>35 880</s> <strong class="save-green">29 900 FCFA/an</strong>
+          </div>
+        </div>
+        <div class="plan-features">
+          <ul class="feat-list">
+            <li class="yes"><i class="fa-solid fa-check"></i><span><strong>−3%</strong> sur toutes les commandes</span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span>Historique <strong>12 mois</strong></span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span><strong>5</strong> commandes favorites</span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span>Notifs email + WhatsApp</span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span>Bonus bienvenue <strong>+500 FCFA</strong></span></li>
+            <li class="no"><i class="fa-solid fa-xmark"></i><span>Planificateur de commandes</span></li>
+          </ul>
+        </div>
+        <button class="plan-btn" id="btn-starter" onclick="openModal('starter')">
+          <i class="fa-solid fa-bolt"></i> Choisir Starter
+        </button>
+      </div>
+
+      <!-- PRO -->
+      <div class="plan-card plan-pro popular" id="card-pro">
+        <div class="popular-badge" id="pop-badge-pro">⭐ Populaire</div>
+        <div class="plan-header">
+          <div class="plan-icon">🚀</div>
+          <div class="plan-name">Pro</div>
+          <div class="plan-tagline">Pour les professionnels actifs</div>
+        </div>
+        <div class="plan-price">
+          <div class="price-row">
+            <div class="price-main" id="price-pro-main">7 490</div>
+            <div class="price-unit">FCFA/mois</div>
+          </div>
+          <div class="price-annual" id="price-pro-annual">
+            soit <s>89 880</s> <strong class="save-green">74 900 FCFA/an</strong>
+          </div>
+        </div>
+        <div class="plan-features">
+          <ul class="feat-list">
+            <li class="yes"><i class="fa-solid fa-check"></i><span><strong>−8%</strong> sur toutes les commandes</span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span>Historique <strong>12 mois</strong></span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span><strong>10</strong> commandes favorites</span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span><strong>Planificateur</strong> de commandes</span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span><strong>Commandes récurrentes</strong></span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span>Support <strong>prioritaire</strong> (&lt;2h)</span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span>Dashboard analytics</span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span>Export CSV historique</span></li>
+          </ul>
+        </div>
+        <button class="plan-btn" id="btn-pro" onclick="openModal('pro')">
+          <i class="fa-solid fa-rocket"></i> Choisir Pro
+        </button>
+      </div>
+
+      <!-- ELITE -->
+      <div class="plan-card plan-elite" id="card-elite">
+        <div class="plan-header">
+          <div class="plan-icon">👑</div>
+          <div class="plan-name">Elite</div>
+          <div class="plan-tagline">Pour agences &amp; revendeurs</div>
+        </div>
+        <div class="plan-price">
+          <div class="price-row">
+            <div class="price-main" id="price-elite-main">19 990</div>
+            <div class="price-unit">FCFA/mois</div>
+          </div>
+          <div class="price-annual" id="price-elite-annual">
+            soit <s>239 880</s> <strong class="save-green">199 900 FCFA/an</strong>
+          </div>
+        </div>
+        <div class="plan-features">
+          <ul class="feat-list">
+            <li class="yes"><i class="fa-solid fa-check"></i><span><strong>−15%</strong> sur commandes Standard/Auto</span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span>Historique <strong>illimité</strong></span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span>Favoris <strong>illimités</strong></span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span>Tout le Pro inclus</span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span><strong>Gestionnaire de campagnes</strong></span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span>Quota API <strong>×5</strong></span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span>Bonus <strong>+2 000 FCFA/mois</strong></span></li>
+            <li class="yes"><i class="fa-solid fa-check"></i><span><strong>Manager dédié</strong> WhatsApp</span></li>
+          </ul>
+        </div>
+        <button class="plan-btn" id="btn-elite" onclick="openModal('elite')">
+          <i class="fa-solid fa-crown"></i> Choisir Elite
+        </button>
+      </div>
+
+    </div><!-- /plans-grid -->
+
+    <!-- Annuler abonnement -->
+    <div class="cancel-section" id="cancelSection">
+      <div class="cancel-left">
+        <h4><i class="fa-solid fa-triangle-exclamation"></i> Résilier mon abonnement</h4>
+        <p>Votre plan reste actif jusqu'à la fin de la période en cours. Aucun remboursement.</p>
+      </div>
+      <button class="btn-cancel-sub" onclick="openCancelModal()">Résilier</button>
+    </div>
+
+    <!-- ── Tableau comparatif ── -->
+    <div class="compare-section">
+      <div class="section-title"><i class="fa-solid fa-table-columns"></i> Comparatif détaillé</div>
+      <div style="overflow-x:auto;">
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th class="th-free">Gratuit</th>
+              <th class="th-starter">Starter</th>
+              <th class="th-pro">Pro</th>
+              <th class="th-elite">Elite</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="row-cat"><td colspan="5">Tarification</td></tr>
+            <tr><td>Prix mensuel</td><td>0 FCFA</td><td>2 990</td><td>7 490</td><td>19 990</td></tr>
+            <tr><td>Remise commandes</td><td>—</td><td>−3%</td><td>−8%</td><td>−15%</td></tr>
+            <tr><td>Plafond remise/commande</td><td>—</td><td>—</td><td>—</td><td>15 000 FCFA</td></tr>
+
+            <tr class="row-cat"><td colspan="5">Commandes</td></tr>
+            <tr><td>Pages de commande</td><td>4</td><td>4</td><td>4</td><td>4</td></tr>
+            <tr><td>Commandes favorites</td><td><i class="fa-solid fa-xmark"></i></td><td>5</td><td>10</td><td>Illimité</td></tr>
+            <tr><td>Planificateur</td><td><i class="fa-solid fa-xmark"></i></td><td><i class="fa-solid fa-xmark"></i></td><td><i class="fa-solid fa-check"></i></td><td><i class="fa-solid fa-check"></i></td></tr>
+            <tr><td>Commandes récurrentes</td><td><i class="fa-solid fa-xmark"></i></td><td><i class="fa-solid fa-xmark"></i></td><td><i class="fa-solid fa-check"></i></td><td><i class="fa-solid fa-check"></i></td></tr>
+            <tr><td>Gestionnaire campagnes</td><td><i class="fa-solid fa-xmark"></i></td><td><i class="fa-solid fa-xmark"></i></td><td><i class="fa-solid fa-xmark"></i></td><td><i class="fa-solid fa-check"></i></td></tr>
+
+            <tr class="row-cat"><td colspan="5">Historique &amp; données</td></tr>
+            <tr><td>Historique commandes</td><td>30 jours</td><td>12 mois</td><td>12 mois</td><td>Illimité</td></tr>
+            <tr><td>Dashboard analytics</td><td><i class="fa-solid fa-xmark"></i></td><td><i class="fa-solid fa-xmark"></i></td><td><i class="fa-solid fa-check"></i></td><td><i class="fa-solid fa-check"></i></td></tr>
+            <tr><td>Export CSV</td><td><i class="fa-solid fa-xmark"></i></td><td><i class="fa-solid fa-xmark"></i></td><td><i class="fa-solid fa-check"></i></td><td><i class="fa-solid fa-check"></i></td></tr>
+
+            <tr class="row-cat"><td colspan="5">Support &amp; extras</td></tr>
+            <tr><td>Support WhatsApp</td><td>Standard</td><td>Standard</td><td>Prioritaire</td><td>Manager dédié</td></tr>
+            <tr><td>Bonus bienvenue</td><td><i class="fa-solid fa-xmark"></i></td><td>+500 FCFA</td><td><i class="fa-solid fa-xmark"></i></td><td><i class="fa-solid fa-xmark"></i></td></tr>
+            <tr><td>Bonus mensuel</td><td><i class="fa-solid fa-xmark"></i></td><td><i class="fa-solid fa-xmark"></i></td><td><i class="fa-solid fa-xmark"></i></td><td>+2 000 FCFA</td></tr>
+            <tr><td>Quota API</td><td>×1</td><td>×1</td><td>×2</td><td>×5</td></tr>
+            <tr><td>Accès anticipé nouveautés</td><td><i class="fa-solid fa-xmark"></i></td><td><i class="fa-solid fa-xmark"></i></td><td><i class="fa-solid fa-check"></i></td><td><i class="fa-solid fa-check"></i></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── ROI Section ── -->
+    <div class="roi-section">
+      <div class="section-title"><i class="fa-solid fa-calculator"></i> Rentabilité — À partir de quel volume l'abonnement se rembourse ?</div>
+      <div class="roi-cards">
+        <div class="roi-card c-starter">
+          <div class="roi-plan">⚡ Starter · 2 990 FCFA/mois</div>
+          <div class="roi-q">Break-even commandes</div>
+          <div class="roi-a">~99 700 FCFA/mois</div>
+          <div class="roi-sub">La remise de 3% couvre l'abonnement. En dessous : vous êtes déjà gagnant. Au-dessus : vous économisez encore plus.</div>
+        </div>
+        <div class="roi-card c-pro">
+          <div class="roi-plan">🚀 Pro · 7 490 FCFA/mois</div>
+          <div class="roi-q">Break-even commandes</div>
+          <div class="roi-a">~93 600 FCFA/mois</div>
+          <div class="roi-sub">8% de remise + planificateur + récurrences = outil professionnel. ROI rapide dès 2 commandes/semaine.</div>
+        </div>
+        <div class="roi-card c-elite">
+          <div class="roi-plan">👑 Elite · 19 990 FCFA/mois</div>
+          <div class="roi-q">Break-even commandes</div>
+          <div class="roi-a">~133 000 FCFA/mois</div>
+          <div class="roi-sub">15% + 2 000 FCFA bonus mensuel. Conçu pour agences commandant 300 000+ FCFA/mois.</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /mainContent -->
+
+</div><!-- /page-wrap -->
+
+<footer>
+  &copy; 2024 Social Boost Horizon — <a href="dashboard.html">Tableau de bord</a>
+  &nbsp;·&nbsp; Partenaire : <a href="https://texerra.site" target="_blank">texerra.site</a>
+</footer>
+
+<!-- ══════════ MODAL SOUSCRIPTION ══════════ -->
+<div class="modal-overlay" id="subModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+    <div class="modal-icon" id="modalIcon">🚀</div>
+    <div class="modal-title" id="modalTitle">Souscrire au plan Pro</div>
+    <div class="modal-sub" id="modalSub">Vérification de votre solde en cours…</div>
+
+    <div class="modal-info-row">
+      <span class="mi-label">Montant débité</span>
+      <span class="mi-val" id="modalAmount">—</span>
+    </div>
+    <div class="modal-info-row">
+      <span class="mi-label">Votre solde actuel</span>
+      <span class="mi-val" id="modalSolde">—</span>
+    </div>
+    <div class="modal-info-row">
+      <span class="mi-label">Solde après souscription</span>
+      <span class="mi-val" id="modalSoldeAfter">—</span>
+    </div>
+
+    <div class="modal-balance-check" id="modalBalCheck">
+      <i class="fa-solid fa-circle-notch spin"></i> Vérification…
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel-m" onclick="closeModal()">Annuler</button>
+      <button class="btn-confirm-pro" id="modalConfirmBtn" onclick="confirmSubscribe()">
+        <i class="fa-solid fa-lock"></i> Confirmer
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL RÉSILIATION ══════════ -->
+<div class="modal-overlay" id="cancelModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeCancelModal()"><i class="fa-solid fa-xmark"></i></button>
+    <div class="modal-icon cancel">⚠️</div>
+    <div class="modal-title" style="color:#f87171;">Résilier mon abonnement</div>
+    <div class="modal-sub">
+      Votre plan restera actif jusqu'à la fin de la période en cours.<br>
+      <strong style="color:#fff;">Aucun remboursement ne sera effectué.</strong>
+    </div>
+    <div class="modal-info-row">
+      <span class="mi-label">Plan actuel</span>
+      <span class="mi-val" id="cancelPlanName">—</span>
+    </div>
+    <div class="modal-info-row">
+      <span class="mi-label">Fin de période</span>
+      <span class="mi-val" id="cancelEndDate">—</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel-m" onclick="closeCancelModal()">Garder mon plan</button>
+      <button class="btn-confirm-cancel" onclick="confirmCancel()">
+        <i class="fa-solid fa-ban"></i> Résilier quand même
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ TOAST ══════════ -->
+<div class="toast" id="toast"><i class="fa-solid fa-check-circle"></i><span id="toastMsg"></span></div>
+
+<!-- ══════════ SCRIPTS ══════════ -->
+<script>
+  /* ── Firebase config ── */
+  const firebaseConfig = {
+    apiKey: "AIzaSyDFiRVRFj3k1YPTDqLQe39zNI1k1wJqfFU",
+    authDomain: "boostsocial-8b1ed.firebaseapp.com",
+    projectId: "boostsocial-8b1ed",
+    storageBucket: "boostsocial-8b1ed.appspot.com",
+    messagingSenderId: "735750219427",
+    appId: "1:735750219427:web:81df9a43e63d2e0c6d3fe8"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+
+  /* ── State ── */
+  let currentUser   = null;
+  let idToken       = null;
+  let userBalance   = 0;
+  let currentPlan   = null; // null | 'starter' | 'pro' | 'elite'
+  let currentSub    = null; // full subscription object
+  let pendingPlan   = null;
+  let annualMode    = false;
+
+  const PRICES = {
+    starter: { monthly: 2990,  annual: 29900  },
+    pro:     { monthly: 7490,  annual: 74900  },
+    elite:   { monthly: 19990, annual: 199900 }
+  };
+
+  const ICONS = { free:'🆓', starter:'⚡', pro:'🚀', elite:'👑' };
+  const NAMES = { free:'Gratuit', starter:'Starter', pro:'Pro', elite:'Elite' };
+
+  /* ── Helpers ── */
+  function fmt(n) {
+    return Number(n).toLocaleString('fr-FR') + ' FCFA';
+  }
+  function showToast(msg, type='ok') {
+    const t = document.getElementById('toast');
+    document.getElementById('toastMsg').textContent = msg;
+    t.querySelector('i').className = type === 'ok'
+      ? 'fa-solid fa-check-circle' : 'fa-solid fa-circle-xmark';
+    t.className = 'toast ' + type + ' show';
+    setTimeout(() => t.className = 'toast ' + type, 3200);
+  }
+
+  /* ── Auth & init ── */
+  auth.onAuthStateChanged(async user => {
+    if (!user) { window.location.href = 'index.html'; return; }
+    currentUser = user;
+    idToken = await user.getIdToken();
+
+    // Avatar
+    const av = document.getElementById('headerAvatar');
+    if (user.photoURL) av.innerHTML = `<img src="${user.photoURL}" alt="">`;
+    else av.textContent = (user.displayName || user.email || 'U')[0].toUpperCase();
+
+    await loadData();
+  });
+
+  async function loadData() {
+    try {
+      const [profRes, subRes] = await Promise.all([
+        fetch('/api/user/profile', { headers:{ Authorization:`Bearer ${idToken}` } }),
+        fetch('/api/subscription/status', { headers:{ Authorization:`Bearer ${idToken}` } })
+      ]);
+      const prof = await profRes.json();
+      const sub  = await subRes.json();
+
+      // Balance
+      userBalance = prof.balance || 0;
+      const balStr = fmt(userBalance);
+      document.getElementById('soldeVal').textContent = balStr;
+      document.getElementById('headerBalanceVal').textContent = balStr;
+
+      // Subscription
+      currentSub  = sub.subscription || null;
+      currentPlan = currentSub?.status === 'active' ? currentSub?.plan : null;
+
+      renderCurrentPlan();
+      renderPlanButtons();
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('mainContent').style.display  = 'block';
+    } catch(e) {
+      console.error(e);
+      showToast('Erreur de chargement. Réessayez.', 'err');
+    }
+  }
+
+  /* ── Render current plan bar ── */
+  function renderCurrentPlan() {
+    const plan   = currentPlan || 'free';
+    const name   = NAMES[plan] || 'Gratuit';
+    const icon   = ICONS[plan] || '🆓';
+
+    document.getElementById('cpIcon').textContent = icon;
+    const cpNameEl = document.getElementById('cpName');
+    cpNameEl.textContent = name;
+    cpNameEl.className = 'cp-name ' + plan;
+
+    const badge = document.getElementById('cpBadge');
+    if (!currentSub || !currentSub.plan) {
+      badge.textContent = 'Plan de base';
+      badge.className = 'cp-badge none';
+      document.getElementById('cpExpires').textContent = '';
+    } else if (currentSub.status === 'active') {
+      badge.textContent = 'Actif';
+      badge.className = 'cp-badge active';
+      if (currentSub.endDate) {
+        const d = new Date(currentSub.endDate._seconds
+          ? currentSub.endDate._seconds * 1000
+          : currentSub.endDate);
+        document.getElementById('cpExpires').textContent =
+          'Renouvellement le ' + d.toLocaleDateString('fr-FR', {day:'numeric',month:'long',year:'numeric'});
+      }
+    } else {
+      badge.textContent = 'Expiré';
+      badge.className = 'cp-badge expired';
+    }
+
+    // Cancel section
+    const cs = document.getElementById('cancelSection');
+    if (currentSub?.status === 'active' && currentSub?.plan) {
+      cs.classList.add('shown');
+      document.getElementById('cancelPlanName').textContent = name;
+      if (currentSub.endDate) {
+        const d = new Date(currentSub.endDate._seconds
+          ? currentSub.endDate._seconds * 1000
+          : currentSub.endDate);
+        document.getElementById('cancelEndDate').textContent =
+          d.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+      }
+    } else {
+      cs.classList.remove('shown');
+    }
+  }
+
+  /* ── Render plan buttons ── */
+  function renderPlanButtons() {
+    ['starter','pro','elite'].forEach(p => {
+      const btn  = document.getElementById('btn-' + p);
+      const card = document.getElementById('card-' + p);
+      if (currentPlan === p) {
+        btn.className = 'plan-btn is-current';
+        btn.innerHTML = '<i class="fa-solid fa-check-circle"></i> Plan actuel';
+        btn.onclick = null;
+        // current badge
+        const existing = card.querySelector('.popular-badge,.current-badge');
+        if (existing) existing.remove();
+        const cb = document.createElement('div');
+        cb.className = 'current-badge'; cb.textContent = '✓ Actuel';
+        card.insertBefore(cb, card.firstChild);
+      } else {
+        // reset
+        btn.disabled = false;
+        const icons = { starter:'fa-bolt', pro:'fa-rocket', elite:'fa-crown' };
+        const labels = { starter:'Choisir Starter', pro:'Choisir Pro', elite:'Choisir Elite' };
+        const confirmClasses = { starter:'btn-confirm-starter', pro:'btn-confirm-pro', elite:'btn-confirm-elite' };
+        btn.className = 'plan-btn';
+        btn.innerHTML = `<i class="fa-solid ${icons[p]}"></i> ${labels[p]}`;
+        btn.onclick = () => openModal(p);
+      }
+    });
+  }
+
+  /* ── Annual toggle ── */
+  document.getElementById('annualToggle').addEventListener('change', function() {
+    annualMode = this.checked;
+    document.getElementById('lblMonthly').classList.toggle('active', !annualMode);
+    document.getElementById('lblAnnual').classList.toggle('active', annualMode);
+    // update prices display
+    Object.keys(PRICES).forEach(p => {
+      const main = document.getElementById('price-' + p + '-main');
+      const ann  = document.getElementById('price-' + p + '-annual');
+      if (!main) return;
+      if (annualMode) {
+        main.textContent = Math.round(PRICES[p].annual / 12).toLocaleString('fr-FR');
+        ann.classList.add('shown');
+      } else {
+        main.textContent = PRICES[p].monthly.toLocaleString('fr-FR');
+        ann.classList.remove('shown');
+      }
+    });
+  });
+
+  /* ── Open subscribe modal ── */
+  function openModal(plan) {
+    pendingPlan = plan;
+    const price = annualMode ? PRICES[plan].annual : PRICES[plan].monthly;
+    const after = userBalance - price;
+
+    document.getElementById('modalIcon').textContent = ICONS[plan];
+    document.getElementById('modalIcon').className = 'modal-icon ' + plan;
+    document.getElementById('modalTitle').textContent =
+      (currentPlan ? 'Changer vers ' : 'Souscrire au plan ') + NAMES[plan];
+    document.getElementById('modalSub').textContent =
+      'L\'abonnement ' + NAMES[plan] + (annualMode ? ' annuel' : ' mensuel') +
+      ' sera prélevé sur votre solde SBH immédiatement.';
+    document.getElementById('modalAmount').textContent = fmt(price);
+    document.getElementById('modalSolde').textContent  = fmt(userBalance);
+
+    const afterEl  = document.getElementById('modalSoldeAfter');
+    const checkEl  = document.getElementById('modalBalCheck');
+    const confirmEl = document.getElementById('modalConfirmBtn');
+
+    afterEl.textContent = fmt(after);
+
+    if (after >= 0) {
+      afterEl.className = 'mi-val green';
+      checkEl.className = 'modal-balance-check ok';
+      checkEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> Solde suffisant — prêt à souscrire';
+      confirmEl.disabled = false;
+    } else {
+      afterEl.className = 'mi-val red';
+      checkEl.className = 'modal-balance-check err';
+      checkEl.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> Solde insuffisant — <a href="fonds.html" style="color:#f87171;font-weight:700;margin-left:4px;">Recharger →</a>';
+      confirmEl.disabled = true;
+    }
+
+    // Confirm button color
+    confirmEl.className = 'btn-confirm-' + plan;
+    const labels2 = { starter:'Confirmer Starter', pro:'Confirmer Pro', elite:'Confirmer Elite' };
+    confirmEl.innerHTML = '<i class="fa-solid fa-lock"></i> ' + labels2[plan];
+
+    document.getElementById('subModal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('subModal').classList.remove('open');
+    pendingPlan = null;
+  }
+
+  /* ── Confirm subscribe ── */
+  async function confirmSubscribe() {
+    if (!pendingPlan) return;
+    const btn = document.getElementById('modalConfirmBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch spin"></i> Traitement…';
+
+    try {
+      const resp = await fetch('/api/subscription/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ plan: pendingPlan, annual: annualMode })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        closeModal();
+        showToast('🎉 Abonnement ' + NAMES[pendingPlan] + ' activé !', 'ok');
+        await loadData();
+      } else {
+        showToast(data.error || 'Erreur lors de la souscription', 'err');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-lock"></i> Confirmer';
+      }
+    } catch(e) {
+      showToast('Erreur réseau. Réessayez.', 'err');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-lock"></i> Confirmer';
+    }
+  }
+
+  /* ── Cancel modal ── */
+  function openCancelModal()  { document.getElementById('cancelModal').classList.add('open');    }
+  function closeCancelModal() { document.getElementById('cancelModal').classList.remove('open'); }
+
+  async function confirmCancel() {
+    const btn = document.querySelector('#cancelModal .btn-confirm-cancel');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch spin"></i> Résiliation…';
+    try {
+      const resp = await fetch('/api/subscription/cancel', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${idToken}` }
+      });
+      const data = await resp.json();
+      if (data.success) {
+        closeCancelModal();
+        showToast('Abonnement résilié. Actif jusqu\'à fin de période.', 'ok');
+        await loadData();
+      } else {
+        showToast(data.error || 'Erreur résiliation', 'err');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-ban"></i> Résilier quand même';
+      }
+    } catch(e) {
+      showToast('Erreur réseau.', 'err');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-ban"></i> Résilier quand même';
+    }
+  }
+
+  /* ── Hamburger ── */
+  document.getElementById('hamBtn').addEventListener('click', () => {
+    document.getElementById('mainHeader').classList.toggle('open');
+  });
+  document.addEventListener('click', e => {
+    const h = document.getElementById('mainHeader');
+    if (!h.contains(e.target)) h.classList.remove('open');
+  });
+
+  /* ── Logout ── */
+  document.getElementById('mobLogout').addEventListener('click', async e => {
+    e.preventDefault();
+    await auth.signOut();
+    window.location.href = 'index.html';
+  });
+</script>
+</body>
+</html>
