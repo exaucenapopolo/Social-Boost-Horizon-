@@ -399,7 +399,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
   <script>
-    // Configuration Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -411,24 +410,35 @@
 
     if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
     const auth = firebase.auth();
-    const db = firebase.firestore();
+    const db   = firebase.firestore();
     const provider = new firebase.auth.GoogleAuthProvider();
 
-    // ── Redirection si déjà connecté ──
+    // ══════════════════════════════════════════════════════
+    // FIX #1 : isRegistering déclaré ICI, AVANT onAuthStateChanged
+    //          Sinon il est dans la "zone morte" au moment où
+    //          onAuthStateChanged est attaché et la vérification
+    //          !isRegistering lève une ReferenceError.
+    // ══════════════════════════════════════════════════════
+    let isRegistering = false;
+
+    // FIX #2 : onAuthStateChanged vérifie !isRegistering
+    //          Sans ça, dès que Firebase crée le compte,
+    //          la page repart vers dashboard.html et la requête
+    //          /api/register (et l'email) est annulée en vol.
     auth.onAuthStateChanged((user) => {
-      if (user) {
+      if (user && !isRegistering) {
         window.location.href = 'dashboard.html';
       }
     });
 
-    // ── Gestion du Menu Hamburger ──
-    const header = document.querySelector("header");
-    document.querySelector(".icon-hamburger").addEventListener("click", () => header.classList.toggle("open"));
-    document.addEventListener("click", (e) => { 
-      if (!header.contains(e.target) && header.classList.contains("open")) header.classList.remove("open"); 
+    // ── Menu hamburger ──
+    const header = document.querySelector('header');
+    document.querySelector('.icon-hamburger').addEventListener('click', () => header.classList.toggle('open'));
+    document.addEventListener('click', (e) => {
+      if (!header.contains(e.target) && header.classList.contains('open')) header.classList.remove('open');
     });
 
-    // ── Utilitaires UI ──
+    // ── Notifications ──
     let notifTimeout;
     function showNotification(message, type, duration = 6000) {
       const n = document.getElementById('notification');
@@ -448,31 +458,27 @@
       document.querySelectorAll('.error, .success-msg').forEach(el => { el.style.display = 'none'; });
     }
 
-    // ── Logique du Sélecteur de Pays Personnalisé ──
-    const customSelectDisplay = document.getElementById('customSelectDisplay');
+    // ── Sélecteur de pays ──
+    const customSelectDisplay  = document.getElementById('customSelectDisplay');
     const customSelectDropdown = document.getElementById('customSelectDropdown');
-    const customSearchInput = document.getElementById('customSearchInput');
-    const customSelectText = document.getElementById('customSelectText');
-    const paysInput = document.getElementById('pays');
-    const customOptions = document.querySelectorAll('.custom-select-option');
-    const customGroups = document.querySelectorAll('.custom-select-group');
+    const customSearchInput    = document.getElementById('customSearchInput');
+    const customSelectText     = document.getElementById('customSelectText');
+    const paysInput            = document.getElementById('pays');
+    const customOptions        = document.querySelectorAll('.custom-select-option');
+    const customGroups         = document.querySelectorAll('.custom-select-group');
 
     customSelectDisplay.addEventListener('click', function(e) {
       e.stopPropagation();
       this.classList.toggle('active');
       customSelectDropdown.classList.toggle('show');
-      if (customSelectDropdown.classList.contains('show')) {
-        customSearchInput.focus();
-      }
+      if (customSelectDropdown.classList.contains('show')) customSearchInput.focus();
     });
-
     document.addEventListener('click', function(e) {
       if (!document.getElementById('customSelectContainer').contains(e.target)) {
         customSelectDisplay.classList.remove('active');
         customSelectDropdown.classList.remove('show');
       }
     });
-
     customOptions.forEach(option => {
       option.addEventListener('click', function() {
         customSelectText.textContent = this.textContent;
@@ -483,42 +489,26 @@
         document.getElementById('countryError').style.display = 'none';
       });
     });
-
     customSearchInput.addEventListener('input', function(e) {
       const term = e.target.value.toLowerCase();
-      customOptions.forEach(opt => {
-        if(opt.textContent.toLowerCase().includes(term)) {
-          opt.classList.remove('hidden');
-        } else {
-          opt.classList.add('hidden');
-        }
-      });
-
+      customOptions.forEach(opt => opt.classList.toggle('hidden', !opt.textContent.toLowerCase().includes(term)));
       customGroups.forEach(group => {
-        const visibleOptions = group.querySelectorAll('.custom-select-option:not(.hidden)');
-        const label = group.querySelector('.custom-select-group-label');
-        if (visibleOptions.length === 0) {
-          label.style.display = 'none';
-        } else {
-          label.style.display = 'block';
-        }
+        const visible = group.querySelectorAll('.custom-select-option:not(.hidden)');
+        group.querySelector('.custom-select-group-label').style.display = visible.length === 0 ? 'none' : 'block';
       });
     });
 
-    // ── Géolocalisation pour Auto-Sélection du Pays ──
+    // ── Géolocalisation auto-pays ──
     document.addEventListener('DOMContentLoaded', () => {
       fetch('https://ipapi.co/json/')
-        .then(response => response.json())
+        .then(r => r.json())
         .then(data => {
           if (data.country_code && !paysInput.value) {
-            const countryCode = data.country_code.toLowerCase();
-            const targetOption = document.querySelector(`.custom-select-option[data-value="${countryCode}"]`);
-            if (targetOption) {
-              targetOption.click();
-            }
+            const opt = document.querySelector(`.custom-select-option[data-value="${data.country_code.toLowerCase()}"]`);
+            if (opt) opt.click();
           }
         })
-        .catch(error => console.log('Géolocalisation échouée, sélection manuelle requise.'));
+        .catch(() => {});
     });
 
     // ── Toggle mot de passe ──
@@ -533,19 +523,16 @@
       }
     });
 
-    // ── Dépliant pour le Code de Parrainage ──
-    const referralToggle = document.getElementById('referralToggle');
+    // ── Code de parrainage ──
+    const referralToggle  = document.getElementById('referralToggle');
     const referralWrapper = document.getElementById('referralWrapper');
-    const toggleIcon = referralToggle.querySelector('.toggle-icon');
+    const toggleIcon      = referralToggle.querySelector('.toggle-icon');
 
     referralToggle.addEventListener('click', () => {
-      if (referralWrapper.style.display === 'none') {
-        referralWrapper.style.display = 'block';
-        toggleIcon.classList.replace('fa-chevron-down', 'fa-chevron-up');
-      } else {
-        referralWrapper.style.display = 'none';
-        toggleIcon.classList.replace('fa-chevron-up', 'fa-chevron-down');
-      }
+      const isHidden = referralWrapper.style.display === 'none';
+      referralWrapper.style.display = isHidden ? 'block' : 'none';
+      toggleIcon.classList.toggle('fa-chevron-down', !isHidden);
+      toggleIcon.classList.toggle('fa-chevron-up', isHidden);
     });
 
     document.getElementById('referral').addEventListener('input', function() {
@@ -581,7 +568,7 @@
       }
     });
 
-    // ── Remplissage auto depuis le lien ?ref=CODE ──
+    // ── Auto-remplissage depuis ?ref=CODE ──
     window.addEventListener('DOMContentLoaded', () => {
       const params = new URLSearchParams(window.location.search);
       if (params.has('ref')) {
@@ -592,17 +579,31 @@
       }
     });
 
-    // ── Finalisation de l'inscription (Firestore + Envoi au serveur) ──
+    // ══════════════════════════════════════════════════════
+    // finalizeRegistration — sauvegarde Firestore + email
+    // FIX #3 : on passe displayName (le vrai nom lisible) en
+    //          plus du username (identifiant), pour que l'email
+    //          dise "Bienvenue Jean Dupont" au lieu de "Bienvenue jean_dupont".
+    // ══════════════════════════════════════════════════════
     async function finalizeRegistration(user, email, pays, referralCodeUsed) {
       const userId = user.uid;
-      const generatedUsername = (user.displayName || email.split('@')[0])
-        .replace(/\s+/g, '_').toLowerCase().replace(/[^a-z0-9_]/g, '');
+
+      // Nom affiché dans l'email = displayName Google ou partie avant @ de l'email
+      const displayName = user.displayName || email.split('@')[0];
+
+      // Identifiant unique en base = version nettoyée (sans espaces, minuscules)
+      const username = displayName
+        .replace(/\s+/g, '_')
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, '');
+
       const newReferralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
 
-      // Sauvegarde rapide Firestore
+      // Sauvegarde Firestore
       await db.collection('users').doc(userId).set({
         userId,
-        username: generatedUsername,
+        displayName,
+        username,
         email,
         country: pays || '',
         phone: '',
@@ -614,21 +615,19 @@
       }, { merge: true });
 
       try {
-        // On récupère le token Firebase
         const token = await user.getIdToken();
 
-        // 🟢 TA CORRECTION EST ICI : 
-        // 1. On utilise le lien relatif '/api/register' comme tu l'as intelligemment suggéré (ça évite les blocages CORS).
-        // 2. On a mis un "await" avant fetch pour OBLIGER le navigateur à attendre que l'email soit envoyé AVANT de te rediriger.
+        // Appel API — on attend la réponse AVANT de rediriger
         const response = await fetch('/api/register', {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` 
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
             userId,
-            username: generatedUsername,
+            displayName,   // vrai nom pour l'email
+            username,      // identifiant nettoyé
             email,
             country: pays || '',
             referralCode: newReferralCode,
@@ -638,21 +637,20 @@
         });
 
         if (!response.ok) {
-           const errData = await response.json();
-           console.error("Erreur renvoyée par le backend:", errData);
+          const errData = await response.json().catch(() => ({}));
+          console.error('❌ Erreur backend /api/register:', errData);
         } else {
-           console.log("✅ Email de bienvenue envoyé avec succès par le backend !");
+          console.log('✅ Email de bienvenue envoyé avec succès !');
         }
       } catch (err) {
-        console.error("La requête vers l'API a été bloquée ou a échoué (réseau):", err);
+        // On log l'erreur mais on NE BLOQUE PAS l'inscription
+        console.error('⚠️ Requête /api/register échouée (réseau) :', err.message);
       }
 
       return true;
     }
 
-    let isRegistering = false;
-
-    // ── Soumission du formulaire ──
+    // ── Soumission du formulaire (email/password) ──
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (isRegistering) return;
@@ -663,30 +661,32 @@
       const password = document.getElementById('password').value;
       const refCode  = document.getElementById('referral').value.trim().toUpperCase();
 
-      if (!email)             return showFieldError('emailError', 'L\'adresse email est requise.');
-      if (!pays)              return showFieldError('countryError', 'Veuillez sélectionner votre pays dans la liste.');
+      if (!email)              return showFieldError('emailError',    'L\'adresse email est requise.');
+      if (!pays)               return showFieldError('countryError',  'Veuillez sélectionner votre pays dans la liste.');
       if (password.length < 6) return showFieldError('passwordError', 'Le mot de passe doit contenir au moins 6 caractères.');
 
+      // FIX : on passe isRegistering = true AVANT createUserWithEmailAndPassword
+      // pour que onAuthStateChanged ne redirige pas pendant l'envoi de l'email
       isRegistering = true;
       const btn = document.getElementById('registerBtn');
       btn.classList.add('btn-loading');
 
       try {
-        // Création du compte Firebase
         const userCred = await auth.createUserWithEmailAndPassword(email, password);
-        
-        // Finalisation + Attente de l'envoi de l'email
+
+        // L'email est envoyé ici — on attend que ce soit terminé
         await finalizeRegistration(userCred.user, email, pays, refCode);
 
-        // Une fois terminé SEULEMENT, on affiche le succès et on redirige
         btn.classList.remove('btn-loading');
         btn.style.background = '#4CAF50';
         btn.innerHTML = '<span>✅ Compte créé ! Redirection...</span>';
         showNotification('🎉 Bienvenue ! Votre compte est prêt. Redirection...', 'success', 4000);
-        
+
+        // Maintenant on peut rediriger
         setTimeout(() => { window.location.href = 'dashboard.html'; }, 3000);
 
       } catch (error) {
+        isRegistering = false;
         btn.classList.remove('btn-loading');
         if (error.code === 'auth/email-already-in-use') {
           showFieldError('emailError', '⚠️ Cette adresse email est déjà utilisée. Connectez-vous.');
@@ -695,45 +695,45 @@
         } else if (error.code === 'auth/weak-password') {
           showFieldError('passwordError', '⚠️ Mot de passe trop faible. Utilisez au moins 6 caractères.');
         } else {
-          showNotification('❌ Erreur lors de l\'inscription. Vérifiez vos informations.', 'error');
+          showNotification('❌ Erreur lors de l\'inscription : ' + error.message, 'error');
         }
-        isRegistering = false;
       }
     });
 
     // ── Inscription via Google ──
     document.getElementById('googleSignup').addEventListener('click', async () => {
       if (isRegistering) return;
+
+      // FIX : isRegistering = true AVANT signInWithPopup
       isRegistering = true;
       const btn = document.getElementById('googleSignup');
       btn.classList.add('btn-loading');
 
       try {
-        // Création du compte Google
         const result = await auth.signInWithPopup(provider);
         const user   = result.user;
         const pays   = document.getElementById('pays').value;
         const refCode = document.getElementById('referral').value.trim().toUpperCase()
           || new URLSearchParams(window.location.search).get('ref') || '';
 
-        // Finalisation + Attente de l'envoi de l'email
+        // L'email est envoyé ici — on attend que ce soit terminé
         await finalizeRegistration(user, user.email, pays, refCode);
 
-        // Une fois terminé SEULEMENT, on affiche le succès et on redirige
         btn.classList.remove('btn-loading');
         btn.style.background = '#4CAF50';
         btn.style.color = '#fff';
         btn.innerHTML = '<span>✅ Compte créé ! Redirection...</span>';
         showNotification('🎉 Compte Google validé ! Redirection...', 'success', 4000);
-        
+
+        // Maintenant on peut rediriger
         setTimeout(() => { window.location.href = 'dashboard.html'; }, 3000);
 
       } catch (error) {
+        isRegistering = false;
         btn.classList.remove('btn-loading');
         if (error.code !== 'auth/popup-closed-by-user') {
-          showNotification(`❌ Erreur Google : ${error.message}`, 'error');
+          showNotification('❌ Erreur Google : ' + error.message, 'error');
         }
-        isRegistering = false;
       }
     });
   </script>
