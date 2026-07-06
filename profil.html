@@ -1511,8 +1511,12 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
   <script>
-    // MODIFICATION PRINCIPALE : Utilisation de l'URL relative sur Vercel[cite: 1]
-    const BACKEND_URL = ''; 
+    // ----------------------------------------------------------------------
+    // ÉTAPE IMPORTANTE : Configure ton URL backend ici
+    // Par défaut, je l'ai configurée sur localhost. 
+    // Si tu es sur Vercel, remplace-la par l'URL de ton projet Vercel (ex: 'https://mon-projet.vercel.app')
+    // ----------------------------------------------------------------------
+    const BACKEND_URL = 'http://localhost:3000'; 
     
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
@@ -1769,7 +1773,6 @@
 
         progressBar.style.width = '60%';
 
-        // Conservation de la logique Cloudinary directe ultra rapide
         const res = await fetch('https://api.cloudinary.com/v1_1/do83voiqy/image/upload', {
           method: 'POST',
           body: formData
@@ -1806,6 +1809,14 @@
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
           body: JSON.stringify({ userId: currentUser.uid, photoURL: photoURL })
         });
+        
+        // Ajout d'une vérification de sécurité au cas où l'URL soit mauvaise
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+           const text = await response.text();
+           throw new Error("L'URL du backend ne semble pas correcte ou le serveur est inaccessible. Verifiez la constante BACKEND_URL.");
+        }
+
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.error || 'Erreur');
 
@@ -1845,6 +1856,13 @@
         const response = await fetch(BACKEND_URL + '/api/user/profile', {
           headers: { 'Authorization': 'Bearer ' + idToken }
         });
+        
+        // Ajout d'une vérification de sécurité au cas où l'URL soit mauvaise
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+           throw new Error("Le serveur ne répond pas avec le bon format. Vérifiez la constante BACKEND_URL.");
+        }
+
         const result = await response.json();
 
         if (response.ok && result.success) {
@@ -2007,6 +2025,14 @@
           },
           body: JSON.stringify(bodyPayload)
         });
+
+        // VÉRIFICATION DE SÉCURITÉ POUR EMPÊCHER LE BUG "Unexpected token T"
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+           const errorText = await response.text();
+           console.error("Erreur HTML reçue du serveur :", errorText);
+           throw new Error("Impossible de joindre le serveur. L'URL " + BACKEND_URL + " est incorrecte ou inaccessible.");
+        }
 
         const data = await response.json();
 
