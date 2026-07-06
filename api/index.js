@@ -1,23 +1,21 @@
 const express = require('express');
-const cors = require('cors');
-const admin = require('firebase-admin');
-const crypto = require('crypto');
-// Importation de ton service email
+const cors    = require('cors');
+const admin   = require('firebase-admin');
+const crypto  = require('crypto');
+
 const { sendWelcomeEmail } = require('./email-service.js');
 
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// Logging
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
 });
 
-// Initialisation Firebase Admin (sécurisée pour Vercel)
+// ── Firebase Admin ──────────────────────────────────────────────
 if (!admin.apps.length) {
   try {
     const privateKey = process.env.FIREBASE_PRIVATE_KEY
@@ -25,109 +23,143 @@ if (!admin.apps.length) {
       : undefined;
 
     if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !privateKey) {
-      console.error('❌ Variables Firebase manquantes');
-      throw new Error('Configuration Firebase incomplète');
+      throw new Error('Variables Firebase manquantes (FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY)');
     }
 
     admin.initializeApp({
       credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
+        projectId:   process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: privateKey,
+        privateKey,
       }),
     });
 
     console.log('✅ Firebase Admin initialisé');
   } catch (error) {
-    console.error('❌ Erreur Firebase :', error);
+    console.error('❌ Erreur Firebase :', error.message);
   }
 }
 
 const db = admin.firestore();
 
-// =============================================
-//  Middleware d’authentification
-// =============================================
+// ── Middleware d'authentification ───────────────────────────────
 async function checkAuth(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ success: false, error: 'Token manquant' });
   }
-
   const token = authHeader.split(' ')[1];
   try {
-    const decodedToken = await admin.auth().verifyIdToken(token);
-    req.user = decodedToken;
+    req.user = await admin.auth().verifyIdToken(token);
     next();
   } catch (error) {
-    console.error('❌ Token invalide :', error);
     return res.status(403).json({ success: false, error: 'Token invalide ou expiré' });
   }
 }
 
-// =============================================
-//  ROUTES
-// =============================================
-
-// Health check
+// ── Health check ────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Route : Envoyer email de bienvenue manuel
+// ── /api/register — Finalisation inscription + email bienvenue ──
+// Appelé par register.html après la création du compte Firebase.
+// FIX : on utilise displayName (le vrai nom lisible) pour l'email
+//       au lieu du username (identifiant nettoyé).
+app.post('/api/register', checkAuth, async (req, res) => {
+  try {
+    const {
+      displayName,       // vrai nom : "Jean Dupont" ou "john.doe"
+      username,          // identifiant nettoyé : "jean_dupont"
+      email,
+      country,
+      referralCode,
+      referralCodeUsed,
+      isFirstAccess
+    } = req.body;
+
+    // Nom à utiliser dans l'email (priorité : displayName du body,
+    // puis claim "name" du token Firebase Google, puis partie avant @)
+    const nameForEmail = displayName
+      || req.user.name
+      || (email || req.user.email || '').split('@')[0]
+      || 'Nouveau Membre';
+
+    const userEmail = email || req.user.email;
+
+    if (!userEmail) {
+      return res.status(400).json({ success: false, error: 'Email manquant.' });
+    }
+
+    // Envoi de l'email de bienvenue
+    // La fonction lève une erreur si Resend échoue, on la capture ici
+    // pour toujours retourner 200 (le compte existe même si l'email rate)
+    let emailSent = false;
+    try {
+      await sendWelcomeEmail({
+        email:    userEmail,
+        username: nameForEmail,
+        country:  country || 'Non spécifié'
+      });
+      emailSent = true;
+      console.log(`📧 Email bienvenue envoyé à ${userEmail} (${nameForEmail})`);
+    } catch (emailErr) {
+      // L'email a échoué — on log mais on ne bloque pas l'inscription
+      console.error(`❌ Email bienvenue NON envoyé à ${userEmail} :`, emailErr.message);
+      // Si le domaine n'est pas vérifié sur Resend, l'erreur sera :
+      // "The domain socialboosthorizon.com is not verified."
+      // → Vérifiez votre domaine sur https://resend.com/domains
+    }
+
+    res.status(200).json({
+      success:   true,
+      emailSent,
+      message:   emailSent
+        ? 'Inscription traitée et email de bienvenue envoyé !'
+        : 'Inscription traitée (email non envoyé — vérifiez les logs serveur).'
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur /api/register :', error.message);
+    res.status(500).json({ success: false, error: 'Erreur interne du serveur.' });
+  }
+});
+
+// ── /api/send-welcome — Envoi manuel d'un email de bienvenue ───
 app.post('/api/send-welcome', checkAuth, async (req, res) => {
   try {
     const { email, username, country } = req.body;
     await sendWelcomeEmail({
-      email: email || req.user.email,
+      email:    email    || req.user.email,
       username: username || req.user.name || 'Utilisateur',
-      country: country || 'Non spécifié'
+      country:  country  || 'Non spécifié'
     });
     res.json({ success: true, message: 'Email envoyé avec succès' });
   } catch (error) {
-    console.error('Erreur lors de l\'envoi de l\'email :', error);
-    res.status(500).json({ success: false, error: 'Échec de l\'envoi de l\'email' });
+    console.error('❌ Erreur /api/send-welcome :', error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// NOUVELLE ROUTE : Finaliser l'inscription et envoyer l'email (Utilisée par register.html)
-app.post('/api/register', checkAuth, async (req, res) => {
-  try {
-    const { email, username, country } = req.body;
-    
-    // On appelle directement ton service d'email !
-    await sendWelcomeEmail({
-      email: email || req.user.email,
-      username: username || req.user.name || 'Nouveau Membre',
-      country: country || 'Non spécifié'
-    });
-
-    res.status(200).json({ success: true, message: 'Inscription traitée et email envoyé !' });
-  } catch (error) {
-    console.error('Erreur dans /api/register:', error);
-    res.status(500).json({ success: false, error: 'Erreur interne du serveur lors de l\'inscription.' });
-  }
-});
-
-// Lire le profil
+// ── /api/user/profile ───────────────────────────────────────────
 app.get('/api/user/profile', checkAuth, async (req, res) => {
   try {
-    const uid = req.user.uid;
+    const uid     = req.user.uid;
     const userDoc = await db.collection('users').doc(uid).get();
 
     if (!userDoc.exists) {
       return res.json({
         success: true,
         profile: {
-          displayName: req.user.name || '',
-          email: req.user.email || '',
-          photoURL: req.user.picture || null,
-          phone: '',
-          country: '',
-          balance: 0,
-          totalOrders: 0,
-          createdAt: new Date().toISOString(),
-          settings: {},
+          displayName:   req.user.name || '',
+          email:         req.user.email || '',
+          photoURL:      req.user.picture || null,
+          phone:         '',
+          country:       '',
+          balance:       0,
+          totalOrders:   0,
+          createdAt:     new Date().toISOString(),
+          settings:      {},
           resellerLevel: 'bronze',
         }
       });
@@ -137,41 +169,39 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
     res.json({
       success: true,
       profile: {
-        displayName: data.displayName || req.user.name || '',
-        email: data.email || req.user.email || '',
-        photoURL: data.photoURL || req.user.picture || null,
-        phone: data.phone || '',
-        country: data.country || '',
-        balance: data.balance || 0,
-        totalOrders: data.totalOrders || 0,
-        createdAt: data.createdAt || new Date().toISOString(),
-        settings: data.settings || {},
+        displayName:   data.displayName || data.username || req.user.name || '',
+        email:         data.email       || req.user.email || '',
+        photoURL:      data.photoURL    || req.user.picture || null,
+        phone:         data.phone       || '',
+        country:       data.country     || '',
+        balance:       data.balance     || 0,
+        totalOrders:   data.totalOrders || 0,
+        createdAt:     data.createdAt   || new Date().toISOString(),
+        settings:      data.settings    || {},
         resellerLevel: data.resellerLevel || 'bronze',
-        lastSignIn: data.lastSignIn || null,
+        lastSignIn:    data.lastSignIn  || null,
       }
     });
   } catch (error) {
-    console.error('Erreur /api/user/profile :', error);
+    console.error('❌ Erreur /api/user/profile :', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Mettre à jour le profil
+// ── /api/update-profile ─────────────────────────────────────────
 app.post('/api/update-profile', checkAuth, async (req, res) => {
   const { displayName, email, phone, country, photoURL, newPassword } = req.body;
   const uid = req.user.uid;
 
   try {
-    const updateData = {};
-    if (displayName !== undefined) updateData.displayName = displayName;
-    if (email !== undefined) updateData.email = email;
-    if (phone !== undefined) updateData.phone = phone;
-    if (country !== undefined) updateData.country = country;
-    if (photoURL !== undefined) updateData.photoURL = photoURL;
-
+    const updateData  = {};
     const authUpdates = {};
-    if (displayName) authUpdates.displayName = displayName;
-    if (photoURL) authUpdates.photoURL = photoURL;
+
+    if (displayName !== undefined) { updateData.displayName = displayName; authUpdates.displayName = displayName; }
+    if (email       !== undefined)   updateData.email       = email;
+    if (phone       !== undefined)   updateData.phone       = phone;
+    if (country     !== undefined)   updateData.country     = country;
+    if (photoURL    !== undefined) { updateData.photoURL    = photoURL; authUpdates.photoURL = photoURL; }
 
     if (Object.keys(authUpdates).length > 0) {
       await admin.auth().updateUser(uid, authUpdates);
@@ -185,99 +215,91 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
     }
 
     await db.collection('users').doc(uid).set(updateData, { merge: true });
-
     res.json({ success: true, message: 'Profil mis à jour avec succès' });
   } catch (error) {
-    console.error('Erreur /api/update-profile :', error);
+    console.error('❌ Erreur /api/update-profile :', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Enregistrer les paramètres
+// ── /api/user/settings ──────────────────────────────────────────
 app.post('/api/user/settings', checkAuth, async (req, res) => {
   const { settings } = req.body;
   if (!settings || typeof settings !== 'object') {
     return res.status(400).json({ success: false, error: 'Paramètres invalides' });
   }
-
   try {
     await db.collection('users').doc(req.user.uid).set({ settings }, { merge: true });
     res.json({ success: true, settings });
   } catch (error) {
-    console.error('Erreur /api/user/settings :', error);
+    console.error('❌ Erreur /api/user/settings :', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Infos clé API
+// ── /api/user/api-key-info ──────────────────────────────────────
 app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
   try {
     const userDoc = await db.collection('users').doc(req.user.uid).get();
-    const data = userDoc.data();
+    const data    = userDoc.data();
     if (data && data.apiKey) {
       res.json({
-        success: true,
+        success:   true,
         hasApiKey: true,
-        prefix: data.apiKey.substring(0, 8),
+        prefix:    data.apiKey.substring(0, 8),
         createdAt: data.apiKeyCreatedAt || new Date().toISOString(),
       });
     } else {
       res.json({ success: true, hasApiKey: false });
     }
   } catch (error) {
-    console.error('Erreur /api/user/api-key-info :', error);
+    console.error('❌ Erreur /api/user/api-key-info :', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Générer clé API
+// ── /api/user/generate-api-key ──────────────────────────────────
 app.post('/api/user/generate-api-key', checkAuth, async (req, res) => {
   try {
     const newKey = 'sbh_' + crypto.randomBytes(24).toString('hex');
     const prefix = newKey.substring(0, 8);
-
     await db.collection('users').doc(req.user.uid).set({
-      apiKey: newKey,
-      apiKeyCreatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      apiKey:           newKey,
+      apiKeyCreatedAt:  admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
-
     res.json({ success: true, apiKey: newKey, prefix });
   } catch (error) {
-    console.error('Erreur /api/user/generate-api-key :', error);
+    console.error('❌ Erreur /api/user/generate-api-key :', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Révoquer clé API
+// ── /api/user/revoke-api-key ────────────────────────────────────
 app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
   try {
     await db.collection('users').doc(req.user.uid).update({
-      apiKey: admin.firestore.FieldValue.delete(),
+      apiKey:          admin.firestore.FieldValue.delete(),
       apiKeyCreatedAt: admin.firestore.FieldValue.delete(),
     });
     res.json({ success: true });
   } catch (error) {
-    console.error('Erreur /api/user/revoke-api-key :', error);
+    console.error('❌ Erreur /api/user/revoke-api-key :', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// 404
+// ── 404 ─────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    error: `Route non trouvée : ${req.method} ${req.path}`,
+    error:   `Route non trouvée : ${req.method} ${req.path}`,
   });
 });
 
-// Gestionnaire d'erreurs global
+// ── Erreur globale ──────────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error('❌ Erreur globale :', err.stack);
-  res.status(500).json({
-    success: false,
-    error: err.message || 'Erreur interne du serveur',
-  });
+  res.status(500).json({ success: false, error: err.message || 'Erreur interne du serveur' });
 });
 
 module.exports = app;
-  
