@@ -595,14 +595,37 @@
     // ── Finalisation de l'inscription (Firestore + Envoi au serveur) ──
     async function finalizeRegistration(user, email, pays, referralCodeUsed) {
       const userId = user.uid;
-      const generatedUsername = (user.displayName || email.split('@')[0])
-        .replace(/\s+/g, '_').toLowerCase().replace(/[^a-z0-9_]/g, '');
+      
+      // --- NOUVELLE LOGIQUE POUR EXTRAIRE LE PRÉNOM ---
+      let prenom = "";
+      
+      if (user.displayName) {
+        // Si l'utilisateur s'inscrit via Google, on prend le premier mot (le prénom)
+        prenom = user.displayName.split(' ')[0];
+      } else {
+        // Si c'est une inscription par e-mail, on prend la partie avant le @
+        let emailPart = email.split('@')[0];
+        // On remplace les points, tirets ou chiffres par des espaces
+        emailPart = emailPart.replace(/[^a-zA-Z]/g, ' ').trim();
+        // On prend le premier mot trouvé
+        prenom = emailPart.split(' ')[0];
+      }
+      
+      // Sécurité : si on n'a rien trouvé, on met "Membre" par défaut
+      if (!prenom || prenom.length === 0) {
+          prenom = "Membre";
+      }
+
+      // On formate le prénom : Première lettre en majuscule, le reste en minuscule (Ex: marie -> Marie)
+      const finalUsername = prenom.charAt(0).toUpperCase() + prenom.slice(1).toLowerCase();
+      // --------------------------------------------------
+
       const newReferralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
 
-      // Sauvegarde rapide Firestore
+      // Sauvegarde rapide Firestore avec le nouveau prénom formaté
       await db.collection('users').doc(userId).set({
         userId,
-        username: generatedUsername,
+        username: finalUsername, 
         email,
         country: pays || '',
         phone: '',
@@ -617,9 +640,7 @@
         // On récupère le token Firebase
         const token = await user.getIdToken();
 
-        // 🟢 TA CORRECTION EST ICI : 
-        // 1. On utilise le lien relatif '/api/register' comme tu l'as intelligemment suggéré (ça évite les blocages CORS).
-        // 2. On a mis un "await" avant fetch pour OBLIGER le navigateur à attendre que l'email soit envoyé AVANT de te rediriger.
+        // Envoi au backend avec le username propre
         const response = await fetch('/api/register', {
           method: 'POST',
           headers: { 
@@ -628,7 +649,7 @@
           },
           body: JSON.stringify({
             userId,
-            username: generatedUsername,
+            username: finalUsername, // <-- Le prénom est envoyé ici pour l'e-mail !
             email,
             country: pays || '',
             referralCode: newReferralCode,
@@ -651,37 +672,52 @@
     }
 
     let isRegistering = false;
-        // ── Soumission du formulaire (Email) ──
+
+    // ── Soumission du formulaire ──
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (isRegistering) return;
       hideAllErrors();
 
-      const email = document.getElementById('email').value.trim();
-      const pays = document.getElementById('pays').value;
+      const email    = document.getElementById('email').value.trim();
+      const pays     = document.getElementById('pays').value;
       const password = document.getElementById('password').value;
-      const refCode = document.getElementById('referral').value.trim().toUpperCase();
+      const refCode  = document.getElementById('referral').value.trim().toUpperCase();
 
-      if (!email) return showFieldError('emailError', 'L\'email est requis.');
-      if (!pays) return showFieldError('countryError', 'Sélectionnez votre pays.');
-      if (password.length < 6) return showFieldError('passwordError', 'Minimum 6 caractères.');
+      if (!email)             return showFieldError('emailError', 'L\'adresse email est requise.');
+      if (!pays)              return showFieldError('countryError', 'Veuillez sélectionner votre pays dans la liste.');
+      if (password.length < 6) return showFieldError('passwordError', 'Le mot de passe doit contenir au moins 6 caractères.');
 
       isRegistering = true;
       const btn = document.getElementById('registerBtn');
       btn.classList.add('btn-loading');
 
       try {
+        // Création du compte Firebase
         const userCred = await auth.createUserWithEmailAndPassword(email, password);
         
-        // ATTENTION : Le "await" ici est crucial pour attendre le serveur
+        // Finalisation + Attente de l'envoi de l'email
         await finalizeRegistration(userCred.user, email, pays, refCode);
 
+        // Une fois terminé SEULEMENT, on affiche le succès et on redirige
         btn.classList.remove('btn-loading');
-        showNotification('🎉 Inscription réussie !', 'success');
-        setTimeout(() => { window.location.href = 'dashboard.html'; }, 2000);
+        btn.style.background = '#4CAF50';
+        btn.innerHTML = '<span>✅ Compte créé ! Redirection...</span>';
+        showNotification('🎉 Bienvenue ! Votre compte est prêt. Redirection...', 'success', 4000);
+        
+        setTimeout(() => { window.location.href = 'dashboard.html'; }, 3000);
+
       } catch (error) {
         btn.classList.remove('btn-loading');
-        showNotification('❌ Erreur : ' + error.message, 'error');
+        if (error.code === 'auth/email-already-in-use') {
+          showFieldError('emailError', '⚠️ Cette adresse email est déjà utilisée. Connectez-vous.');
+        } else if (error.code === 'auth/invalid-email') {
+          showFieldError('emailError', '⚠️ Le format de l\'email est incorrect.');
+        } else if (error.code === 'auth/weak-password') {
+          showFieldError('passwordError', '⚠️ Mot de passe trop faible. Utilisez au moins 6 caractères.');
+        } else {
+          showNotification('❌ Erreur lors de l\'inscription. Vérifiez vos informations.', 'error');
+        }
         isRegistering = false;
       }
     });
@@ -694,48 +730,33 @@
       btn.classList.add('btn-loading');
 
       try {
+        // Création du compte Google
         const result = await auth.signInWithPopup(provider);
-        const user = result.user;
-        const pays = document.getElementById('pays').value;
-        const refCode = document.getElementById('referral').value.trim().toUpperCase();
+        const user   = result.user;
+        const pays   = document.getElementById('pays').value;
+        const refCode = document.getElementById('referral').value.trim().toUpperCase()
+          || new URLSearchParams(window.location.search).get('ref') || '';
 
-        // ATTENTION : Le "await" ici force le navigateur à attendre la réponse du serveur
+        // Finalisation + Attente de l'envoi de l'email
         await finalizeRegistration(user, user.email, pays, refCode);
 
+        // Une fois terminé SEULEMENT, on affiche le succès et on redirige
         btn.classList.remove('btn-loading');
-        showNotification('🎉 Connexion Google réussie !', 'success');
-        setTimeout(() => { window.location.href = 'dashboard.html'; }, 2000);
+        btn.style.background = '#4CAF50';
+        btn.style.color = '#fff';
+        btn.innerHTML = '<span>✅ Compte créé ! Redirection...</span>';
+        showNotification('🎉 Compte Google validé ! Redirection...', 'success', 4000);
+        
+        setTimeout(() => { window.location.href = 'dashboard.html'; }, 3000);
+
       } catch (error) {
         btn.classList.remove('btn-loading');
         if (error.code !== 'auth/popup-closed-by-user') {
-          showNotification('❌ Erreur Google : ' + error.message, 'error');
+          showNotification(`❌ Erreur Google : ${error.message}`, 'error');
         }
         isRegistering = false;
       }
     });
-
-    // Fonction de finalisation utilisée par les deux méthodes
-    async function finalizeRegistration(user, email, pays, refCode) {
-      const token = await user.getIdToken();
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify({
-          userId: user.uid,
-          email,
-          country: pays,
-          referralCodeUsed: refCode
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error("Le serveur n'a pas pu envoyer l'email.");
-      }
-    }
-    
   </script>
 </body>
 </html>
