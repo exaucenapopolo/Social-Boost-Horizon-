@@ -276,8 +276,9 @@ app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
   }
 });
 
+
 // ============================================================================
-// ── NOUVELLES ROUTES : MORETHANPANEL (MTP) ──────────────────────────────────
+// ── MORETHANPANEL (MTP) API ROUTES ──────────────────────────────────────────
 // ============================================================================
 
 // ── /api/mtp/services — Récupérer la liste des services MTP ──
@@ -287,25 +288,46 @@ app.get('/api/mtp/services', async (req, res) => {
     const MTP_API_URL = 'https://morethanpanel.com/api/v2';
     
     if (!MTP_API_KEY) {
-      throw new Error("Clé API MoreThanPanel manquante dans les variables d'environnement.");
+      throw new Error("Clé API MoreThanPanel manquante.");
     }
 
-    // Taux de conversion et marge (Variables Vercel, sinon valeurs par défaut)
     const RATE_USD_TO_XAF = parseFloat(process.env.RATE_USD_TO_XAF || '650');
-    const MARGIN_MULTIPLIER = parseFloat(process.env.MARGIN_MULTIPLIER || '2.0'); // 2.0 = 100% de bénéfice
+    const MARGIN_MULTIPLIER = parseFloat(process.env.MARGIN_MULTIPLIER || '2.0');
 
-    // Appel à l'API du fournisseur
-    const response = await fetch(`${MTP_API_URL}?key=${MTP_API_KEY}&action=services`);
-    const data = await response.json();
+    // CORRECTION ICI : La documentation MTP exige une requête POST
+    const bodyParams = new URLSearchParams();
+    bodyParams.append('key', MTP_API_KEY);
+    bodyParams.append('action', 'services');
+
+    const response = await fetch(MTP_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: bodyParams
+    });
+
+    const textRaw = await response.text();
+    let data;
+    try {
+      data = JSON.parse(textRaw);
+    } catch (parseError) {
+      console.error("Erreur de parsing de MTP. Réponse brute :", textRaw.substring(0, 100));
+      throw new Error("Le fournisseur MTP a retourné une réponse invalide.");
+    }
+
+    if (data.error) {
+      throw new Error(data.error);
+    }
 
     if (!Array.isArray(data)) {
-      throw new Error("Réponse invalide du fournisseur MTP.");
+      throw new Error("La liste des services du fournisseur est vide ou mal formatée.");
     }
 
-    // Formatage pour ton Frontend
+    // Formatage pour le frontend (commande-automatique.html)
     const formattedServices = data.map(service => {
       const originalPrice = parseFloat(service.rate);
       const finalPriceXAF = Math.round(originalPrice * RATE_USD_TO_XAF * MARGIN_MULTIPLIER);
+      
+      const typeStr = (service.type || '').toLowerCase();
 
       return {
         id: parseInt(service.service),
@@ -317,17 +339,17 @@ app.get('/api/mtp/services', async (req, res) => {
         refill: service.refill === true || service.refill === '1',
         type: service.type,
         desc: service.description || '',
-        isPackage: service.type === 'package',
-        isPerOne: service.type === 'package', // Les packages sont souvent à l'unité
-        isCustomComments: service.type === 'custom_comments' || service.name.toLowerCase().includes('custom comment')
+        isPackage: typeStr.includes('package'),
+        isPerOne: typeStr.includes('package'), 
+        isCustomComments: typeStr.includes('custom comments') || typeStr.includes('custom_comments')
       };
     });
 
     res.status(200).json({ success: true, services: formattedServices });
 
   } catch (error) {
-    console.error('❌ Erreur MTP services :', error.message);
-    res.status(500).json({ success: false, error: 'Erreur lors de la récupération des services.' });
+    console.error('❌ Erreur /api/mtp/services :', error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -338,7 +360,7 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     const { serviceId, link, quantity, comments } = req.body;
 
     if (!serviceId || !link) {
-      return res.status(400).json({ success: false, error: 'Données de commande incomplètes (serviceId ou link manquant).' });
+      return res.status(400).json({ success: false, error: 'Lien ou Service manquant.' });
     }
 
     const MTP_API_KEY = process.env.MORETHANPANEL_API_KEY;
@@ -346,8 +368,17 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     const RATE_USD_TO_XAF = parseFloat(process.env.RATE_USD_TO_XAF || '650');
     const MARGIN_MULTIPLIER = parseFloat(process.env.MARGIN_MULTIPLIER || '2.0');
 
-    // 1. Récupérer le vrai prix du service depuis MTP pour sécuriser la transaction
-    const servicesRes = await fetch(`${MTP_API_URL}?key=${MTP_API_KEY}&action=services`);
+    // 1. Récupérer le vrai prix du service (Toujours en POST)
+    const serviceParams = new URLSearchParams();
+    serviceParams.append('key', MTP_API_KEY);
+    serviceParams.append('action', 'services');
+    
+    const servicesRes = await fetch(MTP_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: serviceParams
+    });
+    
     const servicesData = await servicesRes.json();
     const serviceInfo = servicesData.find(s => parseInt(s.service) === parseInt(serviceId));
 
@@ -355,7 +386,7 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Service introuvable chez le fournisseur.' });
     }
 
-    // 2. Calcul de la quantité finale et du prix
+    // 2. Calcul du prix exact
     const finalUnitPriceXAF = parseFloat(serviceInfo.rate) * RATE_USD_TO_XAF * MARGIN_MULTIPLIER;
     let finalQuantity = parseInt(quantity);
     
@@ -368,65 +399,65 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: `Quantité invalide. Minimum requis : ${serviceInfo.min}` });
     }
 
-    const isPackage = serviceInfo.type === 'package';
+    const typeStr = (serviceInfo.type || '').toLowerCase();
+    const isPackage = typeStr.includes('package');
     const totalCostXAF = isPackage ? (finalUnitPriceXAF * finalQuantity) : ((finalUnitPriceXAF / 1000) * finalQuantity);
     const totalCostRounded = Math.round(totalCostXAF);
 
-    // 3. Débit sécurisé via une Transaction Firestore
+    // 3. Débiter le solde du client (Sécurisé via Transaction)
     const userRef = db.collection('users').doc(uid);
     let newBalance = 0;
 
     await db.runTransaction(async (transaction) => {
       const userDoc = await transaction.get(userRef);
-      if (!userDoc.exists) {
-        throw new Error("Utilisateur introuvable dans la base de données.");
-      }
+      if (!userDoc.exists) throw new Error("Utilisateur introuvable.");
 
       const currentBalance = userDoc.data().balance || 0;
       if (currentBalance < totalCostRounded) {
-        throw new Error(`Solde insuffisant. Requis: ${totalCostRounded} FCFA, Actuel: ${currentBalance} FCFA`);
+        throw new Error(`Solde insuffisant. Requis: ${totalCostRounded} FCFA`);
       }
 
       newBalance = currentBalance - totalCostRounded;
-      
-      // On incrémente aussi le total des commandes
       const currentOrders = userDoc.data().totalOrders || 0;
+      
       transaction.update(userRef, { 
           balance: newBalance,
           totalOrders: currentOrders + 1
       });
     });
 
-    // 4. Envoi de la commande à MoreThanPanel
-    const mtpParams = new URLSearchParams();
-    mtpParams.append('key', MTP_API_KEY);
-    mtpParams.append('action', 'add');
-    mtpParams.append('service', serviceId);
-    mtpParams.append('link', link);
+    // 4. Envoi de la commande à MTP (POST strictly)
+    const orderParams = new URLSearchParams();
+    orderParams.append('key', MTP_API_KEY);
+    orderParams.append('action', 'add');
+    orderParams.append('service', serviceId);
+    orderParams.append('link', link);
     
+    // Selon la documentation MTP, si c'est un Custom Comments, il faut envoyer le paramètre "comments"
     if (comments) {
-      mtpParams.append('comments', comments);
+      orderParams.append('comments', comments);
     } else {
-      mtpParams.append('quantity', finalQuantity);
+      orderParams.append('quantity', finalQuantity);
     }
 
     const orderRes = await fetch(MTP_API_URL, {
       method: 'POST',
-      body: mtpParams
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: orderParams
     });
+    
     const orderData = await orderRes.json();
 
-    // 5. Gestion de la réponse de MTP
+    // 5. Gestion de l'erreur du fournisseur (Remboursement direct)
     if (orderData.error) {
-      // Échec chez le fournisseur : on rembourse l'utilisateur
-      await db.collection('users').doc(uid).update({ 
-          balance: newBalance + totalCostRounded,
+      await userRef.update({ 
+          balance: admin.firestore.FieldValue.increment(totalCostRounded),
           totalOrders: admin.firestore.FieldValue.increment(-1)
       });
-      throw new Error(`Erreur fournisseur : ${orderData.error}`);
+      throw new Error(`Refus du fournisseur : ${orderData.error}`);
     }
 
-    // 6. Succès de la commande
+    // 6. Succès
     res.status(200).json({
       success: true,
       orderId: orderData.order,
@@ -435,7 +466,7 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Erreur traitement commande MTP :', error.message);
+    console.error('❌ Erreur commande MTP :', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -455,4 +486,4 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
-    
+  
