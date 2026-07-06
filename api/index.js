@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
+// 1. Importation de ton service email
+const { sendWelcomeEmail } = require('./email-service.js');
 
 const app = express();
 
@@ -72,35 +74,50 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// 1. Lire le profil et calculer les commandes
+// 2. Nouvelle route : Envoyer email de bienvenue (Sécurisée)
+app.post('/api/send-welcome', checkAuth, async (req, res) => {
+  try {
+    const { email, username, country } = req.body;
+    
+    // Appel de la fonction importée
+    await sendWelcomeEmail({
+      email: email || req.user.email,
+      username: username || req.user.name || 'Utilisateur',
+      country: country || 'Non spécifié'
+    });
+
+    res.json({ success: true, message: 'Email envoyé avec succès' });
+  } catch (error) {
+    console.error('Erreur lors de l\'envoi de l\'email :', error);
+    res.status(500).json({ success: false, error: 'Échec de l\'envoi de l\'email' });
+  }
+});
+
+// 3. Lire le profil
 app.get('/api/user/profile', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
-    
-    // 1. Récupération des infos de l'utilisateur dans l'Auth Firebase pour des dates fiables
-    const userRecord = await admin.auth().getUser(uid);
-    const creationTime = userRecord.metadata.creationTime; // Date de création du compte
-    const lastSignInTime = userRecord.metadata.lastSignInTime; // Dernière connexion
+    const userDoc = await db.collection('users').doc(uid).get();
 
-    // 2. Calcul du nombre réel de commandes à travers plusieurs collections
-    const collectionsToSearch = ['commandes', 'orders', 'commande-automatique'];
-    let realTotalOrders = 0;
-
-    for (const collectionName of collectionsToSearch) {
-      try {
-        // On cherche toutes les commandes où l'ID de l'utilisateur correspond
-        const snapshot = await db.collection(collectionName).where('userId', '==', uid).get();
-        realTotalOrders += snapshot.size;
-      } catch (err) {
-        console.warn(`Collection ${collectionName} introuvable ou erreur de lecture.`);
-      }
+    if (!userDoc.exists) {
+      return res.json({
+        success: true,
+        profile: {
+          displayName: req.user.name || '',
+          email: req.user.email || '',
+          photoURL: req.user.picture || null,
+          phone: '',
+          country: '',
+          balance: 0,
+          totalOrders: 0,
+          createdAt: new Date().toISOString(),
+          settings: {},
+          resellerLevel: 'bronze',
+        }
+      });
     }
 
-    // 3. Récupération des données Firestore
-    const userDoc = await db.collection('users').doc(uid).get();
-    let data = userDoc.exists ? userDoc.data() : {};
-
-    // 4. On combine et on envoie les données formatées
+    const data = userDoc.data();
     res.json({
       success: true,
       profile: {
@@ -110,12 +127,11 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
         phone: data.phone || '',
         country: data.country || '',
         balance: data.balance || 0,
-        currency: data.currency || 'FCFA',
-        totalOrders: realTotalOrders, // On utilise le vrai total calculé
-        createdAt: creationTime || new Date().toISOString(),
+        totalOrders: data.totalOrders || 0,
+        createdAt: data.createdAt || new Date().toISOString(),
         settings: data.settings || {},
         resellerLevel: data.resellerLevel || 'bronze',
-        lastSignIn: lastSignInTime || null,
+        lastSignIn: data.lastSignIn || null,
       }
     });
   } catch (error) {
@@ -124,10 +140,10 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
   }
 });
 
-// 2. Mettre à jour le profil
+// 4. Mettre à jour le profil
 app.post('/api/update-profile', checkAuth, async (req, res) => {
   const { displayName, email, phone, country, photoURL, newPassword } = req.body;
-  const uid = req.user.uid; 
+  const uid = req.user.uid;
 
   try {
     const updateData = {};
@@ -137,7 +153,6 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
     if (country !== undefined) updateData.country = country;
     if (photoURL !== undefined) updateData.photoURL = photoURL;
 
-    // Mise à jour dans Firebase Auth
     const authUpdates = {};
     if (displayName) authUpdates.displayName = displayName;
     if (photoURL) authUpdates.photoURL = photoURL;
@@ -146,7 +161,6 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
       await admin.auth().updateUser(uid, authUpdates);
     }
 
-    // Changement de mot de passe
     if (newPassword) {
       if (newPassword.length < 6) {
         return res.status(400).json({ success: false, error: 'Le mot de passe doit contenir au moins 6 caractères' });
@@ -154,7 +168,6 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
       await admin.auth().updateUser(uid, { password: newPassword });
     }
 
-    // Mise à jour Firestore
     await db.collection('users').doc(uid).set(updateData, { merge: true });
 
     res.json({ success: true, message: 'Profil mis à jour avec succès' });
@@ -164,7 +177,7 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
   }
 });
 
-// 3. Enregistrer les paramètres
+// 5. Enregistrer les paramètres
 app.post('/api/user/settings', checkAuth, async (req, res) => {
   const { settings } = req.body;
   if (!settings || typeof settings !== 'object') {
@@ -180,7 +193,7 @@ app.post('/api/user/settings', checkAuth, async (req, res) => {
   }
 });
 
-// 4. Infos clé API
+// 6. Infos clé API
 app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
   try {
     const userDoc = await db.collection('users').doc(req.user.uid).get();
@@ -190,7 +203,7 @@ app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
         success: true,
         hasApiKey: true,
         prefix: data.apiKey.substring(0, 8),
-        createdAt: data.apiKeyCreatedAt || new Date().toISOString(), // Sécurité
+        createdAt: data.apiKeyCreatedAt || new Date().toISOString(),
       });
     } else {
       res.json({ success: true, hasApiKey: false });
@@ -201,26 +214,25 @@ app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
   }
 });
 
-// 5. Générer clé API (Correction de la date)
+// 7. Générer clé API
 app.post('/api/user/generate-api-key', checkAuth, async (req, res) => {
   try {
     const newKey = 'sbh_' + crypto.randomBytes(24).toString('hex');
     const prefix = newKey.substring(0, 8);
-    const creationDate = new Date().toISOString(); // Création d'une date ISO standardisée
 
     await db.collection('users').doc(req.user.uid).set({
       apiKey: newKey,
-      apiKeyCreatedAt: creationDate,
+      apiKeyCreatedAt: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
 
-    res.json({ success: true, apiKey: newKey, prefix, createdAt: creationDate });
+    res.json({ success: true, apiKey: newKey, prefix });
   } catch (error) {
     console.error('Erreur /api/user/generate-api-key :', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// 6. Révoquer clé API
+// 8. Révoquer clé API
 app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
   try {
     await db.collection('users').doc(req.user.uid).update({
@@ -234,7 +246,7 @@ app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
   }
 });
 
-// 404 – toujours en JSON
+// 404
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -252,4 +264,4 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
-        
+                  
