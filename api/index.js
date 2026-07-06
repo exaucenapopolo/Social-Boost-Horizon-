@@ -72,31 +72,35 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// 1. Lire le profil
+// 1. Lire le profil et calculer les commandes
 app.get('/api/user/profile', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
-    const userDoc = await db.collection('users').doc(uid).get();
+    
+    // 1. Récupération des infos de l'utilisateur dans l'Auth Firebase pour des dates fiables
+    const userRecord = await admin.auth().getUser(uid);
+    const creationTime = userRecord.metadata.creationTime; // Date de création du compte
+    const lastSignInTime = userRecord.metadata.lastSignInTime; // Dernière connexion
 
-    if (!userDoc.exists) {
-      return res.json({
-        success: true,
-        profile: {
-          displayName: req.user.name || '',
-          email: req.user.email || '',
-          photoURL: req.user.picture || null,
-          phone: '',
-          country: '',
-          balance: 0,
-          totalOrders: 0,
-          createdAt: new Date().toISOString(),
-          settings: {},
-          resellerLevel: 'bronze',
-        }
-      });
+    // 2. Calcul du nombre réel de commandes à travers plusieurs collections
+    const collectionsToSearch = ['commandes', 'orders', 'commande-automatique'];
+    let realTotalOrders = 0;
+
+    for (const collectionName of collectionsToSearch) {
+      try {
+        // On cherche toutes les commandes où l'ID de l'utilisateur correspond
+        const snapshot = await db.collection(collectionName).where('userId', '==', uid).get();
+        realTotalOrders += snapshot.size;
+      } catch (err) {
+        console.warn(`Collection ${collectionName} introuvable ou erreur de lecture.`);
+      }
     }
 
-    const data = userDoc.data();
+    // 3. Récupération des données Firestore
+    const userDoc = await db.collection('users').doc(uid).get();
+    let data = userDoc.exists ? userDoc.data() : {};
+
+    // 4. On combine et on envoie les données formatées
     res.json({
       success: true,
       profile: {
@@ -106,11 +110,12 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
         phone: data.phone || '',
         country: data.country || '',
         balance: data.balance || 0,
-        totalOrders: data.totalOrders || 0,
-        createdAt: data.createdAt || new Date().toISOString(),
+        currency: data.currency || 'FCFA',
+        totalOrders: realTotalOrders, // On utilise le vrai total calculé
+        createdAt: creationTime || new Date().toISOString(),
         settings: data.settings || {},
         resellerLevel: data.resellerLevel || 'bronze',
-        lastSignIn: data.lastSignIn || null,
+        lastSignIn: lastSignInTime || null,
       }
     });
   } catch (error) {
@@ -119,10 +124,10 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
   }
 });
 
-// 2. Mettre à jour le profil (nom, email, téléphone, pays, photo, mot de passe)
+// 2. Mettre à jour le profil
 app.post('/api/update-profile', checkAuth, async (req, res) => {
   const { displayName, email, phone, country, photoURL, newPassword } = req.body;
-  const uid = req.user.uid;  // Récupéré du token, plus sûr que d'envoyer userId
+  const uid = req.user.uid; 
 
   try {
     const updateData = {};
@@ -185,7 +190,7 @@ app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
         success: true,
         hasApiKey: true,
         prefix: data.apiKey.substring(0, 8),
-        createdAt: data.apiKeyCreatedAt || new Date().toISOString(),
+        createdAt: data.apiKeyCreatedAt || new Date().toISOString(), // Sécurité
       });
     } else {
       res.json({ success: true, hasApiKey: false });
@@ -196,18 +201,19 @@ app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
   }
 });
 
-// 5. Générer clé API
+// 5. Générer clé API (Correction de la date)
 app.post('/api/user/generate-api-key', checkAuth, async (req, res) => {
   try {
     const newKey = 'sbh_' + crypto.randomBytes(24).toString('hex');
     const prefix = newKey.substring(0, 8);
+    const creationDate = new Date().toISOString(); // Création d'une date ISO standardisée
 
     await db.collection('users').doc(req.user.uid).set({
       apiKey: newKey,
-      apiKeyCreatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      apiKeyCreatedAt: creationDate,
     }, { merge: true });
 
-    res.json({ success: true, apiKey: newKey, prefix });
+    res.json({ success: true, apiKey: newKey, prefix, createdAt: creationDate });
   } catch (error) {
     console.error('Erreur /api/user/generate-api-key :', error);
     res.status(500).json({ success: false, error: error.message });
@@ -246,3 +252,4 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
+        
