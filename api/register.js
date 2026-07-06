@@ -27,12 +27,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "L'adresse email est obligatoire." });
     }
 
-    // --- SÉCURISATION DES VARIABLES POUR ÉVITER LES CRASHS ---
-    // Si une valeur arrive vide, on lui donne une valeur par défaut pour ne pas bloquer le serveur
-    const safeUsername = username && username.trim() !== "" ? username : "Membre";
-    const safeCountry = country && country.trim() !== "" ? country.toUpperCase() : "NON SPÉCIFIÉ";
-    const safeReferralCode = referralCode || "Aucun code";
-
     const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey) {
       console.error("Erreur de configuration : Clé RESEND_API_KEY introuvable.");
@@ -57,14 +51,14 @@ export default async function handler(req, res) {
               <p style="color: #1e3c72; font-weight: 600; margin-top: 5px;">Social Boost Horizon</p>
             </div>
             
-            <p>Bonjour <strong>@${safeUsername}</strong>,</p>
+            <p>Bonjour <strong>@${username}</strong>,</p>
             <p>Nous sommes super heureux de vous compter parmi nous ! Votre inscription a bien été validée et votre espace est prêt. Tout est en place pour donner un coup de boost mémorable à votre présence sur les réseaux sociaux. 🔥</p>
             
             <div style="background: #f4f6f9; border-left: 4px solid #d4af37; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
               <h3 style="margin-top: 0; color: #080e1a; font-size: 16px;">Vos accès & informations :</h3>
               <p style="margin: 5px 0;"><strong>Identifiant :</strong> ${email}</p>
-              <p style="margin: 5px 0;"><strong>Pays indiqué :</strong> ${safeCountry}</p>
-              <p style="margin: 5px 0;"><strong>Votre Code Parrain :</strong> <span style="background: #fff; padding: 2px 6px; border: 1px dashed #6a0dad; border-radius: 4px; font-weight: bold; color: #6a0dad;">${safeReferralCode}</span></p>
+              <p style="margin: 5px 0;"><strong>Pays indiqué :</strong> ${country.toUpperCase()}</p>
+              <p style="margin: 5px 0;"><strong>Votre Code Parrain :</strong> <span style="background: #fff; padding: 2px 6px; border: 1px dashed #6a0dad; border-radius: 4px; font-weight: bold; color: #6a0dad;">${referralCode}</span></p>
             </div>
 
             <p>Partagez votre code parrain avec vos proches pour cumuler des avantages dès qu'ils s'inscrivent !</p>
