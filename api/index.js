@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
-// 1. Importation de ton service email
+// Importation de ton service email
 const { sendWelcomeEmail } = require('./email-service.js');
 
 const app = express();
@@ -74,18 +74,15 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// 2. Nouvelle route : Envoyer email de bienvenue (Sécurisée)
+// Route : Envoyer email de bienvenue manuel
 app.post('/api/send-welcome', checkAuth, async (req, res) => {
   try {
     const { email, username, country } = req.body;
-    
-    // Appel de la fonction importée
     await sendWelcomeEmail({
       email: email || req.user.email,
       username: username || req.user.name || 'Utilisateur',
       country: country || 'Non spécifié'
     });
-
     res.json({ success: true, message: 'Email envoyé avec succès' });
   } catch (error) {
     console.error('Erreur lors de l\'envoi de l\'email :', error);
@@ -93,7 +90,26 @@ app.post('/api/send-welcome', checkAuth, async (req, res) => {
   }
 });
 
-// 3. Lire le profil
+// NOUVELLE ROUTE : Finaliser l'inscription et envoyer l'email (Utilisée par register.html)
+app.post('/api/register', checkAuth, async (req, res) => {
+  try {
+    const { email, username, country } = req.body;
+    
+    // On appelle directement ton service d'email !
+    await sendWelcomeEmail({
+      email: email || req.user.email,
+      username: username || req.user.name || 'Nouveau Membre',
+      country: country || 'Non spécifié'
+    });
+
+    res.status(200).json({ success: true, message: 'Inscription traitée et email envoyé !' });
+  } catch (error) {
+    console.error('Erreur dans /api/register:', error);
+    res.status(500).json({ success: false, error: 'Erreur interne du serveur lors de l\'inscription.' });
+  }
+});
+
+// Lire le profil
 app.get('/api/user/profile', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
@@ -140,7 +156,7 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
   }
 });
 
-// 4. Mettre à jour le profil
+// Mettre à jour le profil
 app.post('/api/update-profile', checkAuth, async (req, res) => {
   const { displayName, email, phone, country, photoURL, newPassword } = req.body;
   const uid = req.user.uid;
@@ -177,7 +193,7 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
   }
 });
 
-// 5. Enregistrer les paramètres
+// Enregistrer les paramètres
 app.post('/api/user/settings', checkAuth, async (req, res) => {
   const { settings } = req.body;
   if (!settings || typeof settings !== 'object') {
@@ -193,7 +209,7 @@ app.post('/api/user/settings', checkAuth, async (req, res) => {
   }
 });
 
-// 6. Infos clé API
+// Infos clé API
 app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
   try {
     const userDoc = await db.collection('users').doc(req.user.uid).get();
@@ -214,7 +230,7 @@ app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
   }
 });
 
-// 7. Générer clé API
+// Générer clé API
 app.post('/api/user/generate-api-key', checkAuth, async (req, res) => {
   try {
     const newKey = 'sbh_' + crypto.randomBytes(24).toString('hex');
@@ -232,7 +248,7 @@ app.post('/api/user/generate-api-key', checkAuth, async (req, res) => {
   }
 });
 
-// 8. Révoquer clé API
+// Révoquer clé API
 app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
   try {
     await db.collection('users').doc(req.user.uid).update({
@@ -264,4 +280,4 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
-                  
+  
