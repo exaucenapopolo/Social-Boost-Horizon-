@@ -5,17 +5,11 @@ const crypto = require('crypto');
 
 const app = express();
 
-// Middleware de base
-app.use(cors());
-app.use(express.json({ limit: '10mb' })); // Pour gérer les photos encodées en base64 si besoin
+// Configuration des Middlewares de base
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json({ limit: '10mb' })); // Support pour les photos de profil volumineuses en base64
 
-// Middleware de logging (optionnel mais utile)
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-  next();
-});
-
-// Initialisation sécurisée de Firebase Admin pour l'environnement Serverless de Vercel
+// Initialisation sécurisée de Firebase Admin pour Vercel
 if (!admin.apps.length) {
   try {
     const privateKey = process.env.FIREBASE_PRIVATE_KEY
@@ -23,7 +17,7 @@ if (!admin.apps.length) {
       : undefined;
 
     if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !privateKey) {
-      console.error('❌ Variables d\'environnement Firebase manquantes !');
+      console.error('❌ Variables d\'environnement Firebase manquantes dans Vercel !');
       throw new Error('Configuration Firebase incomplète');
     }
 
@@ -34,180 +28,107 @@ if (!admin.apps.length) {
         privateKey: privateKey,
       }),
     });
-
     console.log('✅ Firebase Admin initialisé avec succès');
   } catch (error) {
-    console.error('❌ Erreur d\'initialisation Firebase :', error);
-    // En environnement de production, on peut laisser l'application démarrer
-    // mais les routes échoueront proprement
+    console.error('❌ Erreur critique d\'initialisation Firebase :', error);
   }
 }
 
 const db = admin.firestore();
 
-// =====================================================
-//  MIDDLEWARE D'AUTHENTIFICATION
-// =====================================================
+// Middleware de vérification du Token Firebase (Authentification)
 async function checkAuth(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ success: false, error: 'Accès non autorisé : token manquant' });
-  }
-
-  const token = authHeader.split(' ')[1];
   try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, error: 'Utilisateur non authentifié (Pas de token)' });
+    }
+
+    const token = authHeader.split(' ')[1];
     const decodedToken = await admin.auth().verifyIdToken(token);
-    req.user = decodedToken;
+    req.user = decodedToken; // Injecte les données utilisateur (uid, email...) dans la requête
     next();
   } catch (error) {
-    console.error('❌ Erreur validation token :', error);
-    return res.status(403).json({ success: false, error: 'Token invalide ou expiré' });
+    console.error('Erreur de validation du token :', error);
+    return res.status(401).json({ success: false, error: 'Session expirée ou token invalide' });
   }
 }
 
 // =====================================================
-//  ROUTES
+//  ROUTES API
 // =====================================================
 
-// ---- Route de test ----
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
-});
-
-// 1. Lire le profil utilisateur
+// 1. Récupérer le profil complet de l'utilisateur
 app.get('/api/user/profile', checkAuth, async (req, res) => {
   try {
     const userDoc = await db.collection('users').doc(req.user.uid).get();
-
+    
     if (!userDoc.exists) {
-      // Retourner les données minimales depuis Auth
+      // Si l'utilisateur n'existe pas encore en BDD, on renvoie des valeurs par défaut
       return res.json({
         success: true,
         profile: {
           displayName: req.user.name || '',
           email: req.user.email || '',
-          photoURL: req.user.picture || null,
+          bio: '',
           phone: '',
-          country: '',
-          balance: 0,
-          totalOrders: 0,
-          createdAt: new Date().toISOString(),
-          settings: {},
-          resellerLevel: 'bronze',
+          photoURL: req.user.picture || ''
         }
       });
     }
 
-    const data = userDoc.data();
-    // On s'assure que les champs obligatoires sont présents
-    res.json({
-      success: true,
-      profile: {
-        displayName: data.displayName || req.user.name || '',
-        email: data.email || req.user.email || '',
-        photoURL: data.photoURL || req.user.picture || null,
-        phone: data.phone || '',
-        country: data.country || '',
-        balance: data.balance || 0,
-        totalOrders: data.totalOrders || 0,
-        createdAt: data.createdAt || new Date().toISOString(),
-        settings: data.settings || {},
-        resellerLevel: data.resellerLevel || 'bronze',
-        lastSignIn: data.lastSignIn || null,
-      }
-    });
+    res.json({ success: true, profile: userDoc.data() });
   } catch (error) {
-    console.error('Erreur /api/user/profile :', error);
+    console.error('Erreur GET /api/user/profile :', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// 2. Mettre à jour le profil (nom, email, téléphone, pays, photo, mot de passe)
-app.post('/api/update-profile', checkAuth, async (req, res) => {
-  const { displayName, email, phone, country, photoURL, newPassword } = req.body;
-  const uid = req.user.uid;
-
+// 2. Mettre à jour le profil utilisateur
+app.post('/api/user/update-profile', checkAuth, async (req, res) => {
   try {
-    const updateData = {};
+    const { displayName, bio, phone, photoURL } = req.body;
+    
+    const updateData = {
+      uid: req.user.uid,
+      email: req.user.email,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
     if (displayName !== undefined) updateData.displayName = displayName;
-    if (email !== undefined) updateData.email = email;
+    if (bio !== undefined) updateData.bio = bio;
     if (phone !== undefined) updateData.phone = phone;
-    if (country !== undefined) updateData.country = country;
     if (photoURL !== undefined) updateData.photoURL = photoURL;
 
-    // Mise à jour dans Firebase Auth si applicable
-    const authUpdates = {};
-    if (displayName) authUpdates.displayName = displayName;
-    if (photoURL) authUpdates.photoURL = photoURL;
+    // Mise à jour ou création du document dans Firestore
+    await db.collection('users').doc(req.user.uid).set(updateData, { merge: true });
 
-    if (Object.keys(authUpdates).length > 0) {
-      await admin.auth().updateUser(uid, authUpdates);
+    // Optionnel : Mettre également à jour le profil dans Firebase Auth pour la cohérence
+    if (displayName || photoURL) {
+      const authUpdates = {};
+      if (displayName) authUpdates.displayName = displayName;
+      if (photoURL) authUpdates.photoURL = photoURL;
+      await admin.auth().updateUser(req.user.uid, authUpdates);
     }
 
-    // Changement de mot de passe si demandé
-    if (newPassword && newPassword.length >= 6) {
-      await admin.auth().updateUser(uid, { password: newPassword });
-    } else if (newPassword !== undefined && newPassword.length > 0 && newPassword.length < 6) {
-      return res.status(400).json({ success: false, error: 'Le mot de passe doit contenir au moins 6 caractères' });
-    }
-
-    // Mise à jour Firestore
-    await db.collection('users').doc(uid).set(updateData, { merge: true });
-
-    res.json({ success: true, message: 'Profil mis à jour avec succès' });
+    res.json({ success: true, message: 'Profil mis à jour avec succès !' });
   } catch (error) {
-    console.error('Erreur /api/update-profile :', error);
+    console.error('Erreur POST /api/user/update-profile :', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// 3. Enregistrer les paramètres utilisateur
-app.post('/api/user/settings', checkAuth, async (req, res) => {
-  const { settings } = req.body;
-  if (!settings || typeof settings !== 'object') {
-    return res.status(400).json({ success: false, error: 'Paramètres invalides' });
-  }
-
-  try {
-    await db.collection('users').doc(req.user.uid).set({ settings }, { merge: true });
-    res.json({ success: true, settings });
-  } catch (error) {
-    console.error('Erreur /api/user/settings :', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// 4. Récupérer les infos de la clé API
-app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
-  try {
-    const userDoc = await db.collection('users').doc(req.user.uid).get();
-    const data = userDoc.data();
-    if (data && data.apiKey) {
-      res.json({
-        success: true,
-        hasApiKey: true,
-        prefix: data.apiKey.substring(0, 8),
-        createdAt: data.apiKeyCreatedAt || new Date().toISOString(),
-      });
-    } else {
-      res.json({ success: true, hasApiKey: false });
-    }
-  } catch (error) {
-    console.error('Erreur /api/user/api-key-info :', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// 5. Générer une nouvelle clé API
+// 3. Générer une clé API unique
 app.post('/api/user/generate-api-key', checkAuth, async (req, res) => {
   try {
-    const newKey = 'sbh_' + crypto.randomBytes(24).toString('hex');
-    const prefix = newKey.substring(0, 8);
+    const rawKey = crypto.randomBytes(32).toString('hex');
+    const prefix = "sbh_";
+    const newKey = prefix + rawKey;
 
-    await db.collection('users').doc(req.user.uid).set({
+    await db.collection('users').doc(req.user.uid).update({
       apiKey: newKey,
       apiKeyCreatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
+    });
 
     res.json({ success: true, apiKey: newKey, prefix });
   } catch (error) {
@@ -216,7 +137,7 @@ app.post('/api/user/generate-api-key', checkAuth, async (req, res) => {
   }
 });
 
-// 6. Révoquer la clé API
+// 4. Révoquer la clé API
 app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
   try {
     await db.collection('users').doc(req.user.uid).update({
@@ -231,27 +152,26 @@ app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
 });
 
 // =====================================================
-//  GESTION DES ERREURS 404 ET GLOBALE
+//  GESTION DES ERREURS (GARANTIT DU JSON EN RETOUR)
 // =====================================================
 
-// Route 404 pour toutes les autres requêtes (retourne toujours du JSON)
+// Capture les routes inconnues
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    error: `Route non trouvée : ${req.method} ${req.path}`,
+    error: `Route non trouvée sur le serveur : ${req.method} ${req.path}`,
   });
 });
 
-// Gestionnaire d'erreurs global (capture les erreurs non gérées)
+// Capture les plantages globaux du code
 app.use((err, req, res, next) => {
-  console.error('❌ Erreur globale :', err.stack);
+  console.error('❌ Erreur globale serveur :', err.stack);
   res.status(500).json({
     success: false,
-    error: err.message || 'Erreur interne du serveur',
+    error: 'Une erreur interne est survenue sur le serveur.',
+    details: err.message
   });
 });
 
-// =====================================================
-//  EXPORT POUR VERCEL (fonction serverless)
-// =====================================================
 module.exports = app;
+      
