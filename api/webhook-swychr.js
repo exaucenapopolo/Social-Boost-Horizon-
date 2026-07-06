@@ -29,54 +29,46 @@ module.exports = async function handler(req, res) {
 
     const { status, transaction_id } = attributes;
     
-    console.log(`Transaction ID traitée: ${transaction_id}, Status: ${status}`);
+    // 1. ON NORMALISE LE STATUT REÇU (tout en minuscules, en chaîne de caractères)
+    const rawStatus = status ? String(status).toLowerCase().trim() : "inconnu";
+    console.log(`Transaction ID traitée: ${transaction_id}, Statut Brut reçu: ${rawStatus}`);
 
-    // Vérifie si le statut est "succès" (1) selon l'API Swychr/AccountPe
-    if (status === 1 || status === "success" || status === "COMPLETED") { 
+    // 2. DICTIONNAIRE DE SUCCÈS (On accepte toutes ces variations)
+    const statusSucces = ["success", "completed", "terminé", "succès", "reussi", "1", "successful", "paid", "ok"];
+
+    // 3. VÉRIFICATION
+    if (statusSucces.includes(rawStatus)) { 
       const txRef = db.collection('transactions').doc(transaction_id);
+      const txDoc = await txRef.get();
 
-      // CORRECTION : Utilisation de runTransaction pour sécuriser à 100% contre le double-crédit
-      await db.runTransaction(async (transaction) => {
-        const txDoc = await transaction.get(txRef);
+      if (txDoc.exists) {
+        if (txDoc.data().status === 'pending') {
+          const { userId, amountXAF } = txDoc.data();
+          
+          console.log(`Mise à jour du solde pour l'utilisateur ${userId} (+${amountXAF} XAF)`);
 
-        if (!txDoc.exists) {
-          console.error(`Document de transaction introuvable pour l'ID: ${transaction_id}`);
-          return; // Sort de la transaction
+          // Met à jour le solde utilisateur
+          await db.collection('users').doc(userId).update({
+            balance: admin.firestore.FieldValue.increment(amountXAF)
+          });
+
+          // Marque la transaction comme complétée
+          await txRef.update({
+            status: 'completed',
+            paidAt: new Date().toISOString()
+          });
+          
+          console.log(`Transaction ${transaction_id} terminée avec succès.`);
+        } else {
+          console.log(`La transaction ${transaction_id} a déjà été traitée.`);
         }
-
-        const txData = txDoc.data();
-
-        // Si la transaction n'est plus en attente, c'est qu'elle a déjà été créditée
-        if (txData.status !== 'pending') {
-          console.log(`La transaction ${transaction_id} a déjà été traitée (Statut actuel: ${txData.status}).`);
-          return; 
-        }
-
-        const { userId, amountXAF } = txData;
-        const userRef = db.collection('users').doc(userId);
-        
-        console.log(`Mise à jour du solde pour l'utilisateur ${userId} (+${amountXAF} XAF)`);
-
-        // 1. Met à jour le solde utilisateur
-        transaction.update(userRef, {
-          balance: admin.firestore.FieldValue.increment(amountXAF)
-        });
-
-        // 2. Marque la transaction comme complétée de manière synchrone
-        transaction.update(txRef, {
-          status: 'completed',
-          paidAt: new Date().toISOString(),
-          verifiedBy: 'webhook'
-        });
-        
-        console.log(`Transaction ${transaction_id} terminée avec succès par le webhook.`);
-      });
-
+      } else {
+        console.error(`Document de transaction introuvable pour l'ID: ${transaction_id}`);
+      }
     } else {
-      console.log(`Statut non pris en compte pour la recharge: ${status}`);
+      console.log(`Statut ignoré par le webhook (pas un succès) : ${rawStatus}`);
     }
     
-    // On répond toujours 200 pour dire au fournisseur de paiement qu'on a bien reçu le message
     return res.status(200).send('Webhook reçu et traité');
     
   } catch (error) {
