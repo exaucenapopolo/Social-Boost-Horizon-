@@ -458,7 +458,13 @@
     .activity-content { flex: 1; }
     .activity-label { font-weight: 600; font-size: 0.95rem; }
     .activity-date { font-size: 0.8rem; color: var(--text-light); }
-    .activity-right { text-align: right; }
+    .activity-right {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
     .activity-amount { font-weight: 700; font-size: 1rem; }
     .activity-amount.positive { color: var(--wallet-primary); }
     .activity-amount.negative { color: #FF6B6B; }
@@ -473,6 +479,29 @@
     .status-success { background: rgba(0,212,170,0.2); color: var(--wallet-primary); }
     .status-pending { background: rgba(255,184,0,0.2); color: var(--wallet-secondary); }
     .status-failed { background: rgba(255,107,107,0.2); color: #FF6B6B; }
+
+    /* Nouveau bouton Vérifier */
+    .btn-verify {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(0, 212, 170, 0.15);
+      color: var(--wallet-primary);
+      border: 1px solid rgba(0, 212, 170, 0.3);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.3s;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    .btn-verify:hover {
+      background: var(--wallet-primary);
+      color: #fff;
+      border-color: var(--wallet-primary);
+    }
 
     .modal {
       display: none;
@@ -1035,7 +1064,7 @@
         loadActivities();
       });
 
-      // FONCTION PRINCIPALE MODIFIÉE : Chargement unifié de l'historique
+      // FONCTION PRINCIPALE MODIFIÉE : Chargement unifié de l'historique + bouton Vérifier
       async function loadActivities() {
         if (!currentUid) return;
         activityList.innerHTML = '<div style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
@@ -1050,7 +1079,7 @@
           const recharges = await db.collection('recharges').where('userId', '==', currentUid).limit(100).get();
           recharges.forEach(d => { const data = d.data(); all.push({ __id: d.id, __ts: data.createdAt?.toDate?.()?.getTime() || 0, __type: 'recharge', ...data }); });
 
-          // 3. NOUVEAU : Chargement de la collection transactions (Swychr)
+          // 3. Chargement de la collection transactions (Swychr)
           const swychrTrans = await db.collection('transactions').where('userId', '==', currentUid).limit(100).get();
           swychrTrans.forEach(d => {
             const data = d.data();
@@ -1074,6 +1103,7 @@
           all.slice(0, 20).forEach(item => {
             let icon = 'fa-arrow-down', label = 'Transaction', amount = 0, status = 'Succès', typeClass = 'type-recharge', amountClass = 'positive', iconClass = 'recharge';
             let statusClass = 'status-success';
+            let isPending = false;
 
             if (item.__type === 'transaction') {
               amount = item.amount || 0;
@@ -1082,7 +1112,7 @@
               else if ((item.type || '').toLowerCase().includes('retrait')) { icon = 'fa-arrow-up'; iconClass = 'retrait'; amountClass = 'negative'; typeClass = 'type-retrait'; }
               
               const st = (item.status || '').toLowerCase();
-              if (st === 'pending') { status = 'En attente'; statusClass = 'status-pending'; typeClass = 'type-pending'; }
+              if (st === 'pending') { status = 'En attente'; statusClass = 'status-pending'; typeClass = 'type-pending'; isPending = true; }
               else if (st === 'failed') { status = 'Échoué'; statusClass = 'status-failed'; typeClass = 'type-failed'; }
               
             } else if (item.__type === 'recharge') {
@@ -1091,11 +1121,10 @@
               icon = 'fa-plus-circle';
               
               const st = (item.status || '').toLowerCase();
-              if (st === 'pending') { status = 'En attente'; statusClass = 'status-pending'; typeClass = 'type-pending'; }
+              if (st === 'pending') { status = 'En attente'; statusClass = 'status-pending'; typeClass = 'type-pending'; isPending = true; }
               else if (st === 'validated') { status = 'Validé'; statusClass = 'status-success'; }
               
             } else if (item.__type === 'swychr') {
-              // Gestion dynamique de l'affichage pour Swychr
               amount = item.amountXAF || item.amount || 0;
               label = item.label || 'Recharge Swychr';
               icon = 'fa-plus-circle';
@@ -1108,6 +1137,7 @@
                 status = 'En attente';
                 statusClass = 'status-pending';
                 typeClass = 'type-pending';
+                isPending = true;
               } else if (st === 'success' || st === 'completed' || st === 'validated') {
                 status = 'Validé';
                 statusClass = 'status-success';
@@ -1119,9 +1149,27 @@
             }
             
             const dateStr = item.__ts ? new Date(item.__ts).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+            
+            // Construction du lien de vérification si en attente
+            let verifyLink = '';
+            if (isPending) {
+              verifyLink = `<a href="https://socialboosthorizon.com/payment-success.html?transactionId=${encodeURIComponent(item.__id)}&source=${encodeURIComponent(item.__type)}" class="btn-verify" target="_blank"><i class="fas fa-check-circle"></i> Vérifier</a>`;
+            }
+
             const div = document.createElement('div');
             div.className = `activity-item ${typeClass}`;
-            div.innerHTML = `<div class="activity-icon ${iconClass}"><i class="fa-solid ${icon}"></i></div><div class="activity-content"><div class="activity-label">${label}</div><div class="activity-date">${dateStr}</div></div><div class="activity-right"><div class="activity-amount ${amountClass}">${amountClass === 'positive' ? '+' : '-'}${formatAmount(Math.abs(amount))}</div><span class="activity-status ${statusClass}">${status}</span></div>`;
+            div.innerHTML = `
+              <div class="activity-icon ${iconClass}"><i class="fa-solid ${icon}"></i></div>
+              <div class="activity-content">
+                <div class="activity-label">${label}</div>
+                <div class="activity-date">${dateStr}</div>
+              </div>
+              <div class="activity-right">
+                <div class="activity-amount ${amountClass}">${amountClass === 'positive' ? '+' : '-'}${formatAmount(Math.abs(amount))}</div>
+                <span class="activity-status ${statusClass}">${status}</span>
+                ${verifyLink}
+              </div>
+            `;
             activityList.appendChild(div);
           });
         } catch(e) { activityList.innerHTML = `<div style="color:#FF6B6B;">Erreur: ${e.message}</div>`; }
