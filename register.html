@@ -176,7 +176,7 @@
       font-weight: 700; background: rgba(0,0,0,0.3); text-transform: uppercase; margin-top: 5px;
     }
     .custom-select-option { padding: 10px 14px; cursor: pointer; font-size: 0.9rem; transition: 0.2s; color: rgba(255,255,255,0.9); }
-    .custom-select-option:hover { background: rgba(77,166,255,0.15); color: #fff; }
+    .custom-select-option:hover { background: rgba(77, 166, 255, 0.15); color: #fff; }
     .custom-select-option.hidden { display: none; }
 
     /* --- TOGGLE DE PARRAINAGE --- */
@@ -430,9 +430,10 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
   <script>
+    // Configuration de l'URL de l'API s'adaptant à Vercel (relatif) ou Localhost
     const BACKEND_URL = window.location.hostname.includes('localhost')
-      ? 'http://localhost:5000'
-      : 'https://social-boost-exaucenapopolo2.replit.app';
+      ? 'http://localhost:3000'
+      : window.location.origin;
 
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
@@ -451,7 +452,6 @@
     // ── Redirection si déjà connecté (Cookies/Session Firebase) ──
     auth.onAuthStateChanged((user) => {
       if (user) {
-        // L'utilisateur est déjà reconnu, on l'envoie sur le dashboard
         window.location.href = 'dashboard.html';
       }
     });
@@ -549,7 +549,7 @@
             const countryCode = data.country_code.toLowerCase();
             const targetOption = document.querySelector(`.custom-select-option[data-value="${countryCode}"]`);
             if (targetOption) {
-              targetOption.click(); // Sélectionne automatiquement le pays via notre logique existante
+              targetOption.click();
             }
           }
         })
@@ -621,13 +621,13 @@
       const params = new URLSearchParams(window.location.search);
       if (params.has('ref')) {
         document.getElementById('referral').value = params.get('ref').toUpperCase();
-        referralWrapper.style.display = 'block'; // On ouvre le bloc automatiquement
+        referralWrapper.style.display = 'block';
         toggleIcon.classList.replace('fa-chevron-down', 'fa-chevron-up');
         document.getElementById('verifyReferralBtn').click();
       }
     });
 
-    // ── Finalisation de l'inscription (Firestore + Backend) ──
+    // ── Finalisation de l'inscription (Firestore + Vercel Serverless Function) ──
     async function finalizeRegistration(user, email, pays, referralCodeUsed) {
       const userId = user.uid;
       const generatedUsername = (user.displayName || email.split('@')[0])
@@ -648,8 +648,8 @@
         isFirstAccess: true
       }, { merge: true });
 
-      // Backend API
-      fetch(`${BACKEND_URL}/register`, {
+      // Appel de la Serverless Function de Vercel pour l'envoi de l'email
+      fetch(`${BACKEND_URL}/api/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -661,7 +661,7 @@
           referralCodeUsed: referralCodeUsed || null,
           isFirstAccess: true
         })
-      }).catch(() => {});
+      }).catch((err) => console.error("Erreur appel API Vercel:", err));
 
       return true;
     }
