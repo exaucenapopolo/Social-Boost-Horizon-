@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
   <style>
-    /* --- Tes styles exacts (inchangés) --- */
+    /* --- Styles exacts préservés --- */
     :root {
       --sbh-dark-blue: #0A162B;
       --sbh-gradient-start: #1e3c72;
@@ -1081,7 +1081,6 @@
       .user-display-name { font-size: 1.3rem; }
     }
   </style>
-  <!-- PWA -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#1e3c72">
   <meta name="mobile-web-app-capable" content="yes">
@@ -1344,7 +1343,7 @@
         <div class="setting-item">
           <div class="setting-info">
             <h4>Masquer mon solde</h4>
-            <p>Masquez votre solde dans l'en-tete du tableau de bord</p>
+            <p>Masquez votre solde partout dans le tableau de bord</p>
           </div>
           <label class="toggle-switch">
             <input type="checkbox" id="settingHideBalance">
@@ -1368,7 +1367,7 @@
         <div class="setting-item">
           <div class="setting-info">
             <h4>Mode vitesse par defaut</h4>
-            <p>Activer automatiquement le mode vitesse sur les nouvelles commandes</p>
+            <p>Activer automatiquement le mode vitesse sur les nouvelles commandes (+10% de frais)</p>
           </div>
           <label class="toggle-switch">
             <input type="checkbox" id="settingDefaultSpeed">
@@ -1513,12 +1512,9 @@
 
   <script>
     // ======================================================
-    //  🔥 CONFIGURATION – MÊME URL QUE DANS paid.html
+    //  🔥 CONFIGURATION
     // ======================================================
-    const BACKEND_URL = 'https://socialboosthorizon.com';  // ← à ajuster si besoin
-
-    // Si tu veux utiliser une URL relative (si même domaine), mets ''.
-    // Mais pour être sûr, on met l'URL absolue comme dans paid.html.
+    const BACKEND_URL = 'https://socialboosthorizon.com';
 
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
@@ -1529,9 +1525,12 @@
       appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
     };
 
-    firebase.initializeApp(firebaseConfig);
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
     const auth = firebase.auth();
 
+    // Variables globales
     let currentUser = null;
     let originalData = {};
     let isEditMode = false;
@@ -1540,6 +1539,10 @@
     let customUploadedURL = null;
     let currentSettings = {};
     let pendingSettingChange = null;
+    
+    // Variables pour gérer l'affichage dynamique du solde
+    let userBalanceValue = 0;
+    let userCurrencyValue = 'FCFA';
 
     const profilePhotos = [
       "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/49391629-jeune-homme-avatar-personnage-du-avatar-homme-icone-dessin-anime-illustration-gratuit-vectoriel.jpg",
@@ -1580,61 +1583,40 @@
     };
 
     const SETTINGS_DESCRIPTIONS = {
-      emailNotifications: {
-        name: 'Notifications par email',
-        icon: '<i class="fa-solid fa-envelope" style="color: #4CAF50;"></i>',
-        onMessage: 'Vous recevrez des notifications par email pour vos commandes, mises a jour de statut et informations importantes de votre compte.',
-        offMessage: 'Vous ne recevrez plus aucune notification par email. Vous risquez de manquer des mises a jour importantes sur vos commandes.'
-      },
-      whatsappNotifications: {
-        name: 'Notifications WhatsApp',
-        icon: '<i class="fa-brands fa-whatsapp" style="color: #25D366;"></i>',
-        onMessage: 'Vous recevrez des alertes WhatsApp quand vos commandes seront terminees ou quand il y aura des mises a jour importantes.',
-        offMessage: 'Vous ne recevrez plus d\'alertes WhatsApp. Les notifications de fin de commande seront desactivees.'
-      },
-      promoNotifications: {
-        name: 'Notifications promotionnelles',
-        icon: '<i class="fa-solid fa-tags" style="color: #FF9800;"></i>',
-        onMessage: 'Vous recevrez nos offres speciales, codes promo et reductions exclusives par email.',
-        offMessage: 'Vous ne recevrez plus nos promotions et offres speciales. Vous pourriez manquer des reductions avantageuses.'
-      },
-      profileVisible: {
-        name: 'Profil visible',
-        icon: '<i class="fa-solid fa-eye" style="color: #2196F3;"></i>',
-        onMessage: 'Votre nom sera visible dans les classements et les statistiques publiques de la plateforme.',
-        offMessage: 'Votre profil sera masque des classements et statistiques publiques. Vous resterez anonyme.'
-      },
-      hideBalance: {
-        name: 'Masquer mon solde',
-        icon: '<i class="fa-solid fa-eye-slash" style="color: #9C27B0;"></i>',
-        onMessage: 'Votre solde sera masque dans l\'en-tete du tableau de bord. Cliquez dessus pour le reveler temporairement.',
-        offMessage: 'Votre solde sera toujours visible dans l\'en-tete du tableau de bord.'
-      },
-      privateHistory: {
-        name: 'Historique prive',
-        icon: '<i class="fa-solid fa-lock" style="color: #FF5722;"></i>',
-        onMessage: 'Vos statistiques de commandes ne seront pas partagees. Votre historique reste strictement prive.',
-        offMessage: 'Vos statistiques de commandes pourront etre visibles par d\'autres utilisateurs de la plateforme.'
-      },
-      defaultSpeed: {
-        name: 'Mode vitesse par defaut',
-        icon: '<i class="fa-solid fa-bolt" style="color: #FFD700;"></i>',
-        onMessage: 'Le mode vitesse sera automatiquement active sur toutes vos nouvelles commandes. Cela ajoute 10% au prix pour un traitement prioritaire.',
-        offMessage: 'Le mode vitesse ne sera pas active par defaut. Vous pourrez toujours l\'activer manuellement sur chaque commande.'
-      },
-      confirmOrder: {
-        name: 'Confirmation avant commande',
-        icon: '<i class="fa-solid fa-shield-halved" style="color: #00BCD4;"></i>',
-        onMessage: 'Un ecran de confirmation s\'affichera avant chaque commande pour verifier les details et eviter les erreurs.',
-        offMessage: 'Les commandes seront passees directement sans ecran de confirmation. Attention aux erreurs de saisie.'
-      },
-      soundsAnimations: {
-        name: 'Sons et animations',
-        icon: '<i class="fa-solid fa-wand-magic-sparkles" style="color: #E91E63;"></i>',
-        onMessage: 'Les effets sonores et animations de confettis seront actives pour une experience plus immersive.',
-        offMessage: 'Les effets sonores et animations seront desactives pour une experience plus sobre et rapide.'
-      }
+      emailNotifications: { name: 'Notifications par email', icon: '<i class="fa-solid fa-envelope" style="color: #4CAF50;"></i>', onMessage: 'Vous recevrez des notifications par email pour vos commandes, mises à jour de statut et informations importantes de votre compte.', offMessage: 'Vous ne recevrez plus aucune notification par email. Vous risquez de manquer des mises à jour importantes sur vos commandes.' },
+      whatsappNotifications: { name: 'Notifications WhatsApp', icon: '<i class="fa-brands fa-whatsapp" style="color: #25D366;"></i>', onMessage: 'Vous recevrez des alertes WhatsApp quand vos commandes seront terminées ou quand il y aura des mises à jour importantes.', offMessage: 'Vous ne recevrez plus d\'alertes WhatsApp. Les notifications de fin de commande seront désactivées.' },
+      promoNotifications: { name: 'Notifications promotionnelles', icon: '<i class="fa-solid fa-tags" style="color: #FF9800;"></i>', onMessage: 'Vous recevrez nos offres spéciales, codes promo et réductions exclusives par email.', offMessage: 'Vous ne recevrez plus nos promotions et offres spéciales. Vous pourriez manquer des réductions avantageuses.' },
+      profileVisible: { name: 'Profil visible', icon: '<i class="fa-solid fa-eye" style="color: #2196F3;"></i>', onMessage: 'Votre nom sera visible dans les classements et les statistiques publiques de la plateforme.', offMessage: 'Votre profil sera masqué des classements et statistiques publiques. Vous resterez anonyme.' },
+      hideBalance: { name: 'Masquer mon solde', icon: '<i class="fa-solid fa-eye-slash" style="color: #9C27B0;"></i>', onMessage: 'Votre solde sera masqué dans le profil et le tableau de bord.', offMessage: 'Votre solde sera de nouveau visible partout.' },
+      privateHistory: { name: 'Historique privé', icon: '<i class="fa-solid fa-lock" style="color: #FF5722;"></i>', onMessage: 'Vos statistiques de commandes ne seront pas partagées. Votre historique reste strictement privé.', offMessage: 'Vos statistiques de commandes pourront être visibles par d\'autres utilisateurs de la plateforme.' },
+      defaultSpeed: { name: 'Mode vitesse par défaut', icon: '<i class="fa-solid fa-bolt" style="color: #FFD700;"></i>', onMessage: 'Le mode vitesse sera automatiquement activé sur toutes vos nouvelles commandes. Cela ajoute 10% au prix pour un traitement prioritaire.', offMessage: 'Le mode vitesse ne sera pas activé par défaut. Vous pourrez toujours l\'activer manuellement sur chaque commande.' },
+      confirmOrder: { name: 'Confirmation avant commande', icon: '<i class="fa-solid fa-shield-halved" style="color: #00BCD4;"></i>', onMessage: 'Un écran de confirmation s\'affichera avant chaque commande pour vérifier les détails et éviter les erreurs.', offMessage: 'Les commandes seront passées directement sans écran de confirmation. Attention aux erreurs de saisie.' },
+      soundsAnimations: { name: 'Sons et animations', icon: '<i class="fa-solid fa-wand-magic-sparkles" style="color: #E91E63;"></i>', onMessage: 'Les effets sonores et animations de confettis seront activés pour une expérience plus immersive.', offMessage: 'Les effets sonores et animations seront désactivés pour une expérience plus sobre et rapide.' }
     };
+
+    // --- FONCTION SÉCURISÉE DE FORMATAGE DE DATE ---
+    // Cette fonction évite d'afficher "NaN" ou "Date invalide"
+    function safeFormatDate(dateString, isMonthYearOnly = false) {
+      if (!dateString) return 'Inconnue';
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return 'Inconnue';
+      
+      if (isMonthYearOnly) {
+        const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+        return months[d.getMonth()] + ' ' + d.getFullYear();
+      }
+      return d.toLocaleDateString('fr-FR') + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute:'2-digit' });
+    }
+
+    // --- FONCTION DE MISE À JOUR DU SOLDE (Affiche / Masque) ---
+    function updateBalanceDisplay() {
+      const balanceElement = document.getElementById('statBalance');
+      if (currentSettings.hideBalance) {
+        balanceElement.textContent = '****';
+      } else {
+        balanceElement.textContent = Math.round(userBalanceValue).toLocaleString('fr-FR') + ' ' + userCurrencyValue;
+      }
+    }
 
     document.addEventListener('DOMContentLoaded', function() {
       AOS.init({ duration: 800, once: true });
@@ -1710,7 +1692,7 @@
           closeAvatarModal();
           savePhotoToFirestore(photoToUse);
         } else {
-          showNotification('Veuillez selectionner une photo ou telecharger la votre', false);
+          showNotification('Veuillez sélectionner une photo ou télécharger la vôtre', false);
         }
       });
 
@@ -1759,7 +1741,7 @@
 
       const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
       if (!validTypes.includes(file.type)) {
-        showNotification('Format non supporte. Utilisez JPG, PNG ou WEBP', false);
+        showNotification('Format non supporté. Utilisez JPG, PNG ou WEBP', false);
         return;
       }
 
@@ -1791,15 +1773,15 @@
           document.getElementById('customPhotoImg').src = data.secure_url;
           progressBar.style.width = '100%';
           setTimeout(() => { progressDiv.style.display = 'none'; progressBar.style.width = '0%'; }, 500);
-          showNotification('Photo telechargee avec succes !', true);
+          showNotification('Photo téléchargée avec succès !', true);
         } else {
-          throw new Error('Echec upload');
+          throw new Error('Échec upload');
         }
       } catch (err) {
         console.error('Upload error:', err);
         progressDiv.style.display = 'none';
         progressBar.style.width = '0%';
-        showNotification('Erreur lors du telechargement de la photo', false);
+        showNotification('Erreur lors du téléchargement de la photo', false);
       }
     }
 
@@ -1822,7 +1804,7 @@
 
         currentPhotoURL = photoURL;
         originalData.photoURL = photoURL;
-        showNotification('Photo de profil mise a jour !', true);
+        showNotification('Photo de profil mise à jour !', true);
         launchConfetti();
       } catch (err) {
         console.error('Erreur sauvegarde photo:', err);
@@ -1884,16 +1866,21 @@
             photoURL: currentPhotoURL
           };
 
-          const balance = data.balance || 0;
-          const currency = data.currency || 'FCFA';
-          document.getElementById('statBalance').textContent = Math.round(balance).toLocaleString('fr-FR') + ' ' + currency;
+          // Gestion du solde et masquage (Sauvegarde des valeurs)
+          userBalanceValue = data.balance || 0;
+          userCurrencyValue = data.currency || 'FCFA';
 
-          if (data.createdAt) {
-            const joinDate = new Date(data.createdAt);
-            const months = ['Jan', 'Fev', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aou', 'Sep', 'Oct', 'Nov', 'Dec'];
-            document.getElementById('statJoined').textContent = months[joinDate.getMonth()] + ' ' + joinDate.getFullYear();
-          }
+          // Application des paramètres pour que la mise à jour du solde puisse vérifier `hideBalance`
+          currentSettings = data.settings || {};
+          applySettingsToUI(currentSettings);
+          
+          // Mise à jour de l'affichage du solde (prend en compte hideBalance via la fonction)
+          updateBalanceDisplay();
 
+          // Formater proprement la date de création ("Membre depuis")
+          document.getElementById('statJoined').textContent = safeFormatDate(data.createdAt, true);
+
+          // Total des commandes récupéré dynamiquement depuis le backend
           document.getElementById('statOrders').textContent = data.totalOrders || 0;
 
           if (data.resellerLevel) {
@@ -1901,12 +1888,9 @@
             document.getElementById('memberBadgeText').textContent = levels[data.resellerLevel] || 'Membre actif';
           }
 
-          if (data.lastSignIn) {
-            document.getElementById('lastLoginInfo').textContent = new Date(data.lastSignIn).toLocaleString('fr-FR');
-          }
+          // Formater proprement la date de dernière connexion
+          document.getElementById('lastLoginInfo').textContent = safeFormatDate(data.lastSignIn);
 
-          currentSettings = data.settings || {};
-          applySettingsToUI(currentSettings);
         } else {
           originalData = { displayName: fallbackName, email: user.email, phone: '', country: '', photoURL: null };
         }
@@ -1926,6 +1910,8 @@
           el.checked = settings[key] !== undefined ? settings[key] : DEFAULT_SETTINGS[key];
         }
       });
+      // Appliquer le masquage ou affichage du solde immédiatement à l'interface
+      updateBalanceDisplay();
     }
 
     function updateAvatarDisplay(photoURL, displayName) {
@@ -1999,7 +1985,7 @@
       }
 
       if (newPassword && newPassword.length < 6) {
-        showNotification('Le mot de passe doit contenir au moins 6 caracteres', false);
+        showNotification('Le mot de passe doit contenir au moins 6 caractères', false);
         resetSaveButton();
         return;
       }
@@ -2032,7 +2018,7 @@
         const data = await response.json();
 
         if (!data.success) {
-          throw new Error(data.error || 'Erreur lors de la mise a jour');
+          throw new Error(data.error || 'Erreur lors de la mise à jour');
         }
 
         originalData = {
@@ -2048,12 +2034,12 @@
         document.getElementById('newPassword').value = '';
 
         exitEditMode();
-        showNotification('Profil mis a jour avec succes !', true);
+        showNotification('Profil mis à jour avec succès !', true);
         launchConfetti();
 
         if (newEmail !== currentUser.email || newPassword) {
           setTimeout(() => {
-            showNotification('Vous allez etre redirige vers la connexion...', true);
+            showNotification('Vous allez être redirigé vers la connexion...', true);
             setTimeout(() => {
               auth.signOut().then(() => { window.location.href = 'login.html'; });
             }, 2000);
@@ -2079,9 +2065,9 @@
     }
 
     function logout() {
-      if (confirm('Voulez-vous vraiment vous deconnecter ?')) {
+      if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
         auth.signOut().then(() => { window.location.href = 'login.html'; })
-        .catch(() => showNotification('Erreur de deconnexion', false));
+        .catch(() => showNotification('Erreur de déconnexion', false));
       }
     }
 
@@ -2133,11 +2119,11 @@
 
       pendingSettingChange = { settingKey, newValue, toggleElement };
 
-      const actionText = newValue ? 'Activer' : 'Desactiver';
+      const actionText = newValue ? 'Activer' : 'Désactiver';
       document.getElementById('settingConfirmTitle').textContent = actionText + ' : ' + desc.name;
       document.getElementById('settingConfirmIcon').innerHTML = desc.icon;
       document.getElementById('settingConfirmMessage').textContent = newValue ? desc.onMessage : desc.offMessage;
-      document.getElementById('settingConfirmBtn').textContent = newValue ? 'Activer' : 'Desactiver';
+      document.getElementById('settingConfirmBtn').textContent = newValue ? 'Activer' : 'Désactiver';
       document.getElementById('settingConfirmBtn').style.background = newValue
         ? 'linear-gradient(135deg, #4CAF50, #2E7D32)'
         : 'linear-gradient(135deg, #f44336, #c62828)';
@@ -2160,6 +2146,11 @@
       document.getElementById('settingConfirmModal').classList.remove('active');
 
       currentSettings[settingKey] = newValue;
+      
+      // On met à jour l'affichage immédiatement après la confirmation du paramètre
+      if (settingKey === 'hideBalance') {
+        updateBalanceDisplay();
+      }
 
       const fullSettings = {};
       Object.keys(SETTINGS_MAP).forEach(elementId => {
@@ -2187,12 +2178,12 @@
 
         currentSettings = data.settings || fullSettings;
         const desc = SETTINGS_DESCRIPTIONS[settingKey];
-        showNotification((newValue ? 'Active' : 'Desactive') + ' : ' + desc.name, true);
+        showNotification((newValue ? 'Activé' : 'Désactivé') + ' : ' + desc.name, true);
       } catch (err) {
-        console.error('Erreur sauvegarde parametre:', err);
-        showNotification('Erreur lors de la sauvegarde du parametre', false);
+        console.error('Erreur sauvegarde paramètre:', err);
+        showNotification('Erreur lors de la sauvegarde du paramètre', false);
         currentSettings[settingKey] = !newValue;
-        applySettingsToUI(currentSettings);
+        applySettingsToUI(currentSettings); // annulation de l'UI
       }
 
       pendingSettingChange = null;
@@ -2213,8 +2204,10 @@
           document.getElementById('apiNoKey').style.display = 'none';
           document.getElementById('apiHasKey').style.display = 'block';
           document.getElementById('apiKeyPrefixDisplay').textContent = data.prefix + '****...****';
+          
+          // Formatage de la date API propre
           if (data.createdAt) {
-            document.getElementById('apiKeyDate').textContent = 'Creee le ' + new Date(data.createdAt).toLocaleDateString('fr-FR');
+            document.getElementById('apiKeyDate').textContent = 'Créée le ' + safeFormatDate(data.createdAt, true);
           }
         } else {
           document.getElementById('apiNoKey').style.display = 'block';
@@ -2227,7 +2220,7 @@
 
     async function generateApiKey() {
       if (document.getElementById('apiHasKey').style.display !== 'none') {
-        if (!confirm('Cela va remplacer votre cle API actuelle. Continuer ?')) return;
+        if (!confirm('Cela va remplacer votre clé API actuelle. Continuer ?')) return;
       }
       try {
         const idToken = await currentUser.getIdToken();
@@ -2244,21 +2237,24 @@
           document.getElementById('apiNoKey').style.display = 'none';
           document.getElementById('apiHasKey').style.display = 'block';
           document.getElementById('apiKeyPrefixDisplay').textContent = data.prefix + '****...****';
-          document.getElementById('apiKeyDate').textContent = 'Creee le ' + new Date().toLocaleDateString('fr-FR');
+          
+          // Formatage propre avec la nouvelle fonction
+          document.getElementById('apiKeyDate').textContent = 'Créée le ' + safeFormatDate(data.createdAt || new Date().toISOString(), true);
+          
           document.getElementById('apiNewKeyDisplay').style.display = 'block';
           document.getElementById('apiNewKeyValue').textContent = data.apiKey;
-          showNotification('Cle API generee avec succes !', true);
+          showNotification('Clé API générée avec succès !', true);
         } else {
-          showNotification(data.error || 'Erreur lors de la generation', false);
+          showNotification(data.error || 'Erreur lors de la génération', false);
         }
       } catch (e) {
-        console.error('Erreur generation API key:', e);
+        console.error('Erreur génération API key:', e);
         showNotification('Erreur de connexion: ' + e.message, false);
       }
     }
 
     async function revokeApiKey() {
-      if (!confirm('Revoquer votre cle API ? Toutes les integrations utilisant cette cle cesseront de fonctionner.')) return;
+      if (!confirm('Révoquer votre clé API ? Toutes les intégrations utilisant cette clé cesseront de fonctionner.')) return;
       try {
         const idToken = await currentUser.getIdToken();
         const response = await fetch(BACKEND_URL + '/api/user/revoke-api-key', {
@@ -2274,7 +2270,7 @@
           document.getElementById('apiNoKey').style.display = 'block';
           document.getElementById('apiHasKey').style.display = 'none';
           document.getElementById('apiNewKeyDisplay').style.display = 'none';
-          showNotification('Cle API revoquee avec succes', true);
+          showNotification('Clé API révoquée avec succès', true);
         } else {
           showNotification(data.error || 'Erreur', false);
         }
@@ -2286,10 +2282,10 @@
     function copyApiKey() {
       const keyText = document.getElementById('apiNewKeyValue').textContent;
       navigator.clipboard.writeText(keyText).then(() => {
-        showNotification('Cle API copiee !', true);
+        showNotification('Clé API copiée !', true);
         const btn = document.getElementById('copyApiKeyBtn');
-        btn.innerHTML = '<i class="fa-solid fa-check"></i> Copie !';
-        setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copier la cle'; }, 2000);
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Copié !';
+        setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copier la clé'; }, 2000);
       }).catch(() => {
         const ta = document.createElement('textarea');
         ta.value = keyText;
@@ -2297,7 +2293,7 @@
         ta.select();
         document.execCommand('copy');
         ta.remove();
-        showNotification('Cle API copiee !', true);
+        showNotification('Clé API copiée !', true);
       });
     }
 
