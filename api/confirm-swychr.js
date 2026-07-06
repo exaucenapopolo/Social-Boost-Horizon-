@@ -1,7 +1,16 @@
 const { db } = require('./_firebase');
 
 module.exports = async function handler(req, res) {
-  // Récupération de l'ID via l'URL (ex: ?transactionId=123)
+  // AJOUT : En-têtes CORS pour autoriser ton site à faire des requêtes
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Gestion de la requête préliminaire (preflight) de CORS
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   const { transactionId } = req.query;
 
   if (!transactionId) {
@@ -10,13 +19,16 @@ module.exports = async function handler(req, res) {
 
   try {
     const txDoc = await db.collection('transactions').doc(transactionId).get();
-    // On vérifie si la transaction existe et si le statut est validé
+    
     if (txDoc.exists && txDoc.data().status === 'completed') {
       return res.status(200).json({ isPaid: true });
     }
-    // Si ce n'est pas encore complété, on renvoie false
+    
+    // Si la transaction n'existe pas ou n'est pas encore 'completed'
     return res.status(200).json({ isPaid: false });
+    
   } catch (error) {
+    console.error('Erreur lors de la vérification:', error);
     return res.status(500).json({ error: error.message });
   }
 };
