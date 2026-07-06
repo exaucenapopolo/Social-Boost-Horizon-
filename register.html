@@ -272,7 +272,7 @@
                   <div class="custom-select-option" data-value="cg">Congo Brazzaville 🇨🇬</div>
                   <div class="custom-select-option" data-value="cd">Congo (RDC) 🇨🇩</div>
                   <div class="custom-select-option" data-value="ga">Gabon 🇬🇦</div>
-                  <div class="custom-select-option" data-value="gq">Guinée équatoriale 🇬🇶</div>
+                  <div class="custom-select-option" data-value="gq">Guinée équatoriale 🇬GQ</div>
                   <div class="custom-select-option" data-value="st">Sao Tomé-et-Principe 🇸🇹</div>
                   <div class="custom-select-option" data-value="td">Tchad 🇹🇩</div>
                 </div>
@@ -597,18 +597,19 @@
     async function finalizeRegistration(user, email, pays, referralCodeUsed) {
       const userId = user.uid;
       
-      // Extraction du prénom
-      let prenom = "";
-      if (user.displayName) {
-        prenom = user.displayName.split(' ')[0];
-      } else {
+      // Extraction du prénom (Sécurisée)
+      let prenom = "Membre"; // Valeur par défaut robuste
+      if (user.displayName && user.displayName.trim() !== "") {
+        prenom = user.displayName.trim().split(' ')[0];
+      } else if (email) {
         let emailPart = email.split('@')[0];
-        emailPart = emailPart.replace(/[^a-zA-Z]/g, ' ').trim();
-        prenom = emailPart.split(' ')[0];
+        // On garde uniquement les lettres (y compris les accents) pour éviter les erreurs sur les emails avec que des chiffres
+        emailPart = emailPart.replace(/[^a-zA-ZÀ-ÿ]/g, ' ').trim();
+        if (emailPart.length > 0) {
+          prenom = emailPart.split(' ')[0];
+        }
       }
-      if (!prenom || prenom.length === 0) {
-          prenom = "Membre";
-      }
+      
       const finalUsername = prenom.charAt(0).toUpperCase() + prenom.slice(1).toLowerCase();
       const newReferralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
 
