@@ -742,7 +742,7 @@
     </div>
   </main>
 
-  <!-- MODALE DÉPÔT (ORIGINALE AVEC DEUX OPTIONS) -->
+  <!-- MODALE DÉPÔT -->
   <div class="modal" id="depositModal">
     <div class="modal-box">
       <h3><i class="fa-solid fa-wallet"></i> Mode de paiement</h3>
@@ -774,7 +774,7 @@
       </div>
       <div class="form-note">
         <i class="fa-solid fa-info-circle"></i>
-        <span>Ce numéro sera utilisé pour pré-remplir automatiquement vos formulaires de recharge (paiement Cameroun ou autre pays). Vous n'aurez plus à le saisir à chaque fois.</span>
+        <span>Ce numéro sera utilisé pour pré-remplir automatiquement vos formulaires de recharge. Vous n'aurez plus à le saisir à chaque fois.</span>
       </div>
       <div class="modal-actions">
         <button class="modal-close" id="closePhoneModal">Annuler</button>
@@ -783,7 +783,7 @@
     </div>
   </div>
 
-  <!-- MODALES TRANSFERT ET RETRAIT (IDENTIQUES À L'ORIGINAL) -->
+  <!-- MODALES TRANSFERT ET RETRAIT -->
   <div class="modal" id="transferModal">
     <div class="modal-box">
       <h3><i class="fa-solid fa-arrow-right-arrow-left"></i> Transférer vos fonds</h3>
@@ -837,7 +837,8 @@
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       if (typeof AOS !== 'undefined') AOS.init({ duration: 800, once: true, offset: 100 });
-      // Hamburger menu
+      
+      // Menu Hamburger
       (function initHamburgerMenu() {
         const header = document.querySelector("header");
         const hamburger = document.getElementById("hamburgerBtn");
@@ -877,7 +878,7 @@
         if(n){ n.innerHTML = `<i class="fa-solid fa-${type==='success'?'check-circle':'exclamation-circle'}"></i> ${msg}`; n.className = `wallet-notification show ${type}`; setTimeout(() => n.classList.remove('show'), 5000); }
       }
 
-      // Gestion numéro de téléphone (Mobile Money)
+      // Gestion numéro de téléphone
       let currentPhone = '';
       function updatePhoneUI(phone) { currentPhone = phone || ''; paymentPhoneDisplay.innerText = phone ? phone : 'Non défini'; }
       async function savePhoneNumber(phone) {
@@ -889,7 +890,6 @@
         showNotification('Numéro de recharge mis à jour', 'success');
       }
 
-      // Modale numéro
       const phoneModal = document.getElementById('phoneModal');
       const phoneInput = document.getElementById('paymentPhoneInput');
       const closePhoneModal = document.getElementById('closePhoneModal');
@@ -906,7 +906,7 @@
         } catch(e){ showNotification(e.message, 'error'); }
       });
 
-      // MODALE DÉPÔT : redirections vers les pages existantes (fonds.html et paid.html)
+      // Modale Dépôt
       const depositModal = document.getElementById('depositModal');
       const closeDepositModal = document.getElementById('closeDepositModal');
       const depositCameroon = document.getElementById('depositCameroon');
@@ -916,7 +916,7 @@
       depositCameroon.addEventListener('click', () => { window.location.href = 'fonds.html'; });
       depositInternational.addEventListener('click', () => { window.location.href = 'paid.html'; });
 
-      // TRANSFERT (solde de parrainage)
+      // Transfert
       const transferModal = document.getElementById('transferModal');
       const transferAmountEl = document.getElementById('transferAmount');
       const confirmTransferBtn = document.getElementById('confirmTransfer');
@@ -966,7 +966,7 @@
         confirmTransferBtn.innerHTML = 'Confirmer';
       });
 
-      // RETRAIT
+      // Retrait
       const withdrawModal = document.getElementById('withdrawModal');
       const withdrawAvailableEl = document.getElementById('withdrawAvailable');
       const closeWithdrawModal = document.getElementById('closeWithdrawModal');
@@ -1011,7 +1011,7 @@
         confirmWithdrawBtn.innerHTML = 'Envoyer la demande';
       });
 
-      // Auth et chargement des données
+      // Écoute de l'authentification et des données utilisateur
       auth.onAuthStateChanged(user => {
         if (!user) { window.location.href = 'login.html'; return; }
         currentUid = user.uid;
@@ -1035,40 +1035,93 @@
         loadActivities();
       });
 
+      // FONCTION PRINCIPALE MODIFIÉE : Chargement unifié de l'historique
       async function loadActivities() {
         if (!currentUid) return;
         activityList.innerHTML = '<div style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
         try {
           const all = [];
+          
+          // 1. Chargement de fapshiTransactions
           const trans = await db.collection('fapshiTransactions').where('userId', '==', currentUid).limit(100).get();
           trans.forEach(d => { const data = d.data(); all.push({ __id: d.id, __ts: data.date?.toDate?.()?.getTime() || 0, __type: 'transaction', ...data }); });
+          
+          // 2. Chargement de recharges
           const recharges = await db.collection('recharges').where('userId', '==', currentUid).limit(100).get();
           recharges.forEach(d => { const data = d.data(); all.push({ __id: d.id, __ts: data.createdAt?.toDate?.()?.getTime() || 0, __type: 'recharge', ...data }); });
+
+          // 3. NOUVEAU : Chargement de la collection transactions (Swychr)
+          const swychrTrans = await db.collection('transactions').where('userId', '==', currentUid).limit(100).get();
+          swychrTrans.forEach(d => {
+            const data = d.data();
+            let timestamp = 0;
+            if (data.createdAt) {
+              if (typeof data.createdAt.toDate === 'function') {
+                timestamp = data.createdAt.toDate().getTime();
+              } else {
+                timestamp = new Date(data.createdAt).getTime();
+              }
+            }
+            all.push({ __id: d.id, __ts: timestamp, __type: 'swychr', ...data });
+          });
+
+          // Tri combiné décroissant (plus récent au plus ancien)
           all.sort((a,b) => b.__ts - a.__ts);
+          
           if (all.length === 0) { activityList.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fa-regular fa-clock"></i><p>Aucune activité</p></div>'; return; }
+          
           activityList.innerHTML = '';
           all.slice(0, 20).forEach(item => {
             let icon = 'fa-arrow-down', label = 'Transaction', amount = 0, status = 'Succès', typeClass = 'type-recharge', amountClass = 'positive', iconClass = 'recharge';
+            let statusClass = 'status-success';
+
             if (item.__type === 'transaction') {
               amount = item.amount || 0;
               label = item.label || 'Transaction';
               if ((item.type || '').toLowerCase().includes('transfert')) { icon = 'fa-arrow-right-arrow-left'; iconClass = 'transfert'; typeClass = 'type-transfert'; }
               else if ((item.type || '').toLowerCase().includes('retrait')) { icon = 'fa-arrow-up'; iconClass = 'retrait'; amountClass = 'negative'; typeClass = 'type-retrait'; }
+              
               const st = (item.status || '').toLowerCase();
-              if (st === 'pending') status = 'En attente';
-              else if (st === 'failed') status = 'Échoué';
+              if (st === 'pending') { status = 'En attente'; statusClass = 'status-pending'; typeClass = 'type-pending'; }
+              else if (st === 'failed') { status = 'Échoué'; statusClass = 'status-failed'; typeClass = 'type-failed'; }
+              
             } else if (item.__type === 'recharge') {
               amount = item.amount || 0;
               label = `Recharge ${item.method || ''}`;
               icon = 'fa-plus-circle';
+              
               const st = (item.status || '').toLowerCase();
-              if (st === 'pending') status = 'En attente';
-              else if (st === 'validated') status = 'Validé';
+              if (st === 'pending') { status = 'En attente'; statusClass = 'status-pending'; typeClass = 'type-pending'; }
+              else if (st === 'validated') { status = 'Validé'; statusClass = 'status-success'; }
+              
+            } else if (item.__type === 'swychr') {
+              // Gestion dynamique de l'affichage pour Swychr
+              amount = item.amountXAF || item.amount || 0;
+              label = item.label || 'Recharge Swychr';
+              icon = 'fa-plus-circle';
+              iconClass = 'recharge';
+              typeClass = 'type-recharge';
+              amountClass = 'positive';
+              
+              const st = (item.status || '').toLowerCase();
+              if (st === 'pending' || st === 'in_progress') {
+                status = 'En attente';
+                statusClass = 'status-pending';
+                typeClass = 'type-pending';
+              } else if (st === 'success' || st === 'completed' || st === 'validated') {
+                status = 'Validé';
+                statusClass = 'status-success';
+              } else if (st === 'failed' || st === 'cancelled') {
+                status = 'Échoué';
+                statusClass = 'status-failed';
+                typeClass = 'type-failed';
+              }
             }
+            
             const dateStr = item.__ts ? new Date(item.__ts).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
             const div = document.createElement('div');
             div.className = `activity-item ${typeClass}`;
-            div.innerHTML = `<div class="activity-icon ${iconClass}"><i class="fa-solid ${icon}"></i></div><div class="activity-content"><div class="activity-label">${label}</div><div class="activity-date">${dateStr}</div></div><div class="activity-right"><div class="activity-amount ${amountClass}">${amountClass === 'positive' ? '+' : '-'}${formatAmount(Math.abs(amount))}</div><span class="activity-status status-success">${status}</span></div>`;
+            div.innerHTML = `<div class="activity-icon ${iconClass}"><i class="fa-solid ${icon}"></i></div><div class="activity-content"><div class="activity-label">${label}</div><div class="activity-date">${dateStr}</div></div><div class="activity-right"><div class="activity-amount ${amountClass}">${amountClass === 'positive' ? '+' : '-'}${formatAmount(Math.abs(amount))}</div><span class="activity-status ${statusClass}">${status}</span></div>`;
             activityList.appendChild(div);
           });
         } catch(e) { activityList.innerHTML = `<div style="color:#FF6B6B;">Erreur: ${e.message}</div>`; }
