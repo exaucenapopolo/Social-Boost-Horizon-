@@ -1,6 +1,19 @@
 const { db } = require('./_firebase');
 
 module.exports = async function handler(req, res) {
+  // 1. === DÉBUT DES RÈGLES DE SÉCURITÉ CORS ===
+  // On autorise n'importe quel site (dont ton GitHub Pages) à discuter avec ce serveur Vercel
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  // Si le navigateur fait sa requête de pré-vérification (OPTIONS), on lui dit "OK, tu peux passer"
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  // === FIN DES RÈGLES DE SÉCURITÉ ===
+
+  // 2. On vérifie que la vraie requête est bien un POST pour envoyer les données
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Méthode non autorisée' });
   }
@@ -8,7 +21,7 @@ module.exports = async function handler(req, res) {
   try {
     const { email, userId, username, country, phone, amount, amountXAF, currency } = req.body;
 
-    // 1. Authentification auprès de Swychr
+    // 3. Authentification auprès de Swychr
     const authRes = await fetch('https://api.accountpe.com/api/payin/admin/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -23,7 +36,7 @@ module.exports = async function handler(req, res) {
       throw new Error('Échec de l\'authentification Swychr');
     }
 
-    // 2. NOUVEAU SYSTÈME : Génération d'un ID de transaction unique et incrémenté
+    // 4. NOUVEAU SYSTÈME : Génération d'un ID de transaction unique et incrémenté
     // Nous ciblons le document 'transactions' dans la collection 'counters'
     const counterRef = db.collection('counters').doc('transactions');
     
@@ -47,9 +60,11 @@ module.exports = async function handler(req, res) {
       return `SBH-PAY-${nextCount}`;
     });
 
-    const baseUrl = `https://${req.headers.host}`;
+    // Utilisation de l'hôte pour le callback
+    const host = req.headers.host || 'socialboosthorizon.com';
+    const baseUrl = `https://${host}`;
 
-    // 3. Création de la transaction dans ta base de données avec le nouvel ID
+    // 5. Création de la transaction dans ta base de données avec le nouvel ID
     await db.collection('transactions').doc(transactionId).set({
       userId: userId,
       amountXAF: amountXAF,
@@ -57,7 +72,7 @@ module.exports = async function handler(req, res) {
       createdAt: new Date().toISOString()
     });
 
-    // 4. Initialisation du paiement avec le partenaire Swychr
+    // 6. Initialisation du paiement avec le partenaire Swychr
     const paymentRes = await fetch('https://api.accountpe.com/api/payin/create_payment_links', {
       method: 'POST',
       headers: {
@@ -81,7 +96,7 @@ module.exports = async function handler(req, res) {
 
     const paymentData = await paymentRes.json();
 
-    // 5. Retour du lien de paiement au frontend
+    // 7. Retour du lien de paiement au frontend
     if (paymentData.status === 200 || paymentData.status === 201) {
       return res.status(200).json({
         success: true,
@@ -96,4 +111,4 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ success: false, error: error.message });
   }
 };
-    
+      
