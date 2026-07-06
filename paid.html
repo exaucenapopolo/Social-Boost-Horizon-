@@ -5,15 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes"/>
   <title>Dépôt · Social Boost Horizon</title>
 
-  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <!-- AOS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
 
-  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
   <style>
@@ -574,25 +571,21 @@
         if (userDoc.exists) {
           userData = userDoc.data();
           
-          // 1. Pré-remplir le numéro de paiement (paymentPhone) si existant
           const phoneInput = document.getElementById('phone');
           if (userData.paymentPhone) {
             phoneInput.value = userData.paymentPhone;
           } else {
-            phoneInput.value = ''; // Laisser vide si non défini
+            phoneInput.value = ''; 
           }
 
-          // 2. Pré-sélectionner le pays en fonction du document utilisateur
           if (userData.country && COUNTRIES_CONFIG[userData.country]) {
             selectedCountry = userData.country;
             document.getElementById('country').value = selectedCountry;
           } else {
-            // Pays par défaut Cameroun si non défini
             selectedCountry = 'CM';
             document.getElementById('country').value = selectedCountry;
           }
           
-          // Mettre à jour l'affichage des devises et des presets
           updateCurrencyDisplay(selectedCountry);
         }
       } catch (error) {
@@ -626,6 +619,7 @@
       const alertBox = document.getElementById('alertBox');
       alertBox.className = 'alert ' + type;
       alertBox.innerHTML = `<i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'check-circle'}"></i><span>${message}</span>`;
+      alertBox.style.display = 'flex'; // S'assurer que l'alerte s'affiche
     }
 
     function hideAlert() {
@@ -638,14 +632,12 @@
       document.getElementById('loadingOverlay').classList.toggle('active', show);
     }
 
-    // MODIFICATION 1 : Le BACKEND_URL est maintenant vide
-    const BACKEND_URL = '';
+    // CORRECTION PRINCIPALE : On lie bien le frontend à ton Vercel !
+    const BACKEND_URL = 'https://socialboosthorizon.com';
 
     document.getElementById('paymentForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       hideAlert();
-
-      console.log('=== DEBUT PAIEMENT ===');
 
       if (!currentUser) {
         showAlert('Utilisateur non connecté. Veuillez vous reconnecter.', 'error');
@@ -684,10 +676,6 @@
         currency:  currencyCode
       };
 
-      // MODIFICATION 2 : On cible l'API de création Swychr
-      console.log('Envoi requête vers:', BACKEND_URL + '/api/create-swychr');
-      showAlert(`Envoi en cours… ${amountLocal.toLocaleString('fr-FR')} ${currencySymbol}`, 'success');
-
       try {
         const response = await fetch(BACKEND_URL + '/api/create-swychr', {
           method: 'POST',
@@ -696,7 +684,6 @@
         });
 
         const data = await response.json();
-        console.log('Réponse backend:', JSON.stringify(data));
 
         if (data.success && data.checkoutUrl) {
           localStorage.setItem('pendingPayment', JSON.stringify({
@@ -710,13 +697,11 @@
           window.location.href = data.checkoutUrl;
         } else {
           showAlert('Erreur : ' + (data.error || 'Réponse inattendue du serveur'), 'error');
-          console.error('Erreur serveur:', data);
           showLoading(false);
           document.getElementById('submitBtn').disabled = false;
         }
       } catch (error) {
-        console.error('Erreur réseau:', error);
-        showAlert('Erreur de connexion : ' + error.message, 'error');
+        showAlert('Erreur de connexion : Impossible de joindre le serveur. Vérifiez votre connexion.', 'error');
         showLoading(false);
         document.getElementById('submitBtn').disabled = false;
       }
@@ -741,14 +726,21 @@
 
     async function checkPaymentStatus(transactionId) {
       try {
-        // MODIFICATION 3 : On cible l'API de confirmation Swychr
+        // CORRECTION : Ajout d'une gestion d'erreur au cas où Vercel met du temps
         const response = await fetch(`${BACKEND_URL}/api/confirm-swychr?transactionId=${transactionId}`);
+        if(!response.ok) throw new Error('Erreur serveur');
+        
         const data = await response.json();
-        if (data.isPaid) {
+        
+        if (data.finalStatus === 'success') {
           localStorage.removeItem('pendingPayment');
           showAlert('Paiement confirmé ! Votre solde a été mis à jour.', 'success');
           await loadUserData();
+        } else if (data.finalStatus === 'failed') {
+          localStorage.removeItem('pendingPayment');
+          showAlert('Le paiement a échoué ou a été annulé.', 'error');
         }
+        // Si c'est 'pending', on ne fait rien, on laisse la personne attendre.
       } catch (error) {
         console.error('Erreur vérification:', error);
       }
