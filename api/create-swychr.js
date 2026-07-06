@@ -64,12 +64,21 @@ module.exports = async function handler(req, res) {
     const host = req.headers.host || 'socialboosthorizon.com';
     const baseUrl = `https://${host}`;
 
-    // 5. Création de la transaction dans ta base de données avec le nouvel ID
+    // 5. Création enrichie de la transaction dans ta base de données avec le nouvel ID
+    // Utilisation d'un objet Date() JavaScript natif pour que Firestore crée un vrai Timestamp
     await db.collection('transactions').doc(transactionId).set({
       userId: userId,
+      username: username || 'Client',
+      email: email,
+      phone: phone || '',
+      country: country,
+      amount: amount,
       amountXAF: amountXAF,
+      currency: currency,
       status: 'pending',
-      createdAt: new Date().toISOString()
+      type: 'Recharge',
+      label: `Recharge Swychr (${currency})`,
+      createdAt: new Date()
     });
 
     // 6. Initialisation du paiement avec le partenaire Swychr
