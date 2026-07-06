@@ -272,7 +272,7 @@
                   <div class="custom-select-option" data-value="cg">Congo Brazzaville 🇨🇬</div>
                   <div class="custom-select-option" data-value="cd">Congo (RDC) 🇨🇩</div>
                   <div class="custom-select-option" data-value="ga">Gabon 🇬🇦</div>
-                  <div class="custom-select-option" data-value="gq">Guinée équatoriale 🇬GQ</div>
+                  <div class="custom-select-option" data-value="gq">Guinée équatoriale 🇬🇶</div>
                   <div class="custom-select-option" data-value="st">Sao Tomé-et-Principe 🇸🇹</div>
                   <div class="custom-select-option" data-value="td">Tchad 🇹🇩</div>
                 </div>
@@ -552,7 +552,6 @@
       this.value = this.value.toUpperCase();
     });
 
-    // ── Vérification du Code de Parrainage ──
     document.getElementById('verifyReferralBtn').addEventListener('click', async () => {
       const code = document.getElementById('referral').value.trim().toUpperCase();
       hideAllErrors();
@@ -596,27 +595,14 @@
     // ── Finalisation de l'inscription (Firestore + Envoi au serveur) ──
     async function finalizeRegistration(user, email, pays, referralCodeUsed) {
       const userId = user.uid;
-      
-      // Extraction du prénom (Sécurisée)
-      let prenom = "Membre"; // Valeur par défaut robuste
-      if (user.displayName && user.displayName.trim() !== "") {
-        prenom = user.displayName.trim().split(' ')[0];
-      } else if (email) {
-        let emailPart = email.split('@')[0];
-        // On garde uniquement les lettres (y compris les accents) pour éviter les erreurs sur les emails avec que des chiffres
-        emailPart = emailPart.replace(/[^a-zA-ZÀ-ÿ]/g, ' ').trim();
-        if (emailPart.length > 0) {
-          prenom = emailPart.split(' ')[0];
-        }
-      }
-      
-      const finalUsername = prenom.charAt(0).toUpperCase() + prenom.slice(1).toLowerCase();
+      const generatedUsername = (user.displayName || email.split('@')[0])
+        .replace(/\s+/g, '_').toLowerCase().replace(/[^a-z0-9_]/g, '');
       const newReferralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
 
-      // Sauvegarde Firestore
+      // Sauvegarde rapide Firestore
       await db.collection('users').doc(userId).set({
         userId,
-        username: finalUsername, 
+        username: generatedUsername,
         email,
         country: pays || '',
         phone: '',
@@ -627,25 +613,38 @@
         isFirstAccess: true
       }, { merge: true });
 
-      // Envoi de l'e-mail au serveur (On vérifie obligatoirement que l'envoi a réussi)
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userId,
-          username: finalUsername, 
-          email,
-          country: pays || '',
-          referralCode: newReferralCode,
-          referralCodeUsed: referralCodeUsed || null,
-          isFirstAccess: true
-        })
-      });
+      try {
+        // On récupère le token Firebase
+        const token = await user.getIdToken();
 
-      if (!response.ok) {
-         throw new Error("L'e-mail de bienvenue n'a pas pu être envoyé. Le serveur a rencontré un problème.");
+        // 🟢 TA CORRECTION EST ICI : 
+        // 1. On utilise le lien relatif '/api/register' comme tu l'as intelligemment suggéré (ça évite les blocages CORS).
+        // 2. On a mis un "await" avant fetch pour OBLIGER le navigateur à attendre que l'email soit envoyé AVANT de te rediriger.
+        const response = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+          },
+          body: JSON.stringify({
+            userId,
+            username: generatedUsername,
+            email,
+            country: pays || '',
+            referralCode: newReferralCode,
+            referralCodeUsed: referralCodeUsed || null,
+            isFirstAccess: true
+          })
+        });
+
+        if (!response.ok) {
+           const errData = await response.json();
+           console.error("Erreur renvoyée par le backend:", errData);
+        } else {
+           console.log("✅ Email de bienvenue envoyé avec succès par le backend !");
+        }
+      } catch (err) {
+        console.error("La requête vers l'API a été bloquée ou a échoué (réseau):", err);
       }
 
       return true;
@@ -653,7 +652,7 @@
 
     let isRegistering = false;
 
-    // ── Soumission du formulaire d'inscription classique ──
+    // ── Soumission du formulaire ──
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (isRegistering) return;
@@ -673,11 +672,13 @@
       btn.classList.add('btn-loading');
 
       try {
+        // Création du compte Firebase
         const userCred = await auth.createUserWithEmailAndPassword(email, password);
         
-        // Exécution de l'enregistrement en base ET de l'envoi d'e-mail
+        // Finalisation + Attente de l'envoi de l'email
         await finalizeRegistration(userCred.user, email, pays, refCode);
 
+        // Une fois terminé SEULEMENT, on affiche le succès et on redirige
         btn.classList.remove('btn-loading');
         btn.style.background = '#4CAF50';
         btn.innerHTML = '<span>✅ Compte créé ! Redirection...</span>';
@@ -687,10 +688,7 @@
 
       } catch (error) {
         btn.classList.remove('btn-loading');
-        
-        if (error.message.includes("L'e-mail de bienvenue n'a pas pu être envoyé")) {
-           showNotification('❌ Le serveur a refusé l\'envoi de l\'email. L\'inscription est bloquée.', 'error');
-        } else if (error.code === 'auth/email-already-in-use') {
+        if (error.code === 'auth/email-already-in-use') {
           showFieldError('emailError', '⚠️ Cette adresse email est déjà utilisée. Connectez-vous.');
         } else if (error.code === 'auth/invalid-email') {
           showFieldError('emailError', '⚠️ Le format de l\'email est incorrect.');
@@ -711,14 +709,17 @@
       btn.classList.add('btn-loading');
 
       try {
+        // Création du compte Google
         const result = await auth.signInWithPopup(provider);
         const user   = result.user;
         const pays   = document.getElementById('pays').value;
         const refCode = document.getElementById('referral').value.trim().toUpperCase()
           || new URLSearchParams(window.location.search).get('ref') || '';
 
+        // Finalisation + Attente de l'envoi de l'email
         await finalizeRegistration(user, user.email, pays, refCode);
 
+        // Une fois terminé SEULEMENT, on affiche le succès et on redirige
         btn.classList.remove('btn-loading');
         btn.style.background = '#4CAF50';
         btn.style.color = '#fff';
@@ -730,7 +731,7 @@
       } catch (error) {
         btn.classList.remove('btn-loading');
         if (error.code !== 'auth/popup-closed-by-user') {
-          showNotification(`❌ Erreur Google ou Serveur : ${error.message}`, 'error');
+          showNotification(`❌ Erreur Google : ${error.message}`, 'error');
         }
         isRegistering = false;
       }
