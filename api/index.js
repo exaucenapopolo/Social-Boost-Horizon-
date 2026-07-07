@@ -774,6 +774,12 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
   }
 });
 
+// ── GET /api/fapshi-webhook ──────────────────────────────────────
+// Ajouté pour éviter l'erreur 404 si Fapshi ou un navigateur fait un simple GET
+app.get('/api/fapshi-webhook', (req, res) => {
+  res.status(200).send("Endpoint Webhook actif. Fapshi doit utiliser POST.");
+});
+
 // ── POST /api/fapshi-webhook ─────────────────────────────────────
 // Appelé par Fapshi lors de la confirmation du paiement.
 // Aucune authentification Firebase (requête entrante de Fapshi).
@@ -874,6 +880,119 @@ app.post('/api/fapshi-webhook', async (req, res) => {
   } catch (err) {
     console.error('❌ /api/fapshi-webhook :', err.message);
     return res.status(500).json({ error: 'Erreur interne lors du traitement du webhook.' });
+  }
+});
+
+// ── POST /api/fapshi/verify-pending ──────────────────────────────
+// Nouvelle route appelée par le bouton pour vérifier manuellement les transactions en attente.
+app.post('/api/fapshi/verify-pending', checkAuth, async (req, res) => {
+  const uid = req.user.uid;
+  const API_USER   = process.env.FAPSHI_API_USER;
+  const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
+
+  if (!API_USER || !SECRET_KEY) {
+    return res.status(500).json({ success: false, error: 'Configuration API Fapshi manquante.' });
+  }
+
+  try {
+    // 1. Récupérer toutes les transactions "PENDING" de cet utilisateur
+    const snapshot = await db.collection('fapshiTransactions')
+      .where('userId', '==', uid)
+      .where('status', '==', 'PENDING')
+      .get();
+
+    if (snapshot.empty) {
+      return res.json({ success: true, confirmedCount: 0, message: "Aucune transaction en attente trouvée." });
+    }
+
+    let confirmedCount = 0;
+
+    for (const doc of snapshot.docs) {
+      const transData = doc.data();
+      const transId = transData.fapshiTransId || doc.id;
+
+      try {
+        // 2. Interroger directement Fapshi
+        const fapshiRes = await fetch(`https://live.fapshi.com/payment-status/${transId}`, {
+          method: 'GET',
+          headers: { 'apiuser': API_USER, 'apikey': SECRET_KEY }
+        });
+
+        if (!fapshiRes.ok) {
+          console.warn(`⚠️ Fapshi HTTP ${fapshiRes.status} pour la transaction ${transId}`);
+          continue;
+        }
+
+        const statusData = await fapshiRes.json();
+        
+        // Fapshi peut renvoyer un objet ou un tableau d'objets. On s'adapte :
+        const paymentObj = Array.isArray(statusData) ? statusData[0] : statusData;
+        const paymentStatus = paymentObj.status || paymentObj.paymentStatus || statusData.status;
+
+        // 3. Vérifier le statut renvoyé
+        if (paymentStatus === 'SUCCESSFUL') {
+          const amountNum = Number(paymentObj.amount || transData.amount);
+
+          const transRef = db.collection('fapshiTransactions').doc(doc.id);
+          const userRef = db.collection('users').doc(uid);
+
+          // On met à jour la base de données de manière sécurisée
+          await db.runTransaction(async (t) => {
+            const freshTransDoc = await t.get(transRef);
+            if (freshTransDoc.data().status === 'CONFIRMED') return;
+
+            t.update(transRef, {
+              status: 'CONFIRMED',
+              amountConfirmed: amountNum,
+              dateConfirmed: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            const userDoc = await t.get(userRef);
+            const currentBalance = userDoc.exists ? (userDoc.data().balance || 0) : 0;
+            t.set(userRef, { balance: currentBalance + amountNum }, { merge: true });
+          });
+
+          confirmedCount++;
+          console.log(`✅ Transaction ${transId} validée manuellement par l'utilisateur !`);
+
+          // Gestion du bonus de parrainage
+          try {
+            const userDocData = await userRef.get();
+            const parrainUid = userDocData.exists ? (userDocData.data().referredBy || null) : null;
+            if (parrainUid) {
+              const bonusAmount = Math.floor(amountNum * 0.05);
+              if (bonusAmount > 0) {
+                const parrainRef = db.collection('users').doc(parrainUid);
+                await parrainRef.set({ referralBalance: admin.firestore.FieldValue.increment(bonusAmount) }, { merge: true });
+                await parrainRef.collection('referrals').add({
+                  refereeUid: uid, amount: amountNum, referrerShare: bonusAmount,
+                  type: 'deposit_bonus_fapshi', transactionId: transId,
+                  date: admin.firestore.FieldValue.serverTimestamp(), status: 'completed',
+                });
+              }
+            }
+          } catch (refErr) {
+            console.error('⚠️ Erreur bonus parrainage manuel:', refErr.message);
+          }
+
+        } else if (paymentStatus === 'FAILED' || paymentStatus === 'EXPIRED') {
+          // Mettre la transaction à jour pour ne plus la re-vérifier inutilement
+          await db.collection('fapshiTransactions').doc(doc.id).update({
+            status: 'FAILED',
+            dateUpdated: admin.firestore.FieldValue.serverTimestamp()
+          });
+        }
+
+      } catch (err) {
+        console.error(`Erreur vérification de la transId ${transId}:`, err.message);
+      }
+    }
+
+    res.json({ success: true, confirmedCount });
+
+  } catch (error) {
+    console.error('❌ /api/fapshi/verify-pending:', error.message);
+    res.status(500).json({ success: false, error: 'Erreur technique lors de la vérification.' });
   }
 });
 
