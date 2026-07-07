@@ -534,8 +534,8 @@ app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
 // ── POST /api/create-fapshi-checkout ────────────────────────────
 app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
   const uid = req.user.uid;
-  // Ajout de "email" et "name" récupérés depuis la requête frontend
-  const { amount, currency, description, redirectUrl, phone, email, name } = req.body;
+  // Récupération des informations envoyées par le formulaire frontend
+  const { amount, currency, description, redirectUrl, phone } = req.body;
 
   if (!amount || !redirectUrl) return res.status(400).json({ success: false, error: 'amount et redirectUrl requis.' });
   const amountNum = Math.round(Number(amount));
@@ -549,36 +549,34 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
   const webhookBase = process.env.FAPSHI_WEBHOOK_URL || `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
   const webhookUrl = `${webhookBase}/api/fapshi-webhook`;
 
-  // --- NOUVEAUTÉ : Récupération intelligente de l'email et du nom ---
-  let finalEmail = email || req.user.email;
-  let finalName  = name || req.user.name || 'Client';
+  // --- Récupération systématique et fiable de l'email et du nom depuis Firestore ---
+  let finalEmail = req.user.email || '';
+  let finalName  = req.user.name || 'Client';
 
-  // Si l'information est incomplète (ex: l'utilisateur n'a pas tout rempli),
-  // on fait une petite requête vers Firebase pour récupérer son nom/email exact
-  if (!finalEmail || finalName === 'Client') {
-    try {
-      const userDoc = await db.collection('users').doc(uid).get();
-      if (userDoc.exists) {
-        const uData = userDoc.data();
-        finalEmail = finalEmail || uData.email;
-        finalName = finalName !== 'Client' ? finalName : (uData.displayName || uData.username || 'Client');
-      }
-    } catch (e) {
-      console.error('Erreur lors de la récupération des infos client : ', e);
+  try {
+    const userDoc = await db.collection('users').doc(uid).get();
+    if (userDoc.exists) {
+      const uData = userDoc.data();
+      // On priorise l'e-mail stocké dans le document Firestore
+      finalEmail = uData.email || finalEmail;
+      // On récupère le displayName ou username précis de son document de compte
+      finalName = uData.displayName || uData.username || finalName;
     }
+  } catch (e) {
+    console.error('Erreur lors de la récupération des infos de compte Firestore : ', e);
   }
-  // ------------------------------------------------------------------
+  // ---------------------------------------------------------------------------------
 
-  // Création du payload final envoyé à Fapshi (incluant l'email et le nom s'ils existent)
+  // Création du payload final envoyé à Fapshi incluant toutes les informations requises
   const payload = {
     amount: amountNum, 
     currency: currency || 'XAF', 
     description: description || 'Recharge Social Boost Horizon',
     redirect_url: redirectUrl, 
     webhook_url: webhookUrl, 
-    ...(phone ? { phone } : {}),
-    ...(finalEmail ? { email: finalEmail } : {}),
-    ...(finalName ? { name: finalName } : {})
+    phone: phone || '',
+    email: finalEmail,
+    name: finalName
   };
 
   const controller = new AbortController();
@@ -606,7 +604,7 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
     const transDocId = fapshiTransId || db.collection('fapshiTransactions').doc().id;
     await db.collection('fapshiTransactions').doc(transDocId).set({
       fapshiTransId:   fapshiTransId, userId: uid, amount: amountNum,
-      currency: currency || 'XAF', description: description || 'Recharge SBH',
+      currency: currency || 'XAF', description: payload.description,
       phone: phone || null, status: 'PENDING',
       dateInitiated: admin.firestore.FieldValue.serverTimestamp(), checkoutUrl,
     });
@@ -669,7 +667,7 @@ app.post('/api/fapshi-webhook', async (req, res) => {
         const bonusAmount = Math.floor(amountNum * 0.05);
         if (bonusAmount > 0) {
           const parrainRef = db.collection('users').doc(parrainUid);
-          await parrainRef.set({ referralBalance: admin.firestore.FieldValue.increment(bonusAmount) }, { merge: true });
+          await parrainRef.set({ referralBalance: admin.FieldValue.increment(bonusAmount) }, { merge: true });
           await parrainRef.collection('referrals').add({
             refereeUid: userId, amount: amountNum, referrerShare: bonusAmount,
             type: 'deposit_bonus_fapshi', transactionId: transId,
