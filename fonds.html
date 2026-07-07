@@ -255,17 +255,6 @@
     .balance-label { font-size: 0.85rem; color: var(--text-muted); }
     .balance-value { font-size: 1.5rem; font-weight: 800; color: var(--accent-green); font-family: var(--font-display); }
 
-    /* Bouton vérifier paiement */
-    .verify-btn {
-      width: 100%; background: rgba(212,175,55,0.1);
-      border: 1px solid rgba(212,175,55,0.4); color: var(--accent-gold);
-      padding: 12px; border-radius: 12px; cursor: pointer; font-weight: 600;
-      font-size: 0.9rem; transition: 0.3s; margin-bottom: 20px;
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-      font-family: var(--font-primary);
-    }
-    .verify-btn:hover { background: rgba(212,175,55,0.2); }
-
     .activity-list { list-style: none; }
     .activity-item {
       display: flex; justify-content: space-between; align-items: center;
@@ -278,14 +267,29 @@
     .activity-date { font-size: 0.8rem; color: var(--text-muted); }
     .activity-desc { font-size: 0.78rem; color: var(--text-muted); font-style: italic; }
 
+    /* Conteneur des statuts et boutons d'action */
+    .activity-action {
+      display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+    }
     .activity-status {
       padding: 6px 14px; border-radius: 20px;
       font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
-      white-space: nowrap;
+      white-space: nowrap; text-align: center;
     }
     .status-confirmed { background: rgba(0, 212, 170, 0.2); color: var(--accent-green); }
     .status-pending   { background: rgba(255, 184, 0,  0.2); color: #FFB800; }
     .status-failed    { background: rgba(255, 107, 107, 0.2); color: #FF6B6B; }
+
+    /* Bouton vérifier par transaction */
+    .verify-inline-btn {
+      background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.4);
+      color: var(--accent-gold); padding: 6px 12px; border-radius: 8px;
+      cursor: pointer; font-weight: 600; font-size: 0.75rem;
+      transition: 0.3s; display: flex; align-items: center; gap: 6px;
+      font-family: var(--font-primary); white-space: nowrap;
+    }
+    .verify-inline-btn:hover:not(:disabled) { background: rgba(212,175,55,0.2); }
+    .verify-inline-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .loading-activities { text-align: center; padding: 40px; color: var(--text-muted); }
     .empty-activities   { text-align: center; padding: 30px; color: var(--text-muted); }
@@ -400,11 +404,6 @@
         <i class="fas fa-wallet" style="font-size:2rem; color:var(--accent-green); opacity:0.6;"></i>
       </div>
 
-      <button class="verify-btn" id="verifyBtn" style="display:none;">
-        <i class="fas fa-search-dollar"></i>
-        Vérifier si mon paiement est arrivé
-      </button>
-
       <div id="activitiesLoading" class="loading-activities">
         <i class="fas fa-spinner fa-spin"></i> Chargement...
       </div>
@@ -442,7 +441,6 @@
     const auth = firebase.auth();
     const db   = firebase.firestore();
 
-    // URL relative — fonctionne sur Vercel sans aucun changement
     const BACKEND_URL = '';
 
     let currentUser       = null;
@@ -454,7 +452,10 @@
       const el = document.getElementById('message');
       el.textContent  = text;
       el.className    = type === 'error' ? 'error-message' : 'success-message';
+      if (type === 'info') el.className = 'error-message'; // On réutilise le style d'erreur pour les avertissements
       el.style.display = 'block';
+      // Remonter légèrement pour que l'utilisateur voie le message
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
     function hideMsg() { document.getElementById('message').style.display = 'none'; }
 
@@ -509,6 +510,47 @@
       }
     }
 
+    // ── Vérification Manuelle (Unitaire) ──────────────────────────
+    window.verifySinglePayment = async function(transId, btnElement) {
+      const originalHtml = btnElement.innerHTML;
+      btnElement.disabled = true;
+      btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Vérif...';
+      hideMsg();
+
+      try {
+        const idToken = await currentUser.getIdToken();
+        const res = await fetch(BACKEND_URL + '/api/fapshi/verify-transaction', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + idToken
+          },
+          body: JSON.stringify({ transId })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+          if (data.status === 'CONFIRMED') {
+            showMsg('✅ Paiement confirmé ! Votre solde a été mis à jour.', 'success');
+          } else if (data.status === 'FAILED') {
+            showMsg('❌ Ce paiement a échoué ou a expiré chez Fapshi.', 'error');
+          } else {
+            showMsg('ℹ️ Le paiement est toujours en attente chez Fapshi. Patientez encore un peu.', 'info');
+          }
+        } else {
+          showMsg('Erreur: ' + (data.error || 'Impossible de vérifier la transaction.'), 'error');
+        }
+      } catch(e) {
+        console.error("Erreur verify:", e);
+        showMsg('Erreur de connexion avec le serveur. Veuillez réessayer.', 'error');
+      } finally {
+        // Restaurer le bouton (bien qu'il sera probablement re-rendu par Firestore)
+        btnElement.disabled = false;
+        btnElement.innerHTML = originalHtml;
+      }
+    };
+
     // ── Rendu des transactions ─────────────────────────────────────
     function renderActivities(transactions) {
       const loadingEl    = document.getElementById('activitiesLoading');
@@ -531,6 +573,18 @@
         const amt    = tx.amount ? Math.round(tx.amount).toLocaleString('fr-FR') : '0';
         const date   = formatDate(tx.dateInitiated);
         const desc   = tx.description || '';
+        const transId = tx.id; // L'ID Firestore de la transaction
+
+        // Bouton de vérification affiché seulement si la transaction est en cours
+        let verifyBtnHtml = '';
+        if ((tx.status || '').toUpperCase() === 'PENDING') {
+          verifyBtnHtml = `
+            <button class="verify-inline-btn" onclick="verifySinglePayment('${transId}', this)">
+              <i class="fas fa-sync-alt"></i> Vérifier
+            </button>
+          `;
+        }
+
         return `
           <li class="activity-item">
             <div class="activity-info">
@@ -538,13 +592,12 @@
               <span class="activity-date"><i class="far fa-clock"></i> ${date}</span>
               ${desc ? `<span class="activity-desc">${desc}</span>` : ''}
             </div>
-            <span class="activity-status ${si.cls}">${si.text}</span>
+            <div class="activity-action">
+              <span class="activity-status ${si.cls}">${si.text}</span>
+              ${verifyBtnHtml}
+            </div>
           </li>`;
       }).join('');
-
-      // Afficher bouton "vérifier" s'il y a des transactions PENDING
-      const hasPending = transactions.some(tx => (tx.status||'').toUpperCase() === 'PENDING');
-      document.getElementById('verifyBtn').style.display = hasPending ? 'flex' : 'none';
     }
 
     // ── Écoute temps réel des transactions Fapshi ─────────────────
@@ -608,47 +661,6 @@
       });
     }
 
-    // ── Vérification manuelle du paiement (NOUVEAU) ───────────────
-    // Fait appel au backend pour interroger directement l'API de Fapshi
-    async function verifyPayment() {
-      const btn = document.getElementById('verifyBtn');
-      btn.disabled   = true;
-      btn.innerHTML  = '<i class="fas fa-spinner fa-spin"></i> Vérification chez Fapshi…';
-
-      try {
-        const idToken = await currentUser.getIdToken();
-        
-        // On demande au backend de vérifier toutes les transactions PENDING
-        const response = await fetch(BACKEND_URL + '/api/fapshi/verify-pending', {
-          method: 'POST',
-          headers: {
-            'Content-Type':  'application/json',
-            'Authorization': 'Bearer ' + idToken
-          }
-        });
-
-        const data = await response.json();
-
-        if (data.success && data.confirmedCount > 0) {
-          showMsg(
-            `✅ Paiement confirmé ! Votre compte a été rechargé avec succès.`,
-            'success'
-          );
-        } else {
-          showMsg(
-            'ℹ️ Paiement pas encore confirmé par Fapshi. Si vous venez de payer, patientez quelques secondes et réessayez.',
-            'error'
-          );
-        }
-      } catch (e) {
-        console.error('Erreur vérification:', e);
-        showMsg('Erreur lors de la vérification avec le serveur. Actualisez la page.', 'error');
-      } finally {
-        btn.disabled   = false;
-        btn.innerHTML  = '<i class="fas fa-search-dollar"></i> Vérifier si mon paiement est arrivé';
-      }
-    }
-
     // ── Boutons UI ────────────────────────────────────────────────
     document.getElementById('refreshActivities').addEventListener('click', () => {
       if (!currentUser) return;
@@ -657,8 +669,6 @@
       loadRecentActivities(currentUser.uid);
       setTimeout(() => icon.classList.remove('fa-spin'), 1500);
     });
-
-    document.getElementById('verifyBtn').addEventListener('click', verifyPayment);
 
     // ── Soumission du formulaire ───────────────────────────────────
     document.getElementById('payment-form').addEventListener('submit', async e => {
@@ -694,7 +704,7 @@
       toggleLoader(true);
 
       try {
-        // Obtenir le token Firebase pour authentifier la requête côté serveur
+        // Obtenir le token Firebase
         const idToken = await currentUser.getIdToken();
 
         const response = await fetch(BACKEND_URL + '/api/create-fapshi-checkout', {
@@ -715,7 +725,6 @@
           throw new Error('URL de paiement non reçue. Veuillez réessayer.');
         }
 
-        // Tout va bien — la transaction est déjà enregistrée PENDING dans Firestore
         showMsg('✅ Redirection vers la page de paiement Fapshi…', 'success');
         setTimeout(() => { window.location.href = data.checkoutUrl; }, 800);
 
@@ -734,13 +743,9 @@
       }
       currentUser = user;
 
-      // Charger les données utilisateur (numéro, solde)
+      // Charger les données
       loadUserData(user.uid);
-
-      // Écouter les mises à jour du solde en temps réel
       watchBalance(user.uid);
-
-      // Charger l'historique des transactions en temps réel
       loadRecentActivities(user.uid);
 
       // Menu hamburger
