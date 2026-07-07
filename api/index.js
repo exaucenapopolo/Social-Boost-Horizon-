@@ -658,6 +658,251 @@ app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// Fapshi – Paiement Mobile Money (Cameroun)
+// ═══════════════════════════════════════════════════════════════
+
+// ── POST /api/create-fapshi-checkout ────────────────────────────
+// Initie un paiement Fapshi, enregistre la transaction PENDING dans
+// Firestore et renvoie l'URL de paiement au client.
+app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
+  const uid = req.user.uid;
+  const { amount, currency, description, redirectUrl, phone } = req.body;
+
+  if (!amount || !redirectUrl) {
+    return res.status(400).json({ success: false, error: 'amount et redirectUrl sont requis.' });
+  }
+
+  const amountNum = Math.round(Number(amount));
+  if (isNaN(amountNum) || amountNum < 100) {
+    return res.status(400).json({ success: false, error: 'Montant invalide (minimum 100 FCFA).' });
+  }
+
+  const API_USER   = process.env.FAPSHI_API_USER;
+  const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
+
+  if (!API_USER || !SECRET_KEY) {
+    console.error('❌ Fapshi: variables FAPSHI_API_USER ou FAPSHI_SECRET_KEY manquantes');
+    return res.status(500).json({ success: false, error: 'Configuration Fapshi incomplète.' });
+  }
+
+  // URL du webhook : env var ou construite depuis l'hôte de la requête
+  const webhookBase = process.env.FAPSHI_WEBHOOK_URL
+    || `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
+  const webhookUrl = `${webhookBase}/api/fapshi-webhook`;
+
+  const payload = {
+    amount:      amountNum,
+    currency:    currency || 'XAF',
+    description: description || 'Recharge Social Boost Horizon',
+    redirect_url: redirectUrl,
+    webhook_url:  webhookUrl,
+    ...(phone ? { phone } : {}),
+  };
+
+  console.log(`>>> Fapshi checkout — user:${uid} amount:${amountNum} webhook:${webhookUrl}`);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
+
+  try {
+    const fapshiRes = await fetch('https://live.fapshi.com/initiate-pay', {
+      method:  'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apiuser': API_USER,
+        'apikey':  SECRET_KEY,
+      },
+      body:   JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    const rawText = await fapshiRes.text();
+    console.log('>>> Fapshi response:', fapshiRes.status, rawText.substring(0, 300));
+
+    let respJson;
+    try {
+      respJson = JSON.parse(rawText);
+    } catch {
+      return res.status(502).json({ success: false, error: 'Réponse Fapshi non-JSON', details: rawText });
+    }
+
+    if (!fapshiRes.ok) {
+      const errMsg = respJson.message || respJson.error || `Erreur Fapshi ${fapshiRes.status}`;
+      return res.status(fapshiRes.status).json({ success: false, error: errMsg });
+    }
+
+    const checkoutUrl   = respJson.data?.url || respJson.link || respJson.url;
+    const fapshiTransId = respJson.transId   || respJson.data?.transId || null;
+
+    if (!checkoutUrl) {
+      console.error('❌ Fapshi: URL de paiement manquante', respJson);
+      return res.status(502).json({ success: false, error: 'URL de paiement manquante dans la réponse Fapshi.' });
+    }
+
+    // Enregistrer la transaction avec statut PENDING avant redirection
+    const transDocId = fapshiTransId || db.collection('fapshiTransactions').doc().id;
+    await db.collection('fapshiTransactions').doc(transDocId).set({
+      fapshiTransId:   fapshiTransId,
+      userId:          uid,
+      amount:          amountNum,
+      currency:        currency || 'XAF',
+      description:     description || 'Recharge Social Boost Horizon',
+      phone:           phone || null,
+      status:          'PENDING',
+      dateInitiated:   admin.firestore.FieldValue.serverTimestamp(),
+      checkoutUrl,
+    });
+
+    // Sauvegarder le numéro de paiement pour les prochaines fois
+    if (phone) {
+      await db.collection('users').doc(uid).set({ paymentPhone: phone }, { merge: true });
+    }
+
+    console.log(`✅ Transaction Fapshi (${transDocId}) créée — statut PENDING — user: ${uid}`);
+    return res.json({ success: true, checkoutUrl });
+
+  } catch (err) {
+    clearTimeout(timer);
+    if (err.name === 'AbortError') {
+      console.error('❌ Fapshi: timeout');
+      return res.status(504).json({ success: false, error: 'Délai dépassé: Fapshi ne répond pas.' });
+    }
+    console.error('❌ /api/create-fapshi-checkout :', err.message);
+    return res.status(500).json({ success: false, error: 'Erreur lors de la communication avec Fapshi.' });
+  }
+});
+
+// ── POST /api/fapshi-webhook ─────────────────────────────────────
+// Appelé par Fapshi lors de la confirmation du paiement.
+// Aucune authentification Firebase (requête entrante de Fapshi).
+app.post('/api/fapshi-webhook', async (req, res) => {
+  console.log('>>> Fapshi Webhook reçu:', JSON.stringify(req.body, null, 2));
+
+  const { status, amount, transId } = req.body;
+
+  if (status !== 'SUCCESSFUL') {
+    console.warn(`>>> Statut "${status}" ignoré (non-SUCCESSFUL).`);
+    return res.status(200).json({ message: 'Statut non-SUCCESSFUL ignoré.' });
+  }
+
+  if (!transId || isNaN(Number(amount))) {
+    console.error('❌ Webhook Fapshi: transId ou amount invalide', { transId, amount });
+    return res.status(400).json({ error: 'Données webhook invalides (transId ou amount manquant).' });
+  }
+
+  const amountNum = Number(amount);
+  const transRef  = db.collection('fapshiTransactions').doc(transId);
+
+  try {
+    const transDoc = await transRef.get();
+
+    if (!transDoc.exists) {
+      console.error(`❌ Transaction ${transId} introuvable dans fapshiTransactions`);
+      return res.status(200).json({ message: 'Transaction inconnue, ignorée.' });
+    }
+
+    const transData = transDoc.data();
+
+    // Éviter les doubles confirmations
+    if (transData.status === 'CONFIRMED') {
+      console.warn(`⚠️ Transaction ${transId} déjà confirmée — ignorée.`);
+      return res.status(200).json({ message: 'Déjà confirmée.' });
+    }
+
+    const userId = transData.userId;
+    if (!userId) {
+      console.error(`❌ userId manquant dans la transaction ${transId}`);
+      return res.status(500).json({ error: 'userId manquant dans la transaction.' });
+    }
+
+    // 1. Marquer la transaction CONFIRMED
+    await transRef.update({
+      status:        'CONFIRMED',
+      amountConfirmed: amountNum,
+      dateConfirmed: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // 2. Mettre à jour le solde utilisateur (transaction atomique)
+    const userRef = db.collection('users').doc(userId);
+    await db.runTransaction(async (t) => {
+      const userDoc = await t.get(userRef);
+      if (!userDoc.exists) {
+        t.set(userRef, { balance: amountNum });
+        console.warn(`⚠️ Utilisateur ${userId} créé avec solde initial ${amountNum}.`);
+      } else {
+        const newBalance = (userDoc.data().balance || 0) + amountNum;
+        t.update(userRef, { balance: newBalance });
+        console.log(`✅ Solde mis à jour: ${userId} — +${amountNum} FCFA → ${newBalance} FCFA`);
+      }
+    });
+
+    // 3. Bonus parrainage 5% (non bloquant)
+    let bonusApplied = false;
+    try {
+      const filleulDoc  = await userRef.get();
+      const parrainUid  = filleulDoc.exists ? (filleulDoc.data().referredBy || null) : null;
+
+      if (parrainUid) {
+        const bonusAmount = Math.floor(amountNum * 0.05);
+        if (bonusAmount > 0) {
+          const parrainRef = db.collection('users').doc(parrainUid);
+          await parrainRef.set(
+            { referralBalance: admin.firestore.FieldValue.increment(bonusAmount) },
+            { merge: true }
+          );
+          await parrainRef.collection('referrals').add({
+            refereeUid:    userId,
+            amount:        amountNum,
+            referrerShare: bonusAmount,
+            type:          'deposit_bonus_fapshi',
+            transactionId: transId,
+            date:          admin.firestore.FieldValue.serverTimestamp(),
+            status:        'completed',
+          });
+          bonusApplied = true;
+          console.log(`🎁 Bonus parrainage: ${bonusAmount} FCFA → ${parrainUid}`);
+        }
+      }
+    } catch (referralErr) {
+      console.error('⚠️ Erreur bonus parrainage (non bloquante):', referralErr.message);
+    }
+
+    return res.status(200).json({ message: 'Webhook traité avec succès.', bonusApplied });
+
+  } catch (err) {
+    console.error('❌ /api/fapshi-webhook :', err.message);
+    return res.status(500).json({ error: 'Erreur interne lors du traitement du webhook.' });
+  }
+});
+
+// ── GET /api/fapshi/transactions ─────────────────────────────────
+// Renvoie les 20 dernières transactions Fapshi de l'utilisateur connecté.
+// Utilisé par fonds.html pour l'historique (en complément du listener Firestore).
+app.get('/api/fapshi/transactions', checkAuth, async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    const snapshot = await db.collection('fapshiTransactions')
+      .where('userId', '==', uid)
+      .orderBy('dateInitiated', 'desc')
+      .limit(20)
+      .get();
+
+    const transactions = snapshot.docs.map(doc => ({
+      id:            doc.id,
+      ...doc.data(),
+      dateInitiated: doc.data().dateInitiated || null,
+      dateConfirmed: doc.data().dateConfirmed || null,
+    }));
+
+    res.json({ success: true, transactions });
+  } catch (error) {
+    console.error('❌ /api/fapshi/transactions :', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ── 404 ─────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, error: `Route non trouvée : ${req.method} ${req.path}` });
