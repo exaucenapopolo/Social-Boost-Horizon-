@@ -126,24 +126,16 @@ const MTP_STATUS_MAP = {
 };
 
 // ── GET /api/mtp/services ────────────────────────────────────────
-// Charge et met en cache tous les services MTP.
-// Le frontend l'appelle au chargement de commande-automatique.html.
 app.get('/api/mtp/services', async (req, res) => {
   try {
     const now = Date.now();
-
-    // Servir depuis le cache si encore valide
     if (_mtpServicesCache && (now - _mtpServicesCacheTime) < MTP_CACHE_TTL) {
       return res.json({ success: true, services: _mtpServicesCache, cached: true });
     }
-
     const rawServices = await callMTP({ action: 'services' });
-
     if (!Array.isArray(rawServices)) {
-      console.error('MTP services: réponse invalide', rawServices);
       return res.status(500).json({ success: false, error: 'Réponse MTP invalide' });
     }
-
     const services = rawServices.map(s => {
       const rate    = parseFloat(s.rate) || 0;
       const priceXAF = Math.round(rate * MTP_USD_TO_XAF * MTP_MULTIPLIER);
@@ -161,51 +153,37 @@ app.get('/api/mtp/services', async (req, res) => {
         desc:   s.description || null,
       };
     });
-
     _mtpServicesCache     = services;
     _mtpServicesCacheTime = now;
-
-    console.log(`✅ MTP: ${services.length} services chargés et mis en cache`);
     res.json({ success: true, services });
-
   } catch (error) {
-    console.error('❌ /api/mtp/services :', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // ── POST /api/mtp/order ──────────────────────────────────────────
-// Passe une commande chez MTP, débite le solde, enregistre dans Firestore.
 app.post('/api/mtp/order', checkAuth, async (req, res) => {
   const { serviceId, link, quantity, comments } = req.body;
   const uid = req.user.uid;
-
   if (!serviceId || !link) {
     return res.status(400).json({ success: false, error: 'serviceId et link sont requis.' });
   }
-
   try {
-    // 1. Retrouver le service (depuis le cache ou l'API)
     const allServices = _mtpServicesCache || (await callMTP({ action: 'services' }));
     const service = allServices.find(s => parseInt(s.service || s.id) === parseInt(serviceId));
-
     if (!service) {
       return res.status(400).json({ success: false, error: 'Service introuvable ou expiré.' });
     }
-
-    // 2. Calculer le coût exact
     const rate      = parseFloat(service.rate) || 0;
     const priceXAF  = Math.round(rate * MTP_USD_TO_XAF * MTP_MULTIPLIER);
     const qty       = parseInt(quantity);
     const isPackage = (service.type || '').toLowerCase().includes('package');
     const cost      = isPackage ? priceXAF : Math.round((priceXAF / 1000) * qty);
 
-    // 3. Vérification rapide du solde (avant la transaction)
     const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) {
       return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
     }
-
     const currentBalance = userDoc.data().balance || 0;
     if (currentBalance < cost) {
       return res.status(400).json({
@@ -214,25 +192,22 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
       });
     }
 
-    // 4. Passer la commande chez MTP
     const orderParams = { action: 'add', service: serviceId, link, quantity: qty };
     if (comments) orderParams.comments = comments;
-
     const orderResult = await callMTP(orderParams);
 
     if (orderResult.error) {
       return res.status(400).json({ success: false, error: 'Erreur fournisseur : ' + orderResult.error });
     }
     if (!orderResult.order) {
-      return res.status(400).json({ success: false, error: 'Commande non confirmée par le fournisseur.' });
+      return res.status(400).json({ success: false, error: 'Commande non confirmée.' });
     }
 
-    // 5. Transaction Firestore : débit + enregistrement
     let finalOrderId, newBalance;
-
     await db.runTransaction(async (transaction) => {
       const counterRef      = db.collection('counters').doc('autoOrders');
       const freshUserRef    = db.collection('users').doc(uid);
+      
       const counterDoc      = await transaction.get(counterRef);
       const freshUserDoc    = await transaction.get(freshUserRef);
 
@@ -242,7 +217,6 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
       const nextId   = ((counterDoc.exists ? counterDoc.data().lastId : 0) || 0) + 1;
       finalOrderId   = `SBH-AUTO-${nextId}`;
       newBalance     = freshBalance - cost;
-
       const platform = detectPlatformName(service.name || '', link);
 
       transaction.set(counterRef, { lastId: nextId }, { merge: true });
@@ -268,11 +242,8 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
       });
     });
 
-    console.log(`✅ Commande MTP ${finalOrderId} créée — providerOrderId: ${orderResult.order}`);
     res.json({ success: true, orderId: finalOrderId, newBalance });
-
   } catch (error) {
-    console.error('❌ /api/mtp/order :', error.message);
     if (error.message.toLowerCase().includes('insuffisant')) {
       return res.status(400).json({ success: false, error: error.message });
     }
@@ -281,7 +252,6 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
 });
 
 // ── GET /api/mtp/user-orders ─────────────────────────────────────
-// Renvoie toutes les commandes automatiques de l'utilisateur connecté.
 app.get('/api/mtp/user-orders', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
@@ -290,7 +260,6 @@ app.get('/api/mtp/user-orders', checkAuth, async (req, res) => {
       .orderBy('createdAt', 'desc')
       .limit(100)
       .get();
-
     const orders = snapshot.docs.map(doc => {
       const data = doc.data();
       return {
@@ -313,48 +282,31 @@ app.get('/api/mtp/user-orders', checkAuth, async (req, res) => {
         lastChecked:      data.lastChecked       || null,
       };
     });
-
     res.json({ success: true, orders });
-
   } catch (error) {
-    console.error('❌ /api/mtp/user-orders :', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // ── GET /api/mtp/order-status/:orderId ──────────────────────────
-// Vérifie le statut chez MTP et met à jour Firestore.
 app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
   const { orderId } = req.params;
   const uid         = req.user.uid;
-
   try {
-    // Retrouver la commande dans Firestore
     const snapshot = await db.collection('autoOrders')
-      .where('orderId', '==', orderId)
-      .where('userId', '==', uid)
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) {
-      return res.status(404).json({ success: false, error: 'Commande introuvable.' });
-    }
+      .where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
+    if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
     const orderDoc  = snapshot.docs[0];
     const orderData = orderDoc.data();
-
-    // Interroger MTP
     const statusResult = await callMTP({ action: 'status', order: orderData.providerOrderId });
 
-    if (statusResult.error) {
-      return res.status(400).json({ success: false, error: 'Erreur fournisseur : ' + statusResult.error });
-    }
+    if (statusResult.error) return res.status(400).json({ success: false, error: 'Erreur: ' + statusResult.error });
 
     const newStatus  = MTP_STATUS_MAP[statusResult.status] || statusResult.status || 'En attente';
     const startCount = parseInt(statusResult.start_count)  || 0;
     const remains    = parseInt(statusResult.remains)       || 0;
 
-    // Mise à jour Firestore
     await orderDoc.ref.update({
       status:             newStatus,
       providerStartCount: startCount,
@@ -362,109 +314,59 @@ app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
       lastChecked:        admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    console.log(`🔄 Statut MTP ${orderId}: ${statusResult.status} → ${newStatus}`);
-    res.json({
-      success:        true,
-      status:         newStatus,
-      providerStatus: statusResult.status,
-      startCount,
-      remains,
-    });
-
+    res.json({ success: true, status: newStatus, providerStatus: statusResult.status, startCount, remains });
   } catch (error) {
-    console.error('❌ /api/mtp/order-status :', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // ── POST /api/mtp/refill ─────────────────────────────────────────
-// Demande un rechargement de la commande chez MTP.
 app.post('/api/mtp/refill', checkAuth, async (req, res) => {
   const { orderId } = req.body;
   const uid         = req.user.uid;
-
-  if (!orderId) {
-    return res.status(400).json({ success: false, error: 'orderId requis.' });
-  }
-
+  if (!orderId) return res.status(400).json({ success: false, error: 'orderId requis.' });
   try {
     const snapshot = await db.collection('autoOrders')
-      .where('orderId', '==', orderId)
-      .where('userId', '==', uid)
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) {
-      return res.status(404).json({ success: false, error: 'Commande introuvable.' });
-    }
+      .where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
+    if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
     const orderDoc  = snapshot.docs[0];
     const orderData = orderDoc.data();
-
     if (!orderData.refill && orderData.refill !== undefined) {
       return res.status(400).json({ success: false, error: 'Ce service ne supporte pas le refill.' });
     }
 
     const result = await callMTP({ action: 'refill', order: orderData.providerOrderId });
-
-    if (result.error) {
-      return res.status(400).json({ success: false, error: 'Erreur fournisseur : ' + result.error });
-    }
+    if (result.error) return res.status(400).json({ success: false, error: 'Erreur: ' + result.error });
 
     await orderDoc.ref.update({
-      lastRefill:   admin.firestore.FieldValue.serverTimestamp(),
-      refillId:     result.refill || null,
+      lastRefill: admin.firestore.FieldValue.serverTimestamp(),
+      refillId: result.refill || null,
     });
-
-    console.log(`🔄 Refill demandé pour ${orderId} — refillId: ${result.refill}`);
     res.json({ success: true, refillId: result.refill });
-
   } catch (error) {
-    console.error('❌ /api/mtp/refill :', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // ── POST /api/mtp/cancel ─────────────────────────────────────────
-// Annule la commande et rembourse l'utilisateur.
 app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
   const { orderId } = req.body;
   const uid         = req.user.uid;
-
-  if (!orderId) {
-    return res.status(400).json({ success: false, error: 'orderId requis.' });
-  }
-
+  if (!orderId) return res.status(400).json({ success: false, error: 'orderId requis.' });
   try {
     const snapshot = await db.collection('autoOrders')
-      .where('orderId', '==', orderId)
-      .where('userId', '==', uid)
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) {
-      return res.status(404).json({ success: false, error: 'Commande introuvable.' });
-    }
+      .where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
+    if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
     const orderDoc  = snapshot.docs[0];
     const orderData = orderDoc.data();
 
-    if (orderData.refunded) {
-      return res.status(400).json({ success: false, error: 'Cette commande a déjà été remboursée.' });
-    }
-    if (['Terminé', 'Completed'].includes(orderData.status)) {
-      return res.status(400).json({ success: false, error: 'Impossible d\'annuler une commande terminée.' });
-    }
+    if (orderData.refunded) return res.status(400).json({ success: false, error: 'Déjà remboursée.' });
+    if (['Terminé', 'Completed'].includes(orderData.status)) return res.status(400).json({ success: false, error: 'Impossible.' });
 
-    // Tenter d'annuler chez MTP (on continue même si ça échoue)
-    try {
-      await callMTP({ action: 'cancel', orders: orderData.providerOrderId });
-    } catch (mtpErr) {
-      console.warn(`⚠️ Annulation MTP ${orderId} échouée:`, mtpErr.message);
-    }
+    try { await callMTP({ action: 'cancel', orders: orderData.providerOrderId }); } catch (mtpErr) { }
 
-    // Calculer le remboursement
-    // Si partiel : calculer proportionnellement
     let refundAmount = orderData.priceXAF || 0;
     if (orderData.status === 'Partiel' || orderData.status === 'Partial') {
       const qty     = orderData.quantity || 1;
@@ -472,12 +374,10 @@ app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
       refundAmount  = Math.round((remains / qty) * refundAmount);
     }
 
-    // Transaction : rembourser + marquer comme annulé
     await db.runTransaction(async (transaction) => {
       const userRef  = db.collection('users').doc(uid);
       const userSnap = await transaction.get(userRef);
       const oldBal   = (userSnap.data() || {}).balance || 0;
-
       transaction.update(userRef, { balance: oldBal + refundAmount });
       transaction.update(orderDoc.ref, {
         status:         'Annulé',
@@ -486,12 +386,8 @@ app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
         cancelledAt:    admin.firestore.FieldValue.serverTimestamp(),
       });
     });
-
-    console.log(`✅ Commande ${orderId} annulée — remboursé: ${refundAmount} FCFA`);
     res.json({ success: true, refundedAmount: refundAmount });
-
   } catch (error) {
-    console.error('❌ /api/mtp/cancel :', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -504,33 +400,18 @@ app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
 app.post('/api/register', checkAuth, async (req, res) => {
   try {
     const { displayName, username, email, country } = req.body;
-
-    const nameForEmail = displayName
-      || req.user.name
-      || (email || req.user.email || '').split('@')[0]
-      || 'Nouveau Membre';
-
+    const nameForEmail = displayName || req.user.name || (email || req.user.email || '').split('@')[0] || 'Nouveau Membre';
     const userEmail = email || req.user.email;
-    if (!userEmail) {
-      return res.status(400).json({ success: false, error: 'Email manquant.' });
-    }
+    if (!userEmail) return res.status(400).json({ success: false, error: 'Email manquant.' });
 
     let emailSent = false;
     try {
       await sendWelcomeEmail({ email: userEmail, username: nameForEmail, country: country || 'Non spécifié' });
       emailSent = true;
-      console.log(`📧 Email bienvenue → ${userEmail}`);
-    } catch (emailErr) {
-      console.error(`❌ Email bienvenue NON envoyé à ${userEmail} :`, emailErr.message);
-    }
+    } catch (emailErr) {}
 
-    res.status(200).json({
-      success: true,
-      emailSent,
-      message: emailSent ? 'Email envoyé !' : 'Inscription ok (email non envoyé — vérifiez les logs).',
-    });
+    res.status(200).json({ success: true, emailSent });
   } catch (error) {
-    console.error('❌ /api/register :', error.message);
     res.status(500).json({ success: false, error: 'Erreur interne.' });
   }
 });
@@ -545,15 +426,12 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
       return res.json({
         success: true,
         profile: {
-          displayName: req.user.name || '',
-          email:       req.user.email || '',
-          photoURL:    req.user.picture || null,
+          displayName: req.user.name || '', email: req.user.email || '', photoURL: req.user.picture || null,
           phone: '', country: '', balance: 0, totalOrders: 0,
           createdAt: new Date().toISOString(), settings: {}, resellerLevel: 'bronze',
         }
       });
     }
-
     const data = userDoc.data();
     res.json({
       success: true,
@@ -561,18 +439,14 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
         displayName:   data.displayName || data.username || req.user.name || '',
         email:         data.email       || req.user.email || '',
         photoURL:      data.photoURL    || req.user.picture || null,
-        phone:         data.phone       || '',
-        country:       data.country     || '',
-        balance:       data.balance     || 0,
-        totalOrders:   data.totalOrders || 0,
+        phone:         data.phone       || '', country: data.country || '',
+        balance:       data.balance     || 0, totalOrders: data.totalOrders || 0,
         createdAt:     data.createdAt   || new Date().toISOString(),
-        settings:      data.settings    || {},
-        resellerLevel: data.resellerLevel || 'bronze',
+        settings:      data.settings    || {}, resellerLevel: data.resellerLevel || 'bronze',
         lastSignIn:    data.lastSignIn  || null,
       }
     });
   } catch (error) {
-    console.error('❌ /api/user/profile :', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -597,7 +471,6 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
     await db.collection('users').doc(uid).set(updateData, { merge: true });
     res.json({ success: true, message: 'Profil mis à jour.' });
   } catch (error) {
-    console.error('❌ /api/update-profile :', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -605,14 +478,11 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
 // ── /api/user/settings ──────────────────────────────────────────
 app.post('/api/user/settings', checkAuth, async (req, res) => {
   const { settings } = req.body;
-  if (!settings || typeof settings !== 'object') {
-    return res.status(400).json({ success: false, error: 'Paramètres invalides' });
-  }
+  if (!settings || typeof settings !== 'object') return res.status(400).json({ success: false, error: 'Paramètres invalides' });
   try {
     await db.collection('users').doc(req.user.uid).set({ settings }, { merge: true });
     res.json({ success: true, settings });
   } catch (error) {
-    console.error('❌ /api/user/settings :', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -649,8 +519,7 @@ app.post('/api/user/generate-api-key', checkAuth, async (req, res) => {
 app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
   try {
     await db.collection('users').doc(req.user.uid).update({
-      apiKey: admin.firestore.FieldValue.delete(),
-      apiKeyCreatedAt: admin.firestore.FieldValue.delete(),
+      apiKey: admin.firestore.FieldValue.delete(), apiKeyCreatedAt: admin.firestore.FieldValue.delete(),
     });
     res.json({ success: true });
   } catch (error) {
@@ -663,361 +532,247 @@ app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 
 // ── POST /api/create-fapshi-checkout ────────────────────────────
-// Initie un paiement Fapshi, enregistre la transaction PENDING dans
-// Firestore et renvoie l'URL de paiement au client.
 app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
   const uid = req.user.uid;
   const { amount, currency, description, redirectUrl, phone } = req.body;
 
-  if (!amount || !redirectUrl) {
-    return res.status(400).json({ success: false, error: 'amount et redirectUrl sont requis.' });
-  }
-
+  if (!amount || !redirectUrl) return res.status(400).json({ success: false, error: 'amount et redirectUrl requis.' });
   const amountNum = Math.round(Number(amount));
-  if (isNaN(amountNum) || amountNum < 100) {
-    return res.status(400).json({ success: false, error: 'Montant invalide (minimum 100 FCFA).' });
-  }
+  if (isNaN(amountNum) || amountNum < 100) return res.status(400).json({ success: false, error: 'Montant invalide.' });
 
   const API_USER   = process.env.FAPSHI_API_USER;
   const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
 
-  if (!API_USER || !SECRET_KEY) {
-    console.error('❌ Fapshi: variables FAPSHI_API_USER ou FAPSHI_SECRET_KEY manquantes');
-    return res.status(500).json({ success: false, error: 'Configuration Fapshi incomplète.' });
-  }
+  if (!API_USER || !SECRET_KEY) return res.status(500).json({ success: false, error: 'Configuration Fapshi incomplète.' });
 
-  // URL du webhook : env var ou construite depuis l'hôte de la requête
-  const webhookBase = process.env.FAPSHI_WEBHOOK_URL
-    || `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
+  const webhookBase = process.env.FAPSHI_WEBHOOK_URL || `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
   const webhookUrl = `${webhookBase}/api/fapshi-webhook`;
 
   const payload = {
-    amount:      amountNum,
-    currency:    currency || 'XAF',
-    description: description || 'Recharge Social Boost Horizon',
-    redirect_url: redirectUrl,
-    webhook_url:  webhookUrl,
-    ...(phone ? { phone } : {}),
+    amount: amountNum, currency: currency || 'XAF', description: description || 'Recharge Social Boost Horizon',
+    redirect_url: redirectUrl, webhook_url: webhookUrl, ...(phone ? { phone } : {}),
   };
-
-  console.log(`>>> Fapshi checkout — user:${uid} amount:${amountNum} webhook:${webhookUrl}`);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 12000);
 
   try {
     const fapshiRes = await fetch('https://live.fapshi.com/initiate-pay', {
-      method:  'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apiuser': API_USER,
-        'apikey':  SECRET_KEY,
-      },
-      body:   JSON.stringify(payload),
-      signal: controller.signal,
+      method:  'POST', headers: { 'Content-Type': 'application/json', 'apiuser': API_USER, 'apikey':  SECRET_KEY },
+      body: JSON.stringify(payload), signal: controller.signal,
     });
     clearTimeout(timer);
 
     const rawText = await fapshiRes.text();
-    console.log('>>> Fapshi response:', fapshiRes.status, rawText.substring(0, 300));
-
     let respJson;
-    try {
-      respJson = JSON.parse(rawText);
-    } catch {
-      return res.status(502).json({ success: false, error: 'Réponse Fapshi non-JSON', details: rawText });
-    }
+    try { respJson = JSON.parse(rawText); } catch { return res.status(502).json({ success: false, error: 'Réponse Fapshi non-JSON' }); }
 
-    if (!fapshiRes.ok) {
-      const errMsg = respJson.message || respJson.error || `Erreur Fapshi ${fapshiRes.status}`;
-      return res.status(fapshiRes.status).json({ success: false, error: errMsg });
-    }
+    if (!fapshiRes.ok) return res.status(fapshiRes.status).json({ success: false, error: respJson.message || respJson.error });
 
     const checkoutUrl   = respJson.data?.url || respJson.link || respJson.url;
     const fapshiTransId = respJson.transId   || respJson.data?.transId || null;
 
-    if (!checkoutUrl) {
-      console.error('❌ Fapshi: URL de paiement manquante', respJson);
-      return res.status(502).json({ success: false, error: 'URL de paiement manquante dans la réponse Fapshi.' });
-    }
+    if (!checkoutUrl) return res.status(502).json({ success: false, error: 'URL manquante dans la réponse Fapshi.' });
 
-    // Enregistrer la transaction avec statut PENDING avant redirection
     const transDocId = fapshiTransId || db.collection('fapshiTransactions').doc().id;
     await db.collection('fapshiTransactions').doc(transDocId).set({
-      fapshiTransId:   fapshiTransId,
-      userId:          uid,
-      amount:          amountNum,
-      currency:        currency || 'XAF',
-      description:     description || 'Recharge Social Boost Horizon',
-      phone:           phone || null,
-      status:          'PENDING',
-      dateInitiated:   admin.firestore.FieldValue.serverTimestamp(),
-      checkoutUrl,
+      fapshiTransId:   fapshiTransId, userId: uid, amount: amountNum,
+      currency: currency || 'XAF', description: description || 'Recharge SBH',
+      phone: phone || null, status: 'PENDING',
+      dateInitiated: admin.firestore.FieldValue.serverTimestamp(), checkoutUrl,
     });
 
-    // Sauvegarder le numéro de paiement pour les prochaines fois
-    if (phone) {
-      await db.collection('users').doc(uid).set({ paymentPhone: phone }, { merge: true });
-    }
+    if (phone) await db.collection('users').doc(uid).set({ paymentPhone: phone }, { merge: true });
 
-    console.log(`✅ Transaction Fapshi (${transDocId}) créée — statut PENDING — user: ${uid}`);
     return res.json({ success: true, checkoutUrl });
-
   } catch (err) {
     clearTimeout(timer);
-    if (err.name === 'AbortError') {
-      console.error('❌ Fapshi: timeout');
-      return res.status(504).json({ success: false, error: 'Délai dépassé: Fapshi ne répond pas.' });
-    }
-    console.error('❌ /api/create-fapshi-checkout :', err.message);
-    return res.status(500).json({ success: false, error: 'Erreur lors de la communication avec Fapshi.' });
+    if (err.name === 'AbortError') return res.status(504).json({ success: false, error: 'Délai dépassé: Fapshi ne répond pas.' });
+    return res.status(500).json({ success: false, error: 'Erreur communication avec Fapshi.' });
   }
 });
 
 // ── GET /api/fapshi-webhook ──────────────────────────────────────
-// Ajouté pour éviter l'erreur 404 si Fapshi ou un navigateur fait un simple GET
 app.get('/api/fapshi-webhook', (req, res) => {
-  res.status(200).send("Endpoint Webhook actif. Fapshi doit utiliser POST.");
+  res.status(200).send("Endpoint Webhook actif. Fapshi utilise la méthode POST.");
 });
 
 // ── POST /api/fapshi-webhook ─────────────────────────────────────
-// Appelé par Fapshi lors de la confirmation du paiement.
-// Aucune authentification Firebase (requête entrante de Fapshi).
 app.post('/api/fapshi-webhook', async (req, res) => {
-  console.log('>>> Fapshi Webhook reçu:', JSON.stringify(req.body, null, 2));
-
   const { status, amount, transId } = req.body;
-
-  if (status !== 'SUCCESSFUL') {
-    console.warn(`>>> Statut "${status}" ignoré (non-SUCCESSFUL).`);
-    return res.status(200).json({ message: 'Statut non-SUCCESSFUL ignoré.' });
-  }
-
-  if (!transId || isNaN(Number(amount))) {
-    console.error('❌ Webhook Fapshi: transId ou amount invalide', { transId, amount });
-    return res.status(400).json({ error: 'Données webhook invalides (transId ou amount manquant).' });
-  }
+  if (status !== 'SUCCESSFUL') return res.status(200).json({ message: 'Statut ignoré.' });
+  if (!transId || isNaN(Number(amount))) return res.status(400).json({ error: 'Données invalides.' });
 
   const amountNum = Number(amount);
   const transRef  = db.collection('fapshiTransactions').doc(transId);
 
   try {
     const transDoc = await transRef.get();
-
-    if (!transDoc.exists) {
-      console.error(`❌ Transaction ${transId} introuvable dans fapshiTransactions`);
-      return res.status(200).json({ message: 'Transaction inconnue, ignorée.' });
-    }
+    if (!transDoc.exists) return res.status(200).json({ message: 'Transaction inconnue.' });
 
     const transData = transDoc.data();
-
-    // Éviter les doubles confirmations
-    if (transData.status === 'CONFIRMED') {
-      console.warn(`⚠️ Transaction ${transId} déjà confirmée — ignorée.`);
-      return res.status(200).json({ message: 'Déjà confirmée.' });
-    }
+    if (transData.status === 'CONFIRMED') return res.status(200).json({ message: 'Déjà confirmée.' });
 
     const userId = transData.userId;
-    if (!userId) {
-      console.error(`❌ userId manquant dans la transaction ${transId}`);
-      return res.status(500).json({ error: 'userId manquant dans la transaction.' });
-    }
+    if (!userId) return res.status(500).json({ error: 'userId manquant.' });
 
-    // 1. Marquer la transaction CONFIRMED
     await transRef.update({
-      status:        'CONFIRMED',
-      amountConfirmed: amountNum,
-      dateConfirmed: admin.firestore.FieldValue.serverTimestamp(),
+      status: 'CONFIRMED', amountConfirmed: amountNum, dateConfirmed: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // 2. Mettre à jour le solde utilisateur (transaction atomique)
     const userRef = db.collection('users').doc(userId);
     await db.runTransaction(async (t) => {
       const userDoc = await t.get(userRef);
       if (!userDoc.exists) {
         t.set(userRef, { balance: amountNum });
-        console.warn(`⚠️ Utilisateur ${userId} créé avec solde initial ${amountNum}.`);
       } else {
         const newBalance = (userDoc.data().balance || 0) + amountNum;
         t.update(userRef, { balance: newBalance });
-        console.log(`✅ Solde mis à jour: ${userId} — +${amountNum} FCFA → ${newBalance} FCFA`);
       }
     });
 
-    // 3. Bonus parrainage 5% (non bloquant)
+    // Parrainage bonus
     let bonusApplied = false;
     try {
-      const filleulDoc  = await userRef.get();
-      const parrainUid  = filleulDoc.exists ? (filleulDoc.data().referredBy || null) : null;
-
+      const filleulDoc = await userRef.get();
+      const parrainUid = filleulDoc.exists ? (filleulDoc.data().referredBy || null) : null;
       if (parrainUid) {
         const bonusAmount = Math.floor(amountNum * 0.05);
         if (bonusAmount > 0) {
           const parrainRef = db.collection('users').doc(parrainUid);
-          await parrainRef.set(
-            { referralBalance: admin.firestore.FieldValue.increment(bonusAmount) },
-            { merge: true }
-          );
+          await parrainRef.set({ referralBalance: admin.firestore.FieldValue.increment(bonusAmount) }, { merge: true });
           await parrainRef.collection('referrals').add({
-            refereeUid:    userId,
-            amount:        amountNum,
-            referrerShare: bonusAmount,
-            type:          'deposit_bonus_fapshi',
-            transactionId: transId,
-            date:          admin.firestore.FieldValue.serverTimestamp(),
-            status:        'completed',
+            refereeUid: userId, amount: amountNum, referrerShare: bonusAmount,
+            type: 'deposit_bonus_fapshi', transactionId: transId,
+            date: admin.firestore.FieldValue.serverTimestamp(), status: 'completed',
           });
           bonusApplied = true;
-          console.log(`🎁 Bonus parrainage: ${bonusAmount} FCFA → ${parrainUid}`);
         }
       }
-    } catch (referralErr) {
-      console.error('⚠️ Erreur bonus parrainage (non bloquante):', referralErr.message);
-    }
+    } catch (e) {}
 
-    return res.status(200).json({ message: 'Webhook traité avec succès.', bonusApplied });
-
+    return res.status(200).json({ message: 'Webhook traité.', bonusApplied });
   } catch (err) {
-    console.error('❌ /api/fapshi-webhook :', err.message);
-    return res.status(500).json({ error: 'Erreur interne lors du traitement du webhook.' });
+    return res.status(500).json({ error: 'Erreur webhook.' });
   }
 });
 
-// ── POST /api/fapshi/verify-pending ──────────────────────────────
-// Nouvelle route appelée par le bouton pour vérifier manuellement les transactions en attente.
-app.post('/api/fapshi/verify-pending', checkAuth, async (req, res) => {
+// ── POST /api/fapshi/verify-transaction ──────────────────────────
+// Vérifie le statut d'une transaction UNIQUE en faisant les lectures avant les écritures
+app.post('/api/fapshi/verify-transaction', checkAuth, async (req, res) => {
   const uid = req.user.uid;
+  const { transId } = req.body;
   const API_USER   = process.env.FAPSHI_API_USER;
   const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
 
-  if (!API_USER || !SECRET_KEY) {
-    return res.status(500).json({ success: false, error: 'Configuration API Fapshi manquante.' });
-  }
+  if (!transId) return res.status(400).json({ success: false, error: 'ID de transaction requis.' });
+  if (!API_USER || !SECRET_KEY) return res.status(500).json({ success: false, error: 'Clés Fapshi manquantes.' });
 
   try {
-    // 1. Récupérer toutes les transactions "PENDING" de cet utilisateur
-    const snapshot = await db.collection('fapshiTransactions')
-      .where('userId', '==', uid)
-      .where('status', '==', 'PENDING')
-      .get();
+    const transRef = db.collection('fapshiTransactions').doc(transId);
+    const transDoc = await transRef.get();
 
-    if (snapshot.empty) {
-      return res.json({ success: true, confirmedCount: 0, message: "Aucune transaction en attente trouvée." });
+    if (!transDoc.exists || transDoc.data().userId !== uid) {
+      return res.status(404).json({ success: false, error: "Transaction introuvable pour ce compte." });
     }
 
-    let confirmedCount = 0;
+    const transData = transDoc.data();
+    if (transData.status === 'CONFIRMED') {
+      return res.json({ success: true, status: 'CONFIRMED', message: "La transaction est déjà confirmée." });
+    }
 
-    for (const doc of snapshot.docs) {
-      const transData = doc.data();
-      const transId = transData.fapshiTransId || doc.id;
+    // Récupérer l'ID exact de Fapshi s'il est différent du doc ID
+    const fapshiID = transData.fapshiTransId || transId;
+    
+    // Interroger l'API Fapshi
+    const fapshiRes = await fetch(`https://live.fapshi.com/payment-status/${fapshiID}`, {
+      method: 'GET',
+      headers: { 'apiuser': API_USER, 'apikey': SECRET_KEY }
+    });
 
-      try {
-        // 2. Interroger directement Fapshi
-        const fapshiRes = await fetch(`https://live.fapshi.com/payment-status/${transId}`, {
-          method: 'GET',
-          headers: { 'apiuser': API_USER, 'apikey': SECRET_KEY }
+    if (!fapshiRes.ok) {
+      return res.status(502).json({ success: false, error: `Erreur Fapshi : ${fapshiRes.status}` });
+    }
+
+    const statusData = await fapshiRes.json();
+    const paymentObj = Array.isArray(statusData) ? statusData[0] : statusData;
+    const paymentStatus = paymentObj.status || paymentObj.paymentStatus || statusData.status;
+
+    if (paymentStatus === 'SUCCESSFUL') {
+      const amountNum = Number(paymentObj.amount || transData.amount);
+      const userRef = db.collection('users').doc(uid);
+
+      // LE CORRECTIF EST ICI : Toutes les lectures (t.get) sont faites AVANT les écritures (t.set / t.update)
+      await db.runTransaction(async (t) => {
+        // 1. On lit toutes les données d'abord
+        const freshTransDoc = await t.get(transRef);
+        const userDoc = await t.get(userRef);
+
+        if (freshTransDoc.exists && freshTransDoc.data().status === 'CONFIRMED') {
+          return; // Sécurité anti-double exécution
+        }
+
+        // 2. On effectue toutes les écritures ensuite
+        t.update(transRef, {
+          status: 'CONFIRMED',
+          amountConfirmed: amountNum,
+          dateConfirmed: admin.firestore.FieldValue.serverTimestamp(),
         });
 
-        if (!fapshiRes.ok) {
-          console.warn(`⚠️ Fapshi HTTP ${fapshiRes.status} pour la transaction ${transId}`);
-          continue;
-        }
+        const currentBalance = userDoc.exists ? (userDoc.data().balance || 0) : 0;
+        t.set(userRef, { balance: currentBalance + amountNum }, { merge: true });
+      });
 
-        const statusData = await fapshiRes.json();
-        
-        // Fapshi peut renvoyer un objet ou un tableau d'objets. On s'adapte :
-        const paymentObj = Array.isArray(statusData) ? statusData[0] : statusData;
-        const paymentStatus = paymentObj.status || paymentObj.paymentStatus || statusData.status;
-
-        // 3. Vérifier le statut renvoyé
-        if (paymentStatus === 'SUCCESSFUL') {
-          const amountNum = Number(paymentObj.amount || transData.amount);
-
-          const transRef = db.collection('fapshiTransactions').doc(doc.id);
-          const userRef = db.collection('users').doc(uid);
-
-          // On met à jour la base de données de manière sécurisée
-          await db.runTransaction(async (t) => {
-            const freshTransDoc = await t.get(transRef);
-            if (freshTransDoc.data().status === 'CONFIRMED') return;
-
-            t.update(transRef, {
-              status: 'CONFIRMED',
-              amountConfirmed: amountNum,
-              dateConfirmed: admin.firestore.FieldValue.serverTimestamp(),
+      // Bonus de parrainage (hors de la transaction principale pour éviter de tout bloquer)
+      try {
+        const userDocData = await userRef.get();
+        const parrainUid = userDocData.exists ? (userDocData.data().referredBy || null) : null;
+        if (parrainUid) {
+          const bonusAmount = Math.floor(amountNum * 0.05);
+          if (bonusAmount > 0) {
+            const parrainRef = db.collection('users').doc(parrainUid);
+            await parrainRef.set({ referralBalance: admin.firestore.FieldValue.increment(bonusAmount) }, { merge: true });
+            await parrainRef.collection('referrals').add({
+              refereeUid: uid, amount: amountNum, referrerShare: bonusAmount,
+              type: 'deposit_bonus_fapshi', transactionId: transId,
+              date: admin.firestore.FieldValue.serverTimestamp(), status: 'completed',
             });
-
-            const userDoc = await t.get(userRef);
-            const currentBalance = userDoc.exists ? (userDoc.data().balance || 0) : 0;
-            t.set(userRef, { balance: currentBalance + amountNum }, { merge: true });
-          });
-
-          confirmedCount++;
-          console.log(`✅ Transaction ${transId} validée manuellement par l'utilisateur !`);
-
-          // Gestion du bonus de parrainage
-          try {
-            const userDocData = await userRef.get();
-            const parrainUid = userDocData.exists ? (userDocData.data().referredBy || null) : null;
-            if (parrainUid) {
-              const bonusAmount = Math.floor(amountNum * 0.05);
-              if (bonusAmount > 0) {
-                const parrainRef = db.collection('users').doc(parrainUid);
-                await parrainRef.set({ referralBalance: admin.firestore.FieldValue.increment(bonusAmount) }, { merge: true });
-                await parrainRef.collection('referrals').add({
-                  refereeUid: uid, amount: amountNum, referrerShare: bonusAmount,
-                  type: 'deposit_bonus_fapshi', transactionId: transId,
-                  date: admin.firestore.FieldValue.serverTimestamp(), status: 'completed',
-                });
-              }
-            }
-          } catch (refErr) {
-            console.error('⚠️ Erreur bonus parrainage manuel:', refErr.message);
           }
-
-        } else if (paymentStatus === 'FAILED' || paymentStatus === 'EXPIRED') {
-          // Mettre la transaction à jour pour ne plus la re-vérifier inutilement
-          await db.collection('fapshiTransactions').doc(doc.id).update({
-            status: 'FAILED',
-            dateUpdated: admin.firestore.FieldValue.serverTimestamp()
-          });
         }
+      } catch (refErr) {}
 
-      } catch (err) {
-        console.error(`Erreur vérification de la transId ${transId}:`, err.message);
-      }
+      return res.json({ success: true, status: 'CONFIRMED' });
+
+    } else if (paymentStatus === 'FAILED' || paymentStatus === 'EXPIRED') {
+      await transRef.update({
+        status: 'FAILED',
+        dateUpdated: admin.firestore.FieldValue.serverTimestamp()
+      });
+      return res.json({ success: true, status: 'FAILED' });
+    } else {
+      // PENDING ou autre statut intermédiaire
+      return res.json({ success: true, status: 'PENDING' });
     }
 
-    res.json({ success: true, confirmedCount });
-
   } catch (error) {
-    console.error('❌ /api/fapshi/verify-pending:', error.message);
+    console.error('❌ /api/fapshi/verify-transaction:', error.message);
     res.status(500).json({ success: false, error: 'Erreur technique lors de la vérification.' });
   }
 });
 
 // ── GET /api/fapshi/transactions ─────────────────────────────────
-// Renvoie les 20 dernières transactions Fapshi de l'utilisateur connecté.
-// Utilisé par fonds.html pour l'historique (en complément du listener Firestore).
 app.get('/api/fapshi/transactions', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
     const snapshot = await db.collection('fapshiTransactions')
-      .where('userId', '==', uid)
-      .orderBy('dateInitiated', 'desc')
-      .limit(20)
-      .get();
-
+      .where('userId', '==', uid).orderBy('dateInitiated', 'desc').limit(20).get();
     const transactions = snapshot.docs.map(doc => ({
-      id:            doc.id,
-      ...doc.data(),
+      id: doc.id, ...doc.data(),
       dateInitiated: doc.data().dateInitiated || null,
       dateConfirmed: doc.data().dateConfirmed || null,
     }));
-
     res.json({ success: true, transactions });
   } catch (error) {
-    console.error('❌ /api/fapshi/transactions :', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
