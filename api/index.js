@@ -1,4 +1,6 @@
-const express = require('express');
+import os
+
+index_js_content = """const express = require('express');
 const cors    = require('cors');
 const admin   = require('firebase-admin');
 const crypto  = require('crypto');
@@ -19,7 +21,7 @@ app.use((req, res, next) => {
 if (!admin.apps.length) {
   try {
     const privateKey = process.env.FIREBASE_PRIVATE_KEY
-      ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+      ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\\\n/g, '\\n')
       : undefined;
 
     if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !privateKey) {
@@ -294,7 +296,6 @@ app.get('/api/mtp/services', async (req, res) => {
     const RATE_USD_TO_XAF = parseFloat(process.env.RATE_USD_TO_XAF || '650');
     const MARGIN_MULTIPLIER = parseFloat(process.env.MARGIN_MULTIPLIER || '2.0');
 
-    // CORRECTION ICI : La documentation MTP exige une requête POST
     const bodyParams = new URLSearchParams();
     bodyParams.append('key', MTP_API_KEY);
     bodyParams.append('action', 'services');
@@ -322,7 +323,6 @@ app.get('/api/mtp/services', async (req, res) => {
       throw new Error("La liste des services du fournisseur est vide ou mal formatée.");
     }
 
-    // Formatage pour le frontend (commande-automatique.html)
     const formattedServices = data.map(service => {
       const originalPrice = parseFloat(service.rate);
       const finalPriceXAF = Math.round(originalPrice * RATE_USD_TO_XAF * MARGIN_MULTIPLIER);
@@ -391,7 +391,7 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     let finalQuantity = parseInt(quantity);
     
     if (comments) {
-      const lines = comments.split('\n').filter(l => l.trim() !== '');
+      const lines = comments.split('\\n').filter(l => l.trim() !== '');
       finalQuantity = lines.length;
     }
 
@@ -433,7 +433,6 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     orderParams.append('service', serviceId);
     orderParams.append('link', link);
     
-    // Selon la documentation MTP, si c'est un Custom Comments, il faut envoyer le paramètre "comments"
     if (comments) {
       orderParams.append('comments', comments);
     } else {
@@ -448,7 +447,6 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     
     const orderData = await orderRes.json();
 
-    // 5. Gestion de l'erreur du fournisseur (Remboursement direct)
     if (orderData.error) {
       await userRef.update({ 
           balance: admin.firestore.FieldValue.increment(totalCostRounded),
@@ -471,6 +469,200 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
   }
 });
 
+
+// ============================================================================
+// ── GESTION DES COMMANDES (HISTORIQUE, STATUTS, REFILL, CANCEL) ─────────────
+// ============================================================================
+
+// ── /api/orders — Récupérer l'historique de TOUTES les commandes ──
+app.get('/api/orders', checkAuth, async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    const commandesRef = db.collection('commandes');
+    const snapshot = await commandesRef.where('userId', '==', uid).get();
+    
+    const commandes = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      // On s'assure que les dates Firestore sont bien formatées pour le front
+      if (data.date && typeof data.date.toDate === 'function') data.date = data.date.toDate().toISOString();
+      if (data.createdAt && typeof data.createdAt.toDate === 'function') data.createdAt = data.createdAt.toDate().toISOString();
+      
+      commandes.push({ id: doc.id, ...data });
+    });
+
+    // Tri par date décroissante (plus récent en haut)
+    commandes.sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.date || 0);
+      const dateB = new Date(b.createdAt || b.date || 0);
+      return dateB - dateA;
+    });
+
+    res.status(200).json({ success: true, commandes });
+  } catch (error) {
+    console.error('❌ Erreur /api/orders :', error.message);
+    res.status(500).json({ success: false, error: 'Erreur lors de la récupération des commandes.' });
+  }
+});
+
+// ── /api/order-status — Vérifier et MAJ le statut du fournisseur ──
+app.post('/api/order-status', checkAuth, async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    const { orderId } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({ success: false, error: 'ID de commande manquant.' });
+    }
+
+    const commandesRef = db.collection('commandes');
+    let docRef, docData;
+
+    // Cherche le doc par son ID Firebase...
+    const orderDoc = await commandesRef.doc(orderId).get();
+    if (orderDoc.exists && orderDoc.data().userId === uid) {
+      docRef = orderDoc.ref;
+      docData = orderDoc.data();
+    } else {
+      // ...sinon cherche par le champ orderId (ex: "SBH-123")
+      const query = await commandesRef.where('orderId', '==', orderId).where('userId', '==', uid).get();
+      if (!query.empty) {
+        docRef = query.docs[0].ref;
+        docData = query.docs[0].data();
+      } else {
+        return res.status(404).json({ success: false, error: 'Commande introuvable dans la base.' });
+      }
+    }
+
+    const providerOrderId = docData.exoOrderId || docData.providerOrderId || docData.mtpOrderId;
+    if (!providerOrderId) {
+      return res.status(400).json({ success: false, error: 'ID fournisseur introuvable pour cette commande.' });
+    }
+
+    const API_KEY = process.env.MORETHANPANEL_API_KEY || process.env.EXO_API_KEY;
+    const API_URL = process.env.MORETHANPANEL_API_KEY ? 'https://morethanpanel.com/api/v2' : 'https://exosupplier.com/api/v2';
+    
+    if (!API_KEY) throw new Error('Clé API Fournisseur manquante dans les variables.');
+
+    const params = new URLSearchParams();
+    params.append('key', API_KEY);
+    params.append('action', 'status');
+    params.append('order', providerOrderId);
+
+    const apiRes = await fetch(API_URL, { method: 'POST', body: params });
+    const data = await apiRes.json();
+
+    if (data.error) throw new Error(`Fournisseur: ${data.error}`);
+
+    const apiStatus = (data.status || '').toLowerCase();
+    let finalStatus = 'En cours';
+    if (apiStatus === 'completed') finalStatus = 'Terminé';
+    else if (apiStatus === 'pending') finalStatus = 'En attente';
+    else if (apiStatus === 'canceled' || apiStatus === 'cancelled') finalStatus = 'Annulé';
+    else if (apiStatus === 'partial') finalStatus = 'Partiel';
+    else if (apiStatus === 'processing') finalStatus = 'Traitement';
+
+    await docRef.update({
+      status: finalStatus,
+      startCount: data.start_count || docData.startCount || null,
+      remains: data.remains || docData.remains || null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    res.status(200).json({ success: true, status: finalStatus, startCount: data.start_count, remains: data.remains });
+  } catch (error) {
+    console.error('❌ Erreur /api/order-status :', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ── /api/order-refill — Demander une recharge ──
+app.post('/api/order-refill', checkAuth, async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    const { orderId } = req.body;
+    
+    const commandesRef = db.collection('commandes');
+    let docData;
+    
+    const orderDoc = await commandesRef.doc(orderId).get();
+    if (orderDoc.exists && orderDoc.data().userId === uid) docData = orderDoc.data();
+    else {
+      const query = await commandesRef.where('orderId', '==', orderId).where('userId', '==', uid).get();
+      if (!query.empty) docData = query.docs[0].data();
+      else return res.status(404).json({ success: false, error: 'Commande introuvable.' });
+    }
+
+    const providerOrderId = docData.exoOrderId || docData.providerOrderId || docData.mtpOrderId;
+    if (!providerOrderId) return res.status(400).json({ success: false, error: 'ID fournisseur introuvable.' });
+
+    const API_KEY = process.env.MORETHANPANEL_API_KEY || process.env.EXO_API_KEY;
+    const API_URL = process.env.MORETHANPANEL_API_KEY ? 'https://morethanpanel.com/api/v2' : 'https://exosupplier.com/api/v2';
+    
+    const params = new URLSearchParams();
+    params.append('key', API_KEY);
+    params.append('action', 'refill');
+    params.append('order', providerOrderId);
+
+    const apiRes = await fetch(API_URL, { method: 'POST', body: params });
+    const data = await apiRes.json();
+
+    if (data.error) throw new Error(`Fournisseur: ${data.error}`);
+    res.status(200).json({ success: true, refillId: data.refill, message: 'Recharge demandée.' });
+  } catch (error) {
+    console.error('❌ Erreur /api/order-refill :', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ── /api/order-cancel — Demander une annulation ──
+app.post('/api/order-cancel', checkAuth, async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    const { orderId } = req.body;
+
+    const commandesRef = db.collection('commandes');
+    let docRef, docData;
+    
+    const orderDoc = await commandesRef.doc(orderId).get();
+    if (orderDoc.exists && orderDoc.data().userId === uid) {
+      docRef = orderDoc.ref;
+      docData = orderDoc.data();
+    } else {
+      const query = await commandesRef.where('orderId', '==', orderId).where('userId', '==', uid).get();
+      if (!query.empty) { docRef = query.docs[0].ref; docData = query.docs[0].data(); }
+      else return res.status(404).json({ success: false, error: 'Commande introuvable.' });
+    }
+
+    const providerOrderId = docData.exoOrderId || docData.providerOrderId || docData.mtpOrderId;
+    if (!providerOrderId) return res.status(400).json({ success: false, error: 'ID fournisseur introuvable.' });
+
+    const API_KEY = process.env.MORETHANPANEL_API_KEY || process.env.EXO_API_KEY;
+    const API_URL = process.env.MORETHANPANEL_API_KEY ? 'https://morethanpanel.com/api/v2' : 'https://exosupplier.com/api/v2';
+    
+    const params = new URLSearchParams();
+    params.append('key', API_KEY);
+    params.append('action', 'cancel');
+    params.append('order', providerOrderId);
+
+    const apiRes = await fetch(API_URL, { method: 'POST', body: params });
+    const data = await apiRes.json();
+
+    if (data.error) {
+       if (data.error.toLowerCase().includes('incorrect request')) {
+           throw new Error('Annulation non supportée par le fournisseur.');
+       }
+       throw new Error(`Fournisseur: ${data.error}`);
+    }
+
+    await docRef.update({ status: 'Annulé', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    res.status(200).json({ success: true, message: 'Commande annulée.' });
+  } catch (error) {
+    console.error('❌ Erreur /api/order-cancel :', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ── 404 ─────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({
@@ -486,4 +678,7 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
-  
+"""
+
+with open('index.js', 'w', encoding='utf-8') as f:
+    f.write(index_js_content)
