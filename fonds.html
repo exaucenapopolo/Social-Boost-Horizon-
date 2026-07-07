@@ -446,6 +446,9 @@
     let currentUser       = null;
     let unsubscribeActivities = null;
     let lastKnownBalance  = null;
+    
+    // NOUVEAUTÉ : Variable globale pour stocker les infos de l'utilisateur
+    let globalUserData    = {};
 
     // ── Helpers ───────────────────────────────────────────────────
     function showMsg(text, type = 'error') {
@@ -625,12 +628,16 @@
         );
     }
 
-    // ── Charger le numéro de paiement enregistré ──────────────────
+    // ── Charger les données et le numéro de paiement ──────────────
     async function loadUserData(uid) {
       try {
         const userDoc = await db.collection('users').doc(uid).get();
         if (!userDoc.exists) return;
         const data = userDoc.data();
+        
+        // NOUVEAUTÉ : On sauvegarde en global pour utiliser dans le payload de Fapshi
+        globalUserData = data; 
+        
         if (data.paymentPhone) {
           document.getElementById('phone').value = data.paymentPhone;
         }
@@ -706,6 +713,10 @@
       try {
         // Obtenir le token Firebase
         const idToken = await currentUser.getIdToken();
+        
+        // --- NOUVEAUTÉ : On rassemble l'email et le nom pour l'envoyer à Fapshi ---
+        let userEmail = currentUser.email || globalUserData.email || '';
+        let userName  = currentUser.displayName || globalUserData.displayName || globalUserData.username || 'Client';
 
         const response = await fetch(BACKEND_URL + '/api/create-fapshi-checkout', {
           method: 'POST',
@@ -713,7 +724,16 @@
             'Content-Type':  'application/json',
             'Authorization': 'Bearer ' + idToken
           },
-          body: JSON.stringify({ amount, currency: 'XAF', description, redirectUrl, phone })
+          // On rajoute email et name dans le corps de la requête
+          body: JSON.stringify({ 
+            amount, 
+            currency: 'XAF', 
+            description, 
+            redirectUrl, 
+            phone,
+            email: userEmail,
+            name: userName
+          })
         });
 
         const data = await response.json().catch(() => ({}));
