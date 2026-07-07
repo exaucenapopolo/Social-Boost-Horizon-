@@ -1,6 +1,4 @@
-import os
-
-index_js_content = """const express = require('express');
+const express = require('express');
 const cors    = require('cors');
 const admin   = require('firebase-admin');
 const crypto  = require('crypto');
@@ -21,7 +19,7 @@ app.use((req, res, next) => {
 if (!admin.apps.length) {
   try {
     const privateKey = process.env.FIREBASE_PRIVATE_KEY
-      ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\\\n/g, '\\n')
+      ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
       : undefined;
 
     if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !privateKey) {
@@ -65,11 +63,14 @@ app.get('/api/health', (req, res) => {
 });
 
 // ── /api/register — Finalisation inscription + email bienvenue ──
+// Appelé par register.html après la création du compte Firebase.
+// FIX : on utilise displayName (le vrai nom lisible) pour l'email
+//       au lieu du username (identifiant nettoyé).
 app.post('/api/register', checkAuth, async (req, res) => {
   try {
     const {
-      displayName,
-      username,
+      displayName,       // vrai nom : "Jean Dupont" ou "john.doe"
+      username,          // identifiant nettoyé : "jean_dupont"
       email,
       country,
       referralCode,
@@ -77,6 +78,8 @@ app.post('/api/register', checkAuth, async (req, res) => {
       isFirstAccess
     } = req.body;
 
+    // Nom à utiliser dans l'email (priorité : displayName du body,
+    // puis claim "name" du token Firebase Google, puis partie avant @)
     const nameForEmail = displayName
       || req.user.name
       || (email || req.user.email || '').split('@')[0]
@@ -88,6 +91,9 @@ app.post('/api/register', checkAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Email manquant.' });
     }
 
+    // Envoi de l'email de bienvenue
+    // La fonction lève une erreur si Resend échoue, on la capture ici
+    // pour toujours retourner 200 (le compte existe même si l'email rate)
     let emailSent = false;
     try {
       await sendWelcomeEmail({
@@ -98,7 +104,11 @@ app.post('/api/register', checkAuth, async (req, res) => {
       emailSent = true;
       console.log(`📧 Email bienvenue envoyé à ${userEmail} (${nameForEmail})`);
     } catch (emailErr) {
+      // L'email a échoué — on log mais on ne bloque pas l'inscription
       console.error(`❌ Email bienvenue NON envoyé à ${userEmail} :`, emailErr.message);
+      // Si le domaine n'est pas vérifié sur Resend, l'erreur sera :
+      // "The domain socialboosthorizon.com is not verified."
+      // → Vérifiez votre domaine sur https://resend.com/domains
     }
 
     res.status(200).json({
@@ -278,391 +288,6 @@ app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
   }
 });
 
-
-// ============================================================================
-// ── MORETHANPANEL (MTP) API ROUTES ──────────────────────────────────────────
-// ============================================================================
-
-// ── /api/mtp/services — Récupérer la liste des services MTP ──
-app.get('/api/mtp/services', async (req, res) => {
-  try {
-    const MTP_API_KEY = process.env.MORETHANPANEL_API_KEY;
-    const MTP_API_URL = 'https://morethanpanel.com/api/v2';
-    
-    if (!MTP_API_KEY) {
-      throw new Error("Clé API MoreThanPanel manquante.");
-    }
-
-    const RATE_USD_TO_XAF = parseFloat(process.env.RATE_USD_TO_XAF || '650');
-    const MARGIN_MULTIPLIER = parseFloat(process.env.MARGIN_MULTIPLIER || '2.0');
-
-    const bodyParams = new URLSearchParams();
-    bodyParams.append('key', MTP_API_KEY);
-    bodyParams.append('action', 'services');
-
-    const response = await fetch(MTP_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: bodyParams
-    });
-
-    const textRaw = await response.text();
-    let data;
-    try {
-      data = JSON.parse(textRaw);
-    } catch (parseError) {
-      console.error("Erreur de parsing de MTP. Réponse brute :", textRaw.substring(0, 100));
-      throw new Error("Le fournisseur MTP a retourné une réponse invalide.");
-    }
-
-    if (data.error) {
-      throw new Error(data.error);
-    }
-
-    if (!Array.isArray(data)) {
-      throw new Error("La liste des services du fournisseur est vide ou mal formatée.");
-    }
-
-    const formattedServices = data.map(service => {
-      const originalPrice = parseFloat(service.rate);
-      const finalPriceXAF = Math.round(originalPrice * RATE_USD_TO_XAF * MARGIN_MULTIPLIER);
-      
-      const typeStr = (service.type || '').toLowerCase();
-
-      return {
-        id: parseInt(service.service),
-        name: service.name,
-        category: service.category,
-        priceXAF: finalPriceXAF,
-        min: parseInt(service.min),
-        max: parseInt(service.max),
-        refill: service.refill === true || service.refill === '1',
-        type: service.type,
-        desc: service.description || '',
-        isPackage: typeStr.includes('package'),
-        isPerOne: typeStr.includes('package'), 
-        isCustomComments: typeStr.includes('custom comments') || typeStr.includes('custom_comments')
-      };
-    });
-
-    res.status(200).json({ success: true, services: formattedServices });
-
-  } catch (error) {
-    console.error('❌ Erreur /api/mtp/services :', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ── /api/mtp/order — Passer une commande sur MTP ──
-app.post('/api/mtp/order', checkAuth, async (req, res) => {
-  try {
-    const uid = req.user.uid;
-    const { serviceId, link, quantity, comments } = req.body;
-
-    if (!serviceId || !link) {
-      return res.status(400).json({ success: false, error: 'Lien ou Service manquant.' });
-    }
-
-    const MTP_API_KEY = process.env.MORETHANPANEL_API_KEY;
-    const MTP_API_URL = 'https://morethanpanel.com/api/v2';
-    const RATE_USD_TO_XAF = parseFloat(process.env.RATE_USD_TO_XAF || '650');
-    const MARGIN_MULTIPLIER = parseFloat(process.env.MARGIN_MULTIPLIER || '2.0');
-
-    // 1. Récupérer le vrai prix du service (Toujours en POST)
-    const serviceParams = new URLSearchParams();
-    serviceParams.append('key', MTP_API_KEY);
-    serviceParams.append('action', 'services');
-    
-    const servicesRes = await fetch(MTP_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: serviceParams
-    });
-    
-    const servicesData = await servicesRes.json();
-    const serviceInfo = servicesData.find(s => parseInt(s.service) === parseInt(serviceId));
-
-    if (!serviceInfo) {
-      return res.status(404).json({ success: false, error: 'Service introuvable chez le fournisseur.' });
-    }
-
-    // 2. Calcul du prix exact
-    const finalUnitPriceXAF = parseFloat(serviceInfo.rate) * RATE_USD_TO_XAF * MARGIN_MULTIPLIER;
-    let finalQuantity = parseInt(quantity);
-    
-    if (comments) {
-      const lines = comments.split('\\n').filter(l => l.trim() !== '');
-      finalQuantity = lines.length;
-    }
-
-    if (!finalQuantity || finalQuantity < parseInt(serviceInfo.min)) {
-      return res.status(400).json({ success: false, error: `Quantité invalide. Minimum requis : ${serviceInfo.min}` });
-    }
-
-    const typeStr = (serviceInfo.type || '').toLowerCase();
-    const isPackage = typeStr.includes('package');
-    const totalCostXAF = isPackage ? (finalUnitPriceXAF * finalQuantity) : ((finalUnitPriceXAF / 1000) * finalQuantity);
-    const totalCostRounded = Math.round(totalCostXAF);
-
-    // 3. Débiter le solde du client (Sécurisé via Transaction)
-    const userRef = db.collection('users').doc(uid);
-    let newBalance = 0;
-
-    await db.runTransaction(async (transaction) => {
-      const userDoc = await transaction.get(userRef);
-      if (!userDoc.exists) throw new Error("Utilisateur introuvable.");
-
-      const currentBalance = userDoc.data().balance || 0;
-      if (currentBalance < totalCostRounded) {
-        throw new Error(`Solde insuffisant. Requis: ${totalCostRounded} FCFA`);
-      }
-
-      newBalance = currentBalance - totalCostRounded;
-      const currentOrders = userDoc.data().totalOrders || 0;
-      
-      transaction.update(userRef, { 
-          balance: newBalance,
-          totalOrders: currentOrders + 1
-      });
-    });
-
-    // 4. Envoi de la commande à MTP (POST strictly)
-    const orderParams = new URLSearchParams();
-    orderParams.append('key', MTP_API_KEY);
-    orderParams.append('action', 'add');
-    orderParams.append('service', serviceId);
-    orderParams.append('link', link);
-    
-    if (comments) {
-      orderParams.append('comments', comments);
-    } else {
-      orderParams.append('quantity', finalQuantity);
-    }
-
-    const orderRes = await fetch(MTP_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: orderParams
-    });
-    
-    const orderData = await orderRes.json();
-
-    if (orderData.error) {
-      await userRef.update({ 
-          balance: admin.firestore.FieldValue.increment(totalCostRounded),
-          totalOrders: admin.firestore.FieldValue.increment(-1)
-      });
-      throw new Error(`Refus du fournisseur : ${orderData.error}`);
-    }
-
-    // 6. Succès
-    res.status(200).json({
-      success: true,
-      orderId: orderData.order,
-      newBalance: newBalance,
-      message: 'Commande passée avec succès !'
-    });
-
-  } catch (error) {
-    console.error('❌ Erreur commande MTP :', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-
-// ============================================================================
-// ── GESTION DES COMMANDES (HISTORIQUE, STATUTS, REFILL, CANCEL) ─────────────
-// ============================================================================
-
-// ── /api/orders — Récupérer l'historique de TOUTES les commandes ──
-app.get('/api/orders', checkAuth, async (req, res) => {
-  try {
-    const uid = req.user.uid;
-    const commandesRef = db.collection('commandes');
-    const snapshot = await commandesRef.where('userId', '==', uid).get();
-    
-    const commandes = [];
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      // On s'assure que les dates Firestore sont bien formatées pour le front
-      if (data.date && typeof data.date.toDate === 'function') data.date = data.date.toDate().toISOString();
-      if (data.createdAt && typeof data.createdAt.toDate === 'function') data.createdAt = data.createdAt.toDate().toISOString();
-      
-      commandes.push({ id: doc.id, ...data });
-    });
-
-    // Tri par date décroissante (plus récent en haut)
-    commandes.sort((a, b) => {
-      const dateA = new Date(a.createdAt || a.date || 0);
-      const dateB = new Date(b.createdAt || b.date || 0);
-      return dateB - dateA;
-    });
-
-    res.status(200).json({ success: true, commandes });
-  } catch (error) {
-    console.error('❌ Erreur /api/orders :', error.message);
-    res.status(500).json({ success: false, error: 'Erreur lors de la récupération des commandes.' });
-  }
-});
-
-// ── /api/order-status — Vérifier et MAJ le statut du fournisseur ──
-app.post('/api/order-status', checkAuth, async (req, res) => {
-  try {
-    const uid = req.user.uid;
-    const { orderId } = req.body;
-
-    if (!orderId) {
-      return res.status(400).json({ success: false, error: 'ID de commande manquant.' });
-    }
-
-    const commandesRef = db.collection('commandes');
-    let docRef, docData;
-
-    // Cherche le doc par son ID Firebase...
-    const orderDoc = await commandesRef.doc(orderId).get();
-    if (orderDoc.exists && orderDoc.data().userId === uid) {
-      docRef = orderDoc.ref;
-      docData = orderDoc.data();
-    } else {
-      // ...sinon cherche par le champ orderId (ex: "SBH-123")
-      const query = await commandesRef.where('orderId', '==', orderId).where('userId', '==', uid).get();
-      if (!query.empty) {
-        docRef = query.docs[0].ref;
-        docData = query.docs[0].data();
-      } else {
-        return res.status(404).json({ success: false, error: 'Commande introuvable dans la base.' });
-      }
-    }
-
-    const providerOrderId = docData.exoOrderId || docData.providerOrderId || docData.mtpOrderId;
-    if (!providerOrderId) {
-      return res.status(400).json({ success: false, error: 'ID fournisseur introuvable pour cette commande.' });
-    }
-
-    const API_KEY = process.env.MORETHANPANEL_API_KEY || process.env.EXO_API_KEY;
-    const API_URL = process.env.MORETHANPANEL_API_KEY ? 'https://morethanpanel.com/api/v2' : 'https://exosupplier.com/api/v2';
-    
-    if (!API_KEY) throw new Error('Clé API Fournisseur manquante dans les variables.');
-
-    const params = new URLSearchParams();
-    params.append('key', API_KEY);
-    params.append('action', 'status');
-    params.append('order', providerOrderId);
-
-    const apiRes = await fetch(API_URL, { method: 'POST', body: params });
-    const data = await apiRes.json();
-
-    if (data.error) throw new Error(`Fournisseur: ${data.error}`);
-
-    const apiStatus = (data.status || '').toLowerCase();
-    let finalStatus = 'En cours';
-    if (apiStatus === 'completed') finalStatus = 'Terminé';
-    else if (apiStatus === 'pending') finalStatus = 'En attente';
-    else if (apiStatus === 'canceled' || apiStatus === 'cancelled') finalStatus = 'Annulé';
-    else if (apiStatus === 'partial') finalStatus = 'Partiel';
-    else if (apiStatus === 'processing') finalStatus = 'Traitement';
-
-    await docRef.update({
-      status: finalStatus,
-      startCount: data.start_count || docData.startCount || null,
-      remains: data.remains || docData.remains || null,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    res.status(200).json({ success: true, status: finalStatus, startCount: data.start_count, remains: data.remains });
-  } catch (error) {
-    console.error('❌ Erreur /api/order-status :', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ── /api/order-refill — Demander une recharge ──
-app.post('/api/order-refill', checkAuth, async (req, res) => {
-  try {
-    const uid = req.user.uid;
-    const { orderId } = req.body;
-    
-    const commandesRef = db.collection('commandes');
-    let docData;
-    
-    const orderDoc = await commandesRef.doc(orderId).get();
-    if (orderDoc.exists && orderDoc.data().userId === uid) docData = orderDoc.data();
-    else {
-      const query = await commandesRef.where('orderId', '==', orderId).where('userId', '==', uid).get();
-      if (!query.empty) docData = query.docs[0].data();
-      else return res.status(404).json({ success: false, error: 'Commande introuvable.' });
-    }
-
-    const providerOrderId = docData.exoOrderId || docData.providerOrderId || docData.mtpOrderId;
-    if (!providerOrderId) return res.status(400).json({ success: false, error: 'ID fournisseur introuvable.' });
-
-    const API_KEY = process.env.MORETHANPANEL_API_KEY || process.env.EXO_API_KEY;
-    const API_URL = process.env.MORETHANPANEL_API_KEY ? 'https://morethanpanel.com/api/v2' : 'https://exosupplier.com/api/v2';
-    
-    const params = new URLSearchParams();
-    params.append('key', API_KEY);
-    params.append('action', 'refill');
-    params.append('order', providerOrderId);
-
-    const apiRes = await fetch(API_URL, { method: 'POST', body: params });
-    const data = await apiRes.json();
-
-    if (data.error) throw new Error(`Fournisseur: ${data.error}`);
-    res.status(200).json({ success: true, refillId: data.refill, message: 'Recharge demandée.' });
-  } catch (error) {
-    console.error('❌ Erreur /api/order-refill :', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ── /api/order-cancel — Demander une annulation ──
-app.post('/api/order-cancel', checkAuth, async (req, res) => {
-  try {
-    const uid = req.user.uid;
-    const { orderId } = req.body;
-
-    const commandesRef = db.collection('commandes');
-    let docRef, docData;
-    
-    const orderDoc = await commandesRef.doc(orderId).get();
-    if (orderDoc.exists && orderDoc.data().userId === uid) {
-      docRef = orderDoc.ref;
-      docData = orderDoc.data();
-    } else {
-      const query = await commandesRef.where('orderId', '==', orderId).where('userId', '==', uid).get();
-      if (!query.empty) { docRef = query.docs[0].ref; docData = query.docs[0].data(); }
-      else return res.status(404).json({ success: false, error: 'Commande introuvable.' });
-    }
-
-    const providerOrderId = docData.exoOrderId || docData.providerOrderId || docData.mtpOrderId;
-    if (!providerOrderId) return res.status(400).json({ success: false, error: 'ID fournisseur introuvable.' });
-
-    const API_KEY = process.env.MORETHANPANEL_API_KEY || process.env.EXO_API_KEY;
-    const API_URL = process.env.MORETHANPANEL_API_KEY ? 'https://morethanpanel.com/api/v2' : 'https://exosupplier.com/api/v2';
-    
-    const params = new URLSearchParams();
-    params.append('key', API_KEY);
-    params.append('action', 'cancel');
-    params.append('order', providerOrderId);
-
-    const apiRes = await fetch(API_URL, { method: 'POST', body: params });
-    const data = await apiRes.json();
-
-    if (data.error) {
-       if (data.error.toLowerCase().includes('incorrect request')) {
-           throw new Error('Annulation non supportée par le fournisseur.');
-       }
-       throw new Error(`Fournisseur: ${data.error}`);
-    }
-
-    await docRef.update({ status: 'Annulé', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
-    res.status(200).json({ success: true, message: 'Commande annulée.' });
-  } catch (error) {
-    console.error('❌ Erreur /api/order-cancel :', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
 // ── 404 ─────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({
@@ -678,7 +303,3 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
-"""
-
-with open('index.js', 'w', encoding='utf-8') as f:
-    f.write(index_js_content)
