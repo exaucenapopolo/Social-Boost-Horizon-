@@ -534,7 +534,8 @@ app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
 // ── POST /api/create-fapshi-checkout ────────────────────────────
 app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
   const uid = req.user.uid;
-  const { amount, currency, description, redirectUrl, phone } = req.body;
+  // Ajout de "email" et "name" récupérés depuis la requête frontend
+  const { amount, currency, description, redirectUrl, phone, email, name } = req.body;
 
   if (!amount || !redirectUrl) return res.status(400).json({ success: false, error: 'amount et redirectUrl requis.' });
   const amountNum = Math.round(Number(amount));
@@ -548,9 +549,36 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
   const webhookBase = process.env.FAPSHI_WEBHOOK_URL || `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
   const webhookUrl = `${webhookBase}/api/fapshi-webhook`;
 
+  // --- NOUVEAUTÉ : Récupération intelligente de l'email et du nom ---
+  let finalEmail = email || req.user.email;
+  let finalName  = name || req.user.name || 'Client';
+
+  // Si l'information est incomplète (ex: l'utilisateur n'a pas tout rempli),
+  // on fait une petite requête vers Firebase pour récupérer son nom/email exact
+  if (!finalEmail || finalName === 'Client') {
+    try {
+      const userDoc = await db.collection('users').doc(uid).get();
+      if (userDoc.exists) {
+        const uData = userDoc.data();
+        finalEmail = finalEmail || uData.email;
+        finalName = finalName !== 'Client' ? finalName : (uData.displayName || uData.username || 'Client');
+      }
+    } catch (e) {
+      console.error('Erreur lors de la récupération des infos client : ', e);
+    }
+  }
+  // ------------------------------------------------------------------
+
+  // Création du payload final envoyé à Fapshi (incluant l'email et le nom s'ils existent)
   const payload = {
-    amount: amountNum, currency: currency || 'XAF', description: description || 'Recharge Social Boost Horizon',
-    redirect_url: redirectUrl, webhook_url: webhookUrl, ...(phone ? { phone } : {}),
+    amount: amountNum, 
+    currency: currency || 'XAF', 
+    description: description || 'Recharge Social Boost Horizon',
+    redirect_url: redirectUrl, 
+    webhook_url: webhookUrl, 
+    ...(phone ? { phone } : {}),
+    ...(finalEmail ? { email: finalEmail } : {}),
+    ...(finalName ? { name: finalName } : {})
   };
 
   const controller = new AbortController();
@@ -558,7 +586,8 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
 
   try {
     const fapshiRes = await fetch('https://live.fapshi.com/initiate-pay', {
-      method:  'POST', headers: { 'Content-Type': 'application/json', 'apiuser': API_USER, 'apikey':  SECRET_KEY },
+      method:  'POST', 
+      headers: { 'Content-Type': 'application/json', 'apiuser': API_USER, 'apikey':  SECRET_KEY },
       body: JSON.stringify(payload), signal: controller.signal,
     });
     clearTimeout(timer);
