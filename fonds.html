@@ -304,7 +304,6 @@
 <body>
   <div class="bg-animation"></div>
 
-  <!-- Header -->
   <header>
     <a href="dashboard.html" class="logo-link">
       <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo" class="logo-img">
@@ -319,7 +318,6 @@
     </button>
   </header>
 
-  <!-- Menu mobile -->
   <div id="menuBackdrop" class="menu-backdrop"></div>
   <nav id="hamburgerMenu" class="hamburger-menu">
     <a href="dashboard.html"><i class="fas fa-home" style="margin-right:10px;"></i>Accueil</a>
@@ -331,7 +329,6 @@
   </nav>
 
   <main>
-    <!-- Formulaire de recharge -->
     <div class="payment-card" data-aos="fade-up">
       <div class="form-overlay" id="formOverlay">
         <div class="spinner-big"></div>
@@ -387,7 +384,6 @@
       </div>
     </div>
 
-    <!-- Activités récentes -->
     <div class="activities-card" data-aos="fade-up" data-aos-delay="100">
       <h3>
         <span><i class="fa-solid fa-clock-rotate-left" style="color:var(--accent-gold); margin-right:10px;"></i>Activités récentes</span>
@@ -396,7 +392,6 @@
         </button>
       </h3>
 
-      <!-- Solde actuel -->
       <div class="balance-banner" id="balanceBanner" style="display:none;">
         <div>
           <div class="balance-label">Solde actuel</div>
@@ -405,7 +400,6 @@
         <i class="fas fa-wallet" style="font-size:2rem; color:var(--accent-green); opacity:0.6;"></i>
       </div>
 
-      <!-- Bouton vérification manuelle -->
       <button class="verify-btn" id="verifyBtn" style="display:none;">
         <i class="fas fa-search-dollar"></i>
         Vérifier si mon paiement est arrivé
@@ -427,7 +421,6 @@
     <p>© 2026 Social Boost Horizon · <a href="dashboard.html">Assistance</a> · Paiement sécurisé par Fapshi</p>
   </footer>
 
-  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -615,37 +608,41 @@
       });
     }
 
-    // ── Vérification manuelle du paiement ─────────────────────────
-    // Recharge l'historique et vérifie si le solde a augmenté depuis le dernier appel.
+    // ── Vérification manuelle du paiement (NOUVEAU) ───────────────
+    // Fait appel au backend pour interroger directement l'API de Fapshi
     async function verifyPayment() {
       const btn = document.getElementById('verifyBtn');
       btn.disabled   = true;
-      btn.innerHTML  = '<i class="fas fa-spinner fa-spin"></i> Vérification…';
+      btn.innerHTML  = '<i class="fas fa-spinner fa-spin"></i> Vérification chez Fapshi…';
 
       try {
-        const balanceBefore = lastKnownBalance;
+        const idToken = await currentUser.getIdToken();
+        
+        // On demande au backend de vérifier toutes les transactions PENDING
+        const response = await fetch(BACKEND_URL + '/api/fapshi/verify-pending', {
+          method: 'POST',
+          headers: {
+            'Content-Type':  'application/json',
+            'Authorization': 'Bearer ' + idToken
+          }
+        });
 
-        // Attendre 2 secondes pour laisser le webhook le temps de traiter
-        await new Promise(r => setTimeout(r, 2000));
+        const data = await response.json();
 
-        // Lire le solde actuel depuis Firestore
-        const userDoc   = await db.collection('users').doc(currentUser.uid).get();
-        const newBalance = userDoc.exists ? (userDoc.data().balance || 0) : 0;
-
-        if (newBalance > (balanceBefore || 0)) {
+        if (data.success && data.confirmedCount > 0) {
           showMsg(
-            `✅ Paiement confirmé ! Votre nouveau solde est ${Math.round(newBalance).toLocaleString('fr-FR')} FCFA.`,
+            `✅ Paiement confirmé ! Votre compte a été rechargé avec succès.`,
             'success'
           );
         } else {
           showMsg(
-            'ℹ️ Paiement pas encore confirmé. Si vous avez payé, patientez quelques secondes puis réessayez.',
+            'ℹ️ Paiement pas encore confirmé par Fapshi. Si vous venez de payer, patientez quelques secondes et réessayez.',
             'error'
           );
         }
       } catch (e) {
         console.error('Erreur vérification:', e);
-        showMsg('Erreur lors de la vérification. Actualisez la page.', 'error');
+        showMsg('Erreur lors de la vérification avec le serveur. Actualisez la page.', 'error');
       } finally {
         btn.disabled   = false;
         btn.innerHTML  = '<i class="fas fa-search-dollar"></i> Vérifier si mon paiement est arrivé';
