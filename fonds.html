@@ -198,6 +198,34 @@
       color: var(--accent-green); font-size: 0.9rem;
     }
 
+    /* --- Bloc d'instructions pour la vérification --- */
+    .instruction-block {
+      margin-top: 28px;
+      padding: 18px 20px;
+      background: rgba(212, 175, 55, 0.08);
+      border-left: 4px solid var(--accent-gold);
+      border-radius: 12px;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+    .instruction-block i {
+      font-size: 1.4rem;
+      color: var(--accent-gold);
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+    .instruction-block strong {
+      color: #fff;
+      font-weight: 700;
+    }
+    .instruction-block .highlight {
+      color: var(--accent-green);
+      font-weight: 600;
+    }
+
     .alternative {
       text-align: center; margin-top: 32px; padding-top: 24px;
       border-top: 1px solid rgba(255,255,255,0.1);
@@ -340,7 +368,7 @@
       </div>
 
       <h2><i class="fa-solid fa-mobile-alt"></i> Recharge Cameroun</h2>
-      <p>Rechargez votre solde via Mobile Money (Orange / MTN). Minimum 100 FCFA.</p>
+      <p>Rechargez votre solde via Mobile Money (Orange / MTN). Minimum 100 FCFA (XAF).</p>
 
       <form id="payment-form" novalidate>
         <div class="form-group">
@@ -379,6 +407,17 @@
 
         <div id="message" style="display:none;"></div>
       </form>
+
+      <!-- ═══ BLOC D'INSTRUCTIONS POUR LA VÉRIFICATION ═══ -->
+      <div class="instruction-block">
+        <i class="fas fa-info-circle"></i>
+        <div>
+          <strong>⚠️ Important après votre paiement :</strong><br>
+          Une fois le paiement effectué, revenez sur cette page. Votre solde devrait se mettre à jour automatiquement dans la minute qui suit.<br>
+          Si <span class="highlight">après 1 minute</span> votre solde n’a pas changé, <strong>cliquez sur le bouton « Vérifier »</strong> à côté de la transaction en attente dans l’historique ci-dessous.<br>
+          <span style="color: var(--accent-gold);">➜ Cela forcera la vérification et mettra à jour votre solde instantanément.</span>
+        </div>
+      </div>
 
       <div class="alternative">
         <p>Vous n'êtes pas au Cameroun ?</p>
@@ -441,13 +480,72 @@
     const auth = firebase.auth();
     const db   = firebase.firestore();
 
-    const BACKEND_URL = '';
+    // ── CONFIGURATION DES DEVISES (exactement comme dans dashboard.html) ──
+    const CURRENCY_CONFIG = {
+      'cm': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇨🇲' },
+      'ga': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇬🇦' },
+      'cg': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇨🇬' },
+      'td': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇹🇩' },
+      'cf': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇨🇫' },
+      'gq': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇬🇶' },
+      'sn': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇸🇳' },
+      'ci': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇨🇮' },
+      'ml': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇲🇱' },
+      'bf': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇧🇫' },
+      'bj': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇧🇯' },
+      'tg': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇹🇬' },
+      'ne': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇳🇪' },
+      'gw': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇬🇼' },
+      'cd': { code:'CDF', symbol:'FC', rate:4.27, flag:'🇨🇩' },
+      'gh': { code:'GHS', symbol:'GH₵', rate:0.024, flag:'🇬🇭' },
+      'ng': { code:'NGN', symbol:'₦', rate:2.44, flag:'🇳🇬' },
+      'ke': { code:'KES', symbol:'KSh', rate:0.20, flag:'🇰🇪' },
+      'ug': { code:'UGX', symbol:'USh', rate:5.64, flag:'🇺🇬' },
+      'tz': { code:'TZS', symbol:'TSh', rate:3.81, flag:'🇹🇿' },
+      'rw': { code:'RWF', symbol:'FRw', rate:1.98, flag:'🇷🇼' },
+      'zm': { code:'ZMW', symbol:'ZK', rate:0.041, flag:'🇿🇲' },
+      'mw': { code:'MWK', symbol:'MK', rate:2.67, flag:'🇲🇼' },
+      'Cameroun': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇨🇲' },
+      'Gabon': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇬🇦' },
+      'Congo': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇨🇬' },
+      'Congo Brazzaville': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇨🇬' },
+      'Tchad': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇹🇩' },
+      'Centrafrique': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇨🇫' },
+      'Guinée Équatoriale': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇬🇶' },
+      'Sénégal': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇸🇳' },
+      "Côte d'Ivoire": { code:'XOF', symbol:'FCFA', rate:1, flag:'🇨🇮' },
+      'Mali': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇲🇱' },
+      'Burkina Faso': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇧🇫' },
+      'Bénin': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇧🇯' },
+      'Togo': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇹🇬' },
+      'Niger': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇳🇪' },
+      'RD Congo': { code:'CDF', symbol:'FC', rate:4.27, flag:'🇨🇩' },
+      'RDC': { code:'CDF', symbol:'FC', rate:4.27, flag:'🇨🇩' },
+      'Ghana': { code:'GHS', symbol:'GH₵', rate:0.024, flag:'🇬🇭' },
+      'Nigeria': { code:'NGN', symbol:'₦', rate:2.44, flag:'🇳🇬' },
+      'Nigéria': { code:'NGN', symbol:'₦', rate:2.44, flag:'🇳🇬' },
+      'Kenya': { code:'KES', symbol:'KSh', rate:0.20, flag:'🇰🇪' },
+      'Ouganda': { code:'UGX', symbol:'USh', rate:5.64, flag:'🇺🇬' },
+      'Rwanda': { code:'RWF', symbol:'FRw', rate:1.98, flag:'🇷🇼' },
+      'Zambie': { code:'ZMW', symbol:'ZK', rate:0.041, flag:'🇿🇲' }
+    };
 
+    // ── Fonctions de conversion (exactement comme dans dashboard.html) ──
+    let userCurrency = CURRENCY_CONFIG['Cameroun']; // valeur par défaut
+
+    function convertFromXAF(xaf) {
+      return Math.round(xaf * userCurrency.rate);
+    }
+
+    function formatCurrency(xaf) {
+      return `${convertFromXAF(xaf).toLocaleString('fr-FR')} ${userCurrency.symbol}`;
+    }
+
+    // ── Variables globales ──────────────────────────────────────
+    const BACKEND_URL = '';
     let currentUser       = null;
     let unsubscribeActivities = null;
     let lastKnownBalance  = null;
-    
-    // NOUVEAUTÉ : Variable globale pour stocker les infos de l'utilisateur
     let globalUserData    = {};
 
     // ── Helpers ───────────────────────────────────────────────────
@@ -455,9 +553,8 @@
       const el = document.getElementById('message');
       el.textContent  = text;
       el.className    = type === 'error' ? 'error-message' : 'success-message';
-      if (type === 'info') el.className = 'error-message'; // On réutilise le style d'erreur pour les avertissements
+      if (type === 'info') el.className = 'error-message';
       el.style.display = 'block';
-      // Remonter légèrement pour que l'utilisateur voie le message
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
     function hideMsg() { document.getElementById('message').style.display = 'none'; }
@@ -513,7 +610,20 @@
       }
     }
 
-    // ── Vérification Manuelle (Unitaire) ──────────────────────────
+    // ── Mise à jour de l'affichage du solde avec la devise ──
+    function updateBalanceDisplay(balanceXAF) {
+      lastKnownBalance = balanceXAF;
+      const banner = document.getElementById('balanceBanner');
+      const displayEl = document.getElementById('balanceDisplay');
+      if (balanceXAF !== undefined && balanceXAF !== null) {
+        displayEl.textContent = formatCurrency(balanceXAF);
+        banner.style.display = 'flex';
+      } else {
+        banner.style.display = 'none';
+      }
+    }
+
+    // ── Vérification Manuelle ──────────────────────────────────
     window.verifySinglePayment = async function(transId, btnElement) {
       const originalHtml = btnElement.innerHTML;
       btnElement.disabled = true;
@@ -548,13 +658,12 @@
         console.error("Erreur verify:", e);
         showMsg('Erreur de connexion avec le serveur. Veuillez réessayer.', 'error');
       } finally {
-        // Restaurer le bouton (bien qu'il sera probablement re-rendu par Firestore)
         btnElement.disabled = false;
         btnElement.innerHTML = originalHtml;
       }
     };
 
-    // ── Rendu des transactions ─────────────────────────────────────
+    // ── Rendu des transactions (avec conversion de devise) ──────
     function renderActivities(transactions) {
       const loadingEl    = document.getElementById('activitiesLoading');
       const listEl       = document.getElementById('activityList');
@@ -573,12 +682,12 @@
 
       listEl.innerHTML = transactions.map(tx => {
         const si     = getStatusInfo(tx.status);
-        const amt    = tx.amount ? Math.round(tx.amount).toLocaleString('fr-FR') : '0';
+        const amountXAF = tx.amount || 0;
+        const formattedAmount = formatCurrency(amountXAF);
         const date   = formatDate(tx.dateInitiated);
         const desc   = tx.description || '';
-        const transId = tx.id; // L'ID Firestore de la transaction
+        const transId = tx.id;
 
-        // Bouton de vérification affiché seulement si la transaction est en cours
         let verifyBtnHtml = '';
         if ((tx.status || '').toUpperCase() === 'PENDING') {
           verifyBtnHtml = `
@@ -591,7 +700,7 @@
         return `
           <li class="activity-item">
             <div class="activity-info">
-              <span class="activity-amount" style="color:var(--accent-green);">+${amt} FCFA</span>
+              <span class="activity-amount" style="color:var(--accent-green);">+${formattedAmount}</span>
               <span class="activity-date"><i class="far fa-clock"></i> ${date}</span>
               ${desc ? `<span class="activity-desc">${desc}</span>` : ''}
             </div>
@@ -603,7 +712,7 @@
       }).join('');
     }
 
-    // ── Écoute temps réel des transactions Fapshi ─────────────────
+    // ── Écoute temps réel des transactions ──────────────────────
     function loadRecentActivities(userId) {
       document.getElementById('activitiesLoading').style.display = 'block';
       document.getElementById('activityList').style.display      = 'none';
@@ -628,47 +737,53 @@
         );
     }
 
-    // ── Charger les données et le numéro de paiement ──────────────
+    // ── Charger les données utilisateur et mettre à jour la devise ──
     async function loadUserData(uid) {
       try {
         const userDoc = await db.collection('users').doc(uid).get();
         if (!userDoc.exists) return;
         const data = userDoc.data();
-        
-        // NOUVEAUTÉ : On sauvegarde en global pour utiliser dans le payload de Fapshi
-        globalUserData = data; 
-        
+        globalUserData = data;
+
+        // Mise à jour de la devise à partir du pays
+        const country = data.country || 'Cameroun';
+        if (CURRENCY_CONFIG[country]) {
+          userCurrency = CURRENCY_CONFIG[country];
+        } else {
+          userCurrency = CURRENCY_CONFIG['Cameroun'];
+        }
+
         if (data.paymentPhone) {
           document.getElementById('phone').value = data.paymentPhone;
         }
+        // Mettre à jour le solde avec la nouvelle devise
         if (data.balance !== undefined) {
-          lastKnownBalance = data.balance;
-          const banner = document.getElementById('balanceBanner');
-          document.getElementById('balanceDisplay').textContent =
-            Math.round(data.balance).toLocaleString('fr-FR') + ' FCFA';
-          banner.style.display = 'flex';
+          updateBalanceDisplay(data.balance);
         }
       } catch (e) {
         console.error('Erreur chargement données utilisateur:', e);
       }
     }
 
-    // ── Écoute en temps réel du solde ─────────────────────────────
+    // ── Écoute en temps réel du solde (et mise à jour devise) ────
     function watchBalance(uid) {
       db.collection('users').doc(uid).onSnapshot(doc => {
         if (!doc.exists) return;
         const data = doc.data();
+        // Si le pays change, on met à jour la devise
+        const country = data.country || 'Cameroun';
+        if (CURRENCY_CONFIG[country]) {
+          userCurrency = CURRENCY_CONFIG[country];
+        } else {
+          userCurrency = CURRENCY_CONFIG['Cameroun'];
+        }
         if (data.balance !== undefined) {
-          lastKnownBalance = data.balance;
-          const banner = document.getElementById('balanceBanner');
-          document.getElementById('balanceDisplay').textContent =
-            Math.round(data.balance).toLocaleString('fr-FR') + ' FCFA';
-          banner.style.display = 'flex';
+          updateBalanceDisplay(data.balance);
         }
       });
     }
 
-    // ── Boutons UI ────────────────────────────────────────────────
+    // ── Bouton rafraîchir ──────────────────────────────────────
     document.getElementById('refreshActivities').addEventListener('click', () => {
       if (!currentUser) return;
       const icon = document.getElementById('refreshIcon');
@@ -677,7 +792,7 @@
       setTimeout(() => icon.classList.remove('fa-spin'), 1500);
     });
 
-    // ── Soumission du formulaire ───────────────────────────────────
+    // ── Soumission du formulaire ────────────────────────────────
     document.getElementById('payment-form').addEventListener('submit', async e => {
       e.preventDefault();
       hideMsg();
@@ -687,34 +802,26 @@
         return;
       }
 
-      // Validation numéro de téléphone
       const phone = document.getElementById('phone').value.trim();
       if (!phone) { showMsg('Veuillez entrer votre numéro Mobile Money.'); return; }
       if (!/^[0-9]{9,13}$/.test(phone)) {
         showMsg('Numéro invalide (9 à 13 chiffres, sans indicatif pays).'); return;
       }
 
-      // Validation montant
       const amountRaw = parseFloat(document.getElementById('amount').value);
       if (isNaN(amountRaw) || amountRaw < 100) {
         showMsg('Le montant doit être au moins 100 FCFA.'); return;
       }
       const amount = Math.round(amountRaw);
 
-      // Validation description
       const description = document.getElementById('description').value.trim();
       if (!description) { showMsg('Veuillez entrer une description.'); return; }
 
-      // URL de redirection après paiement
       const redirectUrl = window.location.origin + '/payment-success.html';
-
       toggleLoader(true);
 
       try {
-        // Obtenir le token Firebase
         const idToken = await currentUser.getIdToken();
-        
-        // --- NOUVEAUTÉ : On rassemble l'email et le nom pour l'envoyer à Fapshi ---
         let userEmail = currentUser.email || globalUserData.email || '';
         let userName  = currentUser.displayName || globalUserData.displayName || globalUserData.username || 'Client';
 
@@ -724,12 +831,11 @@
             'Content-Type':  'application/json',
             'Authorization': 'Bearer ' + idToken
           },
-          // On rajoute email et name dans le corps de la requête
-          body: JSON.stringify({ 
-            amount, 
-            currency: 'XAF', 
-            description, 
-            redirectUrl, 
+          body: JSON.stringify({
+            amount,
+            currency: 'XAF',
+            description,
+            redirectUrl,
             phone,
             email: userEmail,
             name: userName
@@ -755,7 +861,7 @@
       }
     });
 
-    // ── Authentification Firebase ─────────────────────────────────
+    // ── Authentification Firebase ──────────────────────────────
     auth.onAuthStateChanged(user => {
       if (!user) {
         window.location.href = 'login.html';
@@ -763,7 +869,6 @@
       }
       currentUser = user;
 
-      // Charger les données
       loadUserData(user.uid);
       watchBalance(user.uid);
       loadRecentActivities(user.uid);
