@@ -480,7 +480,6 @@
     .status-pending { background: rgba(255,184,0,0.2); color: var(--wallet-secondary); }
     .status-failed { background: rgba(255,107,107,0.2); color: #FF6B6B; }
 
-    /* Nouveau bouton Vérifier */
     .btn-verify {
       display: inline-flex;
       align-items: center;
@@ -706,7 +705,7 @@
       <div class="solde-label">
         <i class="fa-solid fa-wallet"></i> Solde disponible
       </div>
-      <div class="solde-montant" id="mainBalance">0 <span class="currency-symbol">FCFA</span></div>
+      <div class="solde-montant" id="mainBalance">0</div>
       <button class="btn-depot" id="depositMainBtn">
         <i class="fa-solid fa-plus"></i> Déposer
       </button>
@@ -721,7 +720,7 @@
             <p>Bonus de vos filleuls</p>
           </div>
         </div>
-        <div class="balance-amount" id="referralBalance">0 <span class="currency-symbol">FCFA</span></div>
+        <div class="balance-amount" id="referralBalance">0</div>
         <div class="balance-actions">
           <button class="balance-btn transfer-btn" id="transferFunds" disabled>
             <i class="fa-solid fa-arrow-right-arrow-left"></i> Transférer
@@ -736,7 +735,7 @@
             <p>Fonds retirables</p>
           </div>
         </div>
-        <div class="balance-amount" id="withdrawalBalance">0 <span class="currency-symbol">FCFA</span></div>
+        <div class="balance-amount" id="withdrawalBalance">0</div>
         <div class="balance-actions">
           <button class="balance-btn withdraw-btn" id="withdrawFunds" disabled>
             <i class="fa-solid fa-arrow-up-right-from-square"></i> Retirer
@@ -890,10 +889,74 @@
       const db = firebase.firestore();
       const BACKEND_URL = 'https://social-boost-exaucenapopolo2.replit.app';
 
-      const CURRENCY_CONFIG = { 'cm': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇲' } };
-      let userCurrency = CURRENCY_CONFIG['cm'];
-      function formatAmount(amountXAF) { return Math.round(amountXAF).toLocaleString('fr-FR') + ' ' + userCurrency.symbol; }
-      function updateAllCurrencySymbols() { document.querySelectorAll('.currency-symbol').forEach(el => el.textContent = userCurrency.symbol); }
+      // ════════════════════════════════════════════════
+      // LOGIQUE DE CONVERSION DE DEVISES (copiée de dashboard.html)
+      // ════════════════════════════════════════════════
+      const CURRENCY_CONFIG = {
+        'cm': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇨🇲' },
+        'ga': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇬🇦' },
+        'cg': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇨🇬' },
+        'td': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇹🇩' },
+        'cf': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇨🇫' },
+        'gq': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇬🇶' },
+        'sn': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇸🇳' },
+        'ci': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇨🇮' },
+        'ml': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇲🇱' },
+        'bf': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇧🇫' },
+        'bj': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇧🇯' },
+        'tg': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇹🇬' },
+        'ne': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇳🇪' },
+        'gw': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇬🇼' },
+        'cd': { code:'CDF', symbol:'FC', rate:4.27, flag:'🇨🇩' },
+        'gh': { code:'GHS', symbol:'GH₵', rate:0.024, flag:'🇬🇭' },
+        'ng': { code:'NGN', symbol:'₦', rate:2.44, flag:'🇳🇬' },
+        'ke': { code:'KES', symbol:'KSh', rate:0.20, flag:'🇰🇪' },
+        'ug': { code:'UGX', symbol:'USh', rate:5.64, flag:'🇺🇬' },
+        'tz': { code:'TZS', symbol:'TSh', rate:3.81, flag:'🇹🇿' },
+        'rw': { code:'RWF', symbol:'FRw', rate:1.98, flag:'🇷🇼' },
+        'zm': { code:'ZMW', symbol:'ZK', rate:0.041, flag:'🇿🇲' },
+        'mw': { code:'MWK', symbol:'MK', rate:2.67, flag:'🇲🇼' },
+        'Cameroun': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇨🇲' },
+        'Gabon': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇬🇦' },
+        'Congo': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇨🇬' },
+        'Congo Brazzaville': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇨🇬' },
+        'Tchad': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇹🇩' },
+        'Centrafrique': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇨🇫' },
+        'Guinée Équatoriale': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇬🇶' },
+        'Sénégal': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇸🇳' },
+        "Côte d'Ivoire": { code:'XOF', symbol:'FCFA', rate:1, flag:'🇨🇮' },
+        'Mali': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇲🇱' },
+        'Burkina Faso': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇧🇫' },
+        'Bénin': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇧🇯' },
+        'Togo': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇹🇬' },
+        'Niger': { code:'XOF', symbol:'FCFA', rate:1, flag:'🇳🇪' },
+        'RD Congo': { code:'CDF', symbol:'FC', rate:4.27, flag:'🇨🇩' },
+        'RDC': { code:'CDF', symbol:'FC', rate:4.27, flag:'🇨🇩' },
+        'Ghana': { code:'GHS', symbol:'GH₵', rate:0.024, flag:'🇬🇭' },
+        'Nigeria': { code:'NGN', symbol:'₦', rate:2.44, flag:'🇳🇬' },
+        'Nigéria': { code:'NGN', symbol:'₦', rate:2.44, flag:'🇳🇬' },
+        'Kenya': { code:'KES', symbol:'KSh', rate:0.20, flag:'🇰🇪' },
+        'Ouganda': { code:'UGX', symbol:'USh', rate:5.64, flag:'🇺🇬' },
+        'Rwanda': { code:'RWF', symbol:'FRw', rate:1.98, flag:'🇷🇼' },
+        'Zambie': { code:'ZMW', symbol:'ZK', rate:0.041, flag:'🇿🇲' }
+      };
+
+      let userCountry = 'Cameroun';
+      let userCurrency = CURRENCY_CONFIG['Cameroun'];
+
+      function convertFromXAF(xaf) {
+        return Math.round(xaf * userCurrency.rate);
+      }
+
+      function formatCurrency(xaf) {
+        if (xaf === undefined || xaf === null) return '0 ' + userCurrency.symbol;
+        const converted = convertFromXAF(xaf);
+        return converted.toLocaleString('fr-FR') + ' ' + userCurrency.symbol;
+      }
+
+      // ════════════════════════════════════════════════
+      // FIN LOGIQUE DE CONVERSION
+      // ════════════════════════════════════════════════
 
       let currentUid = null, currentReferralBalance = 0, currentWithdrawalBalance = 0, currentUserData = null;
       const mainBalanceEl = document.getElementById('mainBalance');
@@ -953,7 +1016,7 @@
       let selectedTransferTarget = null;
       document.getElementById('transferFunds').addEventListener('click', () => {
         if (currentReferralBalance <= 0) return;
-        transferAmountEl.textContent = formatAmount(currentReferralBalance) + ' disponible';
+        transferAmountEl.textContent = formatCurrency(currentReferralBalance) + ' disponible';
         transferModal.classList.add('active');
         selectedTransferTarget = null;
         document.querySelectorAll('#transferModal .modal-option').forEach(opt => opt.classList.remove('selected'));
@@ -1002,7 +1065,7 @@
       const confirmWithdrawBtn = document.getElementById('confirmWithdraw');
       document.getElementById('withdrawFunds').addEventListener('click', () => {
         if (currentWithdrawalBalance < 1000) return;
-        withdrawAvailableEl.textContent = formatAmount(currentWithdrawalBalance) + ' disponible';
+        withdrawAvailableEl.textContent = formatCurrency(currentWithdrawalBalance) + ' disponible';
         if (currentUserData) {
           document.getElementById('withdrawName').value = currentUserData.fullName || '';
           document.getElementById('withdrawAccount').value = currentUserData.phone || '';
@@ -1048,18 +1111,23 @@
         db.collection('users').doc(currentUid).onSnapshot(docSnap => {
           if (!docSnap.exists) return;
           currentUserData = docSnap.data();
+          // Mise à jour de la devise à partir du pays
+          userCountry = currentUserData.country || 'Cameroun';
+          userCurrency = CURRENCY_CONFIG[userCountry] || CURRENCY_CONFIG['Cameroun'];
+
           const bal = currentUserData.balance || 0;
           const refBal = currentUserData.referralBalance || 0;
           const withBal = currentUserData.withdrawalBalance || 0;
           currentReferralBalance = refBal;
           currentWithdrawalBalance = withBal;
-          if (mainBalanceEl) mainBalanceEl.innerHTML = formatAmount(bal);
-          if (referralBalanceEl) referralBalanceEl.innerHTML = formatAmount(refBal);
-          if (withdrawalBalanceEl) withdrawalBalanceEl.innerHTML = formatAmount(withBal);
+
+          if (mainBalanceEl) mainBalanceEl.textContent = formatCurrency(bal);
+          if (referralBalanceEl) referralBalanceEl.textContent = formatCurrency(refBal);
+          if (withdrawalBalanceEl) withdrawalBalanceEl.textContent = formatCurrency(withBal);
+
           document.getElementById('transferFunds').disabled = !(refBal > 0);
           document.getElementById('withdrawFunds').disabled = !(withBal >= 1000);
           updatePhoneUI(currentUserData.paymentPhone || '');
-          updateAllCurrencySymbols();
         });
         loadActivities();
       });
@@ -1158,6 +1226,8 @@
 
             const div = document.createElement('div');
             div.className = `activity-item ${typeClass}`;
+            const formattedAmount = formatCurrency(Math.abs(amount));
+            const sign = amountClass === 'positive' ? '+' : '-';
             div.innerHTML = `
               <div class="activity-icon ${iconClass}"><i class="fa-solid ${icon}"></i></div>
               <div class="activity-content">
@@ -1165,7 +1235,7 @@
                 <div class="activity-date">${dateStr}</div>
               </div>
               <div class="activity-right">
-                <div class="activity-amount ${amountClass}">${amountClass === 'positive' ? '+' : '-'}${formatAmount(Math.abs(amount))}</div>
+                <div class="activity-amount ${amountClass}">${sign} ${formattedAmount}</div>
                 <span class="activity-status ${statusClass}">${status}</span>
                 ${verifyLink}
               </div>
