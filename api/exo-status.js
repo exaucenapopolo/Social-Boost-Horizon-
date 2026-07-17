@@ -2,7 +2,6 @@
 
 import admin from 'firebase-admin';
 
-// 1. Initialisation sécurisée de Firebase Admin
 if (!admin.apps.length) {
     admin.initializeApp({
         credential: admin.credential.cert({
@@ -16,13 +15,11 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 export default async function handler(req, res) {
-    // On accepte uniquement les requêtes POST pour envoyer l'ID de la commande
     if (req.method !== 'POST') {
         return res.status(405).json({ success: false, error: 'Méthode non autorisée' });
     }
 
     try {
-        // 2. Vérification de la sécurité : l'utilisateur est-il bien connecté ?
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({ success: false, error: 'Vous devez être connecté.' });
@@ -32,13 +29,11 @@ export default async function handler(req, res) {
         const decodedToken = await admin.auth().verifyIdToken(token);
         const uid = decodedToken.uid;
 
-        // 3. Récupération de l'ID du document de la commande depuis le frontend
         const { orderId } = req.body;
         if (!orderId) {
             return res.status(400).json({ success: false, error: 'ID de commande manquant.' });
         }
 
-        // 4. On récupère la commande dans la base de données
         const orderRef = db.collection('commandes').doc(orderId);
         const orderDoc = await orderRef.get();
 
@@ -48,17 +43,15 @@ export default async function handler(req, res) {
 
         const orderData = orderDoc.data();
 
-        // Sécurité : on vérifie que la commande appartient bien à l'utilisateur qui fait la requête
         if (orderData.userId !== uid) {
             return res.status(403).json({ success: false, error: 'Accès refusé à cette commande.' });
         }
 
-        // 5. On vérifie que c'est bien une commande envoyée au fournisseur
         if (!orderData.exoOrderId) {
             return res.status(400).json({ success: false, error: 'Cette commande ne possède pas d\'ID fournisseur.' });
         }
 
-        // 6. On interroge l'API d'Exo Supplier pour avoir le statut en temps réel
+        // 1. Interrogation du fournisseur en dehors de la transaction
         const url = 'https://exosupplier.com/api/v2';
         const formData = new URLSearchParams();
         formData.append('key', process.env.EXO_API_KEY);
@@ -68,15 +61,14 @@ export default async function handler(req, res) {
         const exoRes = await fetch(url, { method: 'POST', body: formData });
         const exoData = await exoRes.json();
 
-        // Gestion d'erreur venant du fournisseur
         if (exoData.error) {
             return res.status(400).json({ success: false, error: 'Erreur fournisseur: ' + exoData.error });
         }
 
-        // 7. Traduction du statut du fournisseur (souvent en anglais) vers le français
-        let nouveauStatut = exoData.status; // ex: Pending, Processing, Completed...
+        let nouveauStatut = exoData.status; 
+        const exoStatusLower = exoData.status.toLowerCase();
         
-        switch(exoData.status.toLowerCase()) {
+        switch(exoStatusLower) {
             case 'pending': nouveauStatut = 'En attente'; break;
             case 'processing': 
             case 'in progress': nouveauStatut = 'En cours'; break;
@@ -85,19 +77,56 @@ export default async function handler(req, res) {
             case 'canceled': nouveauStatut = 'Annulée'; break;
         }
 
-        // 8. Mise à jour de la commande dans Firebase avec les nouvelles données
-        await orderRef.update({
-            status: nouveauStatut,
-            exoRemains: exoData.remains !== undefined ? exoData.remains : (orderData.exoRemains || 0),
-            startCount: exoData.start_count !== undefined ? exoData.start_count : (orderData.startCount || 0),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp() // Optionnel : garde une trace de l'heure de mise à jour
+        let refundAmount = 0;
+        let isRefundProcessed = false;
+
+        // 2. Transaction sécurisée pour mettre à jour la BDD et gérer les remboursements
+        await db.runTransaction(async (transaction) => {
+            const currentOrderDoc = await transaction.get(orderRef);
+            const currentOrderData = currentOrderDoc.data();
+            
+            const userRef = db.collection('users').doc(uid);
+            const userDoc = await transaction.get(userRef);
+            const userBalance = userDoc.exists ? (userDoc.data().balance || 0) : 0;
+
+            const updatePayload = {
+                status: nouveauStatut,
+                exoRemains: exoData.remains !== undefined ? exoData.remains : (currentOrderData.exoRemains || 0),
+                startCount: exoData.start_count !== undefined ? exoData.start_count : (currentOrderData.startCount || 0),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            };
+
+            // Gestion des annulations et partiels sécurisée
+            if ((exoStatusLower === 'canceled' || exoStatusLower === 'partial') && !currentOrderData.isRefunded) {
+                const totalCost = currentOrderData.cost || 0;
+                
+                if (exoStatusLower === 'canceled') {
+                    // Remboursement total
+                    refundAmount = totalCost;
+                } else if (exoStatusLower === 'partial') {
+                    // Remboursement partiel basé sur le prix unitaire
+                    const remains = parseInt(exoData.remains) || 0;
+                    const unitPrice = currentOrderData.unitPrice || (totalCost / currentOrderData.quantity);
+                    refundAmount = Math.round(unitPrice * remains);
+                }
+
+                if (refundAmount > 0) {
+                    transaction.update(userRef, { balance: userBalance + refundAmount });
+                    updatePayload.isRefunded = true;
+                    updatePayload.refundAmount = refundAmount;
+                    isRefundProcessed = true;
+                }
+            }
+
+            transaction.update(orderRef, updatePayload);
         });
 
-        // 9. On renvoie une réponse positive au frontend avec le nouveau statut
         return res.status(200).json({ 
             success: true, 
             status: nouveauStatut, 
-            remains: exoData.remains 
+            remains: exoData.remains,
+            refunded: isRefundProcessed,
+            refundAmount: refundAmount
         });
 
     } catch (error) {

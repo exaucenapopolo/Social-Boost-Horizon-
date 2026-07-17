@@ -2,7 +2,6 @@
 
 import admin from 'firebase-admin';
 
-// 1. Initialisation sécurisée de Firebase Admin
 if (!admin.apps.length) {
     admin.initializeApp({
         credential: admin.credential.cert({
@@ -15,8 +14,6 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-// Nouvelle fonction : Détecter la plateforme en fonction du nom du service et du lien
-// Cela va nous permettre de stocker une information claire dans la base de données
 function detectPlatform(serviceName, link) {
     const nameLower = (serviceName || '').toLowerCase();
     const linkLower = (link || '').toLowerCase();
@@ -31,7 +28,6 @@ function detectPlatform(serviceName, link) {
     if (nameLower.includes('linkedin') || linkLower.includes('linkedin.com')) return 'LinkedIn';
     if (nameLower.includes('twitch') || linkLower.includes('twitch.tv')) return 'Twitch';
     
-    // Si on ne trouve rien, on met 'Autre'
     return 'Autre'; 
 }
 
@@ -41,7 +37,6 @@ export default async function handler(req, res) {
     }
 
     try {
-        // 2. Vérification de la sécurité
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({ success: false, error: 'Vous devez être connecté.' });
@@ -50,10 +45,8 @@ export default async function handler(req, res) {
         const decodedToken = await admin.auth().verifyIdToken(token);
         const uid = decodedToken.uid;
 
-        // 3. Récupération des données du formulaire
         const { exoServiceId, link, quantity, comments, contactType, contact } = req.body;
 
-        // 4. Vérification préliminaire du solde utilisateur
         const userRef = db.collection('users').doc(uid);
         const userDoc = await userRef.get();
 
@@ -64,7 +57,6 @@ export default async function handler(req, res) {
         const userData = userDoc.data();
         let currentBalance = userData.balance || 0;
 
-        // 5. Récupération du prix depuis Exo pour le calcul
         const url = 'https://exosupplier.com/api/v2';
         const fetchServicesData = new URLSearchParams();
         fetchServicesData.append('key', process.env.EXO_API_KEY);
@@ -78,24 +70,18 @@ export default async function handler(req, res) {
             return res.status(400).json({ success: false, error: 'Service invalide ou expiré.' });
         }
 
-        // Calcul exact du coût
         const EXCHANGE_RATE_USD_TO_XAF = 620;
         const PROFIT_MULTIPLIER = 1.5;
         const priceXAFPer1000 = parseFloat(service.rate) * EXCHANGE_RATE_USD_TO_XAF * PROFIT_MULTIPLIER;
         
-        let cost = 0;
-        if (service.type === 'Custom Comments') {
-            cost = (priceXAFPer1000 / 1000) * comments.length;
-        } else {
-            cost = (priceXAFPer1000 / 1000) * quantity;
-        }
+        let finalQuantity = service.type === 'Custom Comments' ? comments.length : quantity;
+        let cost = (priceXAFPer1000 / 1000) * finalQuantity;
+        let unitPrice = cost / finalQuantity; // NOUVEAU : Sauvegarde du prix unitaire
 
-        // Refus immédiat si l'argent n'est pas suffisant
         if (currentBalance < cost) {
             return res.status(400).json({ success: false, error: 'Solde insuffisant pour cette commande.' });
         }
 
-        // 6. Passage de la commande chez Exo Supplier
         const orderData = new URLSearchParams();
         orderData.append('key', process.env.EXO_API_KEY);
         orderData.append('action', 'add');
@@ -119,8 +105,7 @@ export default async function handler(req, res) {
             });
         }
 
-        // 7. TRANSACTION FIREBASE : Mise à jour et formatage professionnel
-        let finalFormattedOrderId; // Pour stocker le format "SBH-XXX"
+        let finalFormattedOrderId; 
         let newBalance;
 
         await db.runTransaction(async (transaction) => {
@@ -135,42 +120,38 @@ export default async function handler(req, res) {
                 throw new Error("Solde devenu insuffisant pendant le traitement.");
             }
 
-            // A. Gestion du compteur
             let nextOrderId = 1; 
             if (counterDoc.exists && counterDoc.data().lastId) {
                 nextOrderId = counterDoc.data().lastId + 1;
             }
 
-            // FORMATAGE DE L'ID DE COMMANDE ICI (Ex: SBH-15362)
             finalFormattedOrderId = `SBH-${nextOrderId}`;
             newBalance = balanceInTransaction - cost;
 
-            // B. Détection de la plateforme (Facebook, Instagram, etc.)
             const detectedPlatform = detectPlatform(service.name, link);
 
-            // C. Mise à jour du compteur et du solde
             transaction.set(counterRef, { lastId: nextOrderId }, { merge: true });
             transaction.update(currentUserRef, { balance: newBalance });
 
-            // D. Enregistrement de la commande avec les nouvelles données
             const newOrderRef = db.collection('commandes').doc(); 
             transaction.set(newOrderRef, {
-                orderId: finalFormattedOrderId, // On enregistre "SBH-XXX" au lieu d'un simple chiffre
-                platform: detectedPlatform, // On enregistre le nom de la plateforme
+                orderId: finalFormattedOrderId, 
+                platform: detectedPlatform, 
                 userId: uid,
                 exoOrderId: orderResult.order, 
                 serviceId: exoServiceId,
                 serviceName: service.name,
                 link: link,
-                quantity: service.type === 'Custom Comments' ? comments.length : quantity,
+                quantity: finalQuantity,
                 cost: cost,
+                unitPrice: unitPrice, // NOUVEAU : Très important pour les remboursements partiels
                 status: 'En attente',
+                isRefunded: false, // NOUVEAU : Sécurité anti-double remboursement
                 date: admin.firestore.FieldValue.serverTimestamp(),
                 contactInfo: contact || 'Aucun contact'
             });
         });
 
-        // 8. On renvoie la validation au frontend avec le bel ID
         return res.status(200).json({ 
             success: true, 
             orderId: finalFormattedOrderId, 
@@ -184,5 +165,4 @@ export default async function handler(req, res) {
         }
         return res.status(500).json({ success: false, error: 'Une erreur technique est survenue. Réessayez plus tard.' });
     }
-    }
-                                
+}
