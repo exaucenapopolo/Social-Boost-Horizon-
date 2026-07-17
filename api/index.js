@@ -392,25 +392,12 @@ app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
   }
 });
 
-// api/exo/cancel.js
-const db = admin.firestore();
-
-export default async function handler(req, res) {
-    if (req.method !== 'POST') {
-        return res.status(405).json({ success: false, error: 'Méthode non autorisée' });
-    }
-
+// ── POST /api/exo/cancel ─────────────────────────────────────────
+app.post('/api/exo/cancel', checkAuth, async (req, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return res.status(401).json({ success: false, error: 'Vous devez être connecté.' });
-        }
-        
-        const token = authHeader.split('Bearer ')[1];
-        const decodedToken = await admin.auth().verifyIdToken(token);
-        const uid = decodedToken.uid;
-
+        const uid = req.user.uid;
         const { orderId } = req.body;
+        
         if (!orderId) {
             return res.status(400).json({ success: false, error: 'ID de commande manquant.' });
         }
@@ -492,7 +479,7 @@ export default async function handler(req, res) {
         console.error("Erreur annulation:", error);
         return res.status(500).json({ success: false, error: error.message || 'Erreur technique serveur.' });
     }
-              }
+});
                         
 // ═══════════════════════════════════════════════════════════════
 // Routes utilisateur (existantes)
