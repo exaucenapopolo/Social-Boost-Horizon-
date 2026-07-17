@@ -149,7 +149,7 @@
     .status-processing { background: rgba(255,184,0,0.2); color: #FFB800; border: 1px solid rgba(255,184,0,0.3); }
     .status-pending { background: rgba(255,152,0,0.2); color: #FF9800; border: 1px solid rgba(255,152,0,0.3); }
     .status-cancelled { background: rgba(255,107,107,0.2); color: #FF6B6B; border: 1px solid rgba(255,107,107,0.3); }
-    .status-partial { background: rgba(139,92,246,0.2); color: #8B5CF6; border: 1px solid rgba(139,92,246,0.3); } /* Nouveau statut */
+    .status-partial { background: rgba(139,92,246,0.2); color: #8B5CF6; border: 1px solid rgba(139,92,246,0.3); }
 
     .progress-bar-container { display: flex; align-items: center; gap: 10px; margin-top: 15px; }
     .progress-bar { flex: 1; height: 8px; background: rgba(255,255,255,0.08); border-radius: 10px; overflow: hidden; }
@@ -782,6 +782,10 @@
             formattedAmount, statusLabel, link, contact, comments: customComments
           };
 
+          // CONDITION POUR LE BOUTON D'ANNULATION
+          const stLower = statusText.toLowerCase();
+          const canCancel = stLower.includes('en attente') || stLower.includes('pending') || stLower.includes('en cours') || stLower.includes('processing') || stLower.includes('in progress');
+
           html += `
             <div class="order-card" data-docid="${docId}">
               <div class="order-card-header">
@@ -885,7 +889,7 @@
                 <div class="exo-actions">
                   <button class="exo-btn status" onclick="event.stopPropagation(); checkExoStatus('${docId}')"><i class="fas fa-search"></i> Vérifier le statut</button>
                   <button class="exo-btn refill" onclick="event.stopPropagation(); requestExoRefill('${docId}')"><i class="fas fa-redo"></i> Refill</button>
-                  <button class="exo-btn cancel" onclick="event.stopPropagation(); cancelExoOrder('${docId}')"><i class="fas fa-times"></i> Annuler</button>
+                  ${canCancel ? `<button class="exo-btn cancel" onclick="event.stopPropagation(); cancelExoOrder('${docId}')"><i class="fas fa-times"></i> Annuler</button>` : ''}
                 </div>
               </div>
             </div>
@@ -922,7 +926,6 @@
         updateTotalAmount();
       }
 
-      // NOUVEAUTÉ : Fonction qui tourne en arrière-plan pour les commandes actives
       async function actualiserStatutsActifsBackground(orders) {
         if (!auth.currentUser) return;
         const idToken = await auth.currentUser.getIdToken();
@@ -993,7 +996,6 @@
           displayOrders();
           updateStats(allOrders);
 
-          // Appel de la nouvelle fonction magique
           actualiserStatutsActifsBackground(allOrders);
           
         } catch (err) {
@@ -1003,77 +1005,102 @@
 
       if (refreshBtn) refreshBtn.addEventListener('click', fetchOrders);
 
+      // CORRECTION : Fermeture correcte de la fonction de notification
       function showNotification(message, type = 'info') {
         const existing = document.querySelector('.exo-notification');
         if (existing) existing.remove();
         const n = document.createElement('div');
         n.className = 'exo-notification';
         n.style.cssText = `position:fixed;top:20px;right:20px;padding:15px 25px;border-radius:12px;color:#fff;font-weight:500;z-index:10000;animation:slideIn 0.3s ease;max-width:350px;box-shadow:0 10px 30px rgba(0,0,0,0.3);`;
-        n.style.background = type === 'success' ? 'linear-gradient(135deg,#10B981,#059669)' : type === 'error' ? 'linear-gradient(135deg,#EF4444,#DC2626)' : 'linear-gradient(135deg,#8B5CF6,#7C3AED)';
-        n.innerHTML = `<i class="fas fa-${type==='success'?'check-circle':type==='error'?'exclamation-circle':'info-circle'}" style="margin-right:10px;"></i>${message}`;
-        document.body.appendChild(n);
-        setTimeout(() => { n.style.animation = 'slideOut 0.3s ease'; setTimeout(() => n.remove(), 300); }, 4000);
-      }
-
-      async function checkExoStatus(orderId) {
-        try {
-          showNotification('Interrogation du fournisseur...', 'info');
-          const idToken = await auth.currentUser.getIdToken();
-          
-          const response = await fetch(`${BACKEND_URL}/api/exo-status`, { 
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-              body: JSON.stringify({ orderId: orderId })
-          });
-          
-          const data = await response.json();
-          if (!data.success) throw new Error(data.error || 'Erreur lors de la vérification');
-          
-          let msg = `Nouveau statut : ${data.status}`;
-          if (data.refunded) msg += ` - Remboursé: ${formatAmount(data.refundAmount)}`;
-          showNotification(msg, 'success');
-          
-          fetchOrders();
-        } catch (error) { 
-          showNotification(error.message, 'error'); 
+        
+        if (type === 'success') {
+            n.style.background = 'linear-gradient(135deg, #10B981, #059669)';
+        } else if (type === 'error') {
+            n.style.background = 'linear-gradient(135deg, #EF4444, #DC2626)';
+        } else {
+            n.style.background = 'linear-gradient(135deg, var(--grad-start), var(--btn-blue))';
         }
+        
+        n.innerHTML = message;
+        document.body.appendChild(n);
+        setTimeout(() => {
+            if (n) {
+                n.style.opacity = '0';
+                n.style.transition = 'opacity 0.3s';
+                setTimeout(() => n.remove(), 300);
+            }
+        }, 4000);
       }
 
-      async function requestExoRefill(orderId) {
-        if (!confirm('Demander un refill ?')) return;
-        try {
-          showNotification('Refill...', 'info');
-          const idToken = await auth.currentUser.getIdToken();
-          const response = await fetch(`${BACKEND_URL}/api/exo/refill`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` }, body: JSON.stringify({ orderId }) });
-          const data = await response.json();
-          if (!data.success) throw new Error(data.error || 'Erreur');
-          showNotification('Refill demandé !', 'success');
-          fetchOrders();
-        } catch (error) { showNotification(error.message, 'error'); }
-      }
+      // Fonctions pour gérer les boutons Exo
+      window.checkExoStatus = async function(orderId) {
+          if(!currentUid) return;
+          try {
+              const idToken = await auth.currentUser.getIdToken();
+              showNotification('<i class="fas fa-spinner fa-spin"></i> Vérification du statut...', 'info');
+              const res = await fetch(`${BACKEND_URL}/api/exo-status`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+                  body: JSON.stringify({ orderId })
+              });
+              const data = await res.json();
+              if(data.success) {
+                  showNotification('Statut synchronisé avec succès !', 'success');
+                  fetchOrders(); // Rafraîchit l'interface pour afficher le nouveau statut/remboursement
+              } else {
+                  showNotification(data.error || 'Erreur lors de la vérification.', 'error');
+              }
+          } catch(e) {
+              showNotification('Erreur réseau.', 'error');
+          }
+      };
 
-      // MODIFICATION : Utilisation de notre nouvelle route sécurisée
-      async function cancelExoOrder(orderId) {
-        if (!confirm('Annuler cette commande ?')) return;
-        try {
-          showNotification('Annulation...', 'info');
-          const idToken = await auth.currentUser.getIdToken();
-          const response = await fetch(`${BACKEND_URL}/api/exo/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` }, body: JSON.stringify({ orderId }) });
-          const data = await response.json();
+      window.cancelExoOrder = async function(orderId) {
+          if(!currentUid) return;
+          if(!confirm('Voulez-vous vraiment demander l\'annulation de cette commande au fournisseur ?')) return;
           
-          if (!data.success) throw new Error(data.error || 'Erreur');
-          
-          const msg = data.refundAmount > 0 ? `Remboursé: ${formatAmount(data.refundAmount)}` : 'Annulée avec succès';
-          showNotification(msg, 'success');
-          fetchOrders();
-        } catch (error) { showNotification(error.message, 'error'); }
-      }
+          try {
+              const idToken = await auth.currentUser.getIdToken();
+              showNotification('<i class="fas fa-spinner fa-spin"></i> Envoi de la demande...', 'info');
+              const res = await fetch(`${BACKEND_URL}/api/exo/cancel`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+                  body: JSON.stringify({ orderId })
+              });
+              const data = await res.json();
+              
+              if(data.success) {
+                  // Message de succès sans rechargement immédiat des crédits
+                  showNotification(data.message || 'Demande envoyée au fournisseur.', 'success');
+              } else {
+                  showNotification(data.error || 'Erreur lors de la demande.', 'error');
+              }
+          } catch(e) {
+              showNotification('Erreur de connexion avec le serveur.', 'error');
+          }
+      };
 
-      window.checkExoStatus = checkExoStatus;
-      window.requestExoRefill = requestExoRefill;
-      window.cancelExoOrder = cancelExoOrder;
-
-      setInterval(() => { if (allOrders.length > 0) displayOrders(); }, 60000);
+      window.requestExoRefill = async function(orderId) {
+          if(!currentUid) return;
+          try {
+              const idToken = await auth.currentUser.getIdToken();
+              showNotification('<i class="fas fa-spinner fa-spin"></i> Demande de recharge...', 'info');
+              // Assuming this route exists on backend
+              const res = await fetch(`${BACKEND_URL}/api/exo/refill`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+                  body: JSON.stringify({ orderId })
+              });
+              const data = await res.json();
+              if(data.success) {
+                  showNotification('Recharge demandée avec succès !', 'success');
+              } else {
+                  showNotification(data.error || 'Erreur lors de la demande de recharge.', 'error');
+              }
+          } catch(e) {
+              showNotification('Erreur réseau.', 'error');
+          }
+      };
     });
   </script>
 </body>
