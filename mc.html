@@ -10,7 +10,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <style>
-        /* (même style que précédemment) */
         :root {
             --bg-main: #080e1a;
             --bg-card: rgba(15, 25, 45, 0.85);
@@ -346,6 +345,7 @@
 <script>
     const ADMIN_PASS = '209644209644';
     let token = sessionStorage.getItem('sbh_admin_token');
+    
     if (token) {
         document.getElementById('authOverlay').style.display = 'none';
         document.getElementById('app').style.display = 'block';
@@ -384,11 +384,11 @@
             });
             if (res.status === 403) {
                 logout();
-                throw new Error('Session expirée');
+                throw new Error('Session expirée ou clé invalide.');
             }
             if (!res.ok) {
                 const text = await res.text();
-                throw new Error(`HTTP ${res.status}: ${text}`);
+                throw new Error(`Erreur réseau (Code ${res.status}). Assurez-vous que l'API est en ligne.`);
             }
             return await res.json();
         } catch (e) {
@@ -416,39 +416,27 @@
     }
 
     async function loadStats() {
-        try {
-            const data = await fetchAdmin('/stats');
-            if (data.success) {
-                const s = data.data;
-                document.getElementById('kpiUsers').textContent = s.totalUsers || 0;
-                document.getElementById('kpiOrders').textContent = s.totalOrders || 0;
-                document.getElementById('kpiRevenue').textContent = (s.month.revenue || 0).toLocaleString() + ' FCFA';
-                document.getElementById('kpiProfit').textContent = (s.month.profit || 0).toLocaleString() + ' FCFA';
-                const margin = s.month.revenue ? Math.round((s.month.profit / s.month.revenue) * 100) : 0;
-                document.getElementById('kpiMargin').textContent = margin + '%';
-                window.statsData = s;
-            } else {
-                console.warn('Stats non récupérées:', data);
-            }
-        } catch (e) {
-            console.error('Stats error:', e);
-            throw e;
+        const data = await fetchAdmin('/stats');
+        if (data && data.success) {
+            const s = data.data;
+            document.getElementById('kpiUsers').textContent = s.totalUsers || 0;
+            document.getElementById('kpiOrders').textContent = s.totalOrders || 0;
+            document.getElementById('kpiRevenue').textContent = (s.month.revenue || 0).toLocaleString() + ' FCFA';
+            document.getElementById('kpiProfit').textContent = (s.month.profit || 0).toLocaleString() + ' FCFA';
+            const margin = s.month.revenue ? Math.round((s.month.profit / s.month.revenue) * 100) : 0;
+            document.getElementById('kpiMargin').textContent = margin + '%';
+            window.statsData = s;
         }
     }
 
     async function loadServices() {
-        try {
-            const data = await fetchAdmin('/services');
-            if (data.success) {
-                allServices = data.data.services || [];
-                const stats = data.data.stats || {};
-                document.getElementById('serviceStats').textContent =
-                    `Total: ${stats.total || 0} | Min: ${stats.minPrice || 0} FCFA | Max: ${stats.maxPrice || 0} FCFA | Moy: ${stats.avgPrice || 0} FCFA`;
-                renderServices(allServices);
-            }
-        } catch (e) {
-            console.error('Services error:', e);
-            throw e;
+        const data = await fetchAdmin('/services');
+        if (data && data.success) {
+            allServices = data.data.services || [];
+            const stats = data.data.stats || {};
+            document.getElementById('serviceStats').textContent =
+                `Total: ${stats.total || 0} | Min: ${stats.minPrice || 0} FCFA | Max: ${stats.maxPrice || 0} FCFA | Moy: ${stats.avgPrice || 0} FCFA`;
+            renderServices(allServices);
         }
     }
 
@@ -485,15 +473,10 @@
     }
 
     async function loadOrders() {
-        try {
-            const data = await fetchAdmin('/orders');
-            if (data.success) {
-                allOrders = data.data.orders || [];
-                renderOrders(allOrders);
-            }
-        } catch (e) {
-            console.error('Orders error:', e);
-            throw e;
+        const data = await fetchAdmin('/orders');
+        if (data && data.success) {
+            allOrders = data.data.orders || [];
+            renderOrders(allOrders);
         }
     }
 
@@ -522,15 +505,10 @@
     }
 
     async function loadUsers() {
-        try {
-            const data = await fetchAdmin('/users');
-            if (data.success) {
-                allUsers = data.data.users || [];
-                renderUsers(allUsers);
-            }
-        } catch (e) {
-            console.error('Users error:', e);
-            throw e;
+        const data = await fetchAdmin('/users');
+        if (data && data.success) {
+            allUsers = data.data.users || [];
+            renderUsers(allUsers);
         }
     }
 
@@ -603,7 +581,7 @@
             const res = await fetch('/api/admin/export/contacts', {
                 headers: { 'x-admin-password': token }
             });
-            if (!res.ok) throw new Error('Erreur export');
+            if (!res.ok) throw new Error('Erreur réseau lors de l\'export');
             const blob = await res.blob();
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
@@ -619,7 +597,7 @@
             const res = await fetch('/api/admin/export/services-pdf', {
                 headers: { 'x-admin-password': token }
             });
-            if (!res.ok) throw new Error('Erreur export');
+            if (!res.ok) throw new Error('Erreur réseau lors de l\'export');
             const blob = await res.blob();
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
@@ -635,7 +613,7 @@
             const res = await fetch('/api/admin/export/orders-pdf', {
                 headers: { 'x-admin-password': token }
             });
-            if (!res.ok) throw new Error('Erreur export');
+            if (!res.ok) throw new Error('Erreur réseau lors de l\'export');
             const blob = await res.blob();
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
@@ -644,10 +622,6 @@
         } catch (e) {
             alert('Erreur export PDF Commandes : ' + e.message);
         }
-    }
-
-    if (token) {
-        loadAll();
     }
 </script>
 </body>
