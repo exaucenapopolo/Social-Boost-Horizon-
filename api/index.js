@@ -289,6 +289,7 @@ app.get('/api/mtp/user-orders', checkAuth, async (req, res) => {
 });
 
 // ── GET /api/mtp/order-status/:orderId ──────────────────────────
+// LOGIQUE DE REMBOURSEMENT SÉCURISÉE: Le remboursement se fait ici SEULEMENT si le fournisseur dit "Annulé" ou "Partiel"
 app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
   const { orderId } = req.params;
   const uid         = req.user.uid;
@@ -310,6 +311,7 @@ app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
     let refundAmount = 0;
     let isRefunded = orderData.refunded || false;
 
+    // Si le fournisseur confirme l'annulation ou commande partielle et que ce n'est pas encore remboursé
     if (!isRefunded && (newStatus === 'Annulé' || newStatus === 'Canceled' || newStatus === 'Partiel' || newStatus === 'Partial')) {
       let totalCost = orderData.priceXAF || 0;
       if (newStatus === 'Partiel' || newStatus === 'Partial') {
@@ -323,7 +325,7 @@ app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
       if (refundAmount > 0) {
         await db.runTransaction(async (t) => {
           const freshOrder = await t.get(orderDoc.ref);
-          if (freshOrder.data().refunded) return; 
+          if (freshOrder.data().refunded) return; // Sécurité anti-double remboursement
           
           const userRef = db.collection('users').doc(uid);
           const userDoc = await t.get(userRef);
@@ -342,6 +344,7 @@ app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
         isRefunded = true;
       }
     } else {
+      // Mise à jour classique sans remboursement
       await orderDoc.ref.update({
         status:             newStatus,
         providerStartCount: startCount,
@@ -386,6 +389,7 @@ app.post('/api/mtp/refill', checkAuth, async (req, res) => {
 });
 
 // ── POST /api/mtp/cancel ─────────────────────────────────────────
+// CORRECTION: Envoie juste la demande au fournisseur, NE REMBOURSE PLUS localement.
 app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
   const { orderId } = req.body;
   const uid         = req.user.uid;
@@ -399,6 +403,7 @@ app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
     const orderData = orderDoc.data();
     const currentStatus = (orderData.status || '').toLowerCase();
 
+    // Blocage si la commande est déjà terminée, annulée ou remboursée
     if (orderData.refunded) return res.status(400).json({ success: false, error: 'Cette commande a déjà été remboursée.' });
     if (!['en attente', 'pending', 'en cours', 'in progress', 'processing'].includes(currentStatus)) {
         return res.status(400).json({ success: false, error: 'Cette commande ne peut plus être annulée, son statut ne le permet pas.' });
@@ -420,6 +425,7 @@ app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
 });
 
 // ── POST /api/exo/cancel ─────────────────────────────────────────
+// CORRECTION: Transmet la demande à Exo et demande à l'utilisateur de patienter.
 app.post('/api/exo/cancel', checkAuth, async (req, res) => {
     try {
         const uid = req.user.uid;
@@ -451,6 +457,7 @@ app.post('/api/exo/cancel', checkAuth, async (req, res) => {
             return res.status(400).json({ success: false, error: 'Action impossible : la commande est déjà terminée ou annulée.' });
         }
 
+        // Envoyer la requête d'annulation au fournisseur
         const url = 'https://exosupplier.com/api/v2';
         const formData = new URLSearchParams();
         formData.append('key', process.env.EXO_API_KEY);
@@ -460,6 +467,7 @@ app.post('/api/exo/cancel', checkAuth, async (req, res) => {
         let exoRes = await fetch(url, { method: 'POST', body: formData });
         let exoData = await exoRes.json();
 
+        // Si "incorrect action", la commande ne peut probablement pas être annulée par API.
         if (exoData.error && exoData.error.toLowerCase().includes('incorrect action')) {
             return res.status(400).json({ success: false, error: "Le fournisseur n'autorise pas l'annulation de cette commande en cours." });
         }
@@ -476,6 +484,7 @@ app.post('/api/exo/cancel', checkAuth, async (req, res) => {
 });
 
 // ── POST /api/exo-status (NOUVEAU : Remboursement Sécurisé pour EXO) ────
+// Cette route est appelée par ton frontend pour rafraîchir silencieusement et rembourser en toute sécurité.
 app.post('/api/exo-status', checkAuth, async (req, res) => {
     const { orderId } = req.body;
     const uid = req.user.uid;
@@ -510,6 +519,7 @@ app.post('/api/exo-status', checkAuth, async (req, res) => {
         let refundAmount = 0;
         let isRefunded = orderData.isRefunded || false;
 
+        // Si le fournisseur a confirmé l'annulation ou partiel
         if (!isRefunded && (mappedStatus === 'Annulée' || mappedStatus === 'Partiel')) {
             const totalCost = orderData.totalCost || orderData.finalCost || orderData.cost || 0;
             if (mappedStatus === 'Partiel') {
@@ -812,6 +822,7 @@ app.post('/api/fapshi-webhook', async (req, res) => {
       }
     });
 
+    // Parrainage bonus
     let bonusApplied = false;
     try {
       const filleulDoc = await userRef.get();
@@ -892,6 +903,7 @@ app.post('/api/fapshi/verify-transaction', checkAuth, async (req, res) => {
         t.set(userRef, { balance: currentBalance + amountNum }, { merge: true });
       });
 
+      // Bonus parrainage
       try {
         const userDocData = await userRef.get();
         const parrainUid = userDocData.exists ? (userDocData.data().referredBy || null) : null;
@@ -938,126 +950,6 @@ app.get('/api/fapshi/transactions', checkAuth, async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
-
-// ═══════════════════════════════════════════════════════════════
-// Espace Administrateur Sécurisé (Nouvelles Routes)
-// ═══════════════════════════════════════════════════════════════
-
-const ADMIN_PASSWORD = "209644209644";
-let _adminStatsCache = null;
-let _adminStatsCacheTime = 0;
-const ADMIN_CACHE_TTL = 5 * 60 * 1000; // Cache de 5 minutes pour économiser les lectures Firestore
-
-// Middleware strict pour vérifier le mot de passe admin
-function checkAdminPassword(req, res, next) {
-  const pass = req.headers['x-admin-password'];
-  if (pass !== ADMIN_PASSWORD) {
-    return res.status(403).json({ success: false, error: 'Accès refusé. Mot de passe administrateur invalide.' });
-  }
-  next();
-}
-
-// ── GET /api/admin/dashboard ────────────────────────────────────
-// Récupération hautement optimisée avec .count() pour ne pas impacter les quotas
-app.get('/api/admin/dashboard', checkAdminPassword, async (req, res) => {
-  try {
-    const now = Date.now();
-    // Utiliser le cache si récent (économise 100% des requêtes Firestore pendant 5 min)
-    if (_adminStatsCache && (now - _adminStatsCacheTime) < ADMIN_CACHE_TTL) {
-      return res.json({ success: true, stats: _adminStatsCache, cached: true });
-    }
-
-    // 1. Comptage global optimisé avec Firebase Aggregate queries (Très faible coût Firestore)[cite: 1]
-    const [usersSnap, mtpOrdersSnap, exoOrdersSnap] = await Promise.all([
-      db.collection('users').count().get(),
-      db.collection('autoOrders').count().get(),
-      db.collection('commandes').count().get()
-    ]);
-    const totalUsers = usersSnap.data().count;
-    const mtpOrders  = mtpOrdersSnap.data().count;
-    const exoOrders  = exoOrdersSnap.data().count;
-    const totalOrders = mtpOrders + exoOrders;
-
-    // 2. Récupération des transactions récentes pour les volumes (limité aux 100 dernières pour éviter la surcharge)[cite: 1, 3]
-    const [fapshiSnap, swychrSnap] = await Promise.all([
-      db.collection('fapshiTransactions').where('status', '==', 'CONFIRMED').orderBy('dateConfirmed', 'desc').limit(100).get(),
-      db.collection('transactions').where('status', 'in', ['success', 'COMPLETED']).orderBy('createdAt', 'desc').limit(100).get()
-    ]);
-    
-    let fapshiVolume = 0;
-    fapshiSnap.forEach(doc => fapshiVolume += (doc.data().amountConfirmed || doc.data().amount || 0));
-    
-    let swychrVolume = 0;
-    swychrSnap.forEach(doc => swychrVolume += (doc.data().amountXAF || doc.data().amount || 0));
-
-    // 3. Meilleurs clients (Top 10 selon le solde/nombre de commandes)
-    const topClientsSnap = await db.collection('users').orderBy('balance', 'desc').limit(10).select('displayName', 'email', 'balance').get();
-    const topClients = topClientsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-    // 4. Analyse des prix des services (MTP)[cite: 1]
-    // Ne demande aucune lecture Firestore supplémentaire grâce à MTP_CACHE
-    const mtpServicesList = _mtpServicesCache || await callMTP({ action: 'services' }).catch(() => []);
-    let minPrice = Infinity;
-    let maxPrice = 0;
-    let totalPrice = 0;
-    let totalServices = 0;
-    
-    if (Array.isArray(mtpServicesList)) {
-        totalServices = mtpServicesList.length;
-        mtpServicesList.forEach(s => {
-            const price = parseFloat(s.priceXAF || 0);
-            if(price > 0) {
-                if(price < minPrice) minPrice = price;
-                if(price > maxPrice) maxPrice = price;
-                totalPrice += price;
-            }
-        });
-    }
-    const avgPrice = totalServices > 0 ? Math.round(totalPrice / totalServices) : 0;
-
-    const stats = {
-      totalUsers,
-      totalOrders,
-      ordersBySupplier: { mtp: mtpOrders, exo: exoOrders },
-      recentVolumes: { fapshi: fapshiVolume, swychr: swychrVolume },
-      topClients,
-      servicesStats: {
-        totalAvailable: totalServices, // MTP + Exo seraient idéalement combinés, on prend MTP ici comme indicateur
-        minPrice: minPrice === Infinity ? 0 : minPrice,
-        maxPrice,
-        avgPrice
-      },
-      lastUpdated: new Date().toISOString()
-    };
-
-    // Mettre en cache
-    _adminStatsCache = stats;
-    _adminStatsCacheTime = now;
-
-    res.json({ success: true, stats, cached: false });
-  } catch (error) {
-    res.status(500).json({ success: false, error: 'Erreur génération stats Admin: ' + error.message });
-  }
-});
-
-// ── GET /api/admin/export/users ─────────────────────────────────
-// Télécharge la liste avec un `.select()` pour minimiser fortement la mémoire RAM et la bande passante serveur
-app.get('/api/admin/export/users', checkAdminPassword, async (req, res) => {
-    try {
-        const usersSnap = await db.collection('users').select('displayName', 'username', 'phone', 'email', 'balance').get();
-        const users = usersSnap.docs.map(doc => ({
-            id: doc.id,
-            displayName: doc.data().displayName || doc.data().username || 'Utilisateur Anonyme',
-            phone: doc.data().phone || '',
-            email: doc.data().email || '',
-            balance: doc.data().balance || 0
-        }));
-        res.json({ success: true, users });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
 
 // ── 404 ─────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ success: false, error: `Route non trouvée : ${req.method} ${req.path}` }));
