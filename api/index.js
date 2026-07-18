@@ -66,13 +66,15 @@ app.get('/api/health', (req, res) => {
 // MoreThanPanel (MTP) API
 // ═══════════════════════════════════════════════════════════════
 const MTP_API_URL    = 'https://morethanpanel.com/api/v2';
-const MTP_USD_TO_XAF = 620;   
-const MTP_MULTIPLIER = 3;     
+const MTP_USD_TO_XAF = 620;   // Taux de conversion USD → FCFA
+const MTP_MULTIPLIER = 3;     // Marge bénéficiaire x3
 
+// Cache en mémoire (10 minutes)
 let _mtpServicesCache     = null;
 let _mtpServicesCacheTime = 0;
 const MTP_CACHE_TTL = 10 * 60 * 1000;
 
+// Appel générique à l'API MTP
 async function callMTP(params) {
   if (!process.env.MORETHANPANEL_API_KEY) {
     throw new Error('MORETHANPANEL_API_KEY non définie.');
@@ -87,6 +89,7 @@ async function callMTP(params) {
   return res.json();
 }
 
+// Détection de la plateforme à partir du nom du service + lien
 function detectPlatformName(serviceName, link) {
   const n = ((serviceName || '') + ' ' + (link || '')).toLowerCase();
   if (n.includes('instagram'))                    return 'Instagram';
@@ -112,6 +115,7 @@ function detectPlatformName(serviceName, link) {
   return 'Autre';
 }
 
+// Mappage statut MTP → statut français
 const MTP_STATUS_MAP = {
   'Pending':    'En attente',
   'In progress': 'En cours',
@@ -121,6 +125,7 @@ const MTP_STATUS_MAP = {
   'Canceled':   'Annulé',
 };
 
+// ── GET /api/mtp/services ────────────────────────────────────────
 app.get('/api/mtp/services', async (req, res) => {
   try {
     const now = Date.now();
@@ -156,15 +161,19 @@ app.get('/api/mtp/services', async (req, res) => {
   }
 });
 
+// ── POST /api/mtp/order ──────────────────────────────────────────
 app.post('/api/mtp/order', checkAuth, async (req, res) => {
   const { serviceId, link, quantity, comments } = req.body;
   const uid = req.user.uid;
-  if (!serviceId || !link) return res.status(400).json({ success: false, error: 'serviceId et link requis.' });
+  if (!serviceId || !link) {
+    return res.status(400).json({ success: false, error: 'serviceId et link sont requis.' });
+  }
   try {
     const allServices = _mtpServicesCache || (await callMTP({ action: 'services' }));
     const service = allServices.find(s => parseInt(s.service || s.id) === parseInt(serviceId));
-    if (!service) return res.status(400).json({ success: false, error: 'Service introuvable.' });
-    
+    if (!service) {
+      return res.status(400).json({ success: false, error: 'Service introuvable ou expiré.' });
+    }
     const rate      = parseFloat(service.rate) || 0;
     const priceXAF  = Math.round(rate * MTP_USD_TO_XAF * MTP_MULTIPLIER);
     const qty       = parseInt(quantity);
@@ -172,8 +181,9 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     const cost      = isPackage ? priceXAF : Math.round((priceXAF / 1000) * qty);
 
     const userDoc = await db.collection('users').doc(uid).get();
-    if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
-    
+    if (!userDoc.exists) {
+      return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
+    }
     const currentBalance = userDoc.data().balance || 0;
     if (currentBalance < cost) {
       return res.status(400).json({
@@ -186,8 +196,12 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     if (comments) orderParams.comments = comments;
     const orderResult = await callMTP(orderParams);
 
-    if (orderResult.error) return res.status(400).json({ success: false, error: 'Erreur fournisseur : ' + orderResult.error });
-    if (!orderResult.order) return res.status(400).json({ success: false, error: 'Commande non confirmée.' });
+    if (orderResult.error) {
+      return res.status(400).json({ success: false, error: 'Erreur fournisseur : ' + orderResult.error });
+    }
+    if (!orderResult.order) {
+      return res.status(400).json({ success: false, error: 'Commande non confirmée.' });
+    }
 
     let finalOrderId, newBalance;
     await db.runTransaction(async (transaction) => {
@@ -230,23 +244,42 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
 
     res.json({ success: true, orderId: finalOrderId, newBalance });
   } catch (error) {
-    if (error.message.toLowerCase().includes('insuffisant')) return res.status(400).json({ success: false, error: error.message });
+    if (error.message.toLowerCase().includes('insuffisant')) {
+      return res.status(400).json({ success: false, error: error.message });
+    }
     res.status(500).json({ success: false, error: 'Erreur technique. Veuillez réessayer.' });
   }
 });
 
+// ── GET /api/mtp/user-orders ─────────────────────────────────────
 app.get('/api/mtp/user-orders', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
-    const snapshot = await db.collection('autoOrders').where('userId', '==', uid).orderBy('createdAt', 'desc').limit(100).get();
+    const snapshot = await db.collection('autoOrders')
+      .where('userId', '==', uid)
+      .orderBy('createdAt', 'desc')
+      .limit(100)
+      .get();
     const orders = snapshot.docs.map(doc => {
       const data = doc.data();
       return {
-        id: doc.id, orderId: data.orderId, provider: data.provider || 'mtp', providerOrderId: data.providerOrderId,
-        serviceId: data.serviceId, serviceName: data.serviceName || 'Service automatique', platform: data.platform || '',
-        link: data.link || '', quantity: data.quantity || 0, priceXAF: data.priceXAF || 0, status: data.status || 'En attente',
-        createdAt: data.createdAt, providerStartCount: data.providerStartCount || 0, providerRemains: data.providerRemains !== undefined ? data.providerRemains : (data.quantity || 0),
-        refunded: data.refunded || false, refundedAmount: data.refundedAmount || 0, lastChecked: data.lastChecked || null,
+        id:               doc.id,
+        orderId:          data.orderId,
+        provider:         data.provider         || 'mtp',
+        providerOrderId:  data.providerOrderId,
+        serviceId:        data.serviceId,
+        serviceName:      data.serviceName       || 'Service automatique',
+        platform:         data.platform          || '',
+        link:             data.link              || '',
+        quantity:         data.quantity          || 0,
+        priceXAF:         data.priceXAF          || 0,
+        status:           data.status            || 'En attente',
+        createdAt:        data.createdAt,
+        providerStartCount: data.providerStartCount || 0,
+        providerRemains:  data.providerRemains   !== undefined ? data.providerRemains : (data.quantity || 0),
+        refunded:         data.refunded          || false,
+        refundedAmount:   data.refundedAmount    || 0,
+        lastChecked:      data.lastChecked       || null,
       };
     });
     res.json({ success: true, orders });
@@ -255,11 +288,14 @@ app.get('/api/mtp/user-orders', checkAuth, async (req, res) => {
   }
 });
 
+// ── GET /api/mtp/order-status/:orderId ──────────────────────────
+// LOGIQUE DE REMBOURSEMENT SÉCURISÉE: Le remboursement se fait ici SEULEMENT si le fournisseur dit "Annulé" ou "Partiel"
 app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
   const { orderId } = req.params;
-  const uid = req.user.uid;
+  const uid         = req.user.uid;
   try {
-    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
+    const snapshot = await db.collection('autoOrders')
+      .where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
     if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
     const orderDoc  = snapshot.docs[0];
@@ -275,6 +311,7 @@ app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
     let refundAmount = 0;
     let isRefunded = orderData.refunded || false;
 
+    // Si le fournisseur confirme l'annulation ou commande partielle et que ce n'est pas encore remboursé
     if (!isRefunded && (newStatus === 'Annulé' || newStatus === 'Canceled' || newStatus === 'Partiel' || newStatus === 'Partial')) {
       let totalCost = orderData.priceXAF || 0;
       if (newStatus === 'Partiel' || newStatus === 'Partial') {
@@ -288,7 +325,7 @@ app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
       if (refundAmount > 0) {
         await db.runTransaction(async (t) => {
           const freshOrder = await t.get(orderDoc.ref);
-          if (freshOrder.data().refunded) return; 
+          if (freshOrder.data().refunded) return; // Sécurité anti-double remboursement
           
           const userRef = db.collection('users').doc(uid);
           const userDoc = await t.get(userRef);
@@ -296,500 +333,240 @@ app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
 
           t.update(userRef, { balance: bal + refundAmount });
           t.update(orderDoc.ref, {
-            status: newStatus, providerStartCount: startCount, providerRemains: remains,
-            refunded: true, refundedAmount: refundAmount, lastChecked: admin.firestore.FieldValue.serverTimestamp()
+            status: newStatus,
+            providerStartCount: startCount,
+            providerRemains: remains,
+            refunded: true,
+            refundedAmount: refundAmount,
+            lastChecked: admin.firestore.FieldValue.serverTimestamp()
           });
         });
         isRefunded = true;
       }
     } else {
+      // Mise à jour classique sans remboursement
       await orderDoc.ref.update({
-        status: newStatus, providerStartCount: startCount, providerRemains: remains,
-        lastChecked: admin.firestore.FieldValue.serverTimestamp(),
+        status:             newStatus,
+        providerStartCount: startCount,
+        providerRemains:    remains,
+        lastChecked:        admin.firestore.FieldValue.serverTimestamp(),
       });
     }
+
     res.json({ success: true, status: newStatus, providerStatus: statusResult.status, startCount, remains, refunded: isRefunded, refundAmount });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
+// ── POST /api/mtp/refill ─────────────────────────────────────────
 app.post('/api/mtp/refill', checkAuth, async (req, res) => {
   const { orderId } = req.body;
-  const uid = req.user.uid;
+  const uid         = req.user.uid;
   if (!orderId) return res.status(400).json({ success: false, error: 'orderId requis.' });
   try {
-    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
+    const snapshot = await db.collection('autoOrders')
+      .where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
     if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
     const orderDoc  = snapshot.docs[0];
     const orderData = orderDoc.data();
-    if (!orderData.refill && orderData.refill !== undefined) return res.status(400).json({ success: false, error: 'Refill non supporté.' });
+    if (!orderData.refill && orderData.refill !== undefined) {
+      return res.status(400).json({ success: false, error: 'Ce service ne supporte pas le refill.' });
+    }
 
     const result = await callMTP({ action: 'refill', order: orderData.providerOrderId });
     if (result.error) return res.status(400).json({ success: false, error: 'Erreur: ' + result.error });
 
-    await orderDoc.ref.update({ lastRefill: admin.firestore.FieldValue.serverTimestamp(), refillId: result.refill || null });
+    await orderDoc.ref.update({
+      lastRefill: admin.firestore.FieldValue.serverTimestamp(),
+      refillId: result.refill || null,
+    });
     res.json({ success: true, refillId: result.refill });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
+// ── POST /api/mtp/cancel ─────────────────────────────────────────
+// CORRECTION: Envoie juste la demande au fournisseur, NE REMBOURSE PLUS localement.
 app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
   const { orderId } = req.body;
-  const uid = req.user.uid;
+  const uid         = req.user.uid;
   if (!orderId) return res.status(400).json({ success: false, error: 'orderId requis.' });
   try {
-    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
+    const snapshot = await db.collection('autoOrders')
+      .where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
     if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
     const orderDoc  = snapshot.docs[0];
     const orderData = orderDoc.data();
     const currentStatus = (orderData.status || '').toLowerCase();
 
+    // Blocage si la commande est déjà terminée, annulée ou remboursée
     if (orderData.refunded) return res.status(400).json({ success: false, error: 'Cette commande a déjà été remboursée.' });
     if (!['en attente', 'pending', 'en cours', 'in progress', 'processing'].includes(currentStatus)) {
-        return res.status(400).json({ success: false, error: 'Le statut de cette commande ne permet pas son annulation.' });
+        return res.status(400).json({ success: false, error: 'Cette commande ne peut plus être annulée, son statut ne le permet pas.' });
     }
 
-    try { await callMTP({ action: 'cancel', orders: orderData.providerOrderId }); } catch (mtpErr) { console.error(mtpErr); }
+    try { 
+        await callMTP({ action: 'cancel', orders: orderData.providerOrderId }); 
+    } catch (mtpErr) { 
+        console.error("MTP Cancel Error:", mtpErr);
+    }
 
-    res.json({ success: true, message: "Demande d'annulation transmise au fournisseur. Le remboursement s'effectuera lors de la confirmation." });
+    res.json({ 
+        success: true, 
+        message: "Demande d'annulation transmise au fournisseur. Le remboursement sera effectué automatiquement dès que le fournisseur confirmera l'annulation lors de la prochaine vérification de statut." 
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-
-// ═══════════════════════════════════════════════════════════════
-// EXO Supplier API
-// ═══════════════════════════════════════════════════════════════
-
-// ── POST /api/exo/order ──────────────────────────────────────────
-app.post('/api/exo/order', checkAuth, async (req, res) => {
-    try {
-        const uid = req.user.uid;
-        const { exoServiceId, link, quantity, comments, contactType, contact } = req.body;
-
-        const userRef = db.collection('users').doc(uid);
-        const userDoc = await userRef.get();
-
-        if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Compte utilisateur introuvable.' });
-
-        const userData = userDoc.data();
-        let currentBalance = userData.balance || 0;
-
-        const url = 'https://exosupplier.com/api/v2';
-        const fetchServicesData = new URLSearchParams({ key: process.env.EXO_API_KEY, action: 'services' });
-
-        const servicesRes = await fetch(url, { method: 'POST', body: fetchServicesData });
-        const services = await servicesRes.json();
-        const service = services.find(s => s.service == exoServiceId);
-
-        if (!service) return res.status(400).json({ success: false, error: 'Service invalide ou expiré.' });
-
-        const EXCHANGE_RATE_USD_TO_XAF = 620;
-        const PROFIT_MULTIPLIER = 1.5;
-        const priceXAFPer1000 = parseFloat(service.rate) * EXCHANGE_RATE_USD_TO_XAF * PROFIT_MULTIPLIER;
-        
-        let finalQuantity = service.type === 'Custom Comments' ? comments.length : quantity;
-        let cost = (priceXAFPer1000 / 1000) * finalQuantity;
-        let unitPrice = cost / finalQuantity;
-
-        if (currentBalance < cost) {
-            return res.status(400).json({ success: false, error: 'Solde insuffisant pour cette commande.' });
-        }
-
-        const orderData = new URLSearchParams({
-            key: process.env.EXO_API_KEY,
-            action: 'add',
-            service: exoServiceId,
-            link: link
-        });
-        
-        if (service.type === 'Custom Comments') {
-            orderData.append('comments', comments.join('\n'));
-        } else {
-            orderData.append('quantity', quantity);
-        }
-
-        const orderRes = await fetch(url, { method: 'POST', body: orderData });
-        const orderResult = await orderRes.json();
-
-        if (orderResult.error) {
-            return res.status(400).json({ success: false, error: 'Erreur fournisseur: ' + orderResult.error });
-        }
-
-        let finalFormattedOrderId; 
-        let newBalance;
-
-        await db.runTransaction(async (transaction) => {
-            const counterRef = db.collection('counters').doc('commandes');
-            const counterDoc = await transaction.get(counterRef);
-            const currentUserDoc = await transaction.get(userRef);
-
-            const balanceInTransaction = currentUserDoc.data().balance || 0;
-            if (balanceInTransaction < cost) throw new Error("Solde devenu insuffisant pendant le traitement.");
-
-            let nextOrderId = 1; 
-            if (counterDoc.exists && counterDoc.data().lastId) nextOrderId = counterDoc.data().lastId + 1;
-
-            finalFormattedOrderId = `SBH-${nextOrderId}`;
-            newBalance = balanceInTransaction - cost;
-
-            const detectedPlatform = detectPlatformName(service.name, link);
-
-            transaction.set(counterRef, { lastId: nextOrderId }, { merge: true });
-            transaction.update(userRef, { balance: newBalance });
-
-            const newOrderRef = db.collection('commandes').doc(); 
-            transaction.set(newOrderRef, {
-                orderId: finalFormattedOrderId, 
-                platform: detectedPlatform, 
-                userId: uid,
-                exoOrderId: orderResult.order, 
-                serviceId: exoServiceId,
-                serviceName: service.name,
-                link: link,
-                quantity: finalQuantity,
-                cost: cost,
-                unitPrice: unitPrice,
-                status: 'En attente',
-                isRefunded: false, 
-                date: admin.firestore.FieldValue.serverTimestamp(),
-                contactInfo: contact || 'Aucun contact'
-            });
-        });
-
-        return res.status(200).json({ success: true, orderId: finalFormattedOrderId, newBalance: newBalance });
-
-    } catch (error) {
-        if (error.message === "Solde devenu insuffisant pendant le traitement.") {
-             return res.status(400).json({ success: false, error: error.message });
-        }
-        return res.status(500).json({ success: false, error: 'Une erreur technique est survenue. Réessayez plus tard.' });
-    }
-});
-
-// ── POST /api/exo-status ─────────────────────────────────────────
-app.post('/api/exo-status', checkAuth, async (req, res) => {
-    try {
-        const uid = req.user.uid;
-        const { orderId } = req.body;
-        if (!orderId) return res.status(400).json({ success: false, error: 'ID de commande manquant.' });
-
-        const orderRef = db.collection('commandes').doc(orderId);
-        const orderDoc = await orderRef.get();
-
-        if (!orderDoc.exists || orderDoc.data().userId !== uid) {
-            return res.status(404).json({ success: false, error: 'Commande introuvable dans la base de données.' });
-        }
-
-        const orderData = orderDoc.data();
-        if (!orderData.exoOrderId) return res.status(400).json({ success: false, error: 'Pas de numéro de suivi fournisseur.' });
-
-        const url = 'https://exosupplier.com/api/v2';
-        const formData = new URLSearchParams({ key: process.env.EXO_API_KEY, action: 'status', order: orderData.exoOrderId });
-
-        const exoRes = await fetch(url, { method: 'POST', body: formData });
-        const exoData = await exoRes.json();
-
-        if (exoData.error) return res.status(400).json({ success: false, error: 'Erreur fournisseur: ' + exoData.error });
-
-        let nouveauStatut = exoData.status; 
-        const exoStatusLower = exoData.status.toLowerCase();
-        
-        switch(exoStatusLower) {
-            case 'pending': nouveauStatut = 'En attente'; break;
-            case 'processing': 
-            case 'in progress': nouveauStatut = 'En cours'; break;
-            case 'completed': nouveauStatut = 'Succès'; break;
-            case 'partial': nouveauStatut = 'Partiel'; break;
-            case 'canceled': nouveauStatut = 'Annulée'; break;
-        }
-
-        let refundAmount = 0;
-        let isRefundProcessed = false;
-
-        await db.runTransaction(async (transaction) => {
-            const currentOrderDoc = await transaction.get(orderRef);
-            const currentOrderData = currentOrderDoc.data();
-            
-            const userRef = db.collection('users').doc(uid);
-            const userDoc = await transaction.get(userRef);
-            const userBalance = userDoc.exists ? (userDoc.data().balance || 0) : 0;
-
-            const updatePayload = {
-                status: nouveauStatut,
-                exoRemains: exoData.remains !== undefined ? exoData.remains : (currentOrderData.exoRemains || 0),
-                startCount: exoData.start_count !== undefined ? exoData.start_count : (currentOrderData.startCount || 0),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            };
-
-            if ((exoStatusLower === 'canceled' || exoStatusLower === 'partial') && !currentOrderData.isRefunded) {
-                const totalCost = currentOrderData.cost || 0;
-                
-                if (exoStatusLower === 'canceled') {
-                    refundAmount = totalCost;
-                } else if (exoStatusLower === 'partial') {
-                    const remains = parseInt(exoData.remains) || 0;
-                    const unitPrice = currentOrderData.unitPrice || (totalCost / currentOrderData.quantity);
-                    refundAmount = Math.round(unitPrice * remains);
-                }
-
-                if (refundAmount > 0) {
-                    transaction.update(userRef, { balance: userBalance + refundAmount });
-                    updatePayload.isRefunded = true;
-                    updatePayload.refundAmount = refundAmount;
-                    isRefundProcessed = true;
-                }
-            }
-
-            transaction.update(orderRef, updatePayload);
-        });
-
-        return res.status(200).json({ 
-            success: true, status: nouveauStatut, remains: exoData.remains,
-            refunded: isRefundProcessed, refundAmount: refundAmount
-        });
-
-    } catch (error) {
-        return res.status(500).json({ success: false, error: 'Erreur technique serveur.' });
-    }
-});
-
 // ── POST /api/exo/cancel ─────────────────────────────────────────
+// CORRECTION: Transmet la demande à Exo et demande à l'utilisateur de patienter.
 app.post('/api/exo/cancel', checkAuth, async (req, res) => {
     try {
         const uid = req.user.uid;
         const { orderId } = req.body;
-        if (!orderId) return res.status(400).json({ success: false, error: 'ID de commande manquant.' });
+        
+        if (!orderId) {
+            return res.status(400).json({ success: false, error: 'ID de commande manquant.' });
+        }
 
         const orderRef = db.collection('commandes').doc(orderId);
         const orderDoc = await orderRef.get();
 
-        if (!orderDoc.exists || orderDoc.data().userId !== uid) return res.status(404).json({ success: false, error: 'Commande introuvable ou accès refusé.' });
+        if (!orderDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Commande introuvable.' });
+        }
 
         const orderData = orderDoc.data();
-        if (orderData.isRefunded) return res.status(400).json({ success: false, error: 'Cette commande a déjà été remboursée.' });
 
+        if (orderData.userId !== uid) {
+            return res.status(403).json({ success: false, error: 'Accès refusé.' });
+        }
+
+        if (orderData.isRefunded) {
+            return res.status(400).json({ success: false, error: 'Cette commande a déjà été remboursée.' });
+        }
+
+        const currentStatus = (orderData.status || '').toLowerCase();
+        if (!['en attente', 'pending', 'en cours', 'in progress', 'processing'].includes(currentStatus)) {
+            return res.status(400).json({ success: false, error: 'Action impossible : la commande est déjà terminée ou annulée.' });
+        }
+
+        // Envoyer la requête d'annulation au fournisseur
         const url = 'https://exosupplier.com/api/v2';
-        const formData = new URLSearchParams({ key: process.env.EXO_API_KEY, action: 'cancel', order: orderData.exoOrderId });
+        const formData = new URLSearchParams();
+        formData.append('key', process.env.EXO_API_KEY);
+        formData.append('action', 'cancel'); 
+        formData.append('order', orderData.exoOrderId);
 
         let exoRes = await fetch(url, { method: 'POST', body: formData });
         let exoData = await exoRes.json();
 
+        // Si "incorrect action", la commande ne peut probablement pas être annulée par API.
         if (exoData.error && exoData.error.toLowerCase().includes('incorrect action')) {
-            const statusData = new URLSearchParams({ key: process.env.EXO_API_KEY, action: 'status', order: orderData.exoOrderId });
-            exoRes = await fetch(url, { method: 'POST', body: statusData });
-            exoData = await exoRes.json();
-            
-            if (exoData.status && exoData.status.toLowerCase() !== 'canceled') {
-                return res.status(400).json({ success: false, error: "Le fournisseur n'autorise pas l'annulation de cette commande en cours." });
-            }
+            return res.status(400).json({ success: false, error: "Le fournisseur n'autorise pas l'annulation de cette commande en cours." });
         }
 
-        let refundAmount = 0;
-
-        await db.runTransaction(async (transaction) => {
-            const currentOrderDoc = await transaction.get(orderRef);
-            const currentOrderData = currentOrderDoc.data();
-
-            if (currentOrderData.isRefunded) throw new Error("Commande déjà remboursée en arrière-plan.");
-
-            const userRef = db.collection('users').doc(uid);
-            const userDoc = await transaction.get(userRef);
-            const userBalance = userDoc.exists ? (userDoc.data().balance || 0) : 0;
-
-            refundAmount = currentOrderData.cost || 0;
-
-            transaction.update(userRef, { balance: userBalance + refundAmount });
-            transaction.update(orderRef, {
-                status: 'Annulée',
-                isRefunded: true,
-                refundAmount: refundAmount,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            });
+        return res.status(200).json({ 
+            success: true, 
+            message: "La demande d'annulation a bien été transmise au fournisseur. Le remboursement sera effectué automatiquement dès que l'annulation sera confirmée de leur côté."
         });
 
-        return res.status(200).json({ success: true, refundAmount: refundAmount, message: "Commande annulée et remboursée avec succès." });
     } catch (error) {
+        console.error("Erreur annulation:", error);
         return res.status(500).json({ success: false, error: error.message || 'Erreur technique serveur.' });
     }
 });
 
+// ── POST /api/exo-status (NOUVEAU : Remboursement Sécurisé pour EXO) ────
+// Cette route est appelée par ton frontend pour rafraîchir silencieusement et rembourser en toute sécurité.
+app.post('/api/exo-status', checkAuth, async (req, res) => {
+    const { orderId } = req.body;
+    const uid = req.user.uid;
+    try {
+        const orderRef = db.collection('commandes').doc(orderId);
+        const orderDoc = await orderRef.get();
+        
+        if (!orderDoc.exists || orderDoc.data().userId !== uid) {
+            return res.status(404).json({ success: false, error: 'Commande introuvable.' });
+        }
+        
+        const orderData = orderDoc.data();
+        if (!orderData.exoOrderId) {
+            return res.status(400).json({ success: false, error: 'Pas de numéro de suivi fournisseur.' });
+        }
 
-// ═══════════════════════════════════════════════════════════════
-// Swychr – Paiement Mobile
-// ═══════════════════════════════════════════════════════════════
+        const url = 'https://exosupplier.com/api/v2';
+        const statusData = new URLSearchParams();
+        statusData.append('key', process.env.EXO_API_KEY);
+        statusData.append('action', 'status');
+        statusData.append('order', orderData.exoOrderId);
+        
+        const exoRes = await fetch(url, { method: 'POST', body: statusData });
+        const exoData = await exoRes.json();
 
-// ── POST /api/create-swychr ──────────────────────────────────────
-app.post('/api/create-swychr', async (req, res) => {
-  try {
-    const { email, userId, username, country, phone, amount, amountXAF, currency } = req.body;
+        if (exoData.error) return res.status(400).json({ success: false, error: exoData.error });
 
-    const authRes = await fetch('https://api.accountpe.com/api/payin/admin/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: process.env.ACCOUNTPE_USERNAME, password: process.env.ACCOUNTPE_PASSWORD })
-    });
+        const statusMap = { 'Pending': 'En attente', 'In progress': 'En cours', 'Processing': 'En cours', 'Completed': 'Terminée', 'Partial': 'Partiel', 'Canceled': 'Annulée' };
+        let mappedStatus = statusMap[exoData.status] || exoData.status || 'En attente';
+        const remains = parseInt(exoData.remains) || 0;
 
-    const authData = await authRes.json();
-    if (!authData.token) throw new Error('Échec de l\'authentification Swychr');
+        let refundAmount = 0;
+        let isRefunded = orderData.isRefunded || false;
 
-    const counterRef = db.collection('counters').doc('transactions');
-    
-    const transactionId = await db.runTransaction(async (transaction) => {
-      const counterDoc = await transaction.get(counterRef);
-      let currentCount = counterDoc.exists ? (counterDoc.data().count || 0) : 0;
-      const nextCount = currentCount + 1;
-      transaction.set(counterRef, { count: nextCount }, { merge: true });
-      return `SBH-PAY-${nextCount}`;
-    });
+        // Si le fournisseur a confirmé l'annulation ou partiel
+        if (!isRefunded && (mappedStatus === 'Annulée' || mappedStatus === 'Partiel')) {
+            const totalCost = orderData.totalCost || orderData.finalCost || orderData.cost || 0;
+            if (mappedStatus === 'Partiel') {
+                const qty = orderData.quantity || 1;
+                refundAmount = Math.round((remains / qty) * totalCost);
+            } else {
+                refundAmount = totalCost;
+            }
 
-    const host = req.headers.host || 'socialboosthorizon.com';
-    const baseUrl = `https://${host}`;
+            if (refundAmount > 0) {
+                await db.runTransaction(async (t) => {
+                    const freshOrder = await t.get(orderRef);
+                    if (freshOrder.data().isRefunded) return;
+                    
+                    const userRef = db.collection('users').doc(uid);
+                    const userDoc = await t.get(userRef);
+                    const bal = userDoc.exists ? (userDoc.data().balance || 0) : 0;
 
-    await db.collection('transactions').doc(transactionId).set({
-      userId: userId, username: username || 'Client', email: email,
-      phone: phone || '', country: country, amount: amount,
-      amountXAF: amountXAF, currency: currency, status: 'pending',
-      type: 'Recharge', label: `Recharge Swychr (${currency})`, createdAt: new Date()
-    });
-
-    const paymentRes = await fetch('https://api.accountpe.com/api/payin/create_payment_links', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authData.token}`,
-        'Idempotency-Key': transactionId
-      },
-      body: JSON.stringify({
-        country_code: country, name: username || 'Client', email: email,
-        mobile: phone || '', amount: amount, currency: currency,
-        transaction_id: transactionId, description: 'Recharge Solde Social Boost Horizon',
-        pass_digital_charge: true, callback_url: `${baseUrl}/api/webhook-swychr`
-      })
-    });
-
-    const paymentData = await paymentRes.json();
-
-    if (paymentData.status === 200 || paymentData.status === 201) {
-      return res.status(200).json({ success: true, checkoutUrl: paymentData.data.payment_link, transactionId: transactionId });
-    } else {
-      throw new Error(paymentData.message || 'Erreur API Swychr');
+                    t.update(userRef, { balance: bal + refundAmount });
+                    t.update(orderRef, {
+                        status: mappedStatus,
+                        exoRemains: remains,
+                        isRefunded: true,
+                        refundAmount: refundAmount,
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                });
+                isRefunded = true;
+            }
+        } else {
+            await orderRef.update({
+                status: mappedStatus,
+                exoRemains: remains,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+        }
+        res.json({ success: true, status: mappedStatus, remains, refunded: isRefunded, refundAmount });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
     }
-  } catch (error) {
-    return res.status(500).json({ success: false, error: error.message });
-  }
 });
-
-// ── GET /api/swychr/verify ───────────────────────────────────────
-app.get('/api/swychr/verify', async (req, res) => {
-  const { transactionId } = req.query;
-  if (!transactionId) return res.status(400).json({ error: 'ID de transaction manquant' });
-
-  try {
-    const authRes = await fetch('https://api.accountpe.com/api/payin/admin/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: process.env.ACCOUNTPE_USERNAME, password: process.env.ACCOUNTPE_PASSWORD })
-    });
-
-    const authData = await authRes.json();
-    if (!authData.token) throw new Error("Impossible de s'authentifier chez Swychr");
-
-    const statusRes = await fetch('https://api.accountpe.com/api/payin/payment_link_status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authData.token}` },
-      body: JSON.stringify({ transaction_id: transactionId })
-    });
-
-    const textResponse = await statusRes.text();
-    let statusData;
-    try { statusData = JSON.parse(textResponse); } catch (e) { throw new Error("Format de réponse invalide"); }
-
-    const attributes = statusData?.data?.data?.attributes || statusData?.data?.attributes || {};
-    const rawStatus = String(attributes.status || "inconnu").toLowerCase().trim();
-
-    const statusSucces = ["1", "success", "completed", "terminé", "succès", "reussi", "successful", "paid"];
-    const statusEchec = ["-1", "2", "failed", "echec", "annulé", "cancelled", "rejected", "error"];
-    
-    let interpretedStatus = "pending";
-    if (statusSucces.includes(rawStatus)) interpretedStatus = "success";
-    else if (statusEchec.includes(rawStatus)) interpretedStatus = "failed";
-
-    const txRef = db.collection('transactions').doc(transactionId);
-    
-    const result = await db.runTransaction(async (transaction) => {
-      const txDoc = await transaction.get(txRef);
-      if (!txDoc.exists) throw new Error("Transaction introuvable dans Firebase");
-
-      const txData = txDoc.data();
-      if (txData.status === 'completed') return { finalStatus: 'success', message: 'Déjà crédité' };
-
-      if (interpretedStatus === 'success') {
-        const userRef = db.collection('users').doc(txData.userId);
-        const userDoc = await transaction.get(userRef);
-        
-        const currentBalance = userDoc.exists ? (userDoc.data().balance || 0) : 0;
-        const newBalance = currentBalance + Number(txData.amountXAF);
-        
-        transaction.update(userRef, { balance: newBalance });
-        transaction.update(txRef, { status: 'completed', verifiedBy: 'api_direct_check_success', paidAt: new Date().toISOString() });
-        
-        return { finalStatus: 'success', message: 'Solde mis à jour avec succès' };
-      } else if (interpretedStatus === 'failed') {
-        transaction.update(txRef, { status: 'failed', verifiedBy: 'api_direct_check_failed' });
-        return { finalStatus: 'failed', message: 'Paiement échoué ou annulé' };
-      }
-      return { finalStatus: 'pending', message: 'Toujours en attente chez l\'opérateur' };
-    });
-
-    return res.status(200).json(result);
-  } catch (error) {
-    return res.status(500).json({ error: error.message, finalStatus: 'pending' });
-  }
-});
-
-// ── POST /api/webhook-swychr ─────────────────────────────────────
-app.post('/api/webhook-swychr', async (req, res) => {
-  try {
-    const payload = req.body;
-    const attributes = payload?.data?.data?.attributes || payload?.data?.attributes || payload;
-    
-    if (!attributes) return res.status(400).send('Payload invalide');
-
-    const { status, transaction_id } = attributes;
-    const rawStatus = status ? String(status).toLowerCase().trim() : "inconnu";
-    const statusSucces = ["success", "completed", "terminé", "succès", "reussi", "1", "successful", "paid", "ok"];
-
-    if (statusSucces.includes(rawStatus)) { 
-      const txRef = db.collection('transactions').doc(transaction_id);
-      
-      await db.runTransaction(async (transaction) => {
-          const txDoc = await transaction.get(txRef);
-          if (txDoc.exists && txDoc.data().status === 'pending') {
-             const { userId, amountXAF } = txDoc.data();
-             const userRef = db.collection('users').doc(userId);
-             
-             transaction.update(userRef, { balance: admin.firestore.FieldValue.increment(amountXAF) });
-             transaction.update(txRef, { status: 'completed', paidAt: new Date().toISOString() });
-          }
-      });
-    }
-    return res.status(200).send('Webhook reçu et traité');
-  } catch (error) {
-    return res.status(500).send('Erreur interne');
-  }
-});
-
 
 // ═══════════════════════════════════════════════════════════════
 // Routes utilisateur (existantes)
 // ═══════════════════════════════════════════════════════════════
 
+// ── /api/register ───────────────────────────────────────────────
 app.post('/api/register', checkAuth, async (req, res) => {
   try {
     const { displayName, username, email, country } = req.body;
@@ -809,6 +586,7 @@ app.post('/api/register', checkAuth, async (req, res) => {
   }
 });
 
+// ── /api/user/profile ───────────────────────────────────────────
 app.get('/api/user/profile', checkAuth, async (req, res) => {
   try {
     const uid     = req.user.uid;
@@ -843,6 +621,7 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
   }
 });
 
+// ── /api/update-profile ─────────────────────────────────────────
 app.post('/api/update-profile', checkAuth, async (req, res) => {
   const { displayName, email, phone, country, photoURL, newPassword } = req.body;
   const uid = req.user.uid;
@@ -866,6 +645,7 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
   }
 });
 
+// ── /api/user/settings ──────────────────────────────────────────
 app.post('/api/user/settings', checkAuth, async (req, res) => {
   const { settings } = req.body;
   if (!settings || typeof settings !== 'object') return res.status(400).json({ success: false, error: 'Paramètres invalides' });
@@ -877,6 +657,7 @@ app.post('/api/user/settings', checkAuth, async (req, res) => {
   }
 });
 
+// ── /api/user/api-key-info ──────────────────────────────────────
 app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
   try {
     const userDoc = await db.collection('users').doc(req.user.uid).get();
@@ -891,6 +672,7 @@ app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
   }
 });
 
+// ── /api/user/generate-api-key ──────────────────────────────────
 app.post('/api/user/generate-api-key', checkAuth, async (req, res) => {
   try {
     const newKey = 'sbh_' + crypto.randomBytes(24).toString('hex');
@@ -903,6 +685,7 @@ app.post('/api/user/generate-api-key', checkAuth, async (req, res) => {
   }
 });
 
+// ── /api/user/revoke-api-key ────────────────────────────────────
 app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
   try {
     await db.collection('users').doc(req.user.uid).update({
@@ -918,6 +701,7 @@ app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
 // Fapshi – Paiement Mobile Money (Cameroun)
 // ═══════════════════════════════════════════════════════════════
 
+// ── POST /api/create-fapshi-checkout ────────────────────────────
 app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
   const uid = req.user.uid;
   const { amount, currency, description, redirectUrl, phone } = req.body;
@@ -945,7 +729,7 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
       finalName = uData.displayName || uData.username || finalName;
     }
   } catch (e) {
-    console.error('Erreur :', e);
+    console.error('Erreur lors de la récupération des infos de compte Firestore : ', e);
   }
 
   const payload = {
@@ -999,10 +783,12 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
   }
 });
 
+// ── GET /api/fapshi-webhook ──────────────────────────────────────
 app.get('/api/fapshi-webhook', (req, res) => {
   res.status(200).send("Endpoint Webhook actif. Fapshi utilise la méthode POST.");
 });
 
+// ── POST /api/fapshi-webhook ─────────────────────────────────────
 app.post('/api/fapshi-webhook', async (req, res) => {
   const { status, amount, transId } = req.body;
   if (status !== 'SUCCESSFUL') return res.status(200).json({ message: 'Statut ignoré.' });
@@ -1036,6 +822,7 @@ app.post('/api/fapshi-webhook', async (req, res) => {
       }
     });
 
+    // Parrainage bonus
     let bonusApplied = false;
     try {
       const filleulDoc = await userRef.get();
@@ -1044,7 +831,7 @@ app.post('/api/fapshi-webhook', async (req, res) => {
         const bonusAmount = Math.floor(amountNum * 0.05);
         if (bonusAmount > 0) {
           const parrainRef = db.collection('users').doc(parrainUid);
-          await parrainRef.set({ referralBalance: admin.firestore.FieldValue.increment(bonusAmount) }, { merge: true });
+          await parrainRef.set({ referralBalance: admin.FieldValue.increment(bonusAmount) }, { merge: true });
           await parrainRef.collection('referrals').add({
             refereeUid: userId, amount: amountNum, referrerShare: bonusAmount,
             type: 'deposit_bonus_fapshi', transactionId: transId,
@@ -1061,6 +848,7 @@ app.post('/api/fapshi-webhook', async (req, res) => {
   }
 });
 
+// ── POST /api/fapshi/verify-transaction ──────────────────────────
 app.post('/api/fapshi/verify-transaction', checkAuth, async (req, res) => {
   const uid = req.user.uid;
   const { transId } = req.body;
@@ -1115,6 +903,7 @@ app.post('/api/fapshi/verify-transaction', checkAuth, async (req, res) => {
         t.set(userRef, { balance: currentBalance + amountNum }, { merge: true });
       });
 
+      // Bonus parrainage
       try {
         const userDocData = await userRef.get();
         const parrainUid = userDocData.exists ? (userDocData.data().referredBy || null) : null;
@@ -1145,6 +934,7 @@ app.post('/api/fapshi/verify-transaction', checkAuth, async (req, res) => {
   }
 });
 
+// ── GET /api/fapshi/transactions ─────────────────────────────────
 app.get('/api/fapshi/transactions', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
