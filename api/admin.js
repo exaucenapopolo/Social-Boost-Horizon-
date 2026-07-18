@@ -95,6 +95,211 @@ async function callExo(params) {
   return res.json();
 }
 
+// ── LOGIQUE DE RÉCUPÉRATION DES DONNÉES (RÉUTILISABLE) ─────────
+
+async function getStatsData() {
+  if (isCacheValid('stats')) return cache.stats;
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const yearAgo = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
+
+  const [usersCount, mtpOrdersCount, exoOrdersCount] = await Promise.all([
+    db.collection('users').count().get(),
+    db.collection('autoOrders').count().get(),
+    db.collection('commandes').count().get(),
+  ]);
+  const totalOrders = mtpOrdersCount.data().count + exoOrdersCount.data().count;
+
+  async function getPeriodStats(startDate) {
+    const mtpSnap = await db.collection('autoOrders')
+      .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(startDate))
+      .where('status', 'in', ['Terminé', 'En cours', 'Completed'])
+      .get();
+
+    const exoSnap = await db.collection('commandes')
+      .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(startDate))
+      .where('status', 'in', ['Terminé', 'En cours', 'Completed'])
+      .get();
+
+    let revenue = 0, cost = 0;
+    mtpSnap.forEach(doc => {
+      const data = doc.data();
+      const price = data.priceXAF || 0;
+      revenue += price;
+      cost += price / MTP_MULTIPLIER;
+    });
+    exoSnap.forEach(doc => {
+      const data = doc.data();
+      const price = data.totalCost || data.finalCost || data.cost || 0;
+      revenue += price;
+      cost += price / EXO_MULTIPLIER;
+    });
+    return { revenue: Math.round(revenue), cost: Math.round(cost), profit: Math.round(revenue - cost) };
+  }
+
+  const [todayStats, weekStats, monthStats, yearStats] = await Promise.all([
+    getPeriodStats(today),
+    getPeriodStats(weekAgo),
+    getPeriodStats(monthAgo),
+    getPeriodStats(yearAgo),
+  ]);
+
+  const stats = {
+    totalUsers: usersCount.data().count,
+    totalOrders,
+    today: todayStats,
+    week: weekStats,
+    month: monthStats,
+    year: yearStats,
+    lastUpdated: new Date().toISOString(),
+  };
+
+  cache.stats = stats;
+  cache.lastFetch.stats = Date.now();
+  return stats;
+}
+
+async function getServicesData() {
+  if (isCacheValid('services')) return cache.services;
+
+  let allServices = [];
+
+  if (process.env.MORETHANPANEL_API_KEY) {
+    try {
+      const mtpData = await callMTP({ action: 'services' });
+      if (Array.isArray(mtpData)) {
+        mtpData.forEach(s => {
+          const rate = parseFloat(s.rate) || 0;
+          const providerCost = Math.round(rate * MTP_USD_TO_XAF);
+          const finalPrice = Math.round(providerCost * MTP_MULTIPLIER);
+          const profit = finalPrice - providerCost;
+          allServices.push({
+            id: s.service, provider: 'MTP', name: s.name, category: s.category || '',
+            providerCost, finalPrice, profit, profitMargin: Math.round((profit / finalPrice) * 100) || 0,
+            min: parseInt(s.min) || 0, max: parseInt(s.max) || 0,
+          });
+        });
+      }
+    } catch (e) { console.warn('Erreur MTP services:', e.message); }
+  }
+
+  if (process.env.EXO_API_KEY) {
+    try {
+      const exoData = await callExo({ action: 'services' });
+      if (Array.isArray(exoData)) {
+        exoData.forEach(s => {
+          const rate = parseFloat(s.rate) || 0;
+          const providerCost = Math.round(rate * EXO_USD_TO_XAF);
+          const finalPrice = Math.round(providerCost * EXO_MULTIPLIER);
+          const profit = finalPrice - providerCost;
+          allServices.push({
+            id: s.service, provider: 'EXO', name: s.name, category: s.category || '',
+            providerCost, finalPrice, profit, profitMargin: Math.round((profit / finalPrice) * 100) || 0,
+            min: parseInt(s.min) || 0, max: parseInt(s.max) || 0,
+          });
+        });
+      }
+    } catch (e) { console.warn('Erreur EXO services:', e.message); }
+  }
+
+  const prices = allServices.map(s => s.finalPrice);
+  const minPrice = prices.length ? Math.min(...prices) : 0;
+  const maxPrice = prices.length ? Math.max(...prices) : 0;
+  const avgPrice = prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : 0;
+
+  const byProvider = {};
+  allServices.forEach(s => {
+    if (!byProvider[s.provider]) byProvider[s.provider] = [];
+    byProvider[s.provider].push(s);
+  });
+
+  const result = {
+    services: allServices,
+    stats: {
+      total: allServices.length, minPrice, maxPrice, avgPrice,
+      byProvider: Object.keys(byProvider).map(p => ({
+        provider: p, count: byProvider[p].length,
+        min: Math.min(...byProvider[p].map(s => s.finalPrice)),
+        max: Math.max(...byProvider[p].map(s => s.finalPrice)),
+        avg: Math.round(byProvider[p].reduce((sum, s) => sum + s.finalPrice, 0) / byProvider[p].length),
+      })),
+    },
+  };
+
+  cache.services = result;
+  cache.lastFetch.services = Date.now();
+  return result;
+}
+
+async function getOrdersData() {
+  if (isCacheValid('orders')) return cache.orders;
+
+  const mtpSnap = await db.collection('autoOrders').orderBy('createdAt', 'desc').limit(200).get();
+  const mtpOrders = mtpSnap.docs.map(doc => {
+    const data = doc.data();
+    const price = data.priceXAF || 0;
+    const cost = price / MTP_MULTIPLIER;
+    return {
+      id: doc.id, source: 'MTP', orderId: data.orderId, userId: data.userId,
+      serviceName: data.serviceName || 'Service MTP', quantity: data.quantity || 0,
+      price, cost, profit: price - cost, profitMargin: price ? Math.round(((price - cost) / price) * 100) : 0,
+      status: data.status || 'Inconnu', createdAt: data.createdAt,
+    };
+  });
+
+  const exoSnap = await db.collection('commandes').orderBy('createdAt', 'desc').limit(200).get();
+  const exoOrders = exoSnap.docs.map(doc => {
+    const data = doc.data();
+    const price = data.totalCost || data.finalCost || data.cost || 0;
+    const cost = price / EXO_MULTIPLIER;
+    return {
+      id: doc.id, source: 'EXO', orderId: data.orderId || data.id, userId: data.userId,
+      serviceName: data.serviceName || 'Service EXO', quantity: data.quantity || 0,
+      price, cost, profit: price - cost, profitMargin: price ? Math.round(((price - cost) / price) * 100) : 0,
+      status: data.status || 'Inconnu', createdAt: data.createdAt,
+    };
+  });
+
+  const fapshiSnap = await db.collection('fapshiTransactions')
+    .where('status', '==', 'CONFIRMED').orderBy('dateConfirmed', 'desc').limit(100).get();
+  const fapshiOrders = fapshiSnap.docs.map(doc => {
+    const data = doc.data();
+    const amount = data.amount || 0;
+    const cost = Math.round(amount * 0.8);
+    return {
+      id: doc.id, source: 'Fapshi', orderId: doc.id, userId: data.userId,
+      serviceName: 'Recharge Fapshi', quantity: 1, price: amount, cost, profit: amount - cost,
+      profitMargin: amount ? Math.round(((amount - cost) / amount) * 100) : 0,
+      status: 'Confirmé', createdAt: data.dateConfirmed || data.dateInitiated,
+    };
+  });
+
+  const allOrders = [...mtpOrders, ...exoOrders, ...fapshiOrders];
+  allOrders.sort((a, b) => {
+    const da = a.createdAt ? a.createdAt.toDate() : new Date(0);
+    const db = b.createdAt ? b.createdAt.toDate() : new Date(0);
+    return db - da;
+  });
+
+  const totalOrders = allOrders.length;
+  const totalRevenue = allOrders.reduce((sum, o) => sum + o.price, 0);
+  const totalCost = allOrders.reduce((sum, o) => sum + o.cost, 0);
+  const totalProfit = totalRevenue - totalCost;
+  const avgMargin = totalRevenue ? Math.round((totalProfit / totalRevenue) * 100) : 0;
+
+  const result = {
+    orders: allOrders.slice(0, 200),
+    stats: { total: totalOrders, revenue: totalRevenue, cost: totalCost, profit: totalProfit, avgMargin },
+  };
+
+  cache.orders = result;
+  cache.lastFetch.orders = Date.now();
+  return result;
+}
+
 // ── ROUTES ──────────────────────────────────────────────────────
 router.use(checkAdminPassword);
 
@@ -106,70 +311,7 @@ router.get('/ping', (req, res) => {
 // 1. Statistiques
 router.get('/stats', async (req, res) => {
   try {
-    if (isCacheValid('stats')) {
-      return res.json({ success: true, cached: true, data: cache.stats });
-    }
-
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const yearAgo = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
-
-    const [usersCount, mtpOrdersCount, exoOrdersCount] = await Promise.all([
-      db.collection('users').count().get(),
-      db.collection('autoOrders').count().get(),
-      db.collection('commandes').count().get(),
-    ]);
-    const totalOrders = mtpOrdersCount.data().count + exoOrdersCount.data().count;
-
-    async function getPeriodStats(startDate) {
-      const mtpSnap = await db.collection('autoOrders')
-        .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(startDate))
-        .where('status', 'in', ['Terminé', 'En cours', 'Completed'])
-        .get();
-
-      const exoSnap = await db.collection('commandes')
-        .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(startDate))
-        .where('status', 'in', ['Terminé', 'En cours', 'Completed'])
-        .get();
-
-      let revenue = 0, cost = 0;
-      mtpSnap.forEach(doc => {
-        const data = doc.data();
-        const price = data.priceXAF || 0;
-        revenue += price;
-        cost += price / MTP_MULTIPLIER;
-      });
-      exoSnap.forEach(doc => {
-        const data = doc.data();
-        const price = data.totalCost || data.finalCost || data.cost || 0;
-        revenue += price;
-        cost += price / EXO_MULTIPLIER;
-      });
-      return { revenue: Math.round(revenue), cost: Math.round(cost), profit: Math.round(revenue - cost) };
-    }
-
-    const [todayStats, weekStats, monthStats, yearStats] = await Promise.all([
-      getPeriodStats(today),
-      getPeriodStats(weekAgo),
-      getPeriodStats(monthAgo),
-      getPeriodStats(yearAgo),
-    ]);
-
-    const stats = {
-      totalUsers: usersCount.data().count,
-      totalOrders,
-      today: todayStats,
-      week: weekStats,
-      month: monthStats,
-      year: yearStats,
-      lastUpdated: new Date().toISOString(),
-    };
-
-    cache.stats = stats;
-    cache.lastFetch.stats = Date.now();
-
+    const stats = await getStatsData();
     res.json({ success: true, data: stats });
   } catch (error) {
     console.error('Erreur stats:', error);
@@ -180,100 +322,8 @@ router.get('/stats', async (req, res) => {
 // 2. Services
 router.get('/services', async (req, res) => {
   try {
-    if (isCacheValid('services')) {
-      return res.json({ success: true, cached: true, data: cache.services });
-    }
-
-    let allServices = [];
-
-    if (process.env.MORETHANPANEL_API_KEY) {
-      try {
-        const mtpData = await callMTP({ action: 'services' });
-        if (Array.isArray(mtpData)) {
-          mtpData.forEach(s => {
-            const rate = parseFloat(s.rate) || 0;
-            const providerCost = Math.round(rate * MTP_USD_TO_XAF);
-            const finalPrice = Math.round(providerCost * MTP_MULTIPLIER);
-            const profit = finalPrice - providerCost;
-            allServices.push({
-              id: s.service,
-              provider: 'MTP',
-              name: s.name,
-              category: s.category || '',
-              providerCost,
-              finalPrice,
-              profit,
-              profitMargin: Math.round((profit / finalPrice) * 100) || 0,
-              min: parseInt(s.min) || 0,
-              max: parseInt(s.max) || 0,
-            });
-          });
-        }
-      } catch (e) {
-        console.warn('Erreur MTP services:', e.message);
-      }
-    }
-
-    if (process.env.EXO_API_KEY) {
-      try {
-        const exoData = await callExo({ action: 'services' });
-        if (Array.isArray(exoData)) {
-          exoData.forEach(s => {
-            const rate = parseFloat(s.rate) || 0;
-            const providerCost = Math.round(rate * EXO_USD_TO_XAF);
-            const finalPrice = Math.round(providerCost * EXO_MULTIPLIER);
-            const profit = finalPrice - providerCost;
-            allServices.push({
-              id: s.service,
-              provider: 'EXO',
-              name: s.name,
-              category: s.category || '',
-              providerCost,
-              finalPrice,
-              profit,
-              profitMargin: Math.round((profit / finalPrice) * 100) || 0,
-              min: parseInt(s.min) || 0,
-              max: parseInt(s.max) || 0,
-            });
-          });
-        }
-      } catch (e) {
-        console.warn('Erreur EXO services:', e.message);
-      }
-    }
-
-    const prices = allServices.map(s => s.finalPrice);
-    const minPrice = prices.length ? Math.min(...prices) : 0;
-    const maxPrice = prices.length ? Math.max(...prices) : 0;
-    const avgPrice = prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : 0;
-
-    const byProvider = {};
-    allServices.forEach(s => {
-      if (!byProvider[s.provider]) byProvider[s.provider] = [];
-      byProvider[s.provider].push(s);
-    });
-
-    const result = {
-      services: allServices,
-      stats: {
-        total: allServices.length,
-        minPrice,
-        maxPrice,
-        avgPrice,
-        byProvider: Object.keys(byProvider).map(p => ({
-          provider: p,
-          count: byProvider[p].length,
-          min: Math.min(...byProvider[p].map(s => s.finalPrice)),
-          max: Math.max(...byProvider[p].map(s => s.finalPrice)),
-          avg: Math.round(byProvider[p].reduce((sum, s) => sum + s.finalPrice, 0) / byProvider[p].length),
-        })),
-      },
-    };
-
-    cache.services = result;
-    cache.lastFetch.services = Date.now();
-
-    res.json({ success: true, data: result });
+    const services = await getServicesData();
+    res.json({ success: true, data: services });
   } catch (error) {
     console.error('Erreur services:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -293,21 +343,11 @@ router.get('/users', async (req, res) => {
       .limit(500)
       .get();
 
-    const users = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
+    const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     const topByBalance = [...users].sort((a, b) => (b.balance || 0) - (a.balance || 0)).slice(0, 10);
     const topByOrders = [...users].sort((a, b) => (b.totalOrders || 0) - (a.totalOrders || 0)).slice(0, 10);
 
-    const result = {
-      users,
-      topByBalance,
-      topByOrders,
-      total: users.length,
-    };
-
+    const result = { users, topByBalance, topByOrders, total: users.length };
     cache.users = result;
     cache.lastFetch.users = Date.now();
 
@@ -321,114 +361,8 @@ router.get('/users', async (req, res) => {
 // 4. Commandes
 router.get('/orders', async (req, res) => {
   try {
-    if (isCacheValid('orders')) {
-      return res.json({ success: true, cached: true, data: cache.orders });
-    }
-
-    const mtpSnap = await db.collection('autoOrders')
-      .orderBy('createdAt', 'desc')
-      .limit(200)
-      .get();
-
-    const mtpOrders = mtpSnap.docs.map(doc => {
-      const data = doc.data();
-      const price = data.priceXAF || 0;
-      const cost = price / MTP_MULTIPLIER;
-      return {
-        id: doc.id,
-        source: 'MTP',
-        orderId: data.orderId,
-        userId: data.userId,
-        serviceName: data.serviceName || 'Service MTP',
-        quantity: data.quantity || 0,
-        price,
-        cost,
-        profit: price - cost,
-        profitMargin: price ? Math.round(((price - cost) / price) * 100) : 0,
-        status: data.status || 'Inconnu',
-        createdAt: data.createdAt,
-      };
-    });
-
-    const exoSnap = await db.collection('commandes')
-      .orderBy('createdAt', 'desc')
-      .limit(200)
-      .get();
-
-    const exoOrders = exoSnap.docs.map(doc => {
-      const data = doc.data();
-      const price = data.totalCost || data.finalCost || data.cost || 0;
-      const cost = price / EXO_MULTIPLIER;
-      return {
-        id: doc.id,
-        source: 'EXO',
-        orderId: data.orderId || data.id,
-        userId: data.userId,
-        serviceName: data.serviceName || 'Service EXO',
-        quantity: data.quantity || 0,
-        price,
-        cost,
-        profit: price - cost,
-        profitMargin: price ? Math.round(((price - cost) / price) * 100) : 0,
-        status: data.status || 'Inconnu',
-        createdAt: data.createdAt,
-      };
-    });
-
-    const fapshiSnap = await db.collection('fapshiTransactions')
-      .where('status', '==', 'CONFIRMED')
-      .orderBy('dateConfirmed', 'desc')
-      .limit(100)
-      .get();
-
-    const fapshiOrders = fapshiSnap.docs.map(doc => {
-      const data = doc.data();
-      const amount = data.amount || 0;
-      const cost = Math.round(amount * 0.8);
-      return {
-        id: doc.id,
-        source: 'Fapshi',
-        orderId: doc.id,
-        userId: data.userId,
-        serviceName: 'Recharge Fapshi',
-        quantity: 1,
-        price: amount,
-        cost,
-        profit: amount - cost,
-        profitMargin: amount ? Math.round(((amount - cost) / amount) * 100) : 0,
-        status: 'Confirmé',
-        createdAt: data.dateConfirmed || data.dateInitiated,
-      };
-    });
-
-    const allOrders = [...mtpOrders, ...exoOrders, ...fapshiOrders];
-    allOrders.sort((a, b) => {
-      const da = a.createdAt ? a.createdAt.toDate() : new Date(0);
-      const db = b.createdAt ? b.createdAt.toDate() : new Date(0);
-      return db - da;
-    });
-
-    const totalOrders = allOrders.length;
-    const totalRevenue = allOrders.reduce((sum, o) => sum + o.price, 0);
-    const totalCost = allOrders.reduce((sum, o) => sum + o.cost, 0);
-    const totalProfit = totalRevenue - totalCost;
-    const avgMargin = totalRevenue ? Math.round((totalProfit / totalRevenue) * 100) : 0;
-
-    const result = {
-      orders: allOrders.slice(0, 200),
-      stats: {
-        total: totalOrders,
-        revenue: totalRevenue,
-        cost: totalCost,
-        profit: totalProfit,
-        avgMargin,
-      },
-    };
-
-    cache.orders = result;
-    cache.lastFetch.orders = Date.now();
-
-    res.json({ success: true, data: result });
+    const orders = await getOrdersData();
+    res.json({ success: true, data: orders });
   } catch (error) {
     console.error('Erreur orders:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -440,10 +374,7 @@ router.get('/orders', async (req, res) => {
 // VCF
 router.get('/export/contacts', async (req, res) => {
   try {
-    const snapshot = await db.collection('users')
-      .select('displayName', 'username', 'phone')
-      .get();
-
+    const snapshot = await db.collection('users').select('displayName', 'username', 'phone').get();
     let vcf = '';
     snapshot.forEach(doc => {
       const data = doc.data();
@@ -453,7 +384,6 @@ router.get('/export/contacts', async (req, res) => {
         vcf += `BEGIN:VCARD\nVERSION:3.0\nFN:SBH - ${name}\nTEL;TYPE=CELL:${phone}\nEND:VCARD\n`;
       }
     });
-
     res.setHeader('Content-Type', 'text/vcard;charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="SBH_Contacts.vcf"');
     res.send(vcf);
@@ -463,24 +393,14 @@ router.get('/export/contacts', async (req, res) => {
   }
 });
 
-// PDF Services (utilisation de jspdf, déjà installé)
+// PDF Services
 router.get('/export/services-pdf', async (req, res) => {
   try {
     const { jsPDF } = require('jspdf');
     require('jspdf-autotable');
 
-    let servicesData;
-    if (isCacheValid('services')) {
-      servicesData = cache.services;
-    } else {
-      // Appel direct à la fonction interne pour éviter boucle
-      // On va simplement relire la base
-      const resp = await fetch(`http://localhost:${process.env.PORT || 3000}/api/admin/services`, {
-        headers: { 'x-admin-password': ADMIN_PASSWORD },
-      });
-      const json = await resp.json();
-      servicesData = json.data;
-    }
+    // On utilise notre nouvelle fonction interne (fini les crashs localhost)
+    const servicesData = await getServicesData();
 
     const doc = new jsPDF();
     doc.setFontSize(18);
@@ -492,22 +412,13 @@ router.get('/export/services-pdf', async (req, res) => {
 
     const tableColumn = ["ID", "Partenaire", "Nom", "Coût", "Prix final", "Bénéfice", "Marge"];
     const tableRows = servicesData.services.map(s => [
-      s.id,
-      s.provider,
-      s.name.substring(0, 40),
-      `${s.providerCost} FCFA`,
-      `${s.finalPrice} FCFA`,
-      `+${s.profit} FCFA`,
-      `${s.profitMargin}%`
+      s.id, s.provider, s.name.substring(0, 40), `${s.providerCost} FCFA`,
+      `${s.finalPrice} FCFA`, `+${s.profit} FCFA`, `${s.profitMargin}%`
     ]);
 
     doc.autoTable({
-      head: [tableColumn],
-      body: tableRows,
-      startY: 35,
-      theme: 'striped',
-      headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] },
-      styles: { fontSize: 8 },
+      head: [tableColumn], body: tableRows, startY: 35, theme: 'striped',
+      headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] }, styles: { fontSize: 8 },
     });
 
     doc.text(`Total services: ${servicesData.stats.total}`, 14, doc.lastAutoTable.finalY + 10);
@@ -529,16 +440,8 @@ router.get('/export/profits-pdf', async (req, res) => {
     const { jsPDF } = require('jspdf');
     require('jspdf-autotable');
 
-    let statsData;
-    if (isCacheValid('stats')) {
-      statsData = cache.stats;
-    } else {
-      const resp = await fetch(`http://localhost:${process.env.PORT || 3000}/api/admin/stats`, {
-        headers: { 'x-admin-password': ADMIN_PASSWORD },
-      });
-      const json = await resp.json();
-      statsData = json.data;
-    }
+    // Utilisation de la fonction interne
+    const statsData = await getStatsData();
 
     const doc = new jsPDF();
     doc.setFontSize(18);
@@ -555,9 +458,7 @@ router.get('/export/profits-pdf', async (req, res) => {
         ['Total utilisateurs', statsData.totalUsers],
         ['Total commandes', statsData.totalOrders],
       ],
-      startY: 45,
-      theme: 'plain',
-      styles: { fontSize: 10 },
+      startY: 45, theme: 'plain', styles: { fontSize: 10 },
     });
 
     doc.text("Bénéfices par période", 14, doc.lastAutoTable.finalY + 12);
@@ -569,10 +470,8 @@ router.get('/export/profits-pdf', async (req, res) => {
         ['30 jours', `${statsData.month.revenue} FCFA`, `${statsData.month.profit} FCFA`],
         ['365 jours', `${statsData.year.revenue} FCFA`, `${statsData.year.profit} FCFA`],
       ],
-      startY: doc.lastAutoTable.finalY + 16,
-      theme: 'striped',
-      headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] },
-      styles: { fontSize: 10 },
+      startY: doc.lastAutoTable.finalY + 16, theme: 'striped',
+      headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] }, styles: { fontSize: 10 },
     });
 
     const buffer = doc.output('arraybuffer');
@@ -591,16 +490,8 @@ router.get('/export/orders-pdf', async (req, res) => {
     const { jsPDF } = require('jspdf');
     require('jspdf-autotable');
 
-    let ordersData;
-    if (isCacheValid('orders')) {
-      ordersData = cache.orders;
-    } else {
-      const resp = await fetch(`http://localhost:${process.env.PORT || 3000}/api/admin/orders`, {
-        headers: { 'x-admin-password': ADMIN_PASSWORD },
-      });
-      const json = await resp.json();
-      ordersData = json.data;
-    }
+    // Utilisation de la fonction interne
+    const ordersData = await getOrdersData();
 
     const doc = new jsPDF();
     doc.setFontSize(18);
@@ -611,21 +502,14 @@ router.get('/export/orders-pdf', async (req, res) => {
     doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
 
     const body = ordersData.orders.slice(0, 50).map(o => [
-      o.source,
-      o.orderId || o.id,
-      o.serviceName.substring(0, 20),
-      `${o.price} FCFA`,
-      `+${o.profit} FCFA`,
-      `${o.profitMargin}%`,
+      o.source, o.orderId || o.id, o.serviceName.substring(0, 20),
+      `${o.price} FCFA`, `+${o.profit} FCFA`, `${o.profitMargin}%`,
     ]);
 
     doc.autoTable({
       head: [['Source', 'ID', 'Service', 'Montant', 'Bénéfice', 'Marge']],
-      body,
-      startY: 35,
-      theme: 'striped',
-      headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] },
-      styles: { fontSize: 8 },
+      body, startY: 35, theme: 'striped',
+      headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] }, styles: { fontSize: 8 },
     });
 
     doc.text(`Total commandes: ${ordersData.stats.total} | Revenu: ${ordersData.stats.revenue} FCFA | Bénéfice: ${ordersData.stats.profit} FCFA`, 14, doc.lastAutoTable.finalY + 10);
