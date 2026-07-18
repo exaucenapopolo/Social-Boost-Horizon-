@@ -950,6 +950,9 @@ app.get('/api/fapshi/transactions', checkAuth, async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+// ── Routeur administrateur ──────────────────────────────────────
+const adminRouter = require('./admin.js');
+app.use('/api/admin', adminRouter);
 
 // ── 404 ─────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ success: false, error: `Route non trouvée : ${req.method} ${req.path}` }));
