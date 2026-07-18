@@ -3,47 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administration Centrale - Social Boost Horizon</title>
+    <title>Direction & Administration - SBH</title>
     
-    <!-- Google Fonts & Font Awesome -->
+    <!-- Polices & Icônes -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     
-    <!-- Librairies pour Export -->
+    <!-- Librairies pour Graphiques et Exports PDF -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
     <style>
-        /* Variables de couleurs */
+        /* Design System - Premium Dark Theme */
         :root {
-            --sbh-deep-blue: #080e1a;
-            --sbh-dark-blue: #0A162B;
-            --sbh-gold: #D4AF37;
-            --sbh-light-blue: #4DA6FF;
-            --success-green: #22c55e;
-            --glass-bg: rgba(15, 25, 45, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.1);
+            --bg-main: #080e1a;
+            --bg-card: rgba(15, 25, 45, 0.8);
+            --gold: #D4AF37;
+            --blue: #4DA6FF;
+            --green: #22c55e;
+            --text-light: #e2e8f0;
+            --border: rgba(255, 255, 255, 0.08);
         }
 
-        body { margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; background: var(--sbh-deep-blue); color: #fff; }
+        * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { margin: 0; background: var(--bg-main); color: var(--text-light); }
 
         /* ÉCRAN DE VERROUILLAGE */
-        #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--sbh-deep-blue); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
-        .auth-box { background: var(--glass-bg); padding: 40px; border-radius: 20px; border: 1px solid var(--sbh-gold); text-align: center; box-shadow: 0 10px 30px rgba(212, 175, 55, 0.2); }
-        .auth-box input { width: 100%; padding: 15px; margin: 20px 0; background: rgba(0,0,0,0.5); border: 1px solid var(--sbh-light-blue); color: white; border-radius: 8px; text-align: center; font-size: 1.2rem; }
-        .btn-gold { background: linear-gradient(135deg, #B8860B, var(--sbh-gold)); color: var(--sbh-deep-blue); border: none; padding: 12px 30px; border-radius: 30px; font-weight: 800; cursor: pointer; transition: 0.3s; }
-        .btn-gold:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(212, 175, 55, 0.4); }
+        #authOverlay { position: fixed; inset: 0; background: var(--bg-main); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .auth-box { background: var(--bg-card); padding: 40px; border-radius: 16px; border: 1px solid var(--gold); text-align: center; box-shadow: 0 10px 40px rgba(212, 175, 55, 0.15); width: 100%; max-width: 400px; }
+        .auth-box input { width: 100%; padding: 15px; margin: 20px 0; background: rgba(0,0,0,0.5); border: 1px solid var(--border); color: white; border-radius: 8px; text-align: center; font-size: 1.2rem; outline: none; }
+        .auth-box input:focus { border-color: var(--gold); }
+        .btn-primary { background: linear-gradient(135deg, #B8860B, var(--gold)); color: var(--bg-main); border: none; padding: 12px 30px; border-radius: 30px; font-weight: 800; cursor: pointer; transition: 0.3s; width: 100%; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(212, 175, 55, 0.4); }
+        .error-msg { color: #ff4757; margin-top: 15px; display: none; font-size: 0.9rem; }
 
-        /* DASHBOARD ADMIN */
-        #adminDashboard { display: none; padding: 20px; max-width: 1200px; margin: 0 auto; }
-        .header-admin { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 20px; margin-bottom: 30px; }
-        .logo-text { font-size: 1.5rem; font-weight: 800; color: var(--sbh-gold); }
-        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .kpi-card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 15px; padding: 20px; border-left: 4px solid var(--sbh-light-blue); }
-        .kpi-value { font-size: 2.5rem; font-weight: 800; color: var(--success-green); margin-top: 10px; }
-        .actions-panel { background: var(--glass-bg); padding: 20px; border-radius: 15px; border: 1px solid var(--glass-border); display: flex; gap: 15px; flex-wrap: wrap; }
-        .btn-export { background: rgba(77, 166, 255, 0.1); border: 1px solid var(--sbh-light-blue); color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer; transition: 0.3s; }
-        .btn-export:hover { background: var(--sbh-light-blue); }
-        .error-msg { color: #ff6b9d; margin-top: 10px; display: none; }
+        /* DASHBOARD */
+        #app { display: none; padding: 30px; max-width: 1400px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 30px; }
+        .brand { font-size: 1.8rem; font-weight: 800; color: var(--gold); display: flex; align-items: center; gap: 10px; }
+        
+        /* Boutons Actions */
+        .btn-action { background: rgba(77, 166, 255, 0.1); border: 1px solid var(--blue); color: var(--blue); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-action:hover { background: var(--blue); color: white; }
+        .btn-export-vcf { border-color: var(--green); color: var(--green); background: rgba(34, 197, 94, 0.1); }
+        .btn-export-vcf:hover { background: var(--green); color: white; }
+        
+        /* Grille KPI */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 40px; }
+        .kpi-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 25px; display: flex; flex-direction: column; gap: 10px; }
+        .kpi-title { font-size: 0.9rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+        .kpi-value { font-size: 2.2rem; font-weight: 800; }
+        .text-green { color: var(--green); }
+        .text-gold { color: var(--gold); }
+        .text-blue { color: var(--blue); }
+
+        /* Tableaux */
+        .section-title { margin-bottom: 20px; font-size: 1.2rem; border-left: 4px solid var(--gold); padding-left: 10px; }
+        .table-container { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; margin-bottom: 40px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 15px 20px; border-bottom: 1px solid var(--border); }
+        th { background: rgba(0,0,0,0.3); color: var(--gold); font-weight: 600; }
+        tr:hover { background: rgba(255,255,255,0.02); }
+        
+        /* Badges */
+        .badge { padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+        .badge-mtp { background: rgba(77, 166, 255, 0.2); color: var(--blue); }
+        .badge-exo { background: rgba(212, 175, 55, 0.2); color: var(--gold); }
+
+        .toolbar { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
     </style>
 </head>
 <body>
@@ -51,131 +79,214 @@
     <!-- Écran de connexion -->
     <div id="authOverlay">
         <div class="auth-box">
-            <i class="fas fa-lock" style="font-size: 3rem; color: var(--sbh-gold); margin-bottom: 15px;"></i>
-            <h2>Accès Administrateur</h2>
-            <input type="password" id="adminPassInput" placeholder="Clé sécurisée">
-            <button class="btn-gold" onclick="unlockDashboard()">Déverrouiller</button>
+            <i class="fas fa-shield-halved" style="font-size: 3rem; color: var(--gold); margin-bottom: 15px;"></i>
+            <h2 style="margin-top:0;">Accès Direction</h2>
+            <p style="font-size:0.9rem; color:#94a3b8;">Veuillez entrer la clé de sécurité serveur.</p>
+            <input type="password" id="adminPassInput" placeholder="Mot de passe Administrateur">
+            <button class="btn-primary" onclick="unlock()">Déverrouiller</button>
             <div id="loginError" class="error-msg">Clé incorrecte. Accès refusé.</div>
         </div>
     </div>
 
-    <!-- Contenu du tableau de bord -->
-    <div id="adminDashboard">
-        <div class="header-admin">
-            <div class="logo-text"><i class="fas fa-shield-alt"></i> SBH - COMMAND CENTER</div>
-            <button class="btn-export" onclick="logoutAdmin()"><i class="fas fa-sign-out-alt"></i> Verrouiller</button>
+    <!-- Application Admin -->
+    <div id="app">
+        <div class="header">
+            <div class="brand"><i class="fas fa-bolt"></i> SBH Command Center</div>
+            <div style="display: flex; gap: 15px;">
+                <button class="btn-action" onclick="loadData()"><i class="fas fa-sync-alt"></i> Actualiser</button>
+                <button class="btn-action" onclick="logout()" style="border-color: #ff4757; color: #ff4757;"><i class="fas fa-lock"></i> Verrouiller</button>
+            </div>
         </div>
 
+        <div class="toolbar">
+            <button class="btn-action btn-export-vcf" onclick="exportVCF()"><i class="fas fa-address-book"></i> Exporter Contacts (.vcf)</button>
+            <button class="btn-action" onclick="exportServicesPDF()"><i class="fas fa-file-pdf"></i> Rapport Services & Profits</button>
+        </div>
+
+        <!-- Indicateurs Clés -->
         <div class="kpi-grid">
             <div class="kpi-card">
-                <div><i class="fas fa-users"></i> Total Utilisateurs</div>
-                <div class="kpi-value" id="kpi-users">--</div>
+                <div class="kpi-title">Total Utilisateurs</div>
+                <div class="kpi-value text-blue" id="kpi-users">...</div>
             </div>
-            <div class="kpi-card" style="border-left-color: var(--sbh-gold);">
-                <div><i class="fas fa-shopping-cart"></i> Total Commandes</div>
-                <div class="kpi-value" id="kpi-orders" style="color: var(--sbh-gold);">--</div>
+            <div class="kpi-card">
+                <div class="kpi-title">Total Commandes</div>
+                <div class="kpi-value text-gold" id="kpi-orders">...</div>
             </div>
-            <div class="kpi-card" style="border-left-color: #ff6b9d;">
-                <div><i class="fas fa-server"></i> Services Actifs (Exo)</div>
-                <div class="kpi-value" id="kpi-services" style="color: #ff6b9d;">--</div>
+            <div class="kpi-card">
+                <div class="kpi-title">Chiffre d'Affaires (30J)</div>
+                <div class="kpi-value" id="kpi-revenue">...</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">Bénéfice Net (30J)</div>
+                <div class="kpi-value text-green" id="kpi-profit">...</div>
             </div>
         </div>
 
-        <div class="actions-panel">
-            <h3 style="width: 100%; margin-top: 0;"><i class="fas fa-download"></i> Centre d'Actions</h3>
-            <button class="btn-export" onclick="exportContactsCSV()">
-                <i class="fas fa-address-book"></i> Télécharger Contacts (CSV)
-            </button>
-            <button class="btn-export" onclick="loadDashboardData()">
-                <i class="fas fa-sync"></i> Actualiser les données
-            </button>
+        <!-- Tableau d'analyse des services -->
+        <h2 class="section-title">Analyse Intelligente des Services</h2>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Partenaire</th>
+                        <th>Service</th>
+                        <th>Coût Fournisseur</th>
+                        <th>Notre Prix</th>
+                        <th>Bénéfice Net</th>
+                        <th>Marge</th>
+                    </tr>
+                </thead>
+                <tbody id="servicesTableBody">
+                    <tr><td colspan="7" style="text-align:center;">Chargement des données...</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
     <script>
-        // ICI : L'URL pointe désormais vers ton fichier unique !
-        const API_BASE_URL = '/api/admin'; 
-        let adminToken = sessionStorage.getItem('sbh_admin_token');
+        const API_URL = '/api/admin'; 
+        let token = sessionStorage.getItem('sbh_admin_token');
+        let globalServicesData = []; // Pour l'export PDF
 
-        if (adminToken) {
-            showDashboard();
-            loadDashboardData();
+        if (token) {
+            document.getElementById('authOverlay').style.display = 'none';
+            document.getElementById('app').style.display = 'block';
+            loadData();
         }
 
-        function unlockDashboard() {
+        function unlock() {
             const pass = document.getElementById('adminPassInput').value;
             if (pass === '209644209644') {
                 sessionStorage.setItem('sbh_admin_token', pass);
-                adminToken = pass;
-                showDashboard();
-                loadDashboardData();
+                token = pass;
+                document.getElementById('authOverlay').style.display = 'none';
+                document.getElementById('app').style.display = 'block';
+                loadData();
             } else {
                 document.getElementById('loginError').style.display = 'block';
             }
         }
 
-        function showDashboard() {
-            document.getElementById('authOverlay').style.display = 'none';
-            document.getElementById('adminDashboard').style.display = 'block';
-        }
-
-        function logoutAdmin() {
+        function logout() {
             sessionStorage.removeItem('sbh_admin_token');
             location.reload();
         }
 
-        // Fonction générique pour interroger notre unique fichier API
-        async function fetchSecure(actionName) {
-            // On ajoute l'action à la fin de l'URL : /api/admin?action=nomDeLAction
-            const response = await fetch(`${API_BASE_URL}?action=${actionName}`, {
-                headers: { 'x-admin-password': adminToken }
+        async function fetchAPI(action) {
+            const res = await fetch(`${API_URL}?action=${action}`, {
+                headers: { 'x-admin-password': token }
             });
-            if (response.status === 403) {
-                logoutAdmin();
-                throw new Error("Session invalide");
-            }
-            return await response.json();
+            if (res.status === 403) { logout(); throw new Error("Non autorisé"); }
+            if (action === 'export_vcf') return await res.text(); // Le VCF est du texte
+            return await res.json();
         }
 
-        async function loadDashboardData() {
+        async function loadData() {
             try {
-                // Action 1 : Stats
-                const stats = await fetchSecure('stats');
-                if (stats.success) {
-                    document.getElementById('kpi-users').textContent = stats.data.totalUsers;
-                    document.getElementById('kpi-orders').textContent = stats.data.totalOrders;
+                // 1. Charger les Statistiques
+                const statsRes = await fetchAPI('stats');
+                if (statsRes.success) {
+                    document.getElementById('kpi-users').innerText = statsRes.data.totalUsers;
+                    document.getElementById('kpi-orders').innerText = statsRes.data.totalOrders;
+                    document.getElementById('kpi-revenue').innerText = statsRes.data.revenue30d.toLocaleString() + ' FCFA';
+                    document.getElementById('kpi-profit').innerText = statsRes.data.profit30d.toLocaleString() + ' FCFA';
                 }
 
-                // Action 2 : Exo
-                const exo = await fetchSecure('exo');
-                if (exo.success) {
-                    document.getElementById('kpi-services').textContent = exo.totalServices;
+                // 2. Charger et Analyser les Services
+                const servRes = await fetchAPI('services');
+                if (servRes.success) {
+                    globalServicesData = servRes.data;
+                    renderServicesTable(servRes.data);
                 }
-            } catch (error) {
-                console.error("Erreur", error);
+            } catch (e) {
+                console.error(e);
+                alert("Erreur lors de la récupération des données.");
             }
         }
 
-        async function exportContactsCSV() {
+        function renderServicesTable(services) {
+            const tbody = document.getElementById('servicesTableBody');
+            tbody.innerHTML = '';
+            
+            // On trie par bénéfice décroissant pour mettre en avant les services les plus rentables
+            services.sort((a, b) => b.profit - a.profit);
+
+            services.forEach(s => {
+                const badgeClass = s.provider === 'MTP' ? 'badge-mtp' : 'badge-exo';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>#${s.id}</td>
+                    <td><span class="badge ${badgeClass}">${s.provider}</span></td>
+                    <td style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${s.name}">${s.name}</td>
+                    <td style="color:#ff6b6b;">${s.providerCost.toLocaleString()} FCFA</td>
+                    <td style="color:var(--blue); font-weight:bold;">${s.finalPrice.toLocaleString()} FCFA</td>
+                    <td style="color:var(--green); font-weight:bold;">+${s.profit.toLocaleString()} FCFA</td>
+                    <td>${s.profitMargin}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- EXPORT PROFESSIONNEL : VCF ---
+        async function exportVCF() {
             try {
-                // Action 3 : Export
-                const res = await fetchSecure('export');
-                if (!res.success) throw new Error("Erreur serveur");
-
-                let csvContent = "Nom,Telephone\n";
-                res.contacts.forEach(contact => {
-                    csvContent += `"${contact.name}","${contact.phone}"\n`;
-                });
-
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const vcfText = await fetchAPI('export_vcf');
+                const blob = new Blob([vcfText], { type: 'text/vcard;charset=utf-8;' });
                 const link = document.createElement("a");
                 link.href = URL.createObjectURL(blob);
-                link.download = `SBH_Contacts.csv`;
+                link.download = `SBH_Contacts_Clients.vcf`;
                 link.click();
-
-            } catch (error) {
-                alert("Erreur lors de l'export des contacts.");
+            } catch (e) {
+                alert("Erreur lors de la génération du VCF.");
             }
+        }
+
+        // --- EXPORT PROFESSIONNEL : PDF ---
+        function exportServicesPDF() {
+            if (!globalServicesData.length) return alert("Les données ne sont pas encore chargées.");
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Titre du PDF
+            doc.setFontSize(18);
+            doc.setTextColor(10, 22, 43); // Dark blue
+            doc.text("Rapport d'Analyse des Services & Profits - SBH", 14, 20);
+            
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text(`Généré le : ${new Date().toLocaleString('fr-FR')}`, 14, 28);
+
+            // Préparation des données pour le tableau
+            const tableColumn = ["ID", "Partenaire", "Nom du Service", "Coût", "Prix Vente", "Bénéfice Net", "Marge"];
+            const tableRows = [];
+
+            globalServicesData.forEach(s => {
+                const rowData = [
+                    s.id,
+                    s.provider,
+                    s.name.substring(0, 40) + '...', // On coupe si trop long
+                    `${s.providerCost} FCFA`,
+                    `${s.finalPrice} FCFA`,
+                    `+${s.profit} FCFA`,
+                    `${s.profitMargin}%`
+                ];
+                tableRows.push(rowData);
+            });
+
+            // Génération du tableau avec AutoTable
+            doc.autoTable({
+                head: [tableColumn],
+                body: tableRows,
+                startY: 35,
+                theme: 'striped',
+                headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] }, // Thème SBH (Bleu Nuit / Or)
+                styles: { fontSize: 8 },
+            });
+
+            doc.save('SBH_Rapport_Financier.pdf');
         }
     </script>
 </body>
