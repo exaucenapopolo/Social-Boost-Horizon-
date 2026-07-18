@@ -1,18 +1,18 @@
-// admin.js – Routeur administrateur unique pour Social Boost Horizon
-// Sécurité, cache, statistiques, services, utilisateurs, commandes, profits, exports
-
+// admin.js – Routeur administrateur pour Social Boost Horizon
 const express = require('express');
 const admin = require('firebase-admin');
-const crypto = require('crypto');
-
 const router = express.Router();
 
-// ── VÉRIFICATION DE L'ENVIRONNEMENT ─────────────────────────────
+// ── VÉRIFICATION FIREBASE ADMIN ──────────────────────────────
 if (!admin.apps.length) {
   try {
     const privateKey = process.env.FIREBASE_PRIVATE_KEY
       ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
       : undefined;
+
+    if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !privateKey) {
+      throw new Error('Variables Firebase manquantes');
+    }
 
     admin.initializeApp({
       credential: admin.credential.cert({
@@ -29,10 +29,10 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-// ── MOT DE PASSE ADMIN (unique) ──────────────────────────────────
+// ── MOT DE PASSE ADMIN ─────────────────────────────────────────
 const ADMIN_PASSWORD = '209644209644';
 
-// ── MIDDLEWARE DE SÉCURITÉ ──────────────────────────────────────
+// ── MIDDLEWARE DE SÉCURITÉ ─────────────────────────────────────
 function checkAdminPassword(req, res, next) {
   const pass = req.headers['x-admin-password'];
   if (!pass || pass !== ADMIN_PASSWORD) {
@@ -41,21 +41,18 @@ function checkAdminPassword(req, res, next) {
   next();
 }
 
-// ── CACHE MÉMOIRE AVEC TTL ──────────────────────────────────────
-// Réduit drastiquement les lectures Firestore
+// ── CACHE MÉMOIRE ──────────────────────────────────────────────
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 let cache = {
   stats: null,
   services: null,
   users: null,
   orders: null,
-  profits: null,
   lastFetch: {
     stats: 0,
     services: 0,
     users: 0,
     orders: 0,
-    profits: 0,
   },
 };
 
@@ -63,13 +60,13 @@ function isCacheValid(key) {
   return cache[key] && (Date.now() - cache.lastFetch[key] < CACHE_TTL);
 }
 
-// ── CONFIGURATION FINANCIÈRE (reprise de index.js) ──────────────
+// ── CONFIGURATION FINANCIÈRE ──────────────────────────────────
 const MTP_USD_TO_XAF = 620;
 const MTP_MULTIPLIER = 3;
 const EXO_USD_TO_XAF = 650;
 const EXO_MULTIPLIER = 2.5;
 
-// ── FONCTIONS D'APPEL AUX PARTENAIRES (MTP, EXO) ────────────────
+// ── APPELS AUX FOURNISSEURS ──────────────────────────────────
 async function callMTP(params) {
   if (!process.env.MORETHANPANEL_API_KEY) {
     throw new Error('MORETHANPANEL_API_KEY manquante');
@@ -98,28 +95,27 @@ async function callExo(params) {
   return res.json();
 }
 
-// ── ROUTES ADMIN ──────────────────────────────────────────────────
-
-// Toutes les routes sont protégées par le middleware
+// ── ROUTES ──────────────────────────────────────────────────────
 router.use(checkAdminPassword);
 
-// ================================================================
-// 1. STATISTIQUES GLOBALES & PAR PÉRIODE
-// ================================================================
+// Ping
+router.get('/ping', (req, res) => {
+  res.json({ success: true, message: 'Admin API accessible' });
+});
+
+// 1. Statistiques
 router.get('/stats', async (req, res) => {
   try {
     if (isCacheValid('stats')) {
       return res.json({ success: true, cached: true, data: cache.stats });
     }
 
-    // Périodes : aujourd'hui, semaine, mois, année
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
     const yearAgo = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
 
-    // Compteurs rapides (count() = 1 lecture par collection)
     const [usersCount, mtpOrdersCount, exoOrdersCount] = await Promise.all([
       db.collection('users').count().get(),
       db.collection('autoOrders').count().get(),
@@ -127,7 +123,6 @@ router.get('/stats', async (req, res) => {
     ]);
     const totalOrders = mtpOrdersCount.data().count + exoOrdersCount.data().count;
 
-    // Fonction pour calculer les revenus et coûts sur une période donnée
     async function getPeriodStats(startDate) {
       const mtpSnap = await db.collection('autoOrders')
         .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(startDate))
@@ -144,7 +139,7 @@ router.get('/stats', async (req, res) => {
         const data = doc.data();
         const price = data.priceXAF || 0;
         revenue += price;
-        cost += price / MTP_MULTIPLIER; // coût fournisseur estimé
+        cost += price / MTP_MULTIPLIER;
       });
       exoSnap.forEach(doc => {
         const data = doc.data();
@@ -182,9 +177,7 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// ================================================================
-// 2. SERVICES AVEC ANALYSE DES PRIX, MARGE, BÉNÉFICE
-// ================================================================
+// 2. Services
 router.get('/services', async (req, res) => {
   try {
     if (isCacheValid('services')) {
@@ -193,63 +186,67 @@ router.get('/services', async (req, res) => {
 
     let allServices = [];
 
-    // Récupération MTP
     if (process.env.MORETHANPANEL_API_KEY) {
-      const mtpData = await callMTP({ action: 'services' });
-      if (Array.isArray(mtpData)) {
-        mtpData.forEach(s => {
-          const rate = parseFloat(s.rate) || 0;
-          const providerCost = Math.round(rate * MTP_USD_TO_XAF);
-          const finalPrice = Math.round(providerCost * MTP_MULTIPLIER);
-          const profit = finalPrice - providerCost;
-          allServices.push({
-            id: s.service,
-            provider: 'MTP',
-            name: s.name,
-            category: s.category || '',
-            providerCost,
-            finalPrice,
-            profit,
-            profitMargin: Math.round((profit / finalPrice) * 100) || 0,
-            min: parseInt(s.min) || 0,
-            max: parseInt(s.max) || 0,
+      try {
+        const mtpData = await callMTP({ action: 'services' });
+        if (Array.isArray(mtpData)) {
+          mtpData.forEach(s => {
+            const rate = parseFloat(s.rate) || 0;
+            const providerCost = Math.round(rate * MTP_USD_TO_XAF);
+            const finalPrice = Math.round(providerCost * MTP_MULTIPLIER);
+            const profit = finalPrice - providerCost;
+            allServices.push({
+              id: s.service,
+              provider: 'MTP',
+              name: s.name,
+              category: s.category || '',
+              providerCost,
+              finalPrice,
+              profit,
+              profitMargin: Math.round((profit / finalPrice) * 100) || 0,
+              min: parseInt(s.min) || 0,
+              max: parseInt(s.max) || 0,
+            });
           });
-        });
+        }
+      } catch (e) {
+        console.warn('Erreur MTP services:', e.message);
       }
     }
 
-    // Récupération EXO
     if (process.env.EXO_API_KEY) {
-      const exoData = await callExo({ action: 'services' });
-      if (Array.isArray(exoData)) {
-        exoData.forEach(s => {
-          const rate = parseFloat(s.rate) || 0;
-          const providerCost = Math.round(rate * EXO_USD_TO_XAF);
-          const finalPrice = Math.round(providerCost * EXO_MULTIPLIER);
-          const profit = finalPrice - providerCost;
-          allServices.push({
-            id: s.service,
-            provider: 'EXO',
-            name: s.name,
-            category: s.category || '',
-            providerCost,
-            finalPrice,
-            profit,
-            profitMargin: Math.round((profit / finalPrice) * 100) || 0,
-            min: parseInt(s.min) || 0,
-            max: parseInt(s.max) || 0,
+      try {
+        const exoData = await callExo({ action: 'services' });
+        if (Array.isArray(exoData)) {
+          exoData.forEach(s => {
+            const rate = parseFloat(s.rate) || 0;
+            const providerCost = Math.round(rate * EXO_USD_TO_XAF);
+            const finalPrice = Math.round(providerCost * EXO_MULTIPLIER);
+            const profit = finalPrice - providerCost;
+            allServices.push({
+              id: s.service,
+              provider: 'EXO',
+              name: s.name,
+              category: s.category || '',
+              providerCost,
+              finalPrice,
+              profit,
+              profitMargin: Math.round((profit / finalPrice) * 100) || 0,
+              min: parseInt(s.min) || 0,
+              max: parseInt(s.max) || 0,
+            });
           });
-        });
+        }
+      } catch (e) {
+        console.warn('Erreur EXO services:', e.message);
       }
     }
 
-    // Statistiques sur les prix
     const prices = allServices.map(s => s.finalPrice);
     const minPrice = prices.length ? Math.min(...prices) : 0;
     const maxPrice = prices.length ? Math.max(...prices) : 0;
     const avgPrice = prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : 0;
 
-    // Regroupement par partenaire
     const byProvider = {};
     allServices.forEach(s => {
       if (!byProvider[s.provider]) byProvider[s.provider] = [];
@@ -283,16 +280,13 @@ router.get('/services', async (req, res) => {
   }
 });
 
-// ================================================================
-// 3. UTILISATEURS (liste, top clients, etc.)
-// ================================================================
+// 3. Utilisateurs
 router.get('/users', async (req, res) => {
   try {
     if (isCacheValid('users')) {
       return res.json({ success: true, cached: true, data: cache.users });
     }
 
-    // On récupère tous les utilisateurs (limité à 500 pour éviter surcharge)
     const snapshot = await db.collection('users')
       .select('displayName', 'username', 'email', 'phone', 'balance', 'totalOrders', 'createdAt')
       .orderBy('createdAt', 'desc')
@@ -304,7 +298,6 @@ router.get('/users', async (req, res) => {
       ...doc.data(),
     }));
 
-    // Top clients par solde ou commandes
     const topByBalance = [...users].sort((a, b) => (b.balance || 0) - (a.balance || 0)).slice(0, 10);
     const topByOrders = [...users].sort((a, b) => (b.totalOrders || 0) - (a.totalOrders || 0)).slice(0, 10);
 
@@ -325,16 +318,13 @@ router.get('/users', async (req, res) => {
   }
 });
 
-// ================================================================
-// 4. COMMANDES (MTP, EXO, Fapshi) avec bénéfice par commande
-// ================================================================
+// 4. Commandes
 router.get('/orders', async (req, res) => {
   try {
     if (isCacheValid('orders')) {
       return res.json({ success: true, cached: true, data: cache.orders });
     }
 
-    // Commandes MTP
     const mtpSnap = await db.collection('autoOrders')
       .orderBy('createdAt', 'desc')
       .limit(200)
@@ -360,7 +350,6 @@ router.get('/orders', async (req, res) => {
       };
     });
 
-    // Commandes EXO
     const exoSnap = await db.collection('commandes')
       .orderBy('createdAt', 'desc')
       .limit(200)
@@ -386,7 +375,6 @@ router.get('/orders', async (req, res) => {
       };
     });
 
-    // Commandes Fapshi (transactions) – on peut les récupérer aussi
     const fapshiSnap = await db.collection('fapshiTransactions')
       .where('status', '==', 'CONFIRMED')
       .orderBy('dateConfirmed', 'desc')
@@ -396,7 +384,6 @@ router.get('/orders', async (req, res) => {
     const fapshiOrders = fapshiSnap.docs.map(doc => {
       const data = doc.data();
       const amount = data.amount || 0;
-      // On considère que le coût est un pourcentage (ex: 80% du montant)
       const cost = Math.round(amount * 0.8);
       return {
         id: doc.id,
@@ -415,14 +402,12 @@ router.get('/orders', async (req, res) => {
     });
 
     const allOrders = [...mtpOrders, ...exoOrders, ...fapshiOrders];
-    // Trier par date décroissante
     allOrders.sort((a, b) => {
       const da = a.createdAt ? a.createdAt.toDate() : new Date(0);
       const db = b.createdAt ? b.createdAt.toDate() : new Date(0);
       return db - da;
     });
 
-    // Statistiques sur les commandes
     const totalOrders = allOrders.length;
     const totalRevenue = allOrders.reduce((sum, o) => sum + o.price, 0);
     const totalCost = allOrders.reduce((sum, o) => sum + o.cost, 0);
@@ -430,7 +415,7 @@ router.get('/orders', async (req, res) => {
     const avgMargin = totalRevenue ? Math.round((totalProfit / totalRevenue) * 100) : 0;
 
     const result = {
-      orders: allOrders.slice(0, 200), // on limite l'affichage
+      orders: allOrders.slice(0, 200),
       stats: {
         total: totalOrders,
         revenue: totalRevenue,
@@ -450,9 +435,9 @@ router.get('/orders', async (req, res) => {
   }
 });
 
-// ================================================================
-// 5. EXPORT CONTACTS VCF (TOUS LES UTILISATEURS)
-// ================================================================
+// ── EXPORTS ─────────────────────────────────────────────────────
+
+// VCF
 router.get('/export/contacts', async (req, res) => {
   try {
     const snapshot = await db.collection('users')
@@ -478,94 +463,72 @@ router.get('/export/contacts', async (req, res) => {
   }
 });
 
-// ================================================================
-// 6. EXPORT SERVICES (PDF)
-// ================================================================
+// PDF Services (utilisation de jspdf, déjà installé)
 router.get('/export/services-pdf', async (req, res) => {
   try {
-    // On réutilise le cache ou on appelle l'API services
+    const { jsPDF } = require('jspdf');
+    require('jspdf-autotable');
+
     let servicesData;
     if (isCacheValid('services')) {
       servicesData = cache.services;
     } else {
+      // Appel direct à la fonction interne pour éviter boucle
+      // On va simplement relire la base
       const resp = await fetch(`http://localhost:${process.env.PORT || 3000}/api/admin/services`, {
         headers: { 'x-admin-password': ADMIN_PASSWORD },
       });
-      servicesData = (await resp.json()).data;
+      const json = await resp.json();
+      servicesData = json.data;
     }
 
-    // Génération du PDF avec jsPDF (on va utiliser un package ou on renvoie un HTML stylisé)
-    // Ici, on va générer un PDF côté serveur avec pdf-lib ou autre, mais pour simplifier,
-    // on peut renvoyer un rapport HTML que le front convertira en PDF.
-    // Comme l'utilisateur veut un PDF, je propose de retourner un PDF généré avec pdfmake ou jsPDF côté serveur.
-    // Mais pour ne pas alourdir, on va utiliser une approche : envoyer les données et le front génère le PDF.
-    // Toutefois, l'utilisateur a demandé un export PDF depuis le backend.
-    // Je vais utiliser 'pdf-lib' ou 'pdfmake', mais je vais plutôt créer une route qui renvoie un PDF pré-généré.
-    // Pour rester simple, je vais générer un PDF avec pdfmake (installation nécessaire).
-    // Mais je ne veux pas ajouter de dépendance lourde. Je vais plutôt utiliser une approche : le front génère le PDF à partir des données JSON.
-    // Je vais donc renvoyer les données et le front fera le PDF (comme dans mc.html).
-    // Cependant, l'utilisateur veut un export côté serveur. Je vais utiliser 'pdfmake' installé en dépendance.
-    // Je vais supposer que pdfmake est installé.
-    const PdfPrinter = require('pdfmake');
-    const fonts = {
-      Roboto: { normal: 'Helvetica', bold: 'Helvetica-Bold', italics: 'Helvetica-Oblique' }
-    };
-    const printer = new PdfPrinter(fonts);
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.setTextColor(8, 14, 26);
+    doc.text("Rapport des Services - Social Boost Horizon", 14, 20);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
 
-    const docDefinition = {
-      content: [
-        { text: 'Rapport des Services - Social Boost Horizon', style: 'header' },
-        { text: `Généré le ${new Date().toLocaleString('fr-FR')}`, style: 'subheader' },
-        {
-          table: {
-            headerRows: 1,
-            widths: ['*', '*', '*', '*', '*', '*'],
-            body: [
-              ['ID', 'Partenaire', 'Nom', 'Coût', 'Prix final', 'Bénéfice'],
-              ...servicesData.services.map(s => [
-                s.id,
-                s.provider,
-                s.name.substring(0, 30),
-                `${s.providerCost} FCFA`,
-                `${s.finalPrice} FCFA`,
-                `${s.profit} FCFA (${s.profitMargin}%)`,
-              ]),
-            ],
-          },
-        },
-        { text: `Total services: ${servicesData.stats.total}`, style: 'footer' },
-        { text: `Prix min: ${servicesData.stats.minPrice} FCFA, max: ${servicesData.stats.maxPrice} FCFA, moyenne: ${servicesData.stats.avgPrice} FCFA`, style: 'footer' },
-      ],
-      styles: {
-        header: { fontSize: 18, bold: true, alignment: 'center', margin: [0, 0, 0, 10] },
-        subheader: { fontSize: 12, alignment: 'center', margin: [0, 0, 0, 20] },
-        footer: { fontSize: 10, alignment: 'center', margin: [0, 20, 0, 0] },
-      },
-    };
+    const tableColumn = ["ID", "Partenaire", "Nom", "Coût", "Prix final", "Bénéfice", "Marge"];
+    const tableRows = servicesData.services.map(s => [
+      s.id,
+      s.provider,
+      s.name.substring(0, 40),
+      `${s.providerCost} FCFA`,
+      `${s.finalPrice} FCFA`,
+      `+${s.profit} FCFA`,
+      `${s.profitMargin}%`
+    ]);
 
-    const pdfDoc = printer.createPdfKitDocument(docDefinition);
-    let chunks = [];
-    pdfDoc.on('data', chunk => chunks.push(chunk));
-    pdfDoc.end();
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 35,
+      theme: 'striped',
+      headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] },
+      styles: { fontSize: 8 },
+    });
 
-    await new Promise((resolve) => pdfDoc.on('end', resolve));
-    const buffer = Buffer.concat(chunks);
+    doc.text(`Total services: ${servicesData.stats.total}`, 14, doc.lastAutoTable.finalY + 10);
+    doc.text(`Prix min: ${servicesData.stats.minPrice} FCFA, max: ${servicesData.stats.maxPrice} FCFA, moy: ${servicesData.stats.avgPrice} FCFA`, 14, doc.lastAutoTable.finalY + 18);
 
+    const buffer = doc.output('arraybuffer');
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="Services_SBH.pdf"');
-    res.send(buffer);
+    res.send(Buffer.from(buffer));
   } catch (error) {
     console.error('Erreur export PDF services:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ================================================================
-// 7. EXPORT PROFITS (PDF)
-// ================================================================
+// PDF Profits
 router.get('/export/profits-pdf', async (req, res) => {
   try {
-    // Récupérer les stats
+    const { jsPDF } = require('jspdf');
+    require('jspdf-autotable');
+
     let statsData;
     if (isCacheValid('stats')) {
       statsData = cache.stats;
@@ -573,85 +536,61 @@ router.get('/export/profits-pdf', async (req, res) => {
       const resp = await fetch(`http://localhost:${process.env.PORT || 3000}/api/admin/stats`, {
         headers: { 'x-admin-password': ADMIN_PASSWORD },
       });
-      statsData = (await resp.json()).data;
+      const json = await resp.json();
+      statsData = json.data;
     }
 
-    const PdfPrinter = require('pdfmake');
-    const fonts = {
-      Roboto: { normal: 'Helvetica', bold: 'Helvetica-Bold', italics: 'Helvetica-Oblique' }
-    };
-    const printer = new PdfPrinter(fonts);
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.setTextColor(8, 14, 26);
+    doc.text("Rapport Financier - Social Boost Horizon", 14, 20);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
 
-    const docDefinition = {
-      content: [
-        { text: 'Rapport Financier - Social Boost Horizon', style: 'header' },
-        { text: `Généré le ${new Date().toLocaleString('fr-FR')}`, style: 'subheader' },
-        { text: 'Statistiques globales', style: 'sectionHeader' },
-        {
-          table: {
-            widths: ['*', '*'],
-            body: [
-              ['Total utilisateurs', statsData.totalUsers],
-              ['Total commandes', statsData.totalOrders],
-            ],
-          },
-        },
-        { text: 'Bénéfices par période', style: 'sectionHeader' },
-        {
-          table: {
-            widths: ['*', '*', '*'],
-            body: [
-              ['Période', 'Revenu', 'Bénéfice'],
-              ['Aujourd\'hui', `${statsData.today.revenue} FCFA`, `${statsData.today.profit} FCFA`],
-              ['7 jours', `${statsData.week.revenue} FCFA`, `${statsData.week.profit} FCFA`],
-              ['30 jours', `${statsData.month.revenue} FCFA`, `${statsData.month.profit} FCFA`],
-              ['365 jours', `${statsData.year.revenue} FCFA`, `${statsData.year.profit} FCFA`],
-            ],
-          },
-        },
-        { text: 'Détail des bénéfices', style: 'sectionHeader' },
-        {
-          table: {
-            widths: ['*', '*', '*', '*'],
-            body: [
-              ['Période', 'Revenu total', 'Coût total', 'Bénéfice'],
-              ['Aujourd\'hui', `${statsData.today.revenue} FCFA`, `${statsData.today.cost} FCFA`, `${statsData.today.profit} FCFA`],
-              ['7 jours', `${statsData.week.revenue} FCFA`, `${statsData.week.cost} FCFA`, `${statsData.week.profit} FCFA`],
-              ['30 jours', `${statsData.month.revenue} FCFA`, `${statsData.month.cost} FCFA`, `${statsData.month.profit} FCFA`],
-              ['365 jours', `${statsData.year.revenue} FCFA`, `${statsData.year.cost} FCFA`, `${statsData.year.profit} FCFA`],
-            ],
-          },
-        },
+    doc.setFontSize(14);
+    doc.text("Statistiques globales", 14, 40);
+    doc.autoTable({
+      body: [
+        ['Total utilisateurs', statsData.totalUsers],
+        ['Total commandes', statsData.totalOrders],
       ],
-      styles: {
-        header: { fontSize: 18, bold: true, alignment: 'center', margin: [0, 0, 0, 10] },
-        subheader: { fontSize: 12, alignment: 'center', margin: [0, 0, 0, 20] },
-        sectionHeader: { fontSize: 14, bold: true, margin: [0, 15, 0, 5] },
-      },
-    };
+      startY: 45,
+      theme: 'plain',
+      styles: { fontSize: 10 },
+    });
 
-    const pdfDoc = printer.createPdfKitDocument(docDefinition);
-    let chunks = [];
-    pdfDoc.on('data', chunk => chunks.push(chunk));
-    pdfDoc.end();
+    doc.text("Bénéfices par période", 14, doc.lastAutoTable.finalY + 12);
+    doc.autoTable({
+      head: [['Période', 'Revenu', 'Bénéfice']],
+      body: [
+        ['Aujourd\'hui', `${statsData.today.revenue} FCFA`, `${statsData.today.profit} FCFA`],
+        ['7 jours', `${statsData.week.revenue} FCFA`, `${statsData.week.profit} FCFA`],
+        ['30 jours', `${statsData.month.revenue} FCFA`, `${statsData.month.profit} FCFA`],
+        ['365 jours', `${statsData.year.revenue} FCFA`, `${statsData.year.profit} FCFA`],
+      ],
+      startY: doc.lastAutoTable.finalY + 16,
+      theme: 'striped',
+      headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] },
+      styles: { fontSize: 10 },
+    });
 
-    await new Promise((resolve) => pdfDoc.on('end', resolve));
-    const buffer = Buffer.concat(chunks);
-
+    const buffer = doc.output('arraybuffer');
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="Profits_SBH.pdf"');
-    res.send(buffer);
+    res.send(Buffer.from(buffer));
   } catch (error) {
     console.error('Erreur export PDF profits:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ================================================================
-// 8. EXPORT COMMANDES (PDF)
-// ================================================================
+// PDF Commandes
 router.get('/export/orders-pdf', async (req, res) => {
   try {
+    const { jsPDF } = require('jspdf');
+    require('jspdf-autotable');
+
     let ordersData;
     if (isCacheValid('orders')) {
       ordersData = cache.orders;
@@ -659,58 +598,42 @@ router.get('/export/orders-pdf', async (req, res) => {
       const resp = await fetch(`http://localhost:${process.env.PORT || 3000}/api/admin/orders`, {
         headers: { 'x-admin-password': ADMIN_PASSWORD },
       });
-      ordersData = (await resp.json()).data;
+      const json = await resp.json();
+      ordersData = json.data;
     }
 
-    const PdfPrinter = require('pdfmake');
-    const fonts = {
-      Roboto: { normal: 'Helvetica', bold: 'Helvetica-Bold', italics: 'Helvetica-Oblique' }
-    };
-    const printer = new PdfPrinter(fonts);
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.setTextColor(8, 14, 26);
+    doc.text("Rapport des Commandes - Social Boost Horizon", 14, 20);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
 
     const body = ordersData.orders.slice(0, 50).map(o => [
       o.source,
-      o.orderId,
+      o.orderId || o.id,
       o.serviceName.substring(0, 20),
       `${o.price} FCFA`,
-      `${o.profit} FCFA`,
-      o.profitMargin + '%',
+      `+${o.profit} FCFA`,
+      `${o.profitMargin}%`,
     ]);
 
-    const docDefinition = {
-      content: [
-        { text: 'Rapport des Commandes - Social Boost Horizon', style: 'header' },
-        { text: `Généré le ${new Date().toLocaleString('fr-FR')}`, style: 'subheader' },
-        {
-          table: {
-            headerRows: 1,
-            widths: ['*', '*', '*', '*', '*', '*'],
-            body: [
-              ['Source', 'ID', 'Service', 'Montant', 'Bénéfice', 'Marge'],
-              ...body,
-            ],
-          },
-        },
-        { text: `Total commandes: ${ordersData.stats.total} | Revenu: ${ordersData.stats.revenue} FCFA | Bénéfice: ${ordersData.stats.profit} FCFA`, style: 'footer' },
-      ],
-      styles: {
-        header: { fontSize: 18, bold: true, alignment: 'center', margin: [0, 0, 0, 10] },
-        subheader: { fontSize: 12, alignment: 'center', margin: [0, 0, 0, 20] },
-        footer: { fontSize: 10, alignment: 'center', margin: [0, 20, 0, 0] },
-      },
-    };
+    doc.autoTable({
+      head: [['Source', 'ID', 'Service', 'Montant', 'Bénéfice', 'Marge']],
+      body,
+      startY: 35,
+      theme: 'striped',
+      headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] },
+      styles: { fontSize: 8 },
+    });
 
-    const pdfDoc = printer.createPdfKitDocument(docDefinition);
-    let chunks = [];
-    pdfDoc.on('data', chunk => chunks.push(chunk));
-    pdfDoc.end();
+    doc.text(`Total commandes: ${ordersData.stats.total} | Revenu: ${ordersData.stats.revenue} FCFA | Bénéfice: ${ordersData.stats.profit} FCFA`, 14, doc.lastAutoTable.finalY + 10);
 
-    await new Promise((resolve) => pdfDoc.on('end', resolve));
-    const buffer = Buffer.concat(chunks);
-
+    const buffer = doc.output('arraybuffer');
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="Commandes_SBH.pdf"');
-    res.send(buffer);
+    res.send(Buffer.from(buffer));
   } catch (error) {
     console.error('Erreur export PDF commandes:', error);
     res.status(500).json({ success: false, error: error.message });
