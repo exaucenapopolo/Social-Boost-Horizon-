@@ -10,7 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <style>
-        /* Design System - Premium Dark Theme */
+        /* (même style que précédemment) */
         :root {
             --bg-main: #080e1a;
             --bg-card: rgba(15, 25, 45, 0.85);
@@ -21,11 +21,8 @@
             --text-light: #e2e8f0;
             --border: rgba(255, 255, 255, 0.08);
         }
-
         * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
         body { margin: 0; background: var(--bg-main); color: var(--text-light); }
-
-        /* ÉCRAN DE VERROUILLAGE */
         #authOverlay {
             position: fixed;
             inset: 0;
@@ -74,8 +71,6 @@
             box-shadow: 0 5px 15px rgba(212, 175, 55, 0.4);
         }
         .error-msg { color: var(--red); margin-top: 15px; display: none; font-size: 0.9rem; }
-
-        /* DASHBOARD */
         #app { display: none; padding: 30px; max-width: 1600px; margin: 0 auto; }
         .header {
             display: flex;
@@ -133,8 +128,6 @@
             background: rgba(255, 71, 87, 0.1);
         }
         .btn-danger:hover { background: var(--red); color: white; }
-
-        /* KPIs */
         .kpi-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -167,8 +160,6 @@
         .text-gold { color: var(--gold); }
         .text-blue { color: var(--blue); }
         .text-red { color: var(--red); }
-
-        /* Sections */
         .section {
             background: var(--bg-card);
             border: 1px solid var(--border);
@@ -185,6 +176,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         .section-title .badge {
             font-size: 0.8rem;
@@ -193,25 +186,10 @@
             padding: 4px 12px;
             border-radius: 20px;
         }
-
-        .table-wrap {
-            overflow-x: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.9rem;
-        }
-        th, td {
-            padding: 12px 15px;
-            border-bottom: 1px solid var(--border);
-            text-align: left;
-        }
-        th {
-            background: rgba(0,0,0,0.3);
-            color: var(--gold);
-            font-weight: 600;
-        }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th, td { padding: 12px 15px; border-bottom: 1px solid var(--border); text-align: left; }
+        th { background: rgba(0,0,0,0.3); color: var(--gold); font-weight: 600; }
         tr:hover { background: rgba(255,255,255,0.02); }
         .badge {
             padding: 4px 10px;
@@ -222,7 +200,6 @@
         .badge-mtp { background: rgba(77, 166, 255, 0.2); color: var(--blue); }
         .badge-exo { background: rgba(212, 175, 55, 0.2); color: var(--gold); }
         .badge-fapshi { background: rgba(34, 197, 94, 0.2); color: var(--green); }
-
         .chart-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -230,7 +207,6 @@
             margin-top: 20px;
         }
         @media (max-width: 768px) { .chart-container { grid-template-columns: 1fr; } }
-
         .filter-bar {
             display: flex;
             gap: 15px;
@@ -250,24 +226,26 @@
             border-color: var(--gold);
             outline: none;
         }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #94a3b8;
-        }
-
+        .loading { text-align: center; padding: 40px; color: #94a3b8; }
         .footer-actions {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
             margin-top: 20px;
         }
+        .error-banner {
+            background: rgba(255, 71, 87, 0.15);
+            border: 1px solid var(--red);
+            color: var(--red);
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
     </style>
 </head>
 <body>
 
-<!-- Écran de verrouillage -->
 <div id="authOverlay">
     <div class="auth-box">
         <i class="fas fa-shield-halved" style="font-size: 3rem; color: var(--gold); margin-bottom: 15px;"></i>
@@ -279,7 +257,6 @@
     </div>
 </div>
 
-<!-- Dashboard -->
 <div id="app">
     <div class="header">
         <div class="brand"><i class="fas fa-bolt"></i> SBH Command Center</div>
@@ -289,7 +266,8 @@
         </div>
     </div>
 
-    <!-- KPIs -->
+    <div id="errorBanner" class="error-banner"></div>
+
     <div class="kpi-grid" id="kpiContainer">
         <div class="kpi-card"><div class="kpi-title">Utilisateurs</div><div class="kpi-value text-blue" id="kpiUsers">...</div></div>
         <div class="kpi-card"><div class="kpi-title">Commandes totales</div><div class="kpi-value text-gold" id="kpiOrders">...</div></div>
@@ -298,7 +276,6 @@
         <div class="kpi-card"><div class="kpi-title">Marge moyenne</div><div class="kpi-value text-gold" id="kpiMargin">...</div></div>
     </div>
 
-    <!-- Graphiques -->
     <div class="section">
         <div class="section-title">Évolution des bénéfices <span class="badge">périodes</span></div>
         <div class="chart-container">
@@ -307,7 +284,6 @@
         </div>
     </div>
 
-    <!-- Services -->
     <div class="section">
         <div class="section-title">
             Services & Analyse des prix
@@ -336,7 +312,6 @@
         </div>
     </div>
 
-    <!-- Commandes -->
     <div class="section">
         <div class="section-title">
             Commandes récentes
@@ -352,7 +327,6 @@
         </div>
     </div>
 
-    <!-- Utilisateurs -->
     <div class="section">
         <div class="section-title">
             Utilisateurs
@@ -370,7 +344,6 @@
 </div>
 
 <script>
-    // ── ADMIN PASSWORD ──────────────────────────────────────────
     const ADMIN_PASS = '209644209644';
     let token = sessionStorage.getItem('sbh_admin_token');
     if (token) {
@@ -397,24 +370,44 @@
         location.reload();
     }
 
-    // ── API HELPER ──────────────────────────────────────────────
-    async function fetchAdmin(endpoint) {
-        const res = await fetch(`/api/admin${endpoint}`, {
-            headers: { 'x-admin-password': token }
-        });
-        if (res.status === 403) { logout(); throw new Error('Non autorisé'); }
-        return res.json();
+    function showError(msg) {
+        const banner = document.getElementById('errorBanner');
+        banner.textContent = msg;
+        banner.style.display = 'block';
+        setTimeout(() => { banner.style.display = 'none'; }, 8000);
     }
 
-    // ── DONNÉES CACHÉES EN LOCAL ───────────────────────────────
+    async function fetchAdmin(endpoint) {
+        try {
+            const res = await fetch(`/api/admin${endpoint}`, {
+                headers: { 'x-admin-password': token }
+            });
+            if (res.status === 403) {
+                logout();
+                throw new Error('Session expirée');
+            }
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(`HTTP ${res.status}: ${text}`);
+            }
+            return await res.json();
+        } catch (e) {
+            console.error('Erreur fetchAdmin:', e);
+            throw e;
+        }
+    }
+
     let allServices = [];
     let allOrders = [];
     let allUsers = [];
 
-    // ── CHARGEMENT GLOBAL ────────────────────────────────────────
     async function loadAll() {
-        await Promise.all([loadStats(), loadServices(), loadOrders(), loadUsers()]);
-        renderCharts();
+        try {
+            await Promise.all([loadStats(), loadServices(), loadOrders(), loadUsers()]);
+            renderCharts();
+        } catch (e) {
+            showError('Erreur lors du chargement des données : ' + e.message);
+        }
     }
 
     async function refreshAll() {
@@ -422,26 +415,27 @@
         await loadAll();
     }
 
-    // ── STATS ──────────────────────────────────────────────────
     async function loadStats() {
         try {
             const data = await fetchAdmin('/stats');
             if (data.success) {
                 const s = data.data;
-                document.getElementById('kpiUsers').textContent = s.totalUsers;
-                document.getElementById('kpiOrders').textContent = s.totalOrders;
-                document.getElementById('kpiRevenue').textContent = s.month.revenue.toLocaleString() + ' FCFA';
-                document.getElementById('kpiProfit').textContent = s.month.profit.toLocaleString() + ' FCFA';
-                // Marge moyenne estimée
+                document.getElementById('kpiUsers').textContent = s.totalUsers || 0;
+                document.getElementById('kpiOrders').textContent = s.totalOrders || 0;
+                document.getElementById('kpiRevenue').textContent = (s.month.revenue || 0).toLocaleString() + ' FCFA';
+                document.getElementById('kpiProfit').textContent = (s.month.profit || 0).toLocaleString() + ' FCFA';
                 const margin = s.month.revenue ? Math.round((s.month.profit / s.month.revenue) * 100) : 0;
                 document.getElementById('kpiMargin').textContent = margin + '%';
-                // Stocker pour les graphiques
                 window.statsData = s;
+            } else {
+                console.warn('Stats non récupérées:', data);
             }
-        } catch (e) { console.error('Stats error:', e); }
+        } catch (e) {
+            console.error('Stats error:', e);
+            throw e;
+        }
     }
 
-    // ── SERVICES ──────────────────────────────────────────────
     async function loadServices() {
         try {
             const data = await fetchAdmin('/services');
@@ -449,10 +443,13 @@
                 allServices = data.data.services || [];
                 const stats = data.data.stats || {};
                 document.getElementById('serviceStats').textContent =
-                    `Total: ${stats.total} | Min: ${stats.minPrice} FCFA | Max: ${stats.maxPrice} FCFA | Moy: ${stats.avgPrice} FCFA`;
+                    `Total: ${stats.total || 0} | Min: ${stats.minPrice || 0} FCFA | Max: ${stats.maxPrice || 0} FCFA | Moy: ${stats.avgPrice || 0} FCFA`;
                 renderServices(allServices);
             }
-        } catch (e) { console.error('Services error:', e); }
+        } catch (e) {
+            console.error('Services error:', e);
+            throw e;
+        }
     }
 
     function renderServices(services) {
@@ -487,7 +484,6 @@
         renderServices(filtered);
     }
 
-    // ── COMMANDES ──────────────────────────────────────────────
     async function loadOrders() {
         try {
             const data = await fetchAdmin('/orders');
@@ -495,7 +491,10 @@
                 allOrders = data.data.orders || [];
                 renderOrders(allOrders);
             }
-        } catch (e) { console.error('Orders error:', e); }
+        } catch (e) {
+            console.error('Orders error:', e);
+            throw e;
+        }
     }
 
     function renderOrders(orders) {
@@ -522,7 +521,6 @@
         });
     }
 
-    // ── UTILISATEURS ────────────────────────────────────────────
     async function loadUsers() {
         try {
             const data = await fetchAdmin('/users');
@@ -530,7 +528,10 @@
                 allUsers = data.data.users || [];
                 renderUsers(allUsers);
             }
-        } catch (e) { console.error('Users error:', e); }
+        } catch (e) {
+            console.error('Users error:', e);
+            throw e;
+        }
     }
 
     function renderUsers(users) {
@@ -554,7 +555,6 @@
         });
     }
 
-    // ── GRAPHIQUES ──────────────────────────────────────────────
     let profitChartInstance = null;
     let ordersChartInstance = null;
 
@@ -562,7 +562,6 @@
         const stats = window.statsData;
         if (!stats) return;
 
-        // Bénéfices par période
         const ctx1 = document.getElementById('profitChart').getContext('2d');
         if (profitChartInstance) profitChartInstance.destroy();
         profitChartInstance = new Chart(ctx1, {
@@ -581,7 +580,6 @@
             }
         });
 
-        // Nombre de commandes par source (simulé depuis les données)
         const sources = { MTP: 0, EXO: 0, Fapshi: 0 };
         allOrders.forEach(o => { if (sources[o.source] !== undefined) sources[o.source]++; });
         const ctx2 = document.getElementById('ordersChart').getContext('2d');
@@ -599,9 +597,7 @@
         });
     }
 
-    // ── EXPORTS ──────────────────────────────────────────────────
-
-    // VCF
+    // Exports
     async function exportVCF() {
         try {
             const res = await fetch('/api/admin/export/contacts', {
@@ -614,45 +610,42 @@
             link.download = 'SBH_Contacts.vcf';
             link.click();
         } catch (e) {
-            alert('Erreur export VCF');
+            alert('Erreur export VCF : ' + e.message);
         }
     }
 
-    // PDF Services
     async function exportServicesPDF() {
         try {
             const res = await fetch('/api/admin/export/services-pdf', {
                 headers: { 'x-admin-password': token }
             });
-            if (!res.ok) throw new Error('Erreur');
+            if (!res.ok) throw new Error('Erreur export');
             const blob = await res.blob();
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             link.download = 'Services_SBH.pdf';
             link.click();
         } catch (e) {
-            alert('Erreur export PDF Services');
+            alert('Erreur export PDF Services : ' + e.message);
         }
     }
 
-    // PDF Commandes
     async function exportOrdersPDF() {
         try {
             const res = await fetch('/api/admin/export/orders-pdf', {
                 headers: { 'x-admin-password': token }
             });
-            if (!res.ok) throw new Error('Erreur');
+            if (!res.ok) throw new Error('Erreur export');
             const blob = await res.blob();
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             link.download = 'Commandes_SBH.pdf';
             link.click();
         } catch (e) {
-            alert('Erreur export PDF Commandes');
+            alert('Erreur export PDF Commandes : ' + e.message);
         }
     }
 
-    // ── INIT ──────────────────────────────────────────────────────
     if (token) {
         loadAll();
     }
