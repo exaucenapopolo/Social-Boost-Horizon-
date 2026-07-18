@@ -5,6 +5,29 @@ const crypto  = require('crypto');
 
 const { sendWelcomeEmail } = require('./email-service.js');
 
+// 1️⃣ IMPORTER TON FICHIER ADMIN (Ajoute cette ligne)
+const adminRoutes = require('./admin.js'); 
+
+const app = express();
+
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+
+// 2️⃣ CONNECTER LES ROUTES D'ADMINISTRATION (Ajoute cette ligne)
+app.use('/api/admin', adminRoutes);
+
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
+
+const express = require('express');
+const cors    = require('cors');
+const admin   = require('firebase-admin');
+const crypto  = require('crypto');
+
+const { sendWelcomeEmail } = require('./email-service.js');
+
 const app = express();
 
 app.use(cors());
