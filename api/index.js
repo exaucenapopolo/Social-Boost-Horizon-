@@ -289,7 +289,6 @@ app.get('/api/mtp/user-orders', checkAuth, async (req, res) => {
 });
 
 // ── GET /api/mtp/order-status/:orderId ──────────────────────────
-// LOGIQUE DE REMBOURSEMENT SÉCURISÉE: Le remboursement se fait ici SEULEMENT si le fournisseur dit "Annulé" ou "Partiel"
 app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
   const { orderId } = req.params;
   const uid         = req.user.uid;
@@ -311,7 +310,6 @@ app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
     let refundAmount = 0;
     let isRefunded = orderData.refunded || false;
 
-    // Si le fournisseur confirme l'annulation ou commande partielle et que ce n'est pas encore remboursé
     if (!isRefunded && (newStatus === 'Annulé' || newStatus === 'Canceled' || newStatus === 'Partiel' || newStatus === 'Partial')) {
       let totalCost = orderData.priceXAF || 0;
       if (newStatus === 'Partiel' || newStatus === 'Partial') {
@@ -325,7 +323,7 @@ app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
       if (refundAmount > 0) {
         await db.runTransaction(async (t) => {
           const freshOrder = await t.get(orderDoc.ref);
-          if (freshOrder.data().refunded) return; // Sécurité anti-double remboursement
+          if (freshOrder.data().refunded) return; 
           
           const userRef = db.collection('users').doc(uid);
           const userDoc = await t.get(userRef);
@@ -344,7 +342,6 @@ app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
         isRefunded = true;
       }
     } else {
-      // Mise à jour classique sans remboursement
       await orderDoc.ref.update({
         status:             newStatus,
         providerStartCount: startCount,
@@ -389,7 +386,6 @@ app.post('/api/mtp/refill', checkAuth, async (req, res) => {
 });
 
 // ── POST /api/mtp/cancel ─────────────────────────────────────────
-// CORRECTION: Envoie juste la demande au fournisseur, NE REMBOURSE PLUS localement.
 app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
   const { orderId } = req.body;
   const uid         = req.user.uid;
@@ -403,7 +399,6 @@ app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
     const orderData = orderDoc.data();
     const currentStatus = (orderData.status || '').toLowerCase();
 
-    // Blocage si la commande est déjà terminée, annulée ou remboursée
     if (orderData.refunded) return res.status(400).json({ success: false, error: 'Cette commande a déjà été remboursée.' });
     if (!['en attente', 'pending', 'en cours', 'in progress', 'processing'].includes(currentStatus)) {
         return res.status(400).json({ success: false, error: 'Cette commande ne peut plus être annulée, son statut ne le permet pas.' });
@@ -424,8 +419,12 @@ app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
   }
 });
 
+
+// ═══════════════════════════════════════════════════════════════
+// Exo API
+// ═══════════════════════════════════════════════════════════════
+
 // ── POST /api/exo/cancel ─────────────────────────────────────────
-// CORRECTION: Transmet la demande à Exo et demande à l'utilisateur de patienter.
 app.post('/api/exo/cancel', checkAuth, async (req, res) => {
     try {
         const uid = req.user.uid;
@@ -457,7 +456,6 @@ app.post('/api/exo/cancel', checkAuth, async (req, res) => {
             return res.status(400).json({ success: false, error: 'Action impossible : la commande est déjà terminée ou annulée.' });
         }
 
-        // Envoyer la requête d'annulation au fournisseur
         const url = 'https://exosupplier.com/api/v2';
         const formData = new URLSearchParams();
         formData.append('key', process.env.EXO_API_KEY);
@@ -467,7 +465,6 @@ app.post('/api/exo/cancel', checkAuth, async (req, res) => {
         let exoRes = await fetch(url, { method: 'POST', body: formData });
         let exoData = await exoRes.json();
 
-        // Si "incorrect action", la commande ne peut probablement pas être annulée par API.
         if (exoData.error && exoData.error.toLowerCase().includes('incorrect action')) {
             return res.status(400).json({ success: false, error: "Le fournisseur n'autorise pas l'annulation de cette commande en cours." });
         }
@@ -483,8 +480,7 @@ app.post('/api/exo/cancel', checkAuth, async (req, res) => {
     }
 });
 
-// ── POST /api/exo-status (NOUVEAU : Remboursement Sécurisé pour EXO) ────
-// Cette route est appelée par ton frontend pour rafraîchir silencieusement et rembourser en toute sécurité.
+// ── POST /api/exo-status ─────────────────────────────────────────
 app.post('/api/exo-status', checkAuth, async (req, res) => {
     const { orderId } = req.body;
     const uid = req.user.uid;
@@ -519,7 +515,6 @@ app.post('/api/exo-status', checkAuth, async (req, res) => {
         let refundAmount = 0;
         let isRefunded = orderData.isRefunded || false;
 
-        // Si le fournisseur a confirmé l'annulation ou partiel
         if (!isRefunded && (mappedStatus === 'Annulée' || mappedStatus === 'Partiel')) {
             const totalCost = orderData.totalCost || orderData.finalCost || orderData.cost || 0;
             if (mappedStatus === 'Partiel') {
@@ -560,6 +555,296 @@ app.post('/api/exo-status', checkAuth, async (req, res) => {
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
+});
+
+
+// ═══════════════════════════════════════════════════════════════
+// AfriqueBoost API (NOUVELLE INTÉGRATION COMPLÈTE)
+// ═══════════════════════════════════════════════════════════════
+const AFRIQUEBOOST_API_URL = 'https://afriqueboost.com/api/v2';
+const AFB_USD_TO_XAF       = 620; // Ajuster si AfriqueBoost utilise une autre monnaie
+const AFB_MULTIPLIER       = 3;   // Conserve ta marge habituelle x3
+
+// Cache en mémoire pour les services (10 minutes)
+let _afbServicesCache     = null;
+let _afbServicesCacheTime = 0;
+
+async function callAfriqueBoost(params) {
+  if (!process.env.ADVANCED_PROVIDER_API_KEY) {
+    throw new Error('ADVANCED_PROVIDER_API_KEY non définie dans Vercel.');
+  }
+  const body = new URLSearchParams({ key: process.env.ADVANCED_PROVIDER_API_KEY, ...params });
+  const res  = await fetch(AFRIQUEBOOST_API_URL, {
+    method: 'POST',
+    body,
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
+  if (!res.ok) throw new Error(`AfriqueBoost HTTP ${res.status}`);
+  return res.json();
+}
+
+// ── GET /api/afriqueboost/services ───────────────────────────────
+app.get('/api/afriqueboost/services', async (req, res) => {
+  try {
+    const now = Date.now();
+    if (_afbServicesCache && (now - _afbServicesCacheTime) < MTP_CACHE_TTL) {
+      return res.json({ success: true, services: _afbServicesCache, cached: true });
+    }
+    const rawServices = await callAfriqueBoost({ action: 'services' });
+    if (!Array.isArray(rawServices)) {
+      return res.status(500).json({ success: false, error: 'Réponse AfriqueBoost invalide' });
+    }
+    
+    // Formatage identique à MTP pour être compatible avec ton Frontend
+    const services = rawServices.map(s => {
+      const rate    = parseFloat(s.rate) || 0;
+      const priceXAF = Math.round(rate * AFB_USD_TO_XAF * AFB_MULTIPLIER);
+      return {
+        id:       parseInt(s.service),
+        name:     s.name,
+        category: s.category || '',
+        type:     s.type     || '',
+        min:      parseInt(s.min),
+        max:      parseInt(s.max),
+        rate,
+        priceXAF,
+        refill: s.refill  === true || s.refill  === 'true' || s.refill === 1,
+        cancel: s.cancel  === true || s.cancel  === 'true' || s.cancel === 1,
+        desc:   s.description || null,
+        provider: 'afriqueboost' // Important pour différencier dans ton frontend
+      };
+    });
+    
+    _afbServicesCache     = services;
+    _afbServicesCacheTime = now;
+    res.json({ success: true, services });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ── POST /api/afriqueboost/order ─────────────────────────────────
+app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
+  const { serviceId, link, quantity, comments } = req.body;
+  const uid = req.user.uid;
+  if (!serviceId || !link) {
+    return res.status(400).json({ success: false, error: 'serviceId et link sont requis.' });
+  }
+  try {
+    const allServices = _afbServicesCache || (await callAfriqueBoost({ action: 'services' }));
+    const service = allServices.find(s => parseInt(s.service || s.id) === parseInt(serviceId));
+    
+    if (!service) return res.status(400).json({ success: false, error: 'Service AfriqueBoost introuvable.' });
+    
+    const rate      = parseFloat(service.rate) || 0;
+    const priceXAF  = Math.round(rate * AFB_USD_TO_XAF * AFB_MULTIPLIER);
+    const qty       = parseInt(quantity);
+    const isPackage = (service.type || '').toLowerCase().includes('package');
+    const cost      = isPackage ? priceXAF : Math.round((priceXAF / 1000) * qty);
+
+    const userDoc = await db.collection('users').doc(uid).get();
+    if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
+    
+    const currentBalance = userDoc.data().balance || 0;
+    if (currentBalance < cost) {
+      return res.status(400).json({
+        success: false,
+        error: `Solde insuffisant. Requis : ${cost.toLocaleString('fr-FR')} FCFA — Disponible : ${currentBalance.toLocaleString('fr-FR')} FCFA`,
+      });
+    }
+
+    const orderParams = { action: 'add', service: serviceId, link, quantity: qty };
+    if (comments) orderParams.comments = comments;
+    
+    // Appel à AfriqueBoost
+    const orderResult = await callAfriqueBoost(orderParams);
+
+    if (orderResult.error) return res.status(400).json({ success: false, error: 'Erreur AfriqueBoost: ' + orderResult.error });
+    if (!orderResult.order) return res.status(400).json({ success: false, error: 'Commande non confirmée par AfriqueBoost.' });
+
+    let finalOrderId, newBalance;
+    
+    // Transaction Firestore sécurisée pour déduire le solde
+    await db.runTransaction(async (transaction) => {
+      const counterRef   = db.collection('counters').doc('autoOrders');
+      const freshUserRef = db.collection('users').doc(uid);
+      
+      const counterDoc   = await transaction.get(counterRef);
+      const freshUserDoc = await transaction.get(freshUserRef);
+
+      const freshBalance = freshUserDoc.data().balance || 0;
+      if (freshBalance < cost) throw new Error('Solde insuffisant (vérifié pendant le traitement).');
+
+      const nextId   = ((counterDoc.exists ? counterDoc.data().lastId : 0) || 0) + 1;
+      finalOrderId   = `SBH-AUTO-${nextId}`;
+      newBalance     = freshBalance - cost;
+      const platform = detectPlatformName(service.name || '', link);
+
+      transaction.set(counterRef, { lastId: nextId }, { merge: true });
+      transaction.update(freshUserRef, { balance: newBalance });
+
+      const orderRef = db.collection('autoOrders').doc();
+      transaction.set(orderRef, {
+        orderId:          finalOrderId,
+        userId:           uid,
+        provider:         'afriqueboost', // Sauvegarde le bon fournisseur
+        providerOrderId:  orderResult.order,
+        serviceId:        parseInt(serviceId),
+        serviceName:      service.name,
+        platform,
+        link,
+        quantity:         qty,
+        priceXAF:         cost,
+        status:           'En attente',
+        createdAt:        admin.firestore.FieldValue.serverTimestamp(),
+        providerStartCount: 0,
+        providerRemains:  qty,
+        refunded:         false,
+      });
+    });
+
+    res.json({ success: true, orderId: finalOrderId, newBalance });
+  } catch (error) {
+    if (error.message.toLowerCase().includes('insuffisant')) {
+      return res.status(400).json({ success: false, error: error.message });
+    }
+    res.status(500).json({ success: false, error: 'Erreur technique. Veuillez réessayer.' });
+  }
+});
+
+// ── GET /api/afriqueboost/status/:orderId ────────────────────────
+// Réutilise ta logique de statut robuste avec remboursement automatique
+app.get('/api/afriqueboost/status/:orderId', checkAuth, async (req, res) => {
+  const { orderId } = req.params;
+  const uid         = req.user.uid;
+  try {
+    const snapshot = await db.collection('autoOrders')
+      .where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
+    
+    if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
+
+    const orderDoc  = snapshot.docs[0];
+    const orderData = orderDoc.data();
+    
+    // Vérifie chez AfriqueBoost
+    const statusResult = await callAfriqueBoost({ action: 'status', order: orderData.providerOrderId });
+
+    if (statusResult.error) return res.status(400).json({ success: false, error: 'Erreur AfriqueBoost: ' + statusResult.error });
+
+    const newStatus  = MTP_STATUS_MAP[statusResult.status] || statusResult.status || 'En attente';
+    const startCount = parseInt(statusResult.start_count)  || 0;
+    const remains    = parseInt(statusResult.remains)       || 0;
+
+    let refundAmount = 0;
+    let isRefunded = orderData.refunded || false;
+
+    // Logique de remboursement
+    if (!isRefunded && (newStatus === 'Annulé' || newStatus === 'Canceled' || newStatus === 'Partiel' || newStatus === 'Partial')) {
+      let totalCost = orderData.priceXAF || 0;
+      if (newStatus === 'Partiel' || newStatus === 'Partial') {
+        const qty = orderData.quantity || 1;
+        const rem = remains !== undefined ? remains : qty;
+        refundAmount = Math.round((rem / qty) * totalCost);
+      } else {
+        refundAmount = totalCost;
+      }
+
+      if (refundAmount > 0) {
+        await db.runTransaction(async (t) => {
+          const freshOrder = await t.get(orderDoc.ref);
+          if (freshOrder.data().refunded) return; 
+          
+          const userRef = db.collection('users').doc(uid);
+          const userDoc = await t.get(userRef);
+          const bal = userDoc.exists ? (userDoc.data().balance || 0) : 0;
+
+          t.update(userRef, { balance: bal + refundAmount });
+          t.update(orderDoc.ref, {
+            status: newStatus,
+            providerStartCount: startCount,
+            providerRemains: remains,
+            refunded: true,
+            refundedAmount: refundAmount,
+            lastChecked: admin.firestore.FieldValue.serverTimestamp()
+          });
+        });
+        isRefunded = true;
+      }
+    } else {
+      await orderDoc.ref.update({
+        status:             newStatus,
+        providerStartCount: startCount,
+        providerRemains:    remains,
+        lastChecked:        admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    res.json({ success: true, status: newStatus, providerStatus: statusResult.status, startCount, remains, refunded: isRefunded, refundAmount });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ── POST /api/afriqueboost/refill ────────────────────────────────
+app.post('/api/afriqueboost/refill', checkAuth, async (req, res) => {
+  const { orderId } = req.body;
+  const uid         = req.user.uid;
+  if (!orderId) return res.status(400).json({ success: false, error: 'orderId requis.' });
+  try {
+    const snapshot = await db.collection('autoOrders')
+      .where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
+      
+    if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
+
+    const orderDoc  = snapshot.docs[0];
+    const orderData = orderDoc.data();
+    
+    const result = await callAfriqueBoost({ action: 'refill', order: orderData.providerOrderId });
+    if (result.error) return res.status(400).json({ success: false, error: 'Erreur AfriqueBoost: ' + result.error });
+
+    await orderDoc.ref.update({
+      lastRefill: admin.firestore.FieldValue.serverTimestamp(),
+      refillId: result.refill || null,
+    });
+    res.json({ success: true, refillId: result.refill });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ── POST /api/afriqueboost/cancel ────────────────────────────────
+app.post('/api/afriqueboost/cancel', checkAuth, async (req, res) => {
+  const { orderId } = req.body;
+  const uid         = req.user.uid;
+  if (!orderId) return res.status(400).json({ success: false, error: 'orderId requis.' });
+  try {
+    const snapshot = await db.collection('autoOrders')
+      .where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
+      
+    if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
+
+    const orderDoc  = snapshot.docs[0];
+    const orderData = orderDoc.data();
+    const currentStatus = (orderData.status || '').toLowerCase();
+
+    if (orderData.refunded) return res.status(400).json({ success: false, error: 'Cette commande a déjà été remboursée.' });
+    if (!['en attente', 'pending', 'en cours', 'in progress', 'processing'].includes(currentStatus)) {
+        return res.status(400).json({ success: false, error: 'Cette commande ne peut plus être annulée.' });
+    }
+
+    try { 
+        await callAfriqueBoost({ action: 'cancel', orders: orderData.providerOrderId }); 
+    } catch (afbErr) { 
+        console.error("AfriqueBoost Cancel Error:", afbErr);
+    }
+
+    res.json({ 
+        success: true, 
+        message: "Demande d'annulation transmise. Le remboursement sera effectué lors de la confirmation du statut par AfriqueBoost." 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -735,7 +1020,7 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
   const payload = {
     amount: amountNum, 
     currency: currency || 'XAF', 
-    description: description || 'Recharge Social Boost Horizon',
+    description: description || 'Recharge',
     redirect_url: redirectUrl, 
     webhook_url: webhookUrl, 
     phone: phone || '',
