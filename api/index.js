@@ -5,6 +5,29 @@ const crypto  = require('crypto');
 
 const { sendWelcomeEmail } = require('./email-service.js');
 
+// 1️⃣ IMPORTER TON FICHIER ADMIN (Ajoute cette ligne)
+const adminRoutes = require('./admin.js'); 
+
+const app = express();
+
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+
+// 2️⃣ CONNECTER LES ROUTES D'ADMINISTRATION (Ajoute cette ligne)
+app.use('/api/admin', adminRoutes);
+
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
+
+const express = require('express');
+const cors    = require('cors');
+const admin   = require('firebase-admin');
+const crypto  = require('crypto');
+
+const { sendWelcomeEmail } = require('./email-service.js');
+
 const app = express();
 
 app.use(cors());
@@ -289,6 +312,7 @@ app.get('/api/mtp/user-orders', checkAuth, async (req, res) => {
 });
 
 // ── GET /api/mtp/order-status/:orderId ──────────────────────────
+// LOGIQUE DE REMBOURSEMENT SÉCURISÉE: Le remboursement se fait ici SEULEMENT si le fournisseur dit "Annulé" ou "Partiel"
 app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
   const { orderId } = req.params;
   const uid         = req.user.uid;
@@ -307,14 +331,52 @@ app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
     const startCount = parseInt(statusResult.start_count)  || 0;
     const remains    = parseInt(statusResult.remains)       || 0;
 
-    await orderDoc.ref.update({
-      status:             newStatus,
-      providerStartCount: startCount,
-      providerRemains:    remains,
-      lastChecked:        admin.firestore.FieldValue.serverTimestamp(),
-    });
+    let refundAmount = 0;
+    let isRefunded = orderData.refunded || false;
 
-    res.json({ success: true, status: newStatus, providerStatus: statusResult.status, startCount, remains });
+    // Si le fournisseur confirme l'annulation ou commande partielle et que ce n'est pas encore remboursé
+    if (!isRefunded && (newStatus === 'Annulé' || newStatus === 'Canceled' || newStatus === 'Partiel' || newStatus === 'Partial')) {
+      let totalCost = orderData.priceXAF || 0;
+      if (newStatus === 'Partiel' || newStatus === 'Partial') {
+        const qty = orderData.quantity || 1;
+        const rem = remains !== undefined ? remains : qty;
+        refundAmount = Math.round((rem / qty) * totalCost);
+      } else {
+        refundAmount = totalCost;
+      }
+
+      if (refundAmount > 0) {
+        await db.runTransaction(async (t) => {
+          const freshOrder = await t.get(orderDoc.ref);
+          if (freshOrder.data().refunded) return; // Sécurité anti-double remboursement
+          
+          const userRef = db.collection('users').doc(uid);
+          const userDoc = await t.get(userRef);
+          const bal = userDoc.exists ? (userDoc.data().balance || 0) : 0;
+
+          t.update(userRef, { balance: bal + refundAmount });
+          t.update(orderDoc.ref, {
+            status: newStatus,
+            providerStartCount: startCount,
+            providerRemains: remains,
+            refunded: true,
+            refundedAmount: refundAmount,
+            lastChecked: admin.firestore.FieldValue.serverTimestamp()
+          });
+        });
+        isRefunded = true;
+      }
+    } else {
+      // Mise à jour classique sans remboursement
+      await orderDoc.ref.update({
+        status:             newStatus,
+        providerStartCount: startCount,
+        providerRemains:    remains,
+        lastChecked:        admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    res.json({ success: true, status: newStatus, providerStatus: statusResult.status, startCount, remains, refunded: isRefunded, refundAmount });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -350,6 +412,7 @@ app.post('/api/mtp/refill', checkAuth, async (req, res) => {
 });
 
 // ── POST /api/mtp/cancel ─────────────────────────────────────────
+// CORRECTION: Envoie juste la demande au fournisseur, NE REMBOURSE PLUS localement.
 app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
   const { orderId } = req.body;
   const uid         = req.user.uid;
@@ -361,35 +424,165 @@ app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
 
     const orderDoc  = snapshot.docs[0];
     const orderData = orderDoc.data();
+    const currentStatus = (orderData.status || '').toLowerCase();
 
-    if (orderData.refunded) return res.status(400).json({ success: false, error: 'Déjà remboursée.' });
-    if (['Terminé', 'Completed'].includes(orderData.status)) return res.status(400).json({ success: false, error: 'Impossible.' });
-
-    try { await callMTP({ action: 'cancel', orders: orderData.providerOrderId }); } catch (mtpErr) { }
-
-    let refundAmount = orderData.priceXAF || 0;
-    if (orderData.status === 'Partiel' || orderData.status === 'Partial') {
-      const qty     = orderData.quantity || 1;
-      const remains = orderData.providerRemains !== undefined ? orderData.providerRemains : qty;
-      refundAmount  = Math.round((remains / qty) * refundAmount);
+    // Blocage si la commande est déjà terminée, annulée ou remboursée
+    if (orderData.refunded) return res.status(400).json({ success: false, error: 'Cette commande a déjà été remboursée.' });
+    if (!['en attente', 'pending', 'en cours', 'in progress', 'processing'].includes(currentStatus)) {
+        return res.status(400).json({ success: false, error: 'Cette commande ne peut plus être annulée, son statut ne le permet pas.' });
     }
 
-    await db.runTransaction(async (transaction) => {
-      const userRef  = db.collection('users').doc(uid);
-      const userSnap = await transaction.get(userRef);
-      const oldBal   = (userSnap.data() || {}).balance || 0;
-      transaction.update(userRef, { balance: oldBal + refundAmount });
-      transaction.update(orderDoc.ref, {
-        status:         'Annulé',
-        refunded:       true,
-        refundedAmount: refundAmount,
-        cancelledAt:    admin.firestore.FieldValue.serverTimestamp(),
-      });
+    try { 
+        await callMTP({ action: 'cancel', orders: orderData.providerOrderId }); 
+    } catch (mtpErr) { 
+        console.error("MTP Cancel Error:", mtpErr);
+    }
+
+    res.json({ 
+        success: true, 
+        message: "Demande d'annulation transmise au fournisseur. Le remboursement sera effectué automatiquement dès que le fournisseur confirmera l'annulation lors de la prochaine vérification de statut." 
     });
-    res.json({ success: true, refundedAmount: refundAmount });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+// ── POST /api/exo/cancel ─────────────────────────────────────────
+// CORRECTION: Transmet la demande à Exo et demande à l'utilisateur de patienter.
+app.post('/api/exo/cancel', checkAuth, async (req, res) => {
+    try {
+        const uid = req.user.uid;
+        const { orderId } = req.body;
+        
+        if (!orderId) {
+            return res.status(400).json({ success: false, error: 'ID de commande manquant.' });
+        }
+
+        const orderRef = db.collection('commandes').doc(orderId);
+        const orderDoc = await orderRef.get();
+
+        if (!orderDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Commande introuvable.' });
+        }
+
+        const orderData = orderDoc.data();
+
+        if (orderData.userId !== uid) {
+            return res.status(403).json({ success: false, error: 'Accès refusé.' });
+        }
+
+        if (orderData.isRefunded) {
+            return res.status(400).json({ success: false, error: 'Cette commande a déjà été remboursée.' });
+        }
+
+        const currentStatus = (orderData.status || '').toLowerCase();
+        if (!['en attente', 'pending', 'en cours', 'in progress', 'processing'].includes(currentStatus)) {
+            return res.status(400).json({ success: false, error: 'Action impossible : la commande est déjà terminée ou annulée.' });
+        }
+
+        // Envoyer la requête d'annulation au fournisseur
+        const url = 'https://exosupplier.com/api/v2';
+        const formData = new URLSearchParams();
+        formData.append('key', process.env.EXO_API_KEY);
+        formData.append('action', 'cancel'); 
+        formData.append('order', orderData.exoOrderId);
+
+        let exoRes = await fetch(url, { method: 'POST', body: formData });
+        let exoData = await exoRes.json();
+
+        // Si "incorrect action", la commande ne peut probablement pas être annulée par API.
+        if (exoData.error && exoData.error.toLowerCase().includes('incorrect action')) {
+            return res.status(400).json({ success: false, error: "Le fournisseur n'autorise pas l'annulation de cette commande en cours." });
+        }
+
+        return res.status(200).json({ 
+            success: true, 
+            message: "La demande d'annulation a bien été transmise au fournisseur. Le remboursement sera effectué automatiquement dès que l'annulation sera confirmée de leur côté."
+        });
+
+    } catch (error) {
+        console.error("Erreur annulation:", error);
+        return res.status(500).json({ success: false, error: error.message || 'Erreur technique serveur.' });
+    }
+});
+
+// ── POST /api/exo-status (NOUVEAU : Remboursement Sécurisé pour EXO) ────
+// Cette route est appelée par ton frontend pour rafraîchir silencieusement et rembourser en toute sécurité.
+app.post('/api/exo-status', checkAuth, async (req, res) => {
+    const { orderId } = req.body;
+    const uid = req.user.uid;
+    try {
+        const orderRef = db.collection('commandes').doc(orderId);
+        const orderDoc = await orderRef.get();
+        
+        if (!orderDoc.exists || orderDoc.data().userId !== uid) {
+            return res.status(404).json({ success: false, error: 'Commande introuvable.' });
+        }
+        
+        const orderData = orderDoc.data();
+        if (!orderData.exoOrderId) {
+            return res.status(400).json({ success: false, error: 'Pas de numéro de suivi fournisseur.' });
+        }
+
+        const url = 'https://exosupplier.com/api/v2';
+        const statusData = new URLSearchParams();
+        statusData.append('key', process.env.EXO_API_KEY);
+        statusData.append('action', 'status');
+        statusData.append('order', orderData.exoOrderId);
+        
+        const exoRes = await fetch(url, { method: 'POST', body: statusData });
+        const exoData = await exoRes.json();
+
+        if (exoData.error) return res.status(400).json({ success: false, error: exoData.error });
+
+        const statusMap = { 'Pending': 'En attente', 'In progress': 'En cours', 'Processing': 'En cours', 'Completed': 'Terminée', 'Partial': 'Partiel', 'Canceled': 'Annulée' };
+        let mappedStatus = statusMap[exoData.status] || exoData.status || 'En attente';
+        const remains = parseInt(exoData.remains) || 0;
+
+        let refundAmount = 0;
+        let isRefunded = orderData.isRefunded || false;
+
+        // Si le fournisseur a confirmé l'annulation ou partiel
+        if (!isRefunded && (mappedStatus === 'Annulée' || mappedStatus === 'Partiel')) {
+            const totalCost = orderData.totalCost || orderData.finalCost || orderData.cost || 0;
+            if (mappedStatus === 'Partiel') {
+                const qty = orderData.quantity || 1;
+                refundAmount = Math.round((remains / qty) * totalCost);
+            } else {
+                refundAmount = totalCost;
+            }
+
+            if (refundAmount > 0) {
+                await db.runTransaction(async (t) => {
+                    const freshOrder = await t.get(orderRef);
+                    if (freshOrder.data().isRefunded) return;
+                    
+                    const userRef = db.collection('users').doc(uid);
+                    const userDoc = await t.get(userRef);
+                    const bal = userDoc.exists ? (userDoc.data().balance || 0) : 0;
+
+                    t.update(userRef, { balance: bal + refundAmount });
+                    t.update(orderRef, {
+                        status: mappedStatus,
+                        exoRemains: remains,
+                        isRefunded: true,
+                        refundAmount: refundAmount,
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                });
+                isRefunded = true;
+            }
+        } else {
+            await orderRef.update({
+                status: mappedStatus,
+                exoRemains: remains,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+        }
+        res.json({ success: true, status: mappedStatus, remains, refunded: isRefunded, refundAmount });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -534,7 +727,6 @@ app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
 // ── POST /api/create-fapshi-checkout ────────────────────────────
 app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
   const uid = req.user.uid;
-  // Récupération des informations envoyées par le formulaire frontend
   const { amount, currency, description, redirectUrl, phone } = req.body;
 
   if (!amount || !redirectUrl) return res.status(400).json({ success: false, error: 'amount et redirectUrl requis.' });
@@ -549,7 +741,6 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
   const webhookBase = process.env.FAPSHI_WEBHOOK_URL || `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
   const webhookUrl = `${webhookBase}/api/fapshi-webhook`;
 
-  // --- Récupération systématique et fiable de l'email et du nom depuis Firestore ---
   let finalEmail = req.user.email || '';
   let finalName  = req.user.name || 'Client';
 
@@ -557,17 +748,13 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
     const userDoc = await db.collection('users').doc(uid).get();
     if (userDoc.exists) {
       const uData = userDoc.data();
-      // On priorise l'e-mail stocké dans le document Firestore
       finalEmail = uData.email || finalEmail;
-      // On récupère le displayName ou username précis de son document de compte
       finalName = uData.displayName || uData.username || finalName;
     }
   } catch (e) {
     console.error('Erreur lors de la récupération des infos de compte Firestore : ', e);
   }
-  // ---------------------------------------------------------------------------------
 
-  // Création du payload final envoyé à Fapshi incluant toutes les informations requises
   const payload = {
     amount: amountNum, 
     currency: currency || 'XAF', 
@@ -685,7 +872,6 @@ app.post('/api/fapshi-webhook', async (req, res) => {
 });
 
 // ── POST /api/fapshi/verify-transaction ──────────────────────────
-// Vérifie le statut d'une transaction UNIQUE en faisant les lectures avant les écritures
 app.post('/api/fapshi/verify-transaction', checkAuth, async (req, res) => {
   const uid = req.user.uid;
   const { transId } = req.body;
@@ -708,10 +894,8 @@ app.post('/api/fapshi/verify-transaction', checkAuth, async (req, res) => {
       return res.json({ success: true, status: 'CONFIRMED', message: "La transaction est déjà confirmée." });
     }
 
-    // Récupérer l'ID exact de Fapshi s'il est différent du doc ID
     const fapshiID = transData.fapshiTransId || transId;
     
-    // Interroger l'API Fapshi
     const fapshiRes = await fetch(`https://live.fapshi.com/payment-status/${fapshiID}`, {
       method: 'GET',
       headers: { 'apiuser': API_USER, 'apikey': SECRET_KEY }
@@ -729,28 +913,20 @@ app.post('/api/fapshi/verify-transaction', checkAuth, async (req, res) => {
       const amountNum = Number(paymentObj.amount || transData.amount);
       const userRef = db.collection('users').doc(uid);
 
-      // LE CORRECTIF EST ICI : Toutes les lectures (t.get) sont faites AVANT les écritures (t.set / t.update)
       await db.runTransaction(async (t) => {
-        // 1. On lit toutes les données d'abord
         const freshTransDoc = await t.get(transRef);
         const userDoc = await t.get(userRef);
 
-        if (freshTransDoc.exists && freshTransDoc.data().status === 'CONFIRMED') {
-          return; // Sécurité anti-double exécution
-        }
+        if (freshTransDoc.exists && freshTransDoc.data().status === 'CONFIRMED') return;
 
-        // 2. On effectue toutes les écritures ensuite
         t.update(transRef, {
-          status: 'CONFIRMED',
-          amountConfirmed: amountNum,
-          dateConfirmed: admin.firestore.FieldValue.serverTimestamp(),
+          status: 'CONFIRMED', amountConfirmed: amountNum, dateConfirmed: admin.firestore.FieldValue.serverTimestamp(),
         });
-
         const currentBalance = userDoc.exists ? (userDoc.data().balance || 0) : 0;
         t.set(userRef, { balance: currentBalance + amountNum }, { merge: true });
       });
 
-      // Bonus de parrainage (hors de la transaction principale pour éviter de tout bloquer)
+      // Bonus parrainage
       try {
         const userDocData = await userRef.get();
         const parrainUid = userDocData.exists ? (userDocData.data().referredBy || null) : null;
@@ -771,18 +947,12 @@ app.post('/api/fapshi/verify-transaction', checkAuth, async (req, res) => {
       return res.json({ success: true, status: 'CONFIRMED' });
 
     } else if (paymentStatus === 'FAILED' || paymentStatus === 'EXPIRED') {
-      await transRef.update({
-        status: 'FAILED',
-        dateUpdated: admin.firestore.FieldValue.serverTimestamp()
-      });
+      await transRef.update({ status: 'FAILED', dateUpdated: admin.firestore.FieldValue.serverTimestamp() });
       return res.json({ success: true, status: 'FAILED' });
     } else {
-      // PENDING ou autre statut intermédiaire
       return res.json({ success: true, status: 'PENDING' });
     }
-
   } catch (error) {
-    console.error('❌ /api/fapshi/verify-transaction:', error.message);
     res.status(500).json({ success: false, error: 'Erreur technique lors de la vérification.' });
   }
 });
@@ -803,15 +973,15 @@ app.get('/api/fapshi/transactions', checkAuth, async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+// ── Routeur administrateur ──────────────────────────────────────
+const adminRouter = require('./admin.js');
+app.use('/api/admin', adminRouter);
 
 // ── 404 ─────────────────────────────────────────────────────────
-app.use((req, res) => {
-  res.status(404).json({ success: false, error: `Route non trouvée : ${req.method} ${req.path}` });
-});
+app.use((req, res) => res.status(404).json({ success: false, error: `Route non trouvée : ${req.method} ${req.path}` }));
 
 // ── Erreur globale ──────────────────────────────────────────────
 app.use((err, req, res, next) => {
-  console.error('❌ Erreur globale :', err.stack);
   res.status(500).json({ success: false, error: err.message || 'Erreur interne.' });
 });
 
