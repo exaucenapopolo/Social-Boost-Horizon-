@@ -559,11 +559,10 @@ app.post('/api/exo-status', checkAuth, async (req, res) => {
 
 
 // ═══════════════════════════════════════════════════════════════
-// AfriqueBoost API (NOUVELLE INTÉGRATION COMPLÈTE)
+// AfriqueBoost API (CORRIGÉ - PRIX EN FCFA DIRECTEMENT)
 // ═══════════════════════════════════════════════════════════════
 const AFRIQUEBOOST_API_URL = 'https://afriqueboost.com/api/v2';
-const AFB_USD_TO_XAF       = 620; // Ajuster si AfriqueBoost utilise une autre monnaie
-const AFB_MULTIPLIER       = 3;   // Conserve ta marge habituelle x3
+const AFB_MULTIPLIER       = 3;   // Conserve ta marge habituelle x3. PAS de conversion USD !
 
 // Cache en mémoire pour les services (10 minutes)
 let _afbServicesCache     = null;
@@ -595,10 +594,11 @@ app.get('/api/afriqueboost/services', async (req, res) => {
       return res.status(500).json({ success: false, error: 'Réponse AfriqueBoost invalide' });
     }
     
-    // Formatage identique à MTP pour être compatible avec ton Frontend
+    // Formatage : on prend le prix direct en FCFA fourni par AfriqueBoost et on multiplie par la marge (x3)
     const services = rawServices.map(s => {
-      const rate    = parseFloat(s.rate) || 0;
-      const priceXAF = Math.round(rate * AFB_USD_TO_XAF * AFB_MULTIPLIER);
+      const rateXAF  = parseFloat(s.rate) || 0;
+      const priceXAF = Math.round(rateXAF * AFB_MULTIPLIER); // SEULEMENT LA MARGE, PAS DE CONVERSION USD
+      
       return {
         id:       parseInt(s.service),
         name:     s.name,
@@ -606,12 +606,12 @@ app.get('/api/afriqueboost/services', async (req, res) => {
         type:     s.type     || '',
         min:      parseInt(s.min),
         max:      parseInt(s.max),
-        rate,
+        rate:     rateXAF,
         priceXAF,
         refill: s.refill  === true || s.refill  === 'true' || s.refill === 1,
         cancel: s.cancel  === true || s.cancel  === 'true' || s.cancel === 1,
         desc:   s.description || null,
-        provider: 'afriqueboost' // Important pour différencier dans ton frontend
+        provider: 'afriqueboost' 
       };
     });
     
@@ -636,8 +636,8 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
     
     if (!service) return res.status(400).json({ success: false, error: 'Service AfriqueBoost introuvable.' });
     
-    const rate      = parseFloat(service.rate) || 0;
-    const priceXAF  = Math.round(rate * AFB_USD_TO_XAF * AFB_MULTIPLIER);
+    const rateXAF   = parseFloat(service.rate) || 0;
+    const priceXAF  = Math.round(rateXAF * AFB_MULTIPLIER); // Calcul propre (marge uniquement)
     const qty       = parseInt(quantity);
     const isPackage = (service.type || '').toLowerCase().includes('package');
     const cost      = isPackage ? priceXAF : Math.round((priceXAF / 1000) * qty);
@@ -687,7 +687,7 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
       transaction.set(orderRef, {
         orderId:          finalOrderId,
         userId:           uid,
-        provider:         'afriqueboost', // Sauvegarde le bon fournisseur
+        provider:         'afriqueboost', 
         providerOrderId:  orderResult.order,
         serviceId:        parseInt(serviceId),
         serviceName:      service.name,
@@ -713,7 +713,6 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
 });
 
 // ── GET /api/afriqueboost/status/:orderId ────────────────────────
-// Réutilise ta logique de statut robuste avec remboursement automatique
 app.get('/api/afriqueboost/status/:orderId', checkAuth, async (req, res) => {
   const { orderId } = req.params;
   const uid         = req.user.uid;
@@ -726,7 +725,6 @@ app.get('/api/afriqueboost/status/:orderId', checkAuth, async (req, res) => {
     const orderDoc  = snapshot.docs[0];
     const orderData = orderDoc.data();
     
-    // Vérifie chez AfriqueBoost
     const statusResult = await callAfriqueBoost({ action: 'status', order: orderData.providerOrderId });
 
     if (statusResult.error) return res.status(400).json({ success: false, error: 'Erreur AfriqueBoost: ' + statusResult.error });
@@ -738,7 +736,6 @@ app.get('/api/afriqueboost/status/:orderId', checkAuth, async (req, res) => {
     let refundAmount = 0;
     let isRefunded = orderData.refunded || false;
 
-    // Logique de remboursement
     if (!isRefunded && (newStatus === 'Annulé' || newStatus === 'Canceled' || newStatus === 'Partiel' || newStatus === 'Partial')) {
       let totalCost = orderData.priceXAF || 0;
       if (newStatus === 'Partiel' || newStatus === 'Partial') {
