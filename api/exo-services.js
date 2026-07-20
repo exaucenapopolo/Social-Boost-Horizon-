@@ -71,7 +71,7 @@ export default async function handler(req, res) {
 
     // Réglages financiers
     // Si service.rate est déjà en FCFA, la détection automatique évite de le reconvertir.
-    const EXCHANGE_RATE_USD_TO_XAF = Number(process.env.EXO_USD_TO_XAF) || 620;
+    const EXCHANGE_RATE_USD_TO_XAF = Number(process.env.EXO_USD_TO_XAF) || 650;
 
     // 2.51 = environ +151% de marge sur le coût fournisseur
     // Exemple: 39 FCFA -> 98 FCFA
