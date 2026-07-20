@@ -63,31 +63,18 @@ app.get('/api/health', (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// MoreThanPanel (MTP) API
+// CONFIGURATIONS FOURNISSEURS GLOBALES (MTP, EXO, AFB)
 // ═══════════════════════════════════════════════════════════════
 const MTP_API_URL    = 'https://morethanpanel.com/api/v2';
-const MTP_USD_TO_XAF = 620;   // Taux de conversion USD → FCFA
-const MTP_MULTIPLIER = 3;     // Marge bénéficiaire x3
+const MTP_USD_TO_XAF = 620;   
+const MTP_MULTIPLIER = 3;     
 
-// Cache en mémoire (10 minutes)
-let _mtpServicesCache     = null;
-let _mtpServicesCacheTime = 0;
-const MTP_CACHE_TTL = 10 * 60 * 1000;
+const EXO_API_URL    = 'https://exosupplier.com/api/v2';
+const EXO_USD_TO_XAF = 650;
+const EXO_MULTIPLIER = 2.5;
 
-// Appel générique à l'API MTP
-async function callMTP(params) {
-  if (!process.env.MORETHANPANEL_API_KEY) {
-    throw new Error('MORETHANPANEL_API_KEY non définie.');
-  }
-  const body = new URLSearchParams({ key: process.env.MORETHANPANEL_API_KEY, ...params });
-  const res  = await fetch(MTP_API_URL, {
-    method: 'POST',
-    body,
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-  });
-  if (!res.ok) throw new Error(`MTP HTTP ${res.status}`);
-  return res.json();
-}
+const AFRIQUEBOOST_API_URL = 'https://afriqueboost.com/api/v2';
+const AFB_MULTIPLIER       = 3;   
 
 // Détection de la plateforme à partir du nom du service + lien
 function detectPlatformName(serviceName, link) {
@@ -115,7 +102,6 @@ function detectPlatformName(serviceName, link) {
   return 'Autre';
 }
 
-// Mappage statut MTP → statut français
 const MTP_STATUS_MAP = {
   'Pending':    'En attente',
   'In progress': 'En cours',
@@ -125,7 +111,44 @@ const MTP_STATUS_MAP = {
   'Canceled':   'Annulé',
 };
 
-// ── GET /api/mtp/services ────────────────────────────────────────
+// Appels centralisés aux API fournisseurs
+async function callMTP(params) {
+  if (!process.env.MORETHANPANEL_API_KEY) throw new Error('MORETHANPANEL_API_KEY non définie.');
+  const body = new URLSearchParams({ key: process.env.MORETHANPANEL_API_KEY, ...params });
+  const res  = await fetch(MTP_API_URL, {
+    method: 'POST', body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
+  if (!res.ok) throw new Error(`MTP HTTP ${res.status}`);
+  return res.json();
+}
+
+async function callExo(params) {
+  if (!process.env.EXO_API_KEY) throw new Error('EXO_API_KEY manquante');
+  const body = new URLSearchParams({ key: process.env.EXO_API_KEY, ...params });
+  const res = await fetch(EXO_API_URL, {
+    method: 'POST', body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
+  if (!res.ok) throw new Error(`EXO HTTP ${res.status}`);
+  return res.json();
+}
+
+async function callAfriqueBoost(params) {
+  if (!process.env.ADVANCED_PROVIDER_API_KEY) throw new Error('ADVANCED_PROVIDER_API_KEY non définie.');
+  const body = new URLSearchParams({ key: process.env.ADVANCED_PROVIDER_API_KEY, ...params });
+  const res  = await fetch(AFRIQUEBOOST_API_URL, {
+    method: 'POST', body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
+  if (!res.ok) throw new Error(`AfriqueBoost HTTP ${res.status}`);
+  return res.json();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MoreThanPanel (MTP) API
+// ═══════════════════════════════════════════════════════════════
+let _mtpServicesCache     = null;
+let _mtpServicesCacheTime = 0;
+const MTP_CACHE_TTL = 10 * 60 * 1000;
+
 app.get('/api/mtp/services', async (req, res) => {
   try {
     const now = Date.now();
@@ -133,62 +156,46 @@ app.get('/api/mtp/services', async (req, res) => {
       return res.json({ success: true, services: _mtpServicesCache, cached: true });
     }
     const rawServices = await callMTP({ action: 'services' });
-    if (!Array.isArray(rawServices)) {
-      return res.status(500).json({ success: false, error: 'Réponse MTP invalide' });
-    }
+    if (!Array.isArray(rawServices)) return res.status(500).json({ success: false, error: 'Réponse MTP invalide' });
     const services = rawServices.map(s => {
       const rate    = parseFloat(s.rate) || 0;
       const priceXAF = Math.round(rate * MTP_USD_TO_XAF * MTP_MULTIPLIER);
       return {
-        id:       parseInt(s.service),
-        name:     s.name,
-        category: s.category || '',
-        type:     s.type     || '',
-        min:      parseInt(s.min),
-        max:      parseInt(s.max),
-        rate,
-        priceXAF,
-        refill: s.refill  === true || s.refill  === 'true',
-        cancel: s.cancel  === true || s.cancel  === 'true',
-        desc:   s.description || null,
+        id: parseInt(s.service), name: s.name, category: s.category || '', type: s.type || '',
+        min: parseInt(s.min), max: parseInt(s.max), rate, priceXAF,
+        refill: s.refill === true || s.refill === 'true', cancel: s.cancel === true || s.cancel === 'true',
+        desc: s.description || null,
       };
     });
-    _mtpServicesCache     = services;
-    _mtpServicesCacheTime = now;
+    _mtpServicesCache = services; _mtpServicesCacheTime = now;
     res.json({ success: true, services });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ── POST /api/mtp/order ──────────────────────────────────────────
 app.post('/api/mtp/order', checkAuth, async (req, res) => {
   const { serviceId, link, quantity, comments } = req.body;
   const uid = req.user.uid;
-  if (!serviceId || !link) {
-    return res.status(400).json({ success: false, error: 'serviceId et link sont requis.' });
-  }
+  if (!serviceId || !link) return res.status(400).json({ success: false, error: 'serviceId et link sont requis.' });
   try {
     const allServices = _mtpServicesCache || (await callMTP({ action: 'services' }));
     const service = allServices.find(s => parseInt(s.service || s.id) === parseInt(serviceId));
-    if (!service) {
-      return res.status(400).json({ success: false, error: 'Service introuvable ou expiré.' });
-    }
-    const rate      = parseFloat(service.rate) || 0;
-    const priceXAF  = Math.round(rate * MTP_USD_TO_XAF * MTP_MULTIPLIER);
-    const qty       = parseInt(quantity);
+    if (!service) return res.status(400).json({ success: false, error: 'Service introuvable ou expiré.' });
+    
+    const rate = parseFloat(service.rate) || 0;
+    const priceXAF = Math.round(rate * MTP_USD_TO_XAF * MTP_MULTIPLIER);
+    const qty = parseInt(quantity);
     const isPackage = (service.type || '').toLowerCase().includes('package');
-    const cost      = isPackage ? priceXAF : Math.round((priceXAF / 1000) * qty);
+    const cost = isPackage ? priceXAF : Math.round((priceXAF / 1000) * qty);
 
     const userDoc = await db.collection('users').doc(uid).get();
-    if (!userDoc.exists) {
-      return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
-    }
+    if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
+    
     const currentBalance = userDoc.data().balance || 0;
     if (currentBalance < cost) {
       return res.status(400).json({
-        success: false,
-        error: `Solde insuffisant. Requis : ${cost.toLocaleString('fr-FR')} FCFA — Disponible : ${currentBalance.toLocaleString('fr-FR')} FCFA`,
+        success: false, error: `Solde insuffisant. Requis : ${cost.toLocaleString('fr-FR')} FCFA — Disponible : ${currentBalance.toLocaleString('fr-FR')} FCFA`,
       });
     }
 
@@ -196,27 +203,23 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     if (comments) orderParams.comments = comments;
     const orderResult = await callMTP(orderParams);
 
-    if (orderResult.error) {
-      return res.status(400).json({ success: false, error: 'Erreur fournisseur : ' + orderResult.error });
-    }
-    if (!orderResult.order) {
-      return res.status(400).json({ success: false, error: 'Commande non confirmée.' });
-    }
+    if (orderResult.error) return res.status(400).json({ success: false, error: 'Erreur fournisseur : ' + orderResult.error });
+    if (!orderResult.order) return res.status(400).json({ success: false, error: 'Commande non confirmée.' });
 
     let finalOrderId, newBalance;
     await db.runTransaction(async (transaction) => {
-      const counterRef      = db.collection('counters').doc('autoOrders');
-      const freshUserRef    = db.collection('users').doc(uid);
+      const counterRef = db.collection('counters').doc('autoOrders');
+      const freshUserRef = db.collection('users').doc(uid);
       
-      const counterDoc      = await transaction.get(counterRef);
-      const freshUserDoc    = await transaction.get(freshUserRef);
+      const counterDoc = await transaction.get(counterRef);
+      const freshUserDoc = await transaction.get(freshUserRef);
 
       const freshBalance = freshUserDoc.data().balance || 0;
       if (freshBalance < cost) throw new Error('Solde insuffisant (vérifié pendant le traitement).');
 
-      const nextId   = ((counterDoc.exists ? counterDoc.data().lastId : 0) || 0) + 1;
-      finalOrderId   = `SBH-AUTO-${nextId}`;
-      newBalance     = freshBalance - cost;
+      const nextId = ((counterDoc.exists ? counterDoc.data().lastId : 0) || 0) + 1;
+      finalOrderId = `SBH-AUTO-${nextId}`;
+      newBalance = freshBalance - cost;
       const platform = detectPlatformName(service.name || '', link);
 
       transaction.set(counterRef, { lastId: nextId }, { merge: true });
@@ -224,62 +227,32 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
 
       const orderRef = db.collection('autoOrders').doc();
       transaction.set(orderRef, {
-        orderId:          finalOrderId,
-        userId:           uid,
-        provider:         'mtp',
-        providerOrderId:  orderResult.order,
-        serviceId:        parseInt(serviceId),
-        serviceName:      service.name,
-        platform,
-        link,
-        quantity:         qty,
-        priceXAF:         cost,
-        status:           'En attente',
-        createdAt:        admin.firestore.FieldValue.serverTimestamp(),
-        providerStartCount: 0,
-        providerRemains:  qty,
-        refunded:         false,
+        orderId: finalOrderId, userId: uid, provider: 'mtp', providerOrderId: orderResult.order,
+        serviceId: parseInt(serviceId), serviceName: service.name, platform, link, quantity: qty,
+        priceXAF: cost, status: 'En attente', createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        providerStartCount: 0, providerRemains: qty, refunded: false,
       });
     });
-
     res.json({ success: true, orderId: finalOrderId, newBalance });
   } catch (error) {
-    if (error.message.toLowerCase().includes('insuffisant')) {
-      return res.status(400).json({ success: false, error: error.message });
-    }
+    if (error.message.toLowerCase().includes('insuffisant')) return res.status(400).json({ success: false, error: error.message });
     res.status(500).json({ success: false, error: 'Erreur technique. Veuillez réessayer.' });
   }
 });
 
-// ── GET /api/mtp/user-orders ─────────────────────────────────────
 app.get('/api/mtp/user-orders', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
-    const snapshot = await db.collection('autoOrders')
-      .where('userId', '==', uid)
-      .orderBy('createdAt', 'desc')
-      .limit(100)
-      .get();
+    const snapshot = await db.collection('autoOrders').where('userId', '==', uid).orderBy('createdAt', 'desc').limit(100).get();
     const orders = snapshot.docs.map(doc => {
       const data = doc.data();
       return {
-        id:               doc.id,
-        orderId:          data.orderId,
-        provider:         data.provider         || 'mtp',
-        providerOrderId:  data.providerOrderId,
-        serviceId:        data.serviceId,
-        serviceName:      data.serviceName       || 'Service automatique',
-        platform:         data.platform          || '',
-        link:             data.link              || '',
-        quantity:         data.quantity          || 0,
-        priceXAF:         data.priceXAF          || 0,
-        status:           data.status            || 'En attente',
-        createdAt:        data.createdAt,
-        providerStartCount: data.providerStartCount || 0,
-        providerRemains:  data.providerRemains   !== undefined ? data.providerRemains : (data.quantity || 0),
-        refunded:         data.refunded          || false,
-        refundedAmount:   data.refundedAmount    || 0,
-        lastChecked:      data.lastChecked       || null,
+        id: doc.id, orderId: data.orderId, provider: data.provider || 'mtp', providerOrderId: data.providerOrderId,
+        serviceId: data.serviceId, serviceName: data.serviceName || 'Service automatique', platform: data.platform || '',
+        link: data.link || '', quantity: data.quantity || 0, priceXAF: data.priceXAF || 0, status: data.status || 'En attente',
+        createdAt: data.createdAt, providerStartCount: data.providerStartCount || 0,
+        providerRemains: data.providerRemains !== undefined ? data.providerRemains : (data.quantity || 0),
+        refunded: data.refunded || false, refundedAmount: data.refundedAmount || 0, lastChecked: data.lastChecked || null,
       };
     });
     res.json({ success: true, orders });
@@ -288,24 +261,22 @@ app.get('/api/mtp/user-orders', checkAuth, async (req, res) => {
   }
 });
 
-// ── GET /api/mtp/order-status/:orderId ──────────────────────────
 app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
   const { orderId } = req.params;
-  const uid         = req.user.uid;
+  const uid = req.user.uid;
   try {
-    const snapshot = await db.collection('autoOrders')
-      .where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
+    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
     if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
-    const orderDoc  = snapshot.docs[0];
+    const orderDoc = snapshot.docs[0];
     const orderData = orderDoc.data();
     const statusResult = await callMTP({ action: 'status', order: orderData.providerOrderId });
 
     if (statusResult.error) return res.status(400).json({ success: false, error: 'Erreur: ' + statusResult.error });
 
-    const newStatus  = MTP_STATUS_MAP[statusResult.status] || statusResult.status || 'En attente';
-    const startCount = parseInt(statusResult.start_count)  || 0;
-    const remains    = parseInt(statusResult.remains)       || 0;
+    const newStatus = MTP_STATUS_MAP[statusResult.status] || statusResult.status || 'En attente';
+    const startCount = parseInt(statusResult.start_count) || 0;
+    const remains = parseInt(statusResult.remains) || 0;
 
     let refundAmount = 0;
     let isRefunded = orderData.refunded || false;
@@ -331,71 +302,55 @@ app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
 
           t.update(userRef, { balance: bal + refundAmount });
           t.update(orderDoc.ref, {
-            status: newStatus,
-            providerStartCount: startCount,
-            providerRemains: remains,
-            refunded: true,
-            refundedAmount: refundAmount,
-            lastChecked: admin.firestore.FieldValue.serverTimestamp()
+            status: newStatus, providerStartCount: startCount, providerRemains: remains,
+            refunded: true, refundedAmount: refundAmount, lastChecked: admin.firestore.FieldValue.serverTimestamp()
           });
         });
         isRefunded = true;
       }
     } else {
       await orderDoc.ref.update({
-        status:             newStatus,
-        providerStartCount: startCount,
-        providerRemains:    remains,
-        lastChecked:        admin.firestore.FieldValue.serverTimestamp(),
+        status: newStatus, providerStartCount: startCount, providerRemains: remains,
+        lastChecked: admin.firestore.FieldValue.serverTimestamp(),
       });
     }
-
     res.json({ success: true, status: newStatus, providerStatus: statusResult.status, startCount, remains, refunded: isRefunded, refundAmount });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ── POST /api/mtp/refill ─────────────────────────────────────────
 app.post('/api/mtp/refill', checkAuth, async (req, res) => {
   const { orderId } = req.body;
-  const uid         = req.user.uid;
+  const uid = req.user.uid;
   if (!orderId) return res.status(400).json({ success: false, error: 'orderId requis.' });
   try {
-    const snapshot = await db.collection('autoOrders')
-      .where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
+    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
     if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
-    const orderDoc  = snapshot.docs[0];
+    const orderDoc = snapshot.docs[0];
     const orderData = orderDoc.data();
-    if (!orderData.refill && orderData.refill !== undefined) {
-      return res.status(400).json({ success: false, error: 'Ce service ne supporte pas le refill.' });
-    }
+    if (!orderData.refill && orderData.refill !== undefined) return res.status(400).json({ success: false, error: 'Ce service ne supporte pas le refill.' });
 
     const result = await callMTP({ action: 'refill', order: orderData.providerOrderId });
     if (result.error) return res.status(400).json({ success: false, error: 'Erreur: ' + result.error });
 
-    await orderDoc.ref.update({
-      lastRefill: admin.firestore.FieldValue.serverTimestamp(),
-      refillId: result.refill || null,
-    });
+    await orderDoc.ref.update({ lastRefill: admin.firestore.FieldValue.serverTimestamp(), refillId: result.refill || null });
     res.json({ success: true, refillId: result.refill });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ── POST /api/mtp/cancel ─────────────────────────────────────────
 app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
   const { orderId } = req.body;
-  const uid         = req.user.uid;
+  const uid = req.user.uid;
   if (!orderId) return res.status(400).json({ success: false, error: 'orderId requis.' });
   try {
-    const snapshot = await db.collection('autoOrders')
-      .where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
+    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
     if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
-    const orderDoc  = snapshot.docs[0];
+    const orderDoc = snapshot.docs[0];
     const orderData = orderDoc.data();
     const currentStatus = (orderData.status || '').toLowerCase();
 
@@ -404,11 +359,8 @@ app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
         return res.status(400).json({ success: false, error: 'Cette commande ne peut plus être annulée, son statut ne le permet pas.' });
     }
 
-    try { 
-        await callMTP({ action: 'cancel', orders: orderData.providerOrderId }); 
-    } catch (mtpErr) { 
-        console.error("MTP Cancel Error:", mtpErr);
-    }
+    try { await callMTP({ action: 'cancel', orders: orderData.providerOrderId }); } 
+    catch (mtpErr) { console.error("MTP Cancel Error:", mtpErr); }
 
     res.json({ 
         success: true, 
@@ -419,51 +371,31 @@ app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
   }
 });
 
-
 // ═══════════════════════════════════════════════════════════════
 // Exo API
 // ═══════════════════════════════════════════════════════════════
-
-// ── POST /api/exo/cancel ─────────────────────────────────────────
 app.post('/api/exo/cancel', checkAuth, async (req, res) => {
     try {
         const uid = req.user.uid;
         const { orderId } = req.body;
         
-        if (!orderId) {
-            return res.status(400).json({ success: false, error: 'ID de commande manquant.' });
-        }
+        if (!orderId) return res.status(400).json({ success: false, error: 'ID de commande manquant.' });
 
         const orderRef = db.collection('commandes').doc(orderId);
         const orderDoc = await orderRef.get();
 
-        if (!orderDoc.exists) {
-            return res.status(404).json({ success: false, error: 'Commande introuvable.' });
-        }
+        if (!orderDoc.exists) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
         const orderData = orderDoc.data();
-
-        if (orderData.userId !== uid) {
-            return res.status(403).json({ success: false, error: 'Accès refusé.' });
-        }
-
-        if (orderData.isRefunded) {
-            return res.status(400).json({ success: false, error: 'Cette commande a déjà été remboursée.' });
-        }
+        if (orderData.userId !== uid) return res.status(403).json({ success: false, error: 'Accès refusé.' });
+        if (orderData.isRefunded) return res.status(400).json({ success: false, error: 'Cette commande a déjà été remboursée.' });
 
         const currentStatus = (orderData.status || '').toLowerCase();
         if (!['en attente', 'pending', 'en cours', 'in progress', 'processing'].includes(currentStatus)) {
             return res.status(400).json({ success: false, error: 'Action impossible : la commande est déjà terminée ou annulée.' });
         }
 
-        const url = 'https://exosupplier.com/api/v2';
-        const formData = new URLSearchParams();
-        formData.append('key', process.env.EXO_API_KEY);
-        formData.append('action', 'cancel'); 
-        formData.append('order', orderData.exoOrderId);
-
-        let exoRes = await fetch(url, { method: 'POST', body: formData });
-        let exoData = await exoRes.json();
+        let exoData = await callExo({ action: 'cancel', order: orderData.exoOrderId });
 
         if (exoData.error && exoData.error.toLowerCase().includes('incorrect action')) {
             return res.status(400).json({ success: false, error: "Le fournisseur n'autorise pas l'annulation de cette commande en cours." });
@@ -471,16 +403,14 @@ app.post('/api/exo/cancel', checkAuth, async (req, res) => {
 
         return res.status(200).json({ 
             success: true, 
-            message: "La demande d'annulation a bien été transmise au fournisseur. Le remboursement sera effectué automatiquement dès que l'annulation sera confirmée de leur côté."
+            message: "La demande d'annulation a bien été transmise au fournisseur. Le remboursement sera effectué automatiquement dès que l'annulation sera confirmée."
         });
-
     } catch (error) {
         console.error("Erreur annulation:", error);
         return res.status(500).json({ success: false, error: error.message || 'Erreur technique serveur.' });
     }
 });
 
-// ── POST /api/exo-status ─────────────────────────────────────────
 app.post('/api/exo-status', checkAuth, async (req, res) => {
     const { orderId } = req.body;
     const uid = req.user.uid;
@@ -488,24 +418,12 @@ app.post('/api/exo-status', checkAuth, async (req, res) => {
         const orderRef = db.collection('commandes').doc(orderId);
         const orderDoc = await orderRef.get();
         
-        if (!orderDoc.exists || orderDoc.data().userId !== uid) {
-            return res.status(404).json({ success: false, error: 'Commande introuvable.' });
-        }
+        if (!orderDoc.exists || orderDoc.data().userId !== uid) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
         
         const orderData = orderDoc.data();
-        if (!orderData.exoOrderId) {
-            return res.status(400).json({ success: false, error: 'Pas de numéro de suivi fournisseur.' });
-        }
+        if (!orderData.exoOrderId) return res.status(400).json({ success: false, error: 'Pas de numéro de suivi fournisseur.' });
 
-        const url = 'https://exosupplier.com/api/v2';
-        const statusData = new URLSearchParams();
-        statusData.append('key', process.env.EXO_API_KEY);
-        statusData.append('action', 'status');
-        statusData.append('order', orderData.exoOrderId);
-        
-        const exoRes = await fetch(url, { method: 'POST', body: statusData });
-        const exoData = await exoRes.json();
-
+        const exoData = await callExo({ action: 'status', order: orderData.exoOrderId });
         if (exoData.error) return res.status(400).json({ success: false, error: exoData.error });
 
         const statusMap = { 'Pending': 'En attente', 'In progress': 'En cours', 'Processing': 'En cours', 'Completed': 'Terminée', 'Partial': 'Partiel', 'Canceled': 'Annulée' };
@@ -535,21 +453,14 @@ app.post('/api/exo-status', checkAuth, async (req, res) => {
 
                     t.update(userRef, { balance: bal + refundAmount });
                     t.update(orderRef, {
-                        status: mappedStatus,
-                        exoRemains: remains,
-                        isRefunded: true,
-                        refundAmount: refundAmount,
-                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                        status: mappedStatus, exoRemains: remains, isRefunded: true,
+                        refundAmount: refundAmount, updatedAt: admin.firestore.FieldValue.serverTimestamp()
                     });
                 });
                 isRefunded = true;
             }
         } else {
-            await orderRef.update({
-                status: mappedStatus,
-                exoRemains: remains,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            });
+            await orderRef.update({ status: mappedStatus, exoRemains: remains, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
         }
         res.json({ success: true, status: mappedStatus, remains, refunded: isRefunded, refundAmount });
     } catch (error) {
@@ -557,32 +468,12 @@ app.post('/api/exo-status', checkAuth, async (req, res) => {
     }
 });
 
-
 // ═══════════════════════════════════════════════════════════════
-// AfriqueBoost API (CORRIGÉ - PRIX EN FCFA DIRECTEMENT)
+// AfriqueBoost API 
 // ═══════════════════════════════════════════════════════════════
-const AFRIQUEBOOST_API_URL = 'https://afriqueboost.com/api/v2';
-const AFB_MULTIPLIER       = 3;   // Conserve ta marge habituelle x3. PAS de conversion USD !
-
-// Cache en mémoire pour les services (10 minutes)
 let _afbServicesCache     = null;
 let _afbServicesCacheTime = 0;
 
-async function callAfriqueBoost(params) {
-  if (!process.env.ADVANCED_PROVIDER_API_KEY) {
-    throw new Error('ADVANCED_PROVIDER_API_KEY non définie dans Vercel.');
-  }
-  const body = new URLSearchParams({ key: process.env.ADVANCED_PROVIDER_API_KEY, ...params });
-  const res  = await fetch(AFRIQUEBOOST_API_URL, {
-    method: 'POST',
-    body,
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-  });
-  if (!res.ok) throw new Error(`AfriqueBoost HTTP ${res.status}`);
-  return res.json();
-}
-
-// ── GET /api/afriqueboost/services ───────────────────────────────
 app.get('/api/afriqueboost/services', async (req, res) => {
   try {
     const now = Date.now();
@@ -590,57 +481,41 @@ app.get('/api/afriqueboost/services', async (req, res) => {
       return res.json({ success: true, services: _afbServicesCache, cached: true });
     }
     const rawServices = await callAfriqueBoost({ action: 'services' });
-    if (!Array.isArray(rawServices)) {
-      return res.status(500).json({ success: false, error: 'Réponse AfriqueBoost invalide' });
-    }
+    if (!Array.isArray(rawServices)) return res.status(500).json({ success: false, error: 'Réponse AfriqueBoost invalide' });
     
-    // Formatage : on prend le prix direct en FCFA fourni par AfriqueBoost et on multiplie par la marge (x3)
     const services = rawServices.map(s => {
       const rateXAF  = parseFloat(s.rate) || 0;
-      const priceXAF = Math.round(rateXAF * AFB_MULTIPLIER); // SEULEMENT LA MARGE, PAS DE CONVERSION USD
-      
+      const priceXAF = Math.round(rateXAF * AFB_MULTIPLIER); 
       return {
-        id:       parseInt(s.service),
-        name:     s.name,
-        category: s.category || '',
-        type:     s.type     || '',
-        min:      parseInt(s.min),
-        max:      parseInt(s.max),
-        rate:     rateXAF,
-        priceXAF,
-        refill: s.refill  === true || s.refill  === 'true' || s.refill === 1,
-        cancel: s.cancel  === true || s.cancel  === 'true' || s.cancel === 1,
-        desc:   s.description || null,
-        provider: 'afriqueboost' 
+        id: parseInt(s.service), name: s.name, category: s.category || '', type: s.type || '',
+        min: parseInt(s.min), max: parseInt(s.max), rate: rateXAF, priceXAF,
+        refill: s.refill === true || s.refill === 'true' || s.refill === 1,
+        cancel: s.cancel === true || s.cancel === 'true' || s.cancel === 1,
+        desc: s.description || null, provider: 'afriqueboost' 
       };
     });
     
-    _afbServicesCache     = services;
-    _afbServicesCacheTime = now;
+    _afbServicesCache = services; _afbServicesCacheTime = now;
     res.json({ success: true, services });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ── POST /api/afriqueboost/order ─────────────────────────────────
 app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
   const { serviceId, link, quantity, comments } = req.body;
   const uid = req.user.uid;
-  if (!serviceId || !link) {
-    return res.status(400).json({ success: false, error: 'serviceId et link sont requis.' });
-  }
+  if (!serviceId || !link) return res.status(400).json({ success: false, error: 'serviceId et link sont requis.' });
   try {
     const allServices = _afbServicesCache || (await callAfriqueBoost({ action: 'services' }));
     const service = allServices.find(s => parseInt(s.service || s.id) === parseInt(serviceId));
-    
     if (!service) return res.status(400).json({ success: false, error: 'Service AfriqueBoost introuvable.' });
     
-    const rateXAF   = parseFloat(service.rate) || 0;
-    const priceXAF  = Math.round(rateXAF * AFB_MULTIPLIER); // Calcul propre (marge uniquement)
-    const qty       = parseInt(quantity);
+    const rateXAF = parseFloat(service.rate) || 0;
+    const priceXAF = Math.round(rateXAF * AFB_MULTIPLIER);
+    const qty = parseInt(quantity);
     const isPackage = (service.type || '').toLowerCase().includes('package');
-    const cost      = isPackage ? priceXAF : Math.round((priceXAF / 1000) * qty);
+    const cost = isPackage ? priceXAF : Math.round((priceXAF / 1000) * qty);
 
     const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
@@ -648,36 +523,31 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
     const currentBalance = userDoc.data().balance || 0;
     if (currentBalance < cost) {
       return res.status(400).json({
-        success: false,
-        error: `Solde insuffisant. Requis : ${cost.toLocaleString('fr-FR')} FCFA — Disponible : ${currentBalance.toLocaleString('fr-FR')} FCFA`,
+        success: false, error: `Solde insuffisant. Requis : ${cost.toLocaleString('fr-FR')} FCFA — Disponible : ${currentBalance.toLocaleString('fr-FR')} FCFA`,
       });
     }
 
     const orderParams = { action: 'add', service: serviceId, link, quantity: qty };
     if (comments) orderParams.comments = comments;
-    
-    // Appel à AfriqueBoost
     const orderResult = await callAfriqueBoost(orderParams);
 
     if (orderResult.error) return res.status(400).json({ success: false, error: 'Erreur AfriqueBoost: ' + orderResult.error });
-    if (!orderResult.order) return res.status(400).json({ success: false, error: 'Commande non confirmée par AfriqueBoost.' });
+    if (!orderResult.order) return res.status(400).json({ success: false, error: 'Commande non confirmée.' });
 
     let finalOrderId, newBalance;
-    
-    // Transaction Firestore sécurisée pour déduire le solde
     await db.runTransaction(async (transaction) => {
-      const counterRef   = db.collection('counters').doc('autoOrders');
+      const counterRef = db.collection('counters').doc('autoOrders');
       const freshUserRef = db.collection('users').doc(uid);
       
-      const counterDoc   = await transaction.get(counterRef);
+      const counterDoc = await transaction.get(counterRef);
       const freshUserDoc = await transaction.get(freshUserRef);
 
       const freshBalance = freshUserDoc.data().balance || 0;
       if (freshBalance < cost) throw new Error('Solde insuffisant (vérifié pendant le traitement).');
 
-      const nextId   = ((counterDoc.exists ? counterDoc.data().lastId : 0) || 0) + 1;
-      finalOrderId   = `SBH-AUTO-${nextId}`;
-      newBalance     = freshBalance - cost;
+      const nextId = ((counterDoc.exists ? counterDoc.data().lastId : 0) || 0) + 1;
+      finalOrderId = `SBH-AUTO-${nextId}`;
+      newBalance = freshBalance - cost;
       const platform = detectPlatformName(service.name || '', link);
 
       transaction.set(counterRef, { lastId: nextId }, { merge: true });
@@ -685,53 +555,36 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
 
       const orderRef = db.collection('autoOrders').doc();
       transaction.set(orderRef, {
-        orderId:          finalOrderId,
-        userId:           uid,
-        provider:         'afriqueboost', 
-        providerOrderId:  orderResult.order,
-        serviceId:        parseInt(serviceId),
-        serviceName:      service.name,
-        platform,
-        link,
-        quantity:         qty,
-        priceXAF:         cost,
-        status:           'En attente',
-        createdAt:        admin.firestore.FieldValue.serverTimestamp(),
-        providerStartCount: 0,
-        providerRemains:  qty,
-        refunded:         false,
+        orderId: finalOrderId, userId: uid, provider: 'afriqueboost', providerOrderId: orderResult.order,
+        serviceId: parseInt(serviceId), serviceName: service.name, platform, link, quantity: qty,
+        priceXAF: cost, status: 'En attente', createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        providerStartCount: 0, providerRemains: qty, refunded: false,
       });
     });
 
     res.json({ success: true, orderId: finalOrderId, newBalance });
   } catch (error) {
-    if (error.message.toLowerCase().includes('insuffisant')) {
-      return res.status(400).json({ success: false, error: error.message });
-    }
+    if (error.message.toLowerCase().includes('insuffisant')) return res.status(400).json({ success: false, error: error.message });
     res.status(500).json({ success: false, error: 'Erreur technique. Veuillez réessayer.' });
   }
 });
 
-// ── GET /api/afriqueboost/status/:orderId ────────────────────────
 app.get('/api/afriqueboost/status/:orderId', checkAuth, async (req, res) => {
   const { orderId } = req.params;
-  const uid         = req.user.uid;
+  const uid = req.user.uid;
   try {
-    const snapshot = await db.collection('autoOrders')
-      .where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
-    
+    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
     if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
-    const orderDoc  = snapshot.docs[0];
+    const orderDoc = snapshot.docs[0];
     const orderData = orderDoc.data();
-    
     const statusResult = await callAfriqueBoost({ action: 'status', order: orderData.providerOrderId });
 
     if (statusResult.error) return res.status(400).json({ success: false, error: 'Erreur AfriqueBoost: ' + statusResult.error });
 
-    const newStatus  = MTP_STATUS_MAP[statusResult.status] || statusResult.status || 'En attente';
-    const startCount = parseInt(statusResult.start_count)  || 0;
-    const remains    = parseInt(statusResult.remains)       || 0;
+    const newStatus = MTP_STATUS_MAP[statusResult.status] || statusResult.status || 'En attente';
+    const startCount = parseInt(statusResult.start_count) || 0;
+    const remains = parseInt(statusResult.remains) || 0;
 
     let refundAmount = 0;
     let isRefunded = orderData.refunded || false;
@@ -757,70 +610,51 @@ app.get('/api/afriqueboost/status/:orderId', checkAuth, async (req, res) => {
 
           t.update(userRef, { balance: bal + refundAmount });
           t.update(orderDoc.ref, {
-            status: newStatus,
-            providerStartCount: startCount,
-            providerRemains: remains,
-            refunded: true,
-            refundedAmount: refundAmount,
-            lastChecked: admin.firestore.FieldValue.serverTimestamp()
+            status: newStatus, providerStartCount: startCount, providerRemains: remains,
+            refunded: true, refundedAmount: refundAmount, lastChecked: admin.firestore.FieldValue.serverTimestamp()
           });
         });
         isRefunded = true;
       }
     } else {
-      await orderDoc.ref.update({
-        status:             newStatus,
-        providerStartCount: startCount,
-        providerRemains:    remains,
-        lastChecked:        admin.firestore.FieldValue.serverTimestamp(),
-      });
+      await orderDoc.ref.update({ status: newStatus, providerStartCount: startCount, providerRemains: remains, lastChecked: admin.firestore.FieldValue.serverTimestamp() });
     }
-
     res.json({ success: true, status: newStatus, providerStatus: statusResult.status, startCount, remains, refunded: isRefunded, refundAmount });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ── POST /api/afriqueboost/refill ────────────────────────────────
 app.post('/api/afriqueboost/refill', checkAuth, async (req, res) => {
   const { orderId } = req.body;
-  const uid         = req.user.uid;
+  const uid = req.user.uid;
   if (!orderId) return res.status(400).json({ success: false, error: 'orderId requis.' });
   try {
-    const snapshot = await db.collection('autoOrders')
-      .where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
-      
+    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
     if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
-    const orderDoc  = snapshot.docs[0];
+    const orderDoc = snapshot.docs[0];
     const orderData = orderDoc.data();
     
     const result = await callAfriqueBoost({ action: 'refill', order: orderData.providerOrderId });
     if (result.error) return res.status(400).json({ success: false, error: 'Erreur AfriqueBoost: ' + result.error });
 
-    await orderDoc.ref.update({
-      lastRefill: admin.firestore.FieldValue.serverTimestamp(),
-      refillId: result.refill || null,
-    });
+    await orderDoc.ref.update({ lastRefill: admin.firestore.FieldValue.serverTimestamp(), refillId: result.refill || null });
     res.json({ success: true, refillId: result.refill });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ── POST /api/afriqueboost/cancel ────────────────────────────────
 app.post('/api/afriqueboost/cancel', checkAuth, async (req, res) => {
   const { orderId } = req.body;
-  const uid         = req.user.uid;
+  const uid = req.user.uid;
   if (!orderId) return res.status(400).json({ success: false, error: 'orderId requis.' });
   try {
-    const snapshot = await db.collection('autoOrders')
-      .where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
-      
+    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
     if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
-    const orderDoc  = snapshot.docs[0];
+    const orderDoc = snapshot.docs[0];
     const orderData = orderDoc.data();
     const currentStatus = (orderData.status || '').toLowerCase();
 
@@ -829,26 +663,18 @@ app.post('/api/afriqueboost/cancel', checkAuth, async (req, res) => {
         return res.status(400).json({ success: false, error: 'Cette commande ne peut plus être annulée.' });
     }
 
-    try { 
-        await callAfriqueBoost({ action: 'cancel', orders: orderData.providerOrderId }); 
-    } catch (afbErr) { 
-        console.error("AfriqueBoost Cancel Error:", afbErr);
-    }
+    try { await callAfriqueBoost({ action: 'cancel', orders: orderData.providerOrderId }); } 
+    catch (afbErr) { console.error("AfriqueBoost Cancel Error:", afbErr); }
 
-    res.json({ 
-        success: true, 
-        message: "Demande d'annulation transmise. Le remboursement sera effectué lors de la confirmation du statut par AfriqueBoost." 
-    });
+    res.json({ success: true, message: "Demande d'annulation transmise. Le remboursement sera effectué lors de la confirmation." });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // ═══════════════════════════════════════════════════════════════
-// Routes utilisateur (existantes)
+// Routes utilisateur
 // ═══════════════════════════════════════════════════════════════
-
-// ── /api/register ───────────────────────────────────────────────
 app.post('/api/register', checkAuth, async (req, res) => {
   try {
     const { displayName, username, email, country } = req.body;
@@ -868,10 +694,9 @@ app.post('/api/register', checkAuth, async (req, res) => {
   }
 });
 
-// ── /api/user/profile ───────────────────────────────────────────
 app.get('/api/user/profile', checkAuth, async (req, res) => {
   try {
-    const uid     = req.user.uid;
+    const uid = req.user.uid;
     const userDoc = await db.collection('users').doc(uid).get();
 
     if (!userDoc.exists) {
@@ -879,8 +704,7 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
         success: true,
         profile: {
           displayName: req.user.name || '', email: req.user.email || '', photoURL: req.user.picture || null,
-          phone: '', country: '', balance: 0, totalOrders: 0,
-          createdAt: new Date().toISOString(), settings: {}, resellerLevel: 'bronze',
+          phone: '', country: '', balance: 0, totalOrders: 0, createdAt: new Date().toISOString(), settings: {}, resellerLevel: 'bronze',
         }
       });
     }
@@ -888,14 +712,10 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
     res.json({
       success: true,
       profile: {
-        displayName:   data.displayName || data.username || req.user.name || '',
-        email:         data.email       || req.user.email || '',
-        photoURL:      data.photoURL    || req.user.picture || null,
-        phone:         data.phone       || '', country: data.country || '',
-        balance:       data.balance     || 0, totalOrders: data.totalOrders || 0,
-        createdAt:     data.createdAt   || new Date().toISOString(),
-        settings:      data.settings    || {}, resellerLevel: data.resellerLevel || 'bronze',
-        lastSignIn:    data.lastSignIn  || null,
+        displayName: data.displayName || data.username || req.user.name || '', email: data.email || req.user.email || '',
+        photoURL: data.photoURL || req.user.picture || null, phone: data.phone || '', country: data.country || '',
+        balance: data.balance || 0, totalOrders: data.totalOrders || 0, createdAt: data.createdAt || new Date().toISOString(),
+        settings: data.settings || {}, resellerLevel: data.resellerLevel || 'bronze', lastSignIn: data.lastSignIn || null,
       }
     });
   } catch (error) {
@@ -903,18 +723,16 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
   }
 });
 
-// ── /api/update-profile ─────────────────────────────────────────
 app.post('/api/update-profile', checkAuth, async (req, res) => {
   const { displayName, email, phone, country, photoURL, newPassword } = req.body;
   const uid = req.user.uid;
   try {
-    const updateData  = {};
-    const authUpdates = {};
+    const updateData = {}; const authUpdates = {};
     if (displayName !== undefined) { updateData.displayName = displayName; authUpdates.displayName = displayName; }
-    if (email       !== undefined) updateData.email   = email;
-    if (phone       !== undefined) updateData.phone   = phone;
-    if (country     !== undefined) updateData.country = country;
-    if (photoURL    !== undefined) { updateData.photoURL = photoURL; authUpdates.photoURL = photoURL; }
+    if (email !== undefined) updateData.email = email;
+    if (phone !== undefined) updateData.phone = phone;
+    if (country !== undefined) updateData.country = country;
+    if (photoURL !== undefined) { updateData.photoURL = photoURL; authUpdates.photoURL = photoURL; }
     if (Object.keys(authUpdates).length > 0) await admin.auth().updateUser(uid, authUpdates);
     if (newPassword) {
       if (newPassword.length < 6) return res.status(400).json({ success: false, error: 'Mot de passe trop court.' });
@@ -927,7 +745,6 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
   }
 });
 
-// ── /api/user/settings ──────────────────────────────────────────
 app.post('/api/user/settings', checkAuth, async (req, res) => {
   const { settings } = req.body;
   if (!settings || typeof settings !== 'object') return res.status(400).json({ success: false, error: 'Paramètres invalides' });
@@ -939,11 +756,10 @@ app.post('/api/user/settings', checkAuth, async (req, res) => {
   }
 });
 
-// ── /api/user/api-key-info ──────────────────────────────────────
 app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
   try {
     const userDoc = await db.collection('users').doc(req.user.uid).get();
-    const data    = userDoc.data();
+    const data = userDoc.data();
     if (data && data.apiKey) {
       res.json({ success: true, hasApiKey: true, prefix: data.apiKey.substring(0, 8), createdAt: data.apiKeyCreatedAt || new Date().toISOString() });
     } else {
@@ -954,25 +770,19 @@ app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
   }
 });
 
-// ── /api/user/generate-api-key ──────────────────────────────────
 app.post('/api/user/generate-api-key', checkAuth, async (req, res) => {
   try {
     const newKey = 'sbh_' + crypto.randomBytes(24).toString('hex');
-    await db.collection('users').doc(req.user.uid).set({
-      apiKey: newKey, apiKeyCreatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
+    await db.collection('users').doc(req.user.uid).set({ apiKey: newKey, apiKeyCreatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
     res.json({ success: true, apiKey: newKey, prefix: newKey.substring(0, 8) });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ── /api/user/revoke-api-key ────────────────────────────────────
 app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
   try {
-    await db.collection('users').doc(req.user.uid).update({
-      apiKey: admin.firestore.FieldValue.delete(), apiKeyCreatedAt: admin.firestore.FieldValue.delete(),
-    });
+    await db.collection('users').doc(req.user.uid).update({ apiKey: admin.firestore.FieldValue.delete(), apiKeyCreatedAt: admin.firestore.FieldValue.delete() });
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -980,10 +790,8 @@ app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// Fapshi – Paiement Mobile Money (Cameroun)
+// Fapshi – Paiement Mobile Money
 // ═══════════════════════════════════════════════════════════════
-
-// ── POST /api/create-fapshi-checkout ────────────────────────────
 app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
   const uid = req.user.uid;
   const { amount, currency, description, redirectUrl, phone } = req.body;
@@ -1007,22 +815,13 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
     const userDoc = await db.collection('users').doc(uid).get();
     if (userDoc.exists) {
       const uData = userDoc.data();
-      finalEmail = uData.email || finalEmail;
-      finalName = uData.displayName || uData.username || finalName;
+      finalEmail = uData.email || finalEmail; finalName = uData.displayName || uData.username || finalName;
     }
-  } catch (e) {
-    console.error('Erreur lors de la récupération des infos de compte Firestore : ', e);
-  }
+  } catch (e) {}
 
   const payload = {
-    amount: amountNum, 
-    currency: currency || 'XAF', 
-    description: description || 'Recharge',
-    redirect_url: redirectUrl, 
-    webhook_url: webhookUrl, 
-    phone: phone || '',
-    email: finalEmail,
-    name: finalName
+    amount: amountNum, currency: currency || 'XAF', description: description || 'Recharge',
+    redirect_url: redirectUrl, webhook_url: webhookUrl, phone: phone || '', email: finalEmail, name: finalName
   };
 
   const controller = new AbortController();
@@ -1030,8 +829,7 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
 
   try {
     const fapshiRes = await fetch('https://live.fapshi.com/initiate-pay', {
-      method:  'POST', 
-      headers: { 'Content-Type': 'application/json', 'apiuser': API_USER, 'apikey':  SECRET_KEY },
+      method:  'POST', headers: { 'Content-Type': 'application/json', 'apiuser': API_USER, 'apikey':  SECRET_KEY },
       body: JSON.stringify(payload), signal: controller.signal,
     });
     clearTimeout(timer);
@@ -1042,16 +840,15 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
 
     if (!fapshiRes.ok) return res.status(fapshiRes.status).json({ success: false, error: respJson.message || respJson.error });
 
-    const checkoutUrl   = respJson.data?.url || respJson.link || respJson.url;
-    const fapshiTransId = respJson.transId   || respJson.data?.transId || null;
+    const checkoutUrl = respJson.data?.url || respJson.link || respJson.url;
+    const fapshiTransId = respJson.transId || respJson.data?.transId || null;
 
     if (!checkoutUrl) return res.status(502).json({ success: false, error: 'URL manquante dans la réponse Fapshi.' });
 
     const transDocId = fapshiTransId || db.collection('fapshiTransactions').doc().id;
     await db.collection('fapshiTransactions').doc(transDocId).set({
-      fapshiTransId:   fapshiTransId, userId: uid, amount: amountNum,
-      currency: currency || 'XAF', description: payload.description,
-      phone: phone || null, status: 'PENDING',
+      fapshiTransId: fapshiTransId, userId: uid, amount: amountNum, currency: currency || 'XAF',
+      description: payload.description, phone: phone || null, status: 'PENDING',
       dateInitiated: admin.firestore.FieldValue.serverTimestamp(), checkoutUrl,
     });
 
@@ -1065,19 +862,15 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
   }
 });
 
-// ── GET /api/fapshi-webhook ──────────────────────────────────────
-app.get('/api/fapshi-webhook', (req, res) => {
-  res.status(200).send("Endpoint Webhook actif. Fapshi utilise la méthode POST.");
-});
+app.get('/api/fapshi-webhook', (req, res) => res.status(200).send("Endpoint Webhook actif. Fapshi utilise la méthode POST."));
 
-// ── POST /api/fapshi-webhook ─────────────────────────────────────
 app.post('/api/fapshi-webhook', async (req, res) => {
   const { status, amount, transId } = req.body;
   if (status !== 'SUCCESSFUL') return res.status(200).json({ message: 'Statut ignoré.' });
   if (!transId || isNaN(Number(amount))) return res.status(400).json({ error: 'Données invalides.' });
 
   const amountNum = Number(amount);
-  const transRef  = db.collection('fapshiTransactions').doc(transId);
+  const transRef = db.collection('fapshiTransactions').doc(transId);
 
   try {
     const transDoc = await transRef.get();
@@ -1089,9 +882,7 @@ app.post('/api/fapshi-webhook', async (req, res) => {
     const userId = transData.userId;
     if (!userId) return res.status(500).json({ error: 'userId manquant.' });
 
-    await transRef.update({
-      status: 'CONFIRMED', amountConfirmed: amountNum, dateConfirmed: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    await transRef.update({ status: 'CONFIRMED', amountConfirmed: amountNum, dateConfirmed: admin.firestore.FieldValue.serverTimestamp() });
 
     const userRef = db.collection('users').doc(userId);
     await db.runTransaction(async (t) => {
@@ -1104,7 +895,6 @@ app.post('/api/fapshi-webhook', async (req, res) => {
       }
     });
 
-    // Parrainage bonus
     let bonusApplied = false;
     try {
       const filleulDoc = await userRef.get();
@@ -1113,28 +903,25 @@ app.post('/api/fapshi-webhook', async (req, res) => {
         const bonusAmount = Math.floor(amountNum * 0.05);
         if (bonusAmount > 0) {
           const parrainRef = db.collection('users').doc(parrainUid);
-          await parrainRef.set({ referralBalance: admin.FieldValue.increment(bonusAmount) }, { merge: true });
+          await parrainRef.set({ referralBalance: admin.firestore.FieldValue.increment(bonusAmount) }, { merge: true });
           await parrainRef.collection('referrals').add({
-            refereeUid: userId, amount: amountNum, referrerShare: bonusAmount,
-            type: 'deposit_bonus_fapshi', transactionId: transId,
-            date: admin.firestore.FieldValue.serverTimestamp(), status: 'completed',
+            refereeUid: userId, amount: amountNum, referrerShare: bonusAmount, type: 'deposit_bonus_fapshi',
+            transactionId: transId, date: admin.firestore.FieldValue.serverTimestamp(), status: 'completed',
           });
           bonusApplied = true;
         }
       }
     } catch (e) {}
-
     return res.status(200).json({ message: 'Webhook traité.', bonusApplied });
   } catch (err) {
     return res.status(500).json({ error: 'Erreur webhook.' });
   }
 });
 
-// ── POST /api/fapshi/verify-transaction ──────────────────────────
 app.post('/api/fapshi/verify-transaction', checkAuth, async (req, res) => {
   const uid = req.user.uid;
   const { transId } = req.body;
-  const API_USER   = process.env.FAPSHI_API_USER;
+  const API_USER = process.env.FAPSHI_API_USER;
   const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
 
   if (!transId) return res.status(400).json({ success: false, error: 'ID de transaction requis.' });
@@ -1144,25 +931,17 @@ app.post('/api/fapshi/verify-transaction', checkAuth, async (req, res) => {
     const transRef = db.collection('fapshiTransactions').doc(transId);
     const transDoc = await transRef.get();
 
-    if (!transDoc.exists || transDoc.data().userId !== uid) {
-      return res.status(404).json({ success: false, error: "Transaction introuvable pour ce compte." });
-    }
-
+    if (!transDoc.exists || transDoc.data().userId !== uid) return res.status(404).json({ success: false, error: "Transaction introuvable pour ce compte." });
+    
     const transData = transDoc.data();
-    if (transData.status === 'CONFIRMED') {
-      return res.json({ success: true, status: 'CONFIRMED', message: "La transaction est déjà confirmée." });
-    }
+    if (transData.status === 'CONFIRMED') return res.json({ success: true, status: 'CONFIRMED', message: "La transaction est déjà confirmée." });
 
     const fapshiID = transData.fapshiTransId || transId;
-    
     const fapshiRes = await fetch(`https://live.fapshi.com/payment-status/${fapshiID}`, {
-      method: 'GET',
-      headers: { 'apiuser': API_USER, 'apikey': SECRET_KEY }
+      method: 'GET', headers: { 'apiuser': API_USER, 'apikey': SECRET_KEY }
     });
 
-    if (!fapshiRes.ok) {
-      return res.status(502).json({ success: false, error: `Erreur Fapshi : ${fapshiRes.status}` });
-    }
+    if (!fapshiRes.ok) return res.status(502).json({ success: false, error: `Erreur Fapshi : ${fapshiRes.status}` });
 
     const statusData = await fapshiRes.json();
     const paymentObj = Array.isArray(statusData) ? statusData[0] : statusData;
@@ -1175,17 +954,13 @@ app.post('/api/fapshi/verify-transaction', checkAuth, async (req, res) => {
       await db.runTransaction(async (t) => {
         const freshTransDoc = await t.get(transRef);
         const userDoc = await t.get(userRef);
-
         if (freshTransDoc.exists && freshTransDoc.data().status === 'CONFIRMED') return;
 
-        t.update(transRef, {
-          status: 'CONFIRMED', amountConfirmed: amountNum, dateConfirmed: admin.firestore.FieldValue.serverTimestamp(),
-        });
+        t.update(transRef, { status: 'CONFIRMED', amountConfirmed: amountNum, dateConfirmed: admin.firestore.FieldValue.serverTimestamp() });
         const currentBalance = userDoc.exists ? (userDoc.data().balance || 0) : 0;
         t.set(userRef, { balance: currentBalance + amountNum }, { merge: true });
       });
 
-      // Bonus parrainage
       try {
         const userDocData = await userRef.get();
         const parrainUid = userDocData.exists ? (userDocData.data().referredBy || null) : null;
@@ -1195,16 +970,13 @@ app.post('/api/fapshi/verify-transaction', checkAuth, async (req, res) => {
             const parrainRef = db.collection('users').doc(parrainUid);
             await parrainRef.set({ referralBalance: admin.firestore.FieldValue.increment(bonusAmount) }, { merge: true });
             await parrainRef.collection('referrals').add({
-              refereeUid: uid, amount: amountNum, referrerShare: bonusAmount,
-              type: 'deposit_bonus_fapshi', transactionId: transId,
-              date: admin.firestore.FieldValue.serverTimestamp(), status: 'completed',
+              refereeUid: uid, amount: amountNum, referrerShare: bonusAmount, type: 'deposit_bonus_fapshi',
+              transactionId: transId, date: admin.firestore.FieldValue.serverTimestamp(), status: 'completed',
             });
           }
         }
       } catch (refErr) {}
-
       return res.json({ success: true, status: 'CONFIRMED' });
-
     } else if (paymentStatus === 'FAILED' || paymentStatus === 'EXPIRED') {
       await transRef.update({ status: 'FAILED', dateUpdated: admin.firestore.FieldValue.serverTimestamp() });
       return res.json({ success: true, status: 'FAILED' });
@@ -1216,22 +988,244 @@ app.post('/api/fapshi/verify-transaction', checkAuth, async (req, res) => {
   }
 });
 
-// ── GET /api/fapshi/transactions ─────────────────────────────────
 app.get('/api/fapshi/transactions', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
-    const snapshot = await db.collection('fapshiTransactions')
-      .where('userId', '==', uid).orderBy('dateInitiated', 'desc').limit(20).get();
+    const snapshot = await db.collection('fapshiTransactions').where('userId', '==', uid).orderBy('dateInitiated', 'desc').limit(20).get();
     const transactions = snapshot.docs.map(doc => ({
-      id: doc.id, ...doc.data(),
-      dateInitiated: doc.data().dateInitiated || null,
-      dateConfirmed: doc.data().dateConfirmed || null,
+      id: doc.id, ...doc.data(), dateInitiated: doc.data().dateInitiated || null, dateConfirmed: doc.data().dateConfirmed || null,
     }));
     res.json({ success: true, transactions });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN API (Routes Administrateur)
+// ═══════════════════════════════════════════════════════════════
+
+const ADMIN_PASSWORD = '209644209644';
+function checkAdminPassword(req, res, next) {
+  const pass = req.headers['x-admin-password'];
+  if (!pass || pass !== ADMIN_PASSWORD) {
+    return res.status(403).json({ success: false, error: 'Accès refusé. Clé invalide.' });
+  }
+  next();
+}
+
+const ADMIN_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+let adminCache = { stats: null, services: null, users: null, orders: null, lastFetch: { stats: 0, services: 0, users: 0, orders: 0 } };
+
+function isAdminCacheValid(key) {
+  return adminCache[key] && (Date.now() - adminCache.lastFetch[key] < ADMIN_CACHE_TTL);
+}
+
+async function getStatsData() {
+  if (isAdminCacheValid('stats')) return adminCache.stats;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const yearAgo = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
+
+  const [usersCount, mtpOrdersCount, exoOrdersCount] = await Promise.all([
+    db.collection('users').count().get(),
+    db.collection('autoOrders').count().get(),
+    db.collection('commandes').count().get(),
+  ]);
+  const totalOrders = mtpOrdersCount.data().count + exoOrdersCount.data().count;
+
+  async function getPeriodStats(startDate) {
+    const mtpSnap = await db.collection('autoOrders')
+      .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(startDate))
+      .where('status', 'in', ['Terminé', 'En cours', 'Completed']).get();
+
+    const exoSnap = await db.collection('commandes')
+      .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(startDate))
+      .where('status', 'in', ['Terminé', 'En cours', 'Completed']).get();
+
+    let revenue = 0, cost = 0;
+    mtpSnap.forEach(doc => { const d = doc.data(); const p = d.priceXAF || 0; revenue += p; cost += p / MTP_MULTIPLIER; });
+    exoSnap.forEach(doc => { const d = doc.data(); const p = d.totalCost || d.finalCost || d.cost || 0; revenue += p; cost += p / EXO_MULTIPLIER; });
+    return { revenue: Math.round(revenue), cost: Math.round(cost), profit: Math.round(revenue - cost) };
+  }
+
+  const [todayStats, weekStats, monthStats, yearStats] = await Promise.all([ getPeriodStats(today), getPeriodStats(weekAgo), getPeriodStats(monthAgo), getPeriodStats(yearAgo) ]);
+
+  const stats = { totalUsers: usersCount.data().count, totalOrders, today: todayStats, week: weekStats, month: monthStats, year: yearStats, lastUpdated: new Date().toISOString() };
+  adminCache.stats = stats; adminCache.lastFetch.stats = Date.now();
+  return stats;
+}
+
+async function getServicesData() {
+  if (isAdminCacheValid('services')) return adminCache.services;
+  let allServices = [];
+
+  if (process.env.MORETHANPANEL_API_KEY) {
+    try {
+      const mtpData = await callMTP({ action: 'services' });
+      if (Array.isArray(mtpData)) {
+        mtpData.forEach(s => {
+          const rate = parseFloat(s.rate) || 0; const providerCost = Math.round(rate * MTP_USD_TO_XAF);
+          const finalPrice = Math.round(providerCost * MTP_MULTIPLIER); const profit = finalPrice - providerCost;
+          allServices.push({ id: s.service, provider: 'MTP', name: s.name, category: s.category || '', providerCost, finalPrice, profit, profitMargin: Math.round((profit / finalPrice) * 100) || 0, min: parseInt(s.min) || 0, max: parseInt(s.max) || 0 });
+        });
+      }
+    } catch (e) { console.warn('Erreur MTP admin services:', e.message); }
+  }
+
+  if (process.env.EXO_API_KEY) {
+    try {
+      const exoData = await callExo({ action: 'services' });
+      if (Array.isArray(exoData)) {
+        exoData.forEach(s => {
+          const rate = parseFloat(s.rate) || 0; const providerCost = Math.round(rate * EXO_USD_TO_XAF);
+          const finalPrice = Math.round(providerCost * EXO_MULTIPLIER); const profit = finalPrice - providerCost;
+          allServices.push({ id: s.service, provider: 'EXO', name: s.name, category: s.category || '', providerCost, finalPrice, profit, profitMargin: Math.round((profit / finalPrice) * 100) || 0, min: parseInt(s.min) || 0, max: parseInt(s.max) || 0 });
+        });
+      }
+    } catch (e) { console.warn('Erreur EXO admin services:', e.message); }
+  }
+
+  const prices = allServices.map(s => s.finalPrice);
+  const minPrice = prices.length ? Math.min(...prices) : 0; const maxPrice = prices.length ? Math.max(...prices) : 0;
+  const avgPrice = prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : 0;
+
+  const byProvider = {};
+  allServices.forEach(s => { if (!byProvider[s.provider]) byProvider[s.provider] = []; byProvider[s.provider].push(s); });
+
+  const result = {
+    services: allServices,
+    stats: {
+      total: allServices.length, minPrice, maxPrice, avgPrice,
+      byProvider: Object.keys(byProvider).map(p => ({
+        provider: p, count: byProvider[p].length, min: Math.min(...byProvider[p].map(s => s.finalPrice)),
+        max: Math.max(...byProvider[p].map(s => s.finalPrice)), avg: Math.round(byProvider[p].reduce((sum, s) => sum + s.finalPrice, 0) / byProvider[p].length),
+      })),
+    },
+  };
+  adminCache.services = result; adminCache.lastFetch.services = Date.now();
+  return result;
+}
+
+async function getOrdersData() {
+  if (isAdminCacheValid('orders')) return adminCache.orders;
+
+  const mtpSnap = await db.collection('autoOrders').orderBy('createdAt', 'desc').limit(200).get();
+  const mtpOrders = mtpSnap.docs.map(doc => {
+    const data = doc.data(); const price = data.priceXAF || 0; const cost = price / MTP_MULTIPLIER;
+    return { id: doc.id, source: 'MTP', orderId: data.orderId, userId: data.userId, serviceName: data.serviceName || 'Service MTP', quantity: data.quantity || 0, price, cost, profit: price - cost, profitMargin: price ? Math.round(((price - cost) / price) * 100) : 0, status: data.status || 'Inconnu', createdAt: data.createdAt };
+  });
+
+  const exoSnap = await db.collection('commandes').orderBy('createdAt', 'desc').limit(200).get();
+  const exoOrders = exoSnap.docs.map(doc => {
+    const data = doc.data(); const price = data.totalCost || data.finalCost || data.cost || 0; const cost = price / EXO_MULTIPLIER;
+    return { id: doc.id, source: 'EXO', orderId: data.orderId || data.id, userId: data.userId, serviceName: data.serviceName || 'Service EXO', quantity: data.quantity || 0, price, cost, profit: price - cost, profitMargin: price ? Math.round(((price - cost) / price) * 100) : 0, status: data.status || 'Inconnu', createdAt: data.createdAt };
+  });
+
+  const fapshiSnap = await db.collection('fapshiTransactions').where('status', '==', 'CONFIRMED').orderBy('dateConfirmed', 'desc').limit(100).get();
+  const fapshiOrders = fapshiSnap.docs.map(doc => {
+    const data = doc.data(); const amount = data.amount || 0; const cost = Math.round(amount * 0.8);
+    return { id: doc.id, source: 'Fapshi', orderId: doc.id, userId: data.userId, serviceName: 'Recharge Fapshi', quantity: 1, price: amount, cost, profit: amount - cost, profitMargin: amount ? Math.round(((amount - cost) / amount) * 100) : 0, status: 'Confirmé', createdAt: data.dateConfirmed || data.dateInitiated };
+  });
+
+  const allOrders = [...mtpOrders, ...exoOrders, ...fapshiOrders].sort((a, b) => {
+    const da = a.createdAt ? a.createdAt.toDate() : new Date(0); const db = b.createdAt ? b.createdAt.toDate() : new Date(0); return db - da;
+  });
+
+  const totalOrders = allOrders.length; const totalRevenue = allOrders.reduce((sum, o) => sum + o.price, 0);
+  const totalCost = allOrders.reduce((sum, o) => sum + o.cost, 0); const totalProfit = totalRevenue - totalCost;
+  const avgMargin = totalRevenue ? Math.round((totalProfit / totalRevenue) * 100) : 0;
+
+  const result = { orders: allOrders.slice(0, 200), stats: { total: totalOrders, revenue: totalRevenue, cost: totalCost, profit: totalProfit, avgMargin } };
+  adminCache.orders = result; adminCache.lastFetch.orders = Date.now();
+  return result;
+}
+
+// ── Définition du Routeur Admin ──
+const adminRouter = express.Router();
+adminRouter.use(checkAdminPassword);
+
+adminRouter.get('/ping', (req, res) => res.json({ success: true, message: 'Admin API accessible' }));
+adminRouter.get('/stats', async (req, res) => { try { res.json({ success: true, data: await getStatsData() }); } catch (error) { res.status(500).json({ success: false, error: error.message }); } });
+adminRouter.get('/services', async (req, res) => { try { res.json({ success: true, data: await getServicesData() }); } catch (error) { res.status(500).json({ success: false, error: error.message }); } });
+adminRouter.get('/orders', async (req, res) => { try { res.json({ success: true, data: await getOrdersData() }); } catch (error) { res.status(500).json({ success: false, error: error.message }); } });
+
+adminRouter.get('/users', async (req, res) => {
+  try {
+    if (isAdminCacheValid('users')) return res.json({ success: true, cached: true, data: adminCache.users });
+    const snapshot = await db.collection('users').select('displayName', 'username', 'email', 'phone', 'balance', 'totalOrders', 'createdAt').orderBy('createdAt', 'desc').limit(500).get();
+    const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const result = { users, topByBalance: [...users].sort((a, b) => (b.balance || 0) - (a.balance || 0)).slice(0, 10), topByOrders: [...users].sort((a, b) => (b.totalOrders || 0) - (a.totalOrders || 0)).slice(0, 10), total: users.length };
+    adminCache.users = result; adminCache.lastFetch.users = Date.now();
+    res.json({ success: true, data: result });
+  } catch (error) { res.status(500).json({ success: false, error: error.message }); }
+});
+
+adminRouter.get('/export/contacts', async (req, res) => {
+  try {
+    const snapshot = await db.collection('users').select('displayName', 'username', 'phone').get();
+    let vcf = '';
+    snapshot.forEach(doc => {
+      const data = doc.data(); const phone = data.phone || '';
+      if (phone) { const name = data.displayName || data.username || 'Client SBH'; vcf += `BEGIN:VCARD\nVERSION:3.0\nFN:SBH - ${name}\nTEL;TYPE=CELL:${phone}\nEND:VCARD\n`; }
+    });
+    res.setHeader('Content-Type', 'text/vcard;charset=utf-8'); res.setHeader('Content-Disposition', 'attachment; filename="SBH_Contacts.vcf"'); res.send(vcf);
+  } catch (error) { res.status(500).json({ success: false, error: error.message }); }
+});
+
+adminRouter.get('/export/services-pdf', async (req, res) => {
+  try {
+    const { jsPDF } = require('jspdf'); require('jspdf-autotable');
+    const servicesData = await getServicesData();
+    const doc = new jsPDF();
+    doc.setFontSize(18); doc.setTextColor(8, 14, 26); doc.text("Rapport des Services - Social Boost Horizon", 14, 20);
+    doc.setFontSize(10); doc.setTextColor(100); doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
+    const tableColumn = ["ID", "Partenaire", "Nom", "Coût", "Prix final", "Bénéfice", "Marge"];
+    const tableRows = servicesData.services.map(s => [s.id, s.provider, s.name.substring(0, 40), `${s.providerCost} FCFA`, `${s.finalPrice} FCFA`, `+${s.profit} FCFA`, `${s.profitMargin}%`]);
+    doc.autoTable({ head: [tableColumn], body: tableRows, startY: 35, theme: 'striped', headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] }, styles: { fontSize: 8 } });
+    doc.text(`Total services: ${servicesData.stats.total}`, 14, doc.lastAutoTable.finalY + 10);
+    doc.text(`Prix min: ${servicesData.stats.minPrice} FCFA, max: ${servicesData.stats.maxPrice} FCFA, moy: ${servicesData.stats.avgPrice} FCFA`, 14, doc.lastAutoTable.finalY + 18);
+    res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', 'attachment; filename="Services_SBH.pdf"'); res.send(Buffer.from(doc.output('arraybuffer')));
+  } catch (error) { res.status(500).json({ success: false, error: error.message }); }
+});
+
+adminRouter.get('/export/profits-pdf', async (req, res) => {
+  try {
+    const { jsPDF } = require('jspdf'); require('jspdf-autotable');
+    const statsData = await getStatsData();
+    const doc = new jsPDF();
+    doc.setFontSize(18); doc.setTextColor(8, 14, 26); doc.text("Rapport Financier - Social Boost Horizon", 14, 20);
+    doc.setFontSize(10); doc.setTextColor(100); doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
+    doc.setFontSize(14); doc.text("Statistiques globales", 14, 40);
+    doc.autoTable({ body: [['Total utilisateurs', statsData.totalUsers], ['Total commandes', statsData.totalOrders]], startY: 45, theme: 'plain', styles: { fontSize: 10 } });
+    doc.text("Bénéfices par période", 14, doc.lastAutoTable.finalY + 12);
+    doc.autoTable({
+      head: [['Période', 'Revenu', 'Bénéfice']],
+      body: [['Aujourd\'hui', `${statsData.today.revenue} FCFA`, `${statsData.today.profit} FCFA`], ['7 jours', `${statsData.week.revenue} FCFA`, `${statsData.week.profit} FCFA`], ['30 jours', `${statsData.month.revenue} FCFA`, `${statsData.month.profit} FCFA`], ['365 jours', `${statsData.year.revenue} FCFA`, `${statsData.year.profit} FCFA`]],
+      startY: doc.lastAutoTable.finalY + 16, theme: 'striped', headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] }, styles: { fontSize: 10 },
+    });
+    res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', 'attachment; filename="Profits_SBH.pdf"'); res.send(Buffer.from(doc.output('arraybuffer')));
+  } catch (error) { res.status(500).json({ success: false, error: error.message }); }
+});
+
+adminRouter.get('/export/orders-pdf', async (req, res) => {
+  try {
+    const { jsPDF } = require('jspdf'); require('jspdf-autotable');
+    const ordersData = await getOrdersData();
+    const doc = new jsPDF();
+    doc.setFontSize(18); doc.setTextColor(8, 14, 26); doc.text("Rapport des Commandes - Social Boost Horizon", 14, 20);
+    doc.setFontSize(10); doc.setTextColor(100); doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
+    const body = ordersData.orders.slice(0, 50).map(o => [o.source, o.orderId || o.id, o.serviceName.substring(0, 20), `${o.price} FCFA`, `+${o.profit} FCFA`, `${o.profitMargin}%`]);
+    doc.autoTable({ head: [['Source', 'ID', 'Service', 'Montant', 'Bénéfice', 'Marge']], body, startY: 35, theme: 'striped', headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] }, styles: { fontSize: 8 } });
+    doc.text(`Total commandes: ${ordersData.stats.total} | Revenu: ${ordersData.stats.revenue} FCFA | Bénéfice: ${ordersData.stats.profit} FCFA`, 14, doc.lastAutoTable.finalY + 10);
+    res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', 'attachment; filename="Commandes_SBH.pdf"'); res.send(Buffer.from(doc.output('arraybuffer')));
+  } catch (error) { res.status(500).json({ success: false, error: error.message }); }
+});
+
+// Injection du routeur dans l'application principale
+app.use('/api/admin', adminRouter);
 
 // ── 404 ─────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ success: false, error: `Route non trouvée : ${req.method} ${req.path}` }));
