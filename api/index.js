@@ -20,6 +20,16 @@ app.use((req, res, next) => {
   next();
 });
 
+// Helper pour convertir un timestamp/date Firestore ou JS de manière sécurisée en millisecondes
+function getTimestampMs(val) {
+  if (!val) return 0;
+  if (typeof val.toDate === 'function') return val.toDate().getTime();
+  if (val instanceof Date) return val.getTime();
+  if (typeof val === 'number') return val;
+  const parsed = new Date(val).getTime();
+  return isNaN(parsed) ? 0 : parsed;
+}
+
 // ── Firebase Admin ──────────────────────────────────────────────
 if (!admin.apps.length) {
   try {
@@ -71,7 +81,7 @@ app.get('/api/health', (req, res) => {
 // CONFIGURATIONS FOURNISSEURS GLOBALES (MTP, EXO, AFB)
 // ═══════════════════════════════════════════════════════════════
 const MTP_API_URL    = 'https://morethanpanel.com/api/v2';
-const MTP_USD_TO_XAF = 650;   
+const MTP_USD_TO_XAF = 620;   
 const MTP_MULTIPLIER = 3;     
 
 const EXO_API_URL    = 'https://exosupplier.com/api/v2';
@@ -243,11 +253,12 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
   }
 });
 
+// CORRECTION : Tri en mémoire JavaScript pour éliminer le besoin d'index composite
 app.get('/api/mtp/user-orders', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
-    const snapshot = await db.collection('autoOrders').where('userId', '==', uid).orderBy('createdAt', 'desc').limit(100).get();
-    const orders = snapshot.docs.map(doc => {
+    const snapshot = await db.collection('autoOrders').where('userId', '==', uid).get();
+    let orders = snapshot.docs.map(doc => {
       const data = doc.data();
       return {
         id: doc.id, orderId: data.orderId, provider: data.provider || 'mtp', providerOrderId: data.providerOrderId,
@@ -258,21 +269,26 @@ app.get('/api/mtp/user-orders', checkAuth, async (req, res) => {
         refunded: data.refunded || false, refundedAmount: data.refundedAmount || 0, lastChecked: data.lastChecked || null,
       };
     });
+    orders.sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt));
+    if (orders.length > 100) orders = orders.slice(0, 100);
     res.json({ success: true, orders });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
+// CORRECTION : Recherche simple sans combinaison d'index
 app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
   const { orderId } = req.params;
   const uid = req.user.uid;
   try {
-    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
+    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).limit(1).get();
     if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
     const orderDoc = snapshot.docs[0];
     const orderData = orderDoc.data();
+    if (orderData.userId !== uid) return res.status(403).json({ success: false, error: 'Accès refusé.' });
+
     const statusResult = await callMTP({ action: 'status', order: orderData.providerOrderId });
 
     if (statusResult.error) return res.status(400).json({ success: false, error: 'Erreur: ' + statusResult.error });
@@ -328,11 +344,12 @@ app.post('/api/mtp/refill', checkAuth, async (req, res) => {
   const uid = req.user.uid;
   if (!orderId) return res.status(400).json({ success: false, error: 'orderId requis.' });
   try {
-    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
+    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).limit(1).get();
     if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
     const orderDoc = snapshot.docs[0];
     const orderData = orderDoc.data();
+    if (orderData.userId !== uid) return res.status(403).json({ success: false, error: 'Accès refusé.' });
     if (!orderData.refill && orderData.refill !== undefined) return res.status(400).json({ success: false, error: 'Ce service ne supporte pas le refill.' });
 
     const result = await callMTP({ action: 'refill', order: orderData.providerOrderId });
@@ -350,11 +367,13 @@ app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
   const uid = req.user.uid;
   if (!orderId) return res.status(400).json({ success: false, error: 'orderId requis.' });
   try {
-    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
+    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).limit(1).get();
     if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
     const orderDoc = snapshot.docs[0];
     const orderData = orderDoc.data();
+    if (orderData.userId !== uid) return res.status(403).json({ success: false, error: 'Accès refusé.' });
+
     const currentStatus = (orderData.status || '').toLowerCase();
 
     if (orderData.refunded) return res.status(400).json({ success: false, error: 'Cette commande a déjà été remboursée.' });
@@ -571,15 +590,18 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
   }
 });
 
+// CORRECTION : Recherche simple sans combinaison d'index
 app.get('/api/afriqueboost/status/:orderId', checkAuth, async (req, res) => {
   const { orderId } = req.params;
   const uid = req.user.uid;
   try {
-    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
+    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).limit(1).get();
     if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
     const orderDoc = snapshot.docs[0];
     const orderData = orderDoc.data();
+    if (orderData.userId !== uid) return res.status(403).json({ success: false, error: 'Accès refusé.' });
+
     const statusResult = await callAfriqueBoost({ action: 'status', order: orderData.providerOrderId });
 
     if (statusResult.error) return res.status(400).json({ success: false, error: 'Erreur AfriqueBoost: ' + statusResult.error });
@@ -632,11 +654,12 @@ app.post('/api/afriqueboost/refill', checkAuth, async (req, res) => {
   const uid = req.user.uid;
   if (!orderId) return res.status(400).json({ success: false, error: 'orderId requis.' });
   try {
-    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
+    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).limit(1).get();
     if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
     const orderDoc = snapshot.docs[0];
     const orderData = orderDoc.data();
+    if (orderData.userId !== uid) return res.status(403).json({ success: false, error: 'Accès refusé.' });
     
     const result = await callAfriqueBoost({ action: 'refill', order: orderData.providerOrderId });
     if (result.error) return res.status(400).json({ success: false, error: 'Erreur AfriqueBoost: ' + result.error });
@@ -815,7 +838,7 @@ function isAdminCacheValid(key) {
   return adminCache[key] && (Date.now() - adminCache.lastFetch[key] < ADMIN_CACHE_TTL);
 }
 
-// CORRECTION : Prise en compte du multiplicateur AfriqueBoost
+// CORRECTION INDEX : Le filtre par statut est fait en mémoire JavaScript
 async function getStatsData() {
   if (isAdminCacheValid('stats')) return adminCache.stats;
   const now = new Date();
@@ -831,30 +854,33 @@ async function getStatsData() {
   ]);
   const totalOrders = mtpOrdersCount.data().count + exoOrdersCount.data().count;
 
-  // ⚠️ Attention: Si cette requête Firestore échoue dans tes logs, c'est parce qu'il te manque un Index Composite !
-  // Firebase te donnera un lien direct dans l'erreur de tes logs (sur Vercel) pour le créer.
+  const validStatuses = ['Terminé', 'En cours', 'Completed', 'In progress', 'Processing', 'Terminée'];
+
   async function getPeriodStats(startDate) {
+    // Requête par date uniquement pour éliminer le besoin de composite index
     const mtpSnap = await db.collection('autoOrders')
-      .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(startDate))
-      .where('status', 'in', ['Terminé', 'En cours', 'Completed']).get();
+      .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(startDate)).get();
 
     const exoSnap = await db.collection('commandes')
-      .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(startDate))
-      .where('status', 'in', ['Terminé', 'En cours', 'Completed']).get();
+      .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(startDate)).get();
 
     let revenue = 0, cost = 0;
     mtpSnap.forEach(doc => { 
         const d = doc.data(); 
-        const p = d.priceXAF || 0; 
-        const multiplier = d.provider === 'afriqueboost' ? AFB_MULTIPLIER : MTP_MULTIPLIER;
-        revenue += p; 
-        cost += p / multiplier; 
+        if (validStatuses.includes(d.status)) {
+          const p = d.priceXAF || 0; 
+          const multiplier = d.provider === 'afriqueboost' ? AFB_MULTIPLIER : MTP_MULTIPLIER;
+          revenue += p; 
+          cost += p / multiplier; 
+        }
     });
     exoSnap.forEach(doc => { 
         const d = doc.data(); 
-        const p = d.totalCost || d.finalCost || d.cost || 0; 
-        revenue += p; 
-        cost += p / EXO_MULTIPLIER; 
+        if (validStatuses.includes(d.status)) {
+          const p = d.totalCost || d.finalCost || d.cost || 0; 
+          revenue += p; 
+          cost += p / EXO_MULTIPLIER; 
+        }
     });
     return { revenue: Math.round(revenue), cost: Math.round(cost), profit: Math.round(revenue - cost) };
   }
@@ -866,7 +892,6 @@ async function getStatsData() {
   return stats;
 }
 
-// CORRECTION : Ajout d'AfriqueBoost dans la liste des services
 async function getServicesData() {
   if (isAdminCacheValid('services')) return adminCache.services;
   let allServices = [];
@@ -931,7 +956,7 @@ async function getServicesData() {
   return result;
 }
 
-// CORRECTION : Distinguer MTP et AfriqueBoost dans le même tableau
+// CORRECTION INDEX : Retrait du orderBy('dateConfirmed', 'desc') combiné au where()
 async function getOrdersData() {
   if (isAdminCacheValid('orders')) return adminCache.orders;
 
@@ -951,14 +976,16 @@ async function getOrdersData() {
     return { id: doc.id, source: 'EXO', orderId: data.orderId || data.id, userId: data.userId, serviceName: data.serviceName || 'Service EXO', quantity: data.quantity || 0, price, cost, profit: price - cost, profitMargin: price ? Math.round(((price - cost) / price) * 100) : 0, status: data.status || 'Inconnu', createdAt: data.createdAt };
   });
 
-  const fapshiSnap = await db.collection('fapshiTransactions').where('status', '==', 'CONFIRMED').orderBy('dateConfirmed', 'desc').limit(100).get();
+  // Pas de orderBy() pour éviter le composite index avec status == CONFIRMED
+  const fapshiSnap = await db.collection('fapshiTransactions').where('status', '==', 'CONFIRMED').limit(100).get();
   const fapshiOrders = fapshiSnap.docs.map(doc => {
     const data = doc.data(); const amount = data.amount || 0; const cost = Math.round(amount * 0.8);
     return { id: doc.id, source: 'Fapshi', orderId: doc.id, userId: data.userId, serviceName: 'Recharge Fapshi', quantity: 1, price: amount, cost, profit: amount - cost, profitMargin: amount ? Math.round(((amount - cost) / amount) * 100) : 0, status: 'Confirmé', createdAt: data.dateConfirmed || data.dateInitiated };
   });
 
+  // Tri sécurisé en mémoire JavaScript
   const allOrders = [...mtpOrders, ...exoOrders, ...fapshiOrders].sort((a, b) => {
-    const da = a.createdAt ? a.createdAt.toDate() : new Date(0); const db = b.createdAt ? b.createdAt.toDate() : new Date(0); return db - da;
+    return getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt);
   });
 
   const totalOrders = allOrders.length; const totalRevenue = allOrders.reduce((sum, o) => sum + o.price, 0);
@@ -1000,9 +1027,6 @@ adminRouter.get('/export/contacts', async (req, res) => {
     res.setHeader('Content-Type', 'text/vcard;charset=utf-8'); res.setHeader('Content-Disposition', 'attachment; filename="SBH_Contacts.vcf"'); res.send(vcf);
   } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 });
-
-// Les routes /export/services-pdf et /export/orders-pdf ont été SUPPRIMÉES d'ici 
-// pour éviter les crash serveur. Le PDF se génère désormais 100% sur le frontend !
 
 app.use('/api/admin', adminRouter);
 
