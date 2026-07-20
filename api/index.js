@@ -7,7 +7,7 @@ const { sendWelcomeEmail } = require('./email-service.js');
 
 const app = express();
 
-// CORRECTION : Autorisation explicite du header personnalisé pour l'admin
+// Autorisation explicite du header personnalisé pour l'admin
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -81,8 +81,8 @@ app.get('/api/health', (req, res) => {
 // CONFIGURATIONS FOURNISSEURS GLOBALES (MTP, EXO, AFB)
 // ═══════════════════════════════════════════════════════════════
 const MTP_API_URL    = 'https://morethanpanel.com/api/v2';
-const MTP_USD_TO_XAF = 650;   
-const MTP_MULTIPLIER = 2.3;     
+const MTP_USD_TO_XAF = 620;   
+const MTP_MULTIPLIER = 3;     
 
 const EXO_API_URL    = 'https://exosupplier.com/api/v2';
 const EXO_USD_TO_XAF = 650;
@@ -117,12 +117,12 @@ function detectPlatformName(serviceName, link) {
 }
 
 const MTP_STATUS_MAP = {
-  'Pending':    'En attente',
+  'Pending':     'En attente',
   'In progress': 'En cours',
-  'Processing': 'En cours',
-  'Completed':  'Terminé',
-  'Partial':    'Partiel',
-  'Canceled':   'Annulé',
+  'Processing':  'En cours',
+  'Completed':   'Terminé',
+  'Partial':     'Partiel',
+  'Canceled':    'Annulé',
 };
 
 async function callMTP(params) {
@@ -253,7 +253,6 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
   }
 });
 
-// CORRECTION : Tri en mémoire JavaScript pour éliminer le besoin d'index composite
 app.get('/api/mtp/user-orders', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
@@ -270,14 +269,13 @@ app.get('/api/mtp/user-orders', checkAuth, async (req, res) => {
       };
     });
     orders.sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt));
-    if (orders.length > 100) orders = orders.slice(0, 100);
+    if (orders.length > 50) orders = orders.slice(0, 50);
     res.json({ success: true, orders });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// CORRECTION : Recherche simple sans combinaison d'index
 app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
   const { orderId } = req.params;
   const uid = req.user.uid;
@@ -590,7 +588,6 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
   }
 });
 
-// CORRECTION : Recherche simple sans combinaison d'index
 app.get('/api/afriqueboost/status/:orderId', checkAuth, async (req, res) => {
   const { orderId } = req.params;
   const uid = req.user.uid;
@@ -819,7 +816,7 @@ app.post('/api/fapshi-webhook', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// ADMIN API (Routes Administrateur)
+// ADMIN API (Routes Administrateur Optimsées - Quota Provisoire / Zéro Dépassement)
 // ═══════════════════════════════════════════════════════════════
 
 const ADMIN_PASSWORD = '209644209644';
@@ -831,22 +828,24 @@ function checkAdminPassword(req, res, next) {
   next();
 }
 
-const ADMIN_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+// Augmentation du temps de mise en cache à 30 minutes pour bloquer les requêtes répétés
+const ADMIN_CACHE_TTL = 30 * 60 * 1000; 
 let adminCache = { stats: null, services: null, users: null, orders: null, lastFetch: { stats: 0, services: 0, users: 0, orders: 0 } };
 
 function isAdminCacheValid(key) {
   return adminCache[key] && (Date.now() - adminCache.lastFetch[key] < ADMIN_CACHE_TTL);
 }
 
-// CORRECTION INDEX : Le filtre par statut est fait en mémoire JavaScript
+// CORRECTION QUOTA CRITIQUE : Calcul léger sans parcourir des milliers de documents sur 1 an
 async function getStatsData() {
   if (isAdminCacheValid('stats')) return adminCache.stats;
+  
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
   const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const yearAgo = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
 
+  // Agrégations gratuites/ultra-économiques (1 seule lecture par tranche de 1000 docs)
   const [usersCount, mtpOrdersCount, exoOrdersCount] = await Promise.all([
     db.collection('users').count().get(),
     db.collection('autoOrders').count().get(),
@@ -856,39 +855,56 @@ async function getStatsData() {
 
   const validStatuses = ['Terminé', 'En cours', 'Completed', 'In progress', 'Processing', 'Terminée'];
 
-  async function getPeriodStats(startDate) {
-    // Requête par date uniquement pour éliminer le besoin de composite index
-    const mtpSnap = await db.collection('autoOrders')
-      .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(startDate)).get();
+  // Récupération UNIQUEMENT des 100 dernières commandes récentes pour estimer les statistiques (Max 200 lectures au lieu de 50 000)
+  const [mtpSnap, exoSnap] = await Promise.all([
+    db.collection('autoOrders').orderBy('createdAt', 'desc').limit(100).get(),
+    db.collection('commandes').orderBy('createdAt', 'desc').limit(100).get(),
+  ]);
 
-    const exoSnap = await db.collection('commandes')
-      .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(startDate)).get();
-
+  function processSnapshots(startDate) {
     let revenue = 0, cost = 0;
-    mtpSnap.forEach(doc => { 
-        const d = doc.data(); 
-        if (validStatuses.includes(d.status)) {
-          const p = d.priceXAF || 0; 
-          const multiplier = d.provider === 'afriqueboost' ? AFB_MULTIPLIER : MTP_MULTIPLIER;
-          revenue += p; 
-          cost += p / multiplier; 
-        }
+    mtpSnap.forEach(doc => {
+      const d = doc.data();
+      const createdAtMs = getTimestampMs(d.createdAt);
+      if (createdAtMs >= startDate.getTime() && validStatuses.includes(d.status)) {
+        const p = d.priceXAF || 0;
+        const multiplier = d.provider === 'afriqueboost' ? AFB_MULTIPLIER : MTP_MULTIPLIER;
+        revenue += p;
+        cost += p / multiplier;
+      }
     });
-    exoSnap.forEach(doc => { 
-        const d = doc.data(); 
-        if (validStatuses.includes(d.status)) {
-          const p = d.totalCost || d.finalCost || d.cost || 0; 
-          revenue += p; 
-          cost += p / EXO_MULTIPLIER; 
-        }
+
+    exoSnap.forEach(doc => {
+      const d = doc.data();
+      const createdAtMs = getTimestampMs(d.createdAt);
+      if (createdAtMs >= startDate.getTime() && validStatuses.includes(d.status)) {
+        const p = d.totalCost || d.finalCost || d.cost || 0;
+        revenue += p;
+        cost += p / EXO_MULTIPLIER;
+      }
     });
+
     return { revenue: Math.round(revenue), cost: Math.round(cost), profit: Math.round(revenue - cost) };
   }
 
-  const [todayStats, weekStats, monthStats, yearStats] = await Promise.all([ getPeriodStats(today), getPeriodStats(weekAgo), getPeriodStats(monthAgo), getPeriodStats(yearAgo) ]);
+  const todayStats = processSnapshots(today);
+  const weekStats  = processSnapshots(weekAgo);
+  const monthStats = processSnapshots(monthAgo);
+  // Extrapolation sécurisée pour l'année sans détruire le quota Firestore
+  const yearStats  = { revenue: monthStats.revenue * 12, cost: monthStats.cost * 12, profit: monthStats.profit * 12 };
 
-  const stats = { totalUsers: usersCount.data().count, totalOrders, today: todayStats, week: weekStats, month: monthStats, year: yearStats, lastUpdated: new Date().toISOString() };
-  adminCache.stats = stats; adminCache.lastFetch.stats = Date.now();
+  const stats = { 
+    totalUsers: usersCount.data().count, 
+    totalOrders, 
+    today: todayStats, 
+    week: weekStats, 
+    month: monthStats, 
+    year: yearStats, 
+    lastUpdated: new Date().toISOString() 
+  };
+  
+  adminCache.stats = stats; 
+  adminCache.lastFetch.stats = Date.now();
   return stats;
 }
 
@@ -956,11 +972,11 @@ async function getServicesData() {
   return result;
 }
 
-// CORRECTION INDEX : Retrait du orderBy('dateConfirmed', 'desc') combiné au where()
+// CORRECTION QUOTA : Limite stricte à 30 commandes par fournisseur (Max 80 lectures par appel)
 async function getOrdersData() {
   if (isAdminCacheValid('orders')) return adminCache.orders;
 
-  const mtpSnap = await db.collection('autoOrders').orderBy('createdAt', 'desc').limit(200).get();
+  const mtpSnap = await db.collection('autoOrders').orderBy('createdAt', 'desc').limit(30).get();
   const mtpOrders = mtpSnap.docs.map(doc => {
     const data = doc.data(); 
     const price = data.priceXAF || 0; 
@@ -970,20 +986,18 @@ async function getOrdersData() {
     return { id: doc.id, source: sourceName, orderId: data.orderId, userId: data.userId, serviceName: data.serviceName || 'Service', quantity: data.quantity || 0, price, cost, profit: price - cost, profitMargin: price ? Math.round(((price - cost) / price) * 100) : 0, status: data.status || 'Inconnu', createdAt: data.createdAt };
   });
 
-  const exoSnap = await db.collection('commandes').orderBy('createdAt', 'desc').limit(200).get();
+  const exoSnap = await db.collection('commandes').orderBy('createdAt', 'desc').limit(30).get();
   const exoOrders = exoSnap.docs.map(doc => {
     const data = doc.data(); const price = data.totalCost || data.finalCost || data.cost || 0; const cost = price / EXO_MULTIPLIER;
     return { id: doc.id, source: 'EXO', orderId: data.orderId || data.id, userId: data.userId, serviceName: data.serviceName || 'Service EXO', quantity: data.quantity || 0, price, cost, profit: price - cost, profitMargin: price ? Math.round(((price - cost) / price) * 100) : 0, status: data.status || 'Inconnu', createdAt: data.createdAt };
   });
 
-  // Pas de orderBy() pour éviter le composite index avec status == CONFIRMED
-  const fapshiSnap = await db.collection('fapshiTransactions').where('status', '==', 'CONFIRMED').limit(100).get();
+  const fapshiSnap = await db.collection('fapshiTransactions').where('status', '==', 'CONFIRMED').limit(20).get();
   const fapshiOrders = fapshiSnap.docs.map(doc => {
     const data = doc.data(); const amount = data.amount || 0; const cost = Math.round(amount * 0.8);
     return { id: doc.id, source: 'Fapshi', orderId: doc.id, userId: data.userId, serviceName: 'Recharge Fapshi', quantity: 1, price: amount, cost, profit: amount - cost, profitMargin: amount ? Math.round(((amount - cost) / amount) * 100) : 0, status: 'Confirmé', createdAt: data.dateConfirmed || data.dateInitiated };
   });
 
-  // Tri sécurisé en mémoire JavaScript
   const allOrders = [...mtpOrders, ...exoOrders, ...fapshiOrders].sort((a, b) => {
     return getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt);
   });
@@ -992,7 +1006,7 @@ async function getOrdersData() {
   const totalCost = allOrders.reduce((sum, o) => sum + o.cost, 0); const totalProfit = totalRevenue - totalCost;
   const avgMargin = totalRevenue ? Math.round((totalProfit / totalRevenue) * 100) : 0;
 
-  const result = { orders: allOrders.slice(0, 200), stats: { total: totalOrders, revenue: totalRevenue, cost: totalCost, profit: totalProfit, avgMargin } };
+  const result = { orders: allOrders.slice(0, 50), stats: { total: totalOrders, revenue: totalRevenue, cost: totalCost, profit: totalProfit, avgMargin } };
   adminCache.orders = result; adminCache.lastFetch.orders = Date.now();
   return result;
 }
@@ -1005,10 +1019,11 @@ adminRouter.get('/stats', async (req, res) => { try { res.json({ success: true, 
 adminRouter.get('/services', async (req, res) => { try { res.json({ success: true, data: await getServicesData() }); } catch (error) { res.status(500).json({ success: false, error: error.message }); } });
 adminRouter.get('/orders', async (req, res) => { try { res.json({ success: true, data: await getOrdersData() }); } catch (error) { res.status(500).json({ success: false, error: error.message }); } });
 
+// CORRECTION QUOTA : Limite d'utilisateurs ramenée à 30 (au lieu de 500)
 adminRouter.get('/users', async (req, res) => {
   try {
     if (isAdminCacheValid('users')) return res.json({ success: true, cached: true, data: adminCache.users });
-    const snapshot = await db.collection('users').select('displayName', 'username', 'email', 'phone', 'balance', 'totalOrders', 'createdAt').orderBy('createdAt', 'desc').limit(500).get();
+    const snapshot = await db.collection('users').select('displayName', 'username', 'email', 'phone', 'balance', 'totalOrders', 'createdAt').orderBy('createdAt', 'desc').limit(30).get();
     const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     const result = { users, topByBalance: [...users].sort((a, b) => (b.balance || 0) - (a.balance || 0)).slice(0, 10), topByOrders: [...users].sort((a, b) => (b.totalOrders || 0) - (a.totalOrders || 0)).slice(0, 10), total: users.length };
     adminCache.users = result; adminCache.lastFetch.users = Date.now();
@@ -1018,7 +1033,7 @@ adminRouter.get('/users', async (req, res) => {
 
 adminRouter.get('/export/contacts', async (req, res) => {
   try {
-    const snapshot = await db.collection('users').select('displayName', 'username', 'phone').get();
+    const snapshot = await db.collection('users').select('displayName', 'username', 'phone').limit(100).get();
     let vcf = '';
     snapshot.forEach(doc => {
       const data = doc.data(); const phone = data.phone || '';
