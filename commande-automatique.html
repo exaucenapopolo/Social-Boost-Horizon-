@@ -167,7 +167,7 @@
         }
         .page-title p { color: var(--text-muted); font-size: 0.95rem; margin-top: 8px; }
 
-        /* Plateformes avec vrais logos */
+        /* Plateformes avec vrais logos colorés */
         .platform-filter {
             display: flex; flex-wrap: wrap; justify-content: center; gap: 12px;
             padding: 16px;
@@ -182,6 +182,10 @@
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; transition: var(--transition);
             position: relative; overflow: hidden;
+        }
+        .plat-chip i {
+            font-size: 26px;
+            transition: var(--transition);
         }
         .plat-chip img {
             width: 26px; height: 26px; object-fit: contain;
@@ -199,7 +203,7 @@
             color: #080e1a; font-weight: 700; font-size: 0.85rem;
             border: none; display: flex; align-items: center; gap: 6px;
         }
-        .plat-chip.all-btn i { margin-right: 4px; }
+        .plat-chip.all-btn i { margin-right: 4px; font-size: 1rem; color: #080e1a; }
 
         .search-section {
             background: var(--bg-glass); border-radius: var(--radius-lg);
@@ -284,6 +288,9 @@
             border-radius: 6px;
             background: rgba(255,255,255,0.05);
             padding: 4px;
+        }
+        .service-platform-icon i {
+            font-size: 22px;
         }
         .service-platform-icon img {
             width: 100%; height: 100%; object-fit: contain;
@@ -613,54 +620,138 @@
     }
 
     // -------------------------------------------------------------------
-    // LOGOS avec Simple Icons (CDN jsdelivr) - plus fiable que Wikimedia
+    // LOGOS COLORÉS avec Font Awesome + fallback SVG / lettre
     // -------------------------------------------------------------------
+    // Couleurs officielles des marques
+    const brandColors = {
+        instagram:  '#E4405F',
+        facebook:   '#1877F2',
+        tiktok:     '#000000', // souvent noir, mais on met un fond dégradé plus tard
+        youtube:    '#FF0000',
+        twitter:    '#000000', // X : noir
+        telegram:   '#26A5E4',
+        whatsapp:   '#25D366',
+        linkedin:   '#0A66C2',
+        spotify:    '#1ED760',
+        twitch:     '#9146FF',
+        discord:    '#5865F2',
+        snapchat:   '#FFFC00',
+        pinterest:  '#E60023',
+        soundcloud: '#FF3300',
+        threads:    '#000000', // Threads
+        reddit:     '#FF4500',
+        apple:      '#555555',
+        google:     '#4285F4',
+        steam:      '#171A21',
+        xbox:       '#107C10',
+        github:     '#181717',
+        vimeo:      '#1AB7EA',
+        tumblr:     '#36465D',
+        quora:      '#B92B27',
+        chatgpt:    '#74aa9c', // OpenAI
+        netflix:    '#E50914',
+        canva:      '#00C4CC',
+        deepseek:   '#4D6BFE',
+        freefire:   '#FF6600',
+        shazam:     '#0088FF',
+        ubisoft:    '#242424',
+        kick:       '#53FC18',
+        gmail:      '#EA4335',
+        // autres fallback
+        other:      '#888888'
+    };
+
+    // Mapping des plateformes vers les icônes Font Awesome (fab)
+    const faMap = {
+        instagram:  'instagram',
+        facebook:   'facebook',
+        tiktok:     'tiktok',
+        youtube:    'youtube',
+        twitter:    'x-twitter', // Font Awesome 6 utilise 'x-twitter'
+        telegram:   'telegram',
+        whatsapp:   'whatsapp',
+        linkedin:   'linkedin',
+        spotify:    'spotify',
+        twitch:     'twitch',
+        discord:    'discord',
+        snapchat:   'snapchat',
+        pinterest:  'pinterest',
+        soundcloud: 'soundcloud',
+        threads:    'threads',
+        reddit:     'reddit',
+        apple:      'apple',
+        google:     'google',
+        steam:      'steam',
+        xbox:       'xbox',
+        github:     'github',
+        vimeo:      'vimeo',
+        tumblr:     'tumblr',
+        quora:      'quora',
+        chatgpt:    'openai',   // Font Awesome 6 a 'openai'
+        netflix:    'netflix',
+        canva:      'canva',
+        deepseek:   'deepseek', // FA 6 a 'deepseek'
+        freefire:   'freefire',
+        shazam:     'shazam',
+        ubisoft:    'ubisoft',
+        kick:       'kick',
+        gmail:      'gmail'
+    };
+
     function getPlatformLogoHTML(platform, size = 26) {
-        // Map des noms exacts pour Simple Icons (en minuscule, avec tirets si besoin)
-        const simpleIconMap = {
-            instagram:  'instagram',
-            facebook:   'facebook',
-            tiktok:     'tiktok',
-            youtube:    'youtube',
-            twitter:    'x',  // X (Twitter) - simple-icons utilise 'x'
-            telegram:   'telegram',
-            whatsapp:   'whatsapp',
-            linkedin:   'linkedin',
-            spotify:    'spotify',
-            twitch:     'twitch',
-            discord:    'discord',
-            snapchat:   'snapchat',
-            pinterest:  'pinterest',
-            soundcloud: 'soundcloud',
-            threads:    'threads',
-            reddit:     'reddit',
-            apple:      'apple',
-            google:     'google',
-            steam:      'steam',
-            xbox:       'xbox',
-            github:     'github',
-            vimeo:      'vimeo',
-            tumblr:     'tumblr',
-            quora:      'quora',
-            chatgpt:    'openai',  // Simple Icons utilise 'openai' pour ChatGPT
-            netflix:    'netflix',
-            canva:      'canva',
-            deepseek:   'deepseek',
-            freefire:   'freefire',
-            shazam:     'shazam',
-            ubisoft:    'ubisoft',
-            kick:       'kick',
-            gmail:      'gmail',
-            // Ajoute d'autres si besoin
-        };
-        const iconName = simpleIconMap[platform];
-        if (iconName) {
-            // Utiliser jsdelivr pour les SVG de Simple Icons
-            const url = `https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/${iconName}.svg`;
-            return `<img src="${url}" alt="${platform}" style="width:${size}px;height:${size}px;object-fit:contain;" onerror="this.style.display='none';this.parentElement.innerHTML='<span class=\\'fallback\\' style=\\'font-size:${size*0.6}px;font-weight:700;\\'>${platform.charAt(0).toUpperCase()}</span>'">`;
+        const color = brandColors[platform] || brandColors.other;
+        const faIcon = faMap[platform];
+        if (faIcon) {
+            // Utiliser Font Awesome avec la couleur
+            return `<i class="fab fa-${faIcon}" style="color:${color}; font-size:${size}px; line-height:1;"></i>`;
+        } else {
+            // Fallback : utiliser l'image SVG de Simple Icons (si disponible) ou une lettre
+            const simpleIconMap = {
+                instagram:  'instagram',
+                facebook:   'facebook',
+                tiktok:     'tiktok',
+                youtube:    'youtube',
+                twitter:    'x',
+                telegram:   'telegram',
+                whatsapp:   'whatsapp',
+                linkedin:   'linkedin',
+                spotify:    'spotify',
+                twitch:     'twitch',
+                discord:    'discord',
+                snapchat:   'snapchat',
+                pinterest:  'pinterest',
+                soundcloud: 'soundcloud',
+                threads:    'threads',
+                reddit:     'reddit',
+                apple:      'apple',
+                google:     'google',
+                steam:      'steam',
+                xbox:       'xbox',
+                github:     'github',
+                vimeo:      'vimeo',
+                tumblr:     'tumblr',
+                quora:      'quora',
+                chatgpt:    'openai',
+                netflix:    'netflix',
+                canva:      'canva',
+                deepseek:   'deepseek',
+                freefire:   'freefire',
+                shazam:     'shazam',
+                ubisoft:    'ubisoft',
+                kick:       'kick',
+                gmail:      'gmail'
+            };
+            const iconName = simpleIconMap[platform];
+            if (iconName) {
+                const url = `https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/${iconName}.svg`;
+                // On encapsule dans un cercle avec la couleur de fond
+                return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                            <img src="${url}" alt="${platform}" style="width:${size*0.7}px;height:${size*0.7}px;object-fit:contain;filter:brightness(0) invert(1);" onerror="this.style.display='none';this.parentElement.innerHTML='<span style=\\'color:white;font-size:${size*0.6}px;font-weight:700;\\'>${platform.charAt(0).toUpperCase()}</span>'">
+                        </div>`;
+            }
+            // Sinon, lettre sur fond coloré
+            return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;color:white;font-size:${size*0.5}px;font-weight:700;">${platform.charAt(0).toUpperCase()}</div>`;
         }
-        // Fallback si la plateforme n'est pas dans la map
-        return `<span class="fallback" style="font-size:${size*0.6}px;font-weight:700;">${platform.charAt(0).toUpperCase()}</span>`;
     }
 
     // Détection de la plateforme (inchangé)
@@ -764,7 +855,7 @@
     function renderPlatforms() {
         const platformsCount = {};
         allServices.forEach(s => platformsCount[s.platform] = (platformsCount[s.platform] || 0) + 1);
-        // Tri décroissant par nombre de services (du plus populaire au moins populaire)
+        // Tri décroissant par nombre de services
         const sortedPlatforms = Object.entries(platformsCount).sort((a,b) => b[1] - a[1]);
         const container = document.getElementById('platformFilter');
         container.innerHTML = '<div class="plat-chip all-btn active" data-platform=""><i class="fas fa-th-large"></i> Tous</div>';
@@ -784,7 +875,6 @@
             });
             container.appendChild(chip);
         });
-        // Événement pour le bouton "Tous"
         document.querySelector('.plat-chip.all-btn').addEventListener('click', ()=>{
             document.querySelectorAll('.plat-chip').forEach(c=>c.classList.remove('active'));
             document.querySelector('.plat-chip.all-btn').classList.add('active');
