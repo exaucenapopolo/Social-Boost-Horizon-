@@ -830,7 +830,7 @@ function checkAdminPassword(req, res, next) {
 
 // Augmentation du temps de mise en cache à 30 minutes pour bloquer les requêtes répétés
 const ADMIN_CACHE_TTL = 30 * 60 * 1000; 
-let adminCache = { stats: null, services: null, users: null, orders: null, lastFetch: { stats: 0, services: 0, users: 0, orders: 0 } };
+let adminCache = { stats: null, services: null, users: null, orders: null, payments: null, lastFetch: { stats: 0, services: 0, users: 0, orders: 0, payments: 0 } };
 
 function isAdminCacheValid(key) {
   return adminCache[key] && (Date.now() - adminCache.lastFetch[key] < ADMIN_CACHE_TTL);
@@ -1011,6 +1011,84 @@ async function getOrdersData() {
   return result;
 }
 
+// ─── Admin : Statistiques des transactions de paiement ───
+async function getPaymentStats() {
+  if (isAdminCacheValid('payments')) return adminCache.payments;
+
+  // 1. Dernières 30 transactions Fapshi (tous statuts)
+  const fapshiSnap = await db.collection('fapshiTransactions')
+    .orderBy('dateInitiated', 'desc')
+    .limit(30)
+    .get();
+  const fapshiTransactions = fapshiSnap.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      source: 'Fapshi',
+      userId: data.userId,
+      amount: data.amount || 0,
+      currency: data.currency || 'XAF',
+      status: data.status || 'PENDING',
+      date: data.dateConfirmed || data.dateInitiated,
+      description: data.description || '',
+    };
+  });
+
+  // 2. Dernières 30 transactions Swychr (tous statuts)
+  const swychrSnap = await db.collection('transactions')
+    .orderBy('createdAt', 'desc')
+    .limit(30)
+    .get();
+  const swychrTransactions = swychrSnap.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      source: 'Swychr',
+      userId: data.userId,
+      amount: data.amountXAF || data.amount || 0,
+      currency: data.currency || 'XAF',
+      status: data.status || 'pending',
+      date: data.createdAt,
+      description: data.label || data.description || '',
+    };
+  });
+
+  // Filtrer les transactions confirmées/réussies pour les totaux
+  const confirmedFapshi = fapshiTransactions.filter(t => t.status === 'CONFIRMED');
+  const completedSwychr = swychrTransactions.filter(t => t.status === 'completed' || t.status === 'success');
+
+  // Fusion et tri par date décroissante
+  const all = [...fapshiTransactions, ...swychrTransactions];
+  all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  // Totaux
+  const totalFapshi = confirmedFapshi.reduce((sum, t) => sum + t.amount, 0);
+  const totalSwychr = completedSwychr.reduce((sum, t) => sum + t.amount, 0);
+  const totalAll = totalFapshi + totalSwychr;
+  const countFapshi = confirmedFapshi.length;
+  const countSwychr = completedSwychr.length;
+  const countAll = countFapshi + countSwychr;
+
+  // Montant des 30 derniers jours (parmi les 30 dernières transactions)
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const recent = all.filter(t => {
+    const date = t.date ? new Date(t.date) : null;
+    return date && date >= thirtyDaysAgo;
+  });
+  const totalRecent = recent.reduce((sum, t) => sum + t.amount, 0);
+
+  const result = {
+    fapshi: { total: totalFapshi, count: countFapshi, transactions: fapshiTransactions },
+    swychr: { total: totalSwychr, count: countSwychr, transactions: swychrTransactions },
+    all: { total: totalAll, count: countAll, totalRecent, transactions: all.slice(0, 30) },
+  };
+
+  adminCache.payments = result;
+  adminCache.lastFetch.payments = Date.now();
+  return result;
+}
+
 const adminRouter = express.Router();
 adminRouter.use(checkAdminPassword);
 
@@ -1018,6 +1096,15 @@ adminRouter.get('/ping', (req, res) => res.json({ success: true, message: 'Admin
 adminRouter.get('/stats', async (req, res) => { try { res.json({ success: true, data: await getStatsData() }); } catch (error) { res.status(500).json({ success: false, error: error.message }); } });
 adminRouter.get('/services', async (req, res) => { try { res.json({ success: true, data: await getServicesData() }); } catch (error) { res.status(500).json({ success: false, error: error.message }); } });
 adminRouter.get('/orders', async (req, res) => { try { res.json({ success: true, data: await getOrdersData() }); } catch (error) { res.status(500).json({ success: false, error: error.message }); } });
+// Nouvelle route pour les statistiques de paiement
+adminRouter.get('/payment-stats', async (req, res) => {
+  try {
+    const data = await getPaymentStats();
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 // CORRECTION QUOTA : Limite d'utilisateurs ramenée à 30 (au lieu de 500)
 adminRouter.get('/users', async (req, res) => {
