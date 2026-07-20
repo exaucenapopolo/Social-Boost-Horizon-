@@ -49,10 +49,10 @@
         .btn-green:hover { background: var(--green); color: white; }
         .btn-danger { border-color: var(--red); color: var(--red); background: rgba(255, 71, 87, 0.1); }
         .btn-danger:hover { background: var(--red); color: white; }
-        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 30px; }
         .kpi-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
         .kpi-title { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-        .kpi-value { font-size: 1.8rem; font-weight: 800; }
+        .kpi-value { font-size: 1.6rem; font-weight: 800; }
         .text-green { color: var(--green); } .text-gold { color: var(--gold); } .text-blue { color: var(--blue); } .text-red { color: var(--red); }
         .section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 30px; }
         .section-title { font-size: 1.2rem; font-weight: 600; border-left: 4px solid var(--gold); padding-left: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
@@ -67,6 +67,7 @@
         .badge-exo { background: rgba(212, 175, 55, 0.2); color: var(--gold); }
         .badge-afb { background: rgba(255, 100, 100, 0.2); color: #ff6666; }
         .badge-fapshi { background: rgba(34, 197, 94, 0.2); color: var(--green); }
+        .badge-swychr { background: rgba(212, 175, 55, 0.2); color: var(--gold); }
         .chart-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
         @media (max-width: 768px) { .chart-container { grid-template-columns: 1fr; } }
         .filter-bar { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
@@ -101,14 +102,19 @@
 
     <div id="errorBanner" class="error-banner"></div>
 
+    <!-- KPIs -->
     <div class="kpi-grid" id="kpiContainer">
         <div class="kpi-card"><div class="kpi-title">Utilisateurs</div><div class="kpi-value text-blue" id="kpiUsers">...</div></div>
         <div class="kpi-card"><div class="kpi-title">Commandes totales</div><div class="kpi-value text-gold" id="kpiOrders">...</div></div>
         <div class="kpi-card"><div class="kpi-title">Revenu (30j)</div><div class="kpi-value" id="kpiRevenue">...</div></div>
         <div class="kpi-card"><div class="kpi-title">Bénéfice (30j)</div><div class="kpi-value text-green" id="kpiProfit">...</div></div>
         <div class="kpi-card"><div class="kpi-title">Marge moyenne</div><div class="kpi-value text-gold" id="kpiMargin">...</div></div>
+        <div class="kpi-card"><div class="kpi-title">Recharges Fapshi</div><div class="kpi-value text-blue" id="kpiFapshi">...</div></div>
+        <div class="kpi-card"><div class="kpi-title">Recharges Swychr</div><div class="kpi-value text-gold" id="kpiSwychr">...</div></div>
+        <div class="kpi-card"><div class="kpi-title">Total Recharges</div><div class="kpi-value text-green" id="kpiTotalRecharges">...</div></div>
     </div>
 
+    <!-- Graphiques -->
     <div class="section">
         <div class="section-title">Évolution des bénéfices <span class="badge">périodes</span></div>
         <div class="chart-container">
@@ -117,6 +123,7 @@
         </div>
     </div>
 
+    <!-- Services -->
     <div class="section">
         <div class="section-title">
             Services & Analyse des prix
@@ -146,6 +153,7 @@
         </div>
     </div>
 
+    <!-- Commandes -->
     <div class="section">
         <div class="section-title">
             Commandes récentes
@@ -161,6 +169,31 @@
         </div>
     </div>
 
+    <!-- Transactions récentes (Fapshi / Swychr) -->
+    <div class="section">
+        <div class="section-title">
+            Transactions récentes (Paiements)
+            <button class="btn-action btn-gold" onclick="exportTransactionsPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+        </div>
+        <div class="filter-bar">
+            <select id="transactionFilter" onchange="filterTransactions()">
+                <option value="all">Toutes les sources</option>
+                <option value="Fapshi">Fapshi</option>
+                <option value="Swychr">Swychr</option>
+            </select>
+            <input type="text" id="transactionSearch" placeholder="Rechercher (ID, utilisateur...)" oninput="filterTransactions()">
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Source</th><th>ID</th><th>Utilisateur</th><th>Montant</th><th>Statut</th><th>Date</th></tr>
+                </thead>
+                <tbody id="transactionsBody"><tr><td colspan="6" class="loading">Chargement...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Utilisateurs -->
     <div class="section">
         <div class="section-title">
             Utilisateurs récents
@@ -235,10 +268,11 @@
     let allServices = [];
     let allOrders = [];
     let allUsers = [];
+    let allTransactions = [];
 
     async function loadAll() {
         try {
-            await Promise.all([loadStats(), loadServices(), loadOrders(), loadUsers()]);
+            await Promise.all([loadStats(), loadServices(), loadOrders(), loadUsers(), loadPaymentStats()]);
             renderCharts();
         } catch (e) {
             showError('Erreur lors du chargement des données : ' + e.message);
@@ -250,6 +284,7 @@
         await loadAll();
     }
 
+    // --- Stats générales ---
     async function loadStats() {
         const data = await fetchAdmin('/stats');
         if (data && data.success) {
@@ -264,6 +299,7 @@
         }
     }
 
+    // --- Services ---
     async function loadServices() {
         const data = await fetchAdmin('/services');
         if (data && data.success) {
@@ -311,6 +347,7 @@
         renderServices(filtered);
     }
 
+    // --- Commandes ---
     async function loadOrders() {
         const data = await fetchAdmin('/orders');
         if (data && data.success) {
@@ -347,6 +384,55 @@
         });
     }
 
+    // --- Transactions paiement ---
+    async function loadPaymentStats() {
+        const data = await fetchAdmin('/payment-stats');
+        if (data && data.success) {
+            const stats = data.data;
+            document.getElementById('kpiFapshi').textContent = stats.fapshi.total.toLocaleString() + ' FCFA';
+            document.getElementById('kpiSwychr').textContent = stats.swychr.total.toLocaleString() + ' FCFA';
+            document.getElementById('kpiTotalRecharges').textContent = stats.all.total.toLocaleString() + ' FCFA';
+            allTransactions = stats.all.transactions || [];
+            renderTransactions(allTransactions);
+        }
+    }
+
+    function renderTransactions(transactions) {
+        const tbody = document.getElementById('transactionsBody');
+        tbody.innerHTML = '';
+        if (!transactions.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="loading">Aucune transaction</td></tr>';
+            return;
+        }
+        transactions.forEach(t => {
+            const badgeClass = t.source === 'Fapshi' ? 'badge-fapshi' : 'badge-swychr';
+            const dateStr = t.date ? new Date(t.date).toLocaleString('fr-FR') : '—';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><span class="badge ${badgeClass}">${t.source}</span></td>
+                <td>${t.id}</td>
+                <td>${t.userId || '—'}</td>
+                <td>${t.amount.toLocaleString()} FCFA</td>
+                <td>${t.status}</td>
+                <td>${dateStr}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function filterTransactions() {
+        const filter = document.getElementById('transactionFilter').value;
+        const search = document.getElementById('transactionSearch').value.toLowerCase();
+        let filtered = allTransactions;
+        if (filter !== 'all') filtered = filtered.filter(t => t.source === filter);
+        if (search) filtered = filtered.filter(t => 
+            t.id.toLowerCase().includes(search) || 
+            (t.userId && t.userId.toLowerCase().includes(search))
+        );
+        renderTransactions(filtered);
+    }
+
+    // --- Utilisateurs ---
     async function loadUsers() {
         const data = await fetchAdmin('/users');
         if (data && data.success) {
@@ -376,6 +462,7 @@
         });
     }
 
+    // --- Graphiques ---
     let profitChartInstance = null;
     let ordersChartInstance = null;
 
@@ -418,6 +505,7 @@
         });
     }
 
+    // --- Exports PDF ---
     function exportServicesPDF() {
         if (!allServices || allServices.length === 0) return alert("Aucun service à exporter.");
         try {
@@ -425,21 +513,17 @@
             const doc = new jsPDF();
             doc.setFontSize(18); doc.setTextColor(8, 14, 26); 
             doc.text("Rapport des Services - Social Boost Horizon", 14, 20);
-            
             doc.setFontSize(10); doc.setTextColor(100); 
             doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
-            
             const tableColumn = ["ID", "Partenaire", "Nom", "Cout", "Prix final", "Benefice", "Marge"];
             const tableRows = allServices.slice(0, 100).map(s => [
                 s.id, s.provider, s.name.substring(0, 40), 
                 `${s.providerCost} FCFA`, `${s.finalPrice} FCFA`, `+${s.profit} FCFA`, `${s.profitMargin}%`
             ]);
-            
             doc.autoTable({ 
                 head: [tableColumn], body: tableRows, startY: 35, theme: 'striped', 
                 headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] }, styles: { fontSize: 8 } 
             });
-            
             doc.save('Services_SBH.pdf');
         } catch (e) {
             alert('Erreur export PDF Services : ' + e.message);
@@ -453,24 +537,44 @@
             const doc = new jsPDF();
             doc.setFontSize(18); doc.setTextColor(8, 14, 26); 
             doc.text("Rapport des Commandes - Social Boost Horizon", 14, 20);
-            
             doc.setFontSize(10); doc.setTextColor(100); 
             doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
-            
             const body = allOrders.map(o => [
                 o.source, o.orderId || o.id, o.serviceName.substring(0, 20), 
                 `${o.price} FCFA`, `+${o.profit} FCFA`, `${o.profitMargin}%`
             ]);
-            
             doc.autoTable({ 
                 head: [['Source', 'ID', 'Service', 'Montant', 'Benefice', 'Marge']], 
                 body, startY: 35, theme: 'striped', 
                 headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] }, styles: { fontSize: 8 } 
             });
-            
             doc.save('Commandes_SBH.pdf');
         } catch (e) {
             alert('Erreur export PDF Commandes : ' + e.message);
+        }
+    }
+
+    function exportTransactionsPDF() {
+        if (!allTransactions || allTransactions.length === 0) return alert("Aucune transaction à exporter.");
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFontSize(18); doc.setTextColor(8, 14, 26); 
+            doc.text("Rapport des Transactions - Social Boost Horizon", 14, 20);
+            doc.setFontSize(10); doc.setTextColor(100); 
+            doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
+            const body = allTransactions.map(t => [
+                t.source, t.id, t.userId || '—', `${t.amount} FCFA`, t.status,
+                t.date ? new Date(t.date).toLocaleString('fr-FR') : '—'
+            ]);
+            doc.autoTable({ 
+                head: [['Source', 'ID', 'Utilisateur', 'Montant', 'Statut', 'Date']], 
+                body, startY: 35, theme: 'striped', 
+                headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] }, styles: { fontSize: 8 } 
+            });
+            doc.save('Transactions_SBH.pdf');
+        } catch (e) {
+            alert('Erreur export PDF Transactions : ' + e.message);
         }
     }
 
