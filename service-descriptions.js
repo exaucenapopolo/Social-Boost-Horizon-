@@ -727,8 +727,7 @@ function getDropNotice(serviceType) {
       specificNote = 'Les resultats peuvent connaitre de legeres variations apres la livraison. C\'est un phenomene normal lie aux mecanismes de securite des reseaux sociaux. Les services avec garantie offrent un rechargement en cas de baisse significative.';
     }
 
-    return '<div class="drop-notice">' +
-      '<div class="drop-notice-header">' +
+    return '<div class="drop-notice-header">' +
       '<i class="fas fa-exclamation-triangle"></i>' +
       '<strong>Note importante sur les baisses</strong>' +
       '</div>' +
@@ -737,8 +736,7 @@ function getDropNotice(serviceType) {
       '<a href="strategie-de-boost.html" class="drop-notice-link">' +
       '<i class="fas fa-lightbulb"></i> Consulter notre Strategie de Boost' +
       '<i class="fas fa-arrow-right"></i>' +
-      '</a>' +
-      '</div>';
+      '</a>';
   } catch (e) {
     console.error('Erreur getDropNotice:', e);
     return '';
