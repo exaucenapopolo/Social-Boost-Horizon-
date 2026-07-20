@@ -76,6 +76,9 @@
         .loading { text-align: center; padding: 40px; color: #94a3b8; }
         .footer-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
         .error-banner { background: rgba(255, 71, 87, 0.15); border: 1px solid var(--red); color: var(--red); padding: 10px 15px; border-radius: 8px; margin-bottom: 20px; display: none; }
+        .whatsapp-link { color: #25D366; text-decoration: none; font-size: 1.2rem; }
+        .whatsapp-link:hover { color: #128C7E; }
+        .pdf-footer { text-align: center; margin-top: 10px; font-size: 10px; color: #888; border-top: 1px solid #ddd; padding-top: 5px; }
     </style>
 </head>
 <body>
@@ -138,7 +141,16 @@
                 <option value="EXO">EXO</option>
                 <option value="AfriqueBoost">AfriqueBoost</option>
             </select>
-            <input type="text" id="serviceSearch" placeholder="Rechercher un service..." oninput="filterServices()">
+            <input type="text" id="serviceSearch" placeholder="Rechercher (nom)" oninput="filterServices()">
+            <input type="text" id="serviceIdSearch" placeholder="Rechercher par ID" oninput="filterServices()">
+            <select id="serviceLimit" onchange="filterServices()">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="all">Tous</option>
+            </select>
+            <button class="btn-action" onclick="resetServiceFilters()">Réinitialiser</button>
         </div>
         <div class="table-wrap">
             <table>
@@ -153,18 +165,55 @@
         </div>
     </div>
 
-    <!-- Commandes -->
+    <!-- Top services -->
+    <div class="section">
+        <div class="section-title">
+            Top 10 services les plus commandés
+            <button class="btn-action btn-gold" onclick="exportTopServicesPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+        </div>
+        <div class="filter-bar">
+            <select id="topServiceFilter" onchange="loadTopServices()">
+                <option value="all">Tous partenaires</option>
+                <option value="MTP">MTP</option>
+                <option value="EXO">EXO</option>
+                <option value="AfriqueBoost">AfriqueBoost</option>
+            </select>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Partenaire</th><th>Service</th><th>Commandes</th></tr></thead>
+                <tbody id="topServicesBody"><tr><td colspan="3" class="loading">Chargement...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Commandes récentes -->
     <div class="section">
         <div class="section-title">
             Commandes récentes
             <button class="btn-action btn-gold" onclick="exportOrdersPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
         </div>
+        <div class="filter-bar">
+            <select id="orderSourceFilter" onchange="filterOrders()">
+                <option value="all">Toutes sources</option>
+                <option value="MTP">MTP</option>
+                <option value="EXO">EXO</option>
+                <option value="AfriqueBoost">AfriqueBoost</option>
+                <option value="Fapshi">Fapshi</option>
+            </select>
+            <select id="orderLimit" onchange="filterOrders()">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="all">Tous</option>
+            </select>
+        </div>
         <div class="table-wrap">
             <table>
                 <thead>
-                    <tr><th>Source</th><th>ID</th><th>Service</th><th>Quantité</th><th>Montant</th><th>Bénéfice</th><th>Marge</th><th>Statut</th></tr>
+                    <tr><th>Source</th><th>ID</th><th>Service</th><th>Qté</th><th>Montant</th><th>Bénéfice</th><th>Marge</th><th>Statut</th><th>Date/Heure</th></tr>
                 </thead>
-                <tbody id="ordersBody"><tr><td colspan="8" class="loading">Chargement...</td></tr></tbody>
+                <tbody id="ordersBody"><tr><td colspan="9" class="loading">Chargement...</td></tr></tbody>
             </table>
         </div>
     </div>
@@ -186,14 +235,14 @@
         <div class="table-wrap">
             <table>
                 <thead>
-                    <tr><th>Source</th><th>ID</th><th>Utilisateur</th><th>Montant</th><th>Statut</th><th>Date</th></tr>
+                    <tr><th>Source</th><th>ID</th><th>Utilisateur</th><th>Montant</th><th>Statut</th><th>Date/Heure</th></tr>
                 </thead>
                 <tbody id="transactionsBody"><tr><td colspan="6" class="loading">Chargement...</td></tr></tbody>
             </table>
         </div>
     </div>
 
-    <!-- Utilisateurs -->
+    <!-- Utilisateurs récents -->
     <div class="section">
         <div class="section-title">
             Utilisateurs récents
@@ -202,11 +251,15 @@
         <div class="table-wrap">
             <table>
                 <thead>
-                    <tr><th>ID</th><th>Nom</th><th>Email</th><th>Téléphone</th><th>Solde</th><th>Commandes</th></tr>
+                    <tr><th>ID</th><th>Nom</th><th>Email</th><th>Téléphone</th><th>Contact</th><th>Solde</th><th>Commandes</th></tr>
                 </thead>
-                <tbody id="usersBody"><tr><td colspan="6" class="loading">Chargement...</td></tr></tbody>
+                <tbody id="usersBody"><tr><td colspan="7" class="loading">Chargement...</td></tr></tbody>
             </table>
         </div>
+    </div>
+
+    <div style="text-align: center; padding: 20px 0; color: #94a3b8; border-top: 1px solid var(--border); font-size: 0.9rem;">
+        <i class="fas fa-crown" style="color: var(--gold);"></i> Fondateur : <strong style="color: var(--gold);">NAPOPOLO EXAUCE</strong> &nbsp;|&nbsp; Social Boost Horizon &copy; 2025
     </div>
 </div>
 
@@ -269,10 +322,11 @@
     let allOrders = [];
     let allUsers = [];
     let allTransactions = [];
+    let topServices = [];
 
     async function loadAll() {
         try {
-            await Promise.all([loadStats(), loadServices(), loadOrders(), loadUsers(), loadPaymentStats()]);
+            await Promise.all([loadStats(), loadServices(), loadOrders(), loadUsers(), loadPaymentStats(), loadTopServices()]);
             renderCharts();
         } catch (e) {
             showError('Erreur lors du chargement des données : ' + e.message);
@@ -307,7 +361,7 @@
             const stats = data.data.stats || {};
             document.getElementById('serviceStats').textContent =
                 `Total: ${stats.total || 0} | Min: ${stats.minPrice || 0} FCFA | Max: ${stats.maxPrice || 0} FCFA | Moy: ${stats.avgPrice || 0} FCFA`;
-            renderServices(allServices);
+            filterServices();
         }
     }
 
@@ -318,7 +372,7 @@
             tbody.innerHTML = '<tr><td colspan="7" class="loading">Aucun service trouvé</td></tr>';
             return;
         }
-        services.slice(0, 100).forEach(s => {
+        services.forEach(s => {
             let badge = '';
             if (s.provider === 'MTP') badge = 'badge-mtp';
             if (s.provider === 'EXO') badge = 'badge-exo';
@@ -341,10 +395,58 @@
     function filterServices() {
         const filter = document.getElementById('serviceFilter').value;
         const search = document.getElementById('serviceSearch').value.toLowerCase();
+        const idSearch = document.getElementById('serviceIdSearch').value.trim();
+        const limit = document.getElementById('serviceLimit').value;
+
         let filtered = allServices;
         if (filter !== 'all') filtered = filtered.filter(s => s.provider === filter);
         if (search) filtered = filtered.filter(s => s.name.toLowerCase().includes(search));
+        if (idSearch) filtered = filtered.filter(s => String(s.id).includes(idSearch));
+        if (limit !== 'all') {
+            const num = parseInt(limit);
+            filtered = filtered.slice(0, num);
+        }
         renderServices(filtered);
+    }
+
+    function resetServiceFilters() {
+        document.getElementById('serviceFilter').value = 'all';
+        document.getElementById('serviceSearch').value = '';
+        document.getElementById('serviceIdSearch').value = '';
+        document.getElementById('serviceLimit').value = '25';
+        filterServices();
+    }
+
+    // --- Top services ---
+    async function loadTopServices() {
+        const source = document.getElementById('topServiceFilter').value;
+        try {
+            const data = await fetchAdmin(`/top-services?source=${source}`);
+            if (data && data.success) {
+                topServices = data.topServices || [];
+                renderTopServices(topServices);
+            }
+        } catch (e) {
+            showError('Erreur chargement top services: ' + e.message);
+        }
+    }
+
+    function renderTopServices(services) {
+        const tbody = document.getElementById('topServicesBody');
+        tbody.innerHTML = '';
+        if (!services.length) {
+            tbody.innerHTML = '<tr><td colspan="3" class="loading">Aucune donnée</td></tr>';
+            return;
+        }
+        services.forEach(s => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><span class="badge ${s.source === 'MTP' ? 'badge-mtp' : s.source === 'EXO' ? 'badge-exo' : 'badge-afb'}">${s.source}</span></td>
+                <td>${s.serviceName}</td>
+                <td><strong>${s.count}</strong></td>
+            `;
+            tbody.appendChild(tr);
+        });
     }
 
     // --- Commandes ---
@@ -352,7 +454,7 @@
         const data = await fetchAdmin('/orders');
         if (data && data.success) {
             allOrders = data.data.orders || [];
-            renderOrders(allOrders);
+            filterOrders();
         }
     }
 
@@ -360,14 +462,16 @@
         const tbody = document.getElementById('ordersBody');
         tbody.innerHTML = '';
         if (!orders.length) {
-            tbody.innerHTML = '<tr><td colspan="8" class="loading">Aucune commande</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="loading">Aucune commande</td></tr>';
             return;
         }
         orders.forEach(o => {
             let badge = 'badge-fapshi';
             if (o.source === 'MTP') badge = 'badge-mtp';
-            if (o.source === 'EXO') badge = 'badge-exo';
-            if (o.source === 'AfriqueBoost') badge = 'badge-afb';
+            else if (o.source === 'EXO') badge = 'badge-exo';
+            else if (o.source === 'AfriqueBoost') badge = 'badge-afb';
+
+            const dateStr = o.createdAt ? new Date(o.createdAt).toLocaleString('fr-FR') : '—';
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -379,9 +483,22 @@
                 <td style="color:var(--green);">+${o.profit.toLocaleString()} FCFA</td>
                 <td>${o.profitMargin}%</td>
                 <td>${o.status}</td>
+                <td style="font-size:0.8rem;">${dateStr}</td>
             `;
             tbody.appendChild(tr);
         });
+    }
+
+    function filterOrders() {
+        const source = document.getElementById('orderSourceFilter').value;
+        const limit = document.getElementById('orderLimit').value;
+        let filtered = allOrders;
+        if (source !== 'all') filtered = filtered.filter(o => o.source === source);
+        if (limit !== 'all') {
+            const num = parseInt(limit);
+            filtered = filtered.slice(0, num);
+        }
+        renderOrders(filtered);
     }
 
     // --- Transactions paiement ---
@@ -393,7 +510,7 @@
             document.getElementById('kpiSwychr').textContent = stats.swychr.total.toLocaleString() + ' FCFA';
             document.getElementById('kpiTotalRecharges').textContent = stats.all.total.toLocaleString() + ' FCFA';
             allTransactions = stats.all.transactions || [];
-            renderTransactions(allTransactions);
+            filterTransactions();
         }
     }
 
@@ -445,16 +562,19 @@
         const tbody = document.getElementById('usersBody');
         tbody.innerHTML = '';
         if (!users.length) {
-            tbody.innerHTML = '<tr><td colspan="6" class="loading">Aucun utilisateur</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="loading">Aucun utilisateur</td></tr>';
             return;
         }
         users.forEach(u => {
+            const phone = u.phone || '';
+            const whatsappLink = phone ? `https://wa.me/${phone.replace(/\D/g, '')}` : '#';
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${u.id}</td>
                 <td>${u.displayName || u.username || '—'}</td>
                 <td>${u.email || '—'}</td>
-                <td>${u.phone || '—'}</td>
+                <td>${phone || '—'}</td>
+                <td>${phone ? `<a href="${whatsappLink}" target="_blank" class="whatsapp-link"><i class="fab fa-whatsapp"></i></a>` : '—'}</td>
                 <td>${(u.balance || 0).toLocaleString()} FCFA</td>
                 <td>${u.totalOrders || 0}</td>
             `;
@@ -505,13 +625,20 @@
         });
     }
 
-    // --- Exports PDF ---
+    // --- Exports PDF avec mise en forme et fondateur ---
+    function addFooter(doc) {
+        doc.setFontSize(10);
+        doc.setTextColor(136, 136, 136);
+        doc.text('Fondateur : NAPOPOLO EXAUCE', 14, doc.internal.pageSize.height - 10);
+        doc.text('Social Boost Horizon © 2025', 14, doc.internal.pageSize.height - 5);
+    }
+
     function exportServicesPDF() {
         if (!allServices || allServices.length === 0) return alert("Aucun service à exporter.");
         try {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            doc.setFontSize(18); doc.setTextColor(8, 14, 26); 
+            doc.setFontSize(18); doc.setTextColor(212, 175, 55); 
             doc.text("Rapport des Services - Social Boost Horizon", 14, 20);
             doc.setFontSize(10); doc.setTextColor(100); 
             doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
@@ -522,8 +649,10 @@
             ]);
             doc.autoTable({ 
                 head: [tableColumn], body: tableRows, startY: 35, theme: 'striped', 
-                headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] }, styles: { fontSize: 8 } 
+                headStyles: { fillColor: [212, 175, 55], textColor: [8, 14, 26] }, 
+                styles: { fontSize: 8 } 
             });
+            addFooter(doc);
             doc.save('Services_SBH.pdf');
         } catch (e) {
             alert('Erreur export PDF Services : ' + e.message);
@@ -535,19 +664,22 @@
         try {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            doc.setFontSize(18); doc.setTextColor(8, 14, 26); 
+            doc.setFontSize(18); doc.setTextColor(212, 175, 55); 
             doc.text("Rapport des Commandes - Social Boost Horizon", 14, 20);
             doc.setFontSize(10); doc.setTextColor(100); 
             doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
             const body = allOrders.map(o => [
                 o.source, o.orderId || o.id, o.serviceName.substring(0, 20), 
-                `${o.price} FCFA`, `+${o.profit} FCFA`, `${o.profitMargin}%`
+                `${o.price} FCFA`, `+${o.profit} FCFA`, `${o.profitMargin}%`,
+                o.status, o.createdAt ? new Date(o.createdAt).toLocaleString('fr-FR') : '—'
             ]);
             doc.autoTable({ 
-                head: [['Source', 'ID', 'Service', 'Montant', 'Benefice', 'Marge']], 
+                head: [['Source', 'ID', 'Service', 'Montant', 'Benefice', 'Marge', 'Statut', 'Date/Heure']], 
                 body, startY: 35, theme: 'striped', 
-                headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] }, styles: { fontSize: 8 } 
+                headStyles: { fillColor: [212, 175, 55], textColor: [8, 14, 26] }, 
+                styles: { fontSize: 8 } 
             });
+            addFooter(doc);
             doc.save('Commandes_SBH.pdf');
         } catch (e) {
             alert('Erreur export PDF Commandes : ' + e.message);
@@ -559,7 +691,7 @@
         try {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            doc.setFontSize(18); doc.setTextColor(8, 14, 26); 
+            doc.setFontSize(18); doc.setTextColor(212, 175, 55); 
             doc.text("Rapport des Transactions - Social Boost Horizon", 14, 20);
             doc.setFontSize(10); doc.setTextColor(100); 
             doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
@@ -568,13 +700,38 @@
                 t.date ? new Date(t.date).toLocaleString('fr-FR') : '—'
             ]);
             doc.autoTable({ 
-                head: [['Source', 'ID', 'Utilisateur', 'Montant', 'Statut', 'Date']], 
+                head: [['Source', 'ID', 'Utilisateur', 'Montant', 'Statut', 'Date/Heure']], 
                 body, startY: 35, theme: 'striped', 
-                headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] }, styles: { fontSize: 8 } 
+                headStyles: { fillColor: [212, 175, 55], textColor: [8, 14, 26] }, 
+                styles: { fontSize: 8 } 
             });
+            addFooter(doc);
             doc.save('Transactions_SBH.pdf');
         } catch (e) {
             alert('Erreur export PDF Transactions : ' + e.message);
+        }
+    }
+
+    function exportTopServicesPDF() {
+        if (!topServices || topServices.length === 0) return alert("Aucune donnée de top services.");
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFontSize(18); doc.setTextColor(212, 175, 55); 
+            doc.text("Top Services - Social Boost Horizon", 14, 20);
+            doc.setFontSize(10); doc.setTextColor(100); 
+            doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
+            const body = topServices.map(s => [s.source, s.serviceName, `${s.count}`]);
+            doc.autoTable({ 
+                head: [['Partenaire', 'Service', 'Commandes']], 
+                body, startY: 35, theme: 'striped', 
+                headStyles: { fillColor: [212, 175, 55], textColor: [8, 14, 26] }, 
+                styles: { fontSize: 8 } 
+            });
+            addFooter(doc);
+            doc.save('TopServices_SBH.pdf');
+        } catch (e) {
+            alert('Erreur export PDF Top Services : ' + e.message);
         }
     }
 
