@@ -830,7 +830,7 @@ function checkAdminPassword(req, res, next) {
 
 // Augmentation du temps de mise en cache à 30 minutes pour bloquer les requêtes répétés
 const ADMIN_CACHE_TTL = 30 * 60 * 1000; 
-let adminCache = { stats: null, services: null, users: null, orders: null, payments: null, lastFetch: { stats: 0, services: 0, users: 0, orders: 0, payments: 0 } };
+let adminCache = { stats: null, services: null, users: null, orders: null, payments: null, topServices: null, lastFetch: { stats: 0, services: 0, users: 0, orders: 0, payments: 0, topServices: 0 } };
 
 function isAdminCacheValid(key) {
   return adminCache[key] && (Date.now() - adminCache.lastFetch[key] < ADMIN_CACHE_TTL);
@@ -983,31 +983,80 @@ async function getOrdersData() {
     const isAfb = data.provider === 'afriqueboost';
     const sourceName = isAfb ? 'AfriqueBoost' : 'MTP';
     const cost = price / (isAfb ? AFB_MULTIPLIER : MTP_MULTIPLIER);
-    return { id: doc.id, source: sourceName, orderId: data.orderId, userId: data.userId, serviceName: data.serviceName || 'Service', quantity: data.quantity || 0, price, cost, profit: price - cost, profitMargin: price ? Math.round(((price - cost) / price) * 100) : 0, status: data.status || 'Inconnu', createdAt: data.createdAt };
+    return { 
+      id: doc.id, 
+      source: sourceName, 
+      orderId: data.orderId, 
+      userId: data.userId, 
+      serviceId: data.serviceId || null, // pour les top services
+      serviceName: data.serviceName || 'Service', 
+      quantity: data.quantity || 0, 
+      price, 
+      cost, 
+      profit: price - cost, 
+      profitMargin: price ? Math.round(((price - cost) / price) * 100) : 0, 
+      status: data.status || 'Inconnu', 
+      createdAt: data.createdAt 
+    };
   });
 
   const exoSnap = await db.collection('commandes').orderBy('createdAt', 'desc').limit(30).get();
   const exoOrders = exoSnap.docs.map(doc => {
-    const data = doc.data(); const price = data.totalCost || data.finalCost || data.cost || 0; const cost = price / EXO_MULTIPLIER;
-    return { id: doc.id, source: 'EXO', orderId: data.orderId || data.id, userId: data.userId, serviceName: data.serviceName || 'Service EXO', quantity: data.quantity || 0, price, cost, profit: price - cost, profitMargin: price ? Math.round(((price - cost) / price) * 100) : 0, status: data.status || 'Inconnu', createdAt: data.createdAt };
+    const data = doc.data(); 
+    const price = data.totalCost || data.finalCost || data.cost || 0; 
+    const cost = price / EXO_MULTIPLIER;
+    return { 
+      id: doc.id, 
+      source: 'EXO', 
+      orderId: data.orderId || data.id, 
+      userId: data.userId, 
+      serviceId: data.serviceId || data.id, // tentative d'ID
+      serviceName: data.serviceName || 'Service EXO', 
+      quantity: data.quantity || 0, 
+      price, 
+      cost, 
+      profit: price - cost, 
+      profitMargin: price ? Math.round(((price - cost) / price) * 100) : 0, 
+      status: data.status || 'Inconnu', 
+      createdAt: data.createdAt 
+    };
   });
 
   const fapshiSnap = await db.collection('fapshiTransactions').where('status', '==', 'CONFIRMED').limit(20).get();
   const fapshiOrders = fapshiSnap.docs.map(doc => {
-    const data = doc.data(); const amount = data.amount || 0; const cost = Math.round(amount * 0.8);
-    return { id: doc.id, source: 'Fapshi', orderId: doc.id, userId: data.userId, serviceName: 'Recharge Fapshi', quantity: 1, price: amount, cost, profit: amount - cost, profitMargin: amount ? Math.round(((amount - cost) / amount) * 100) : 0, status: 'Confirmé', createdAt: data.dateConfirmed || data.dateInitiated };
+    const data = doc.data(); 
+    const amount = data.amount || 0; 
+    const cost = Math.round(amount * 0.8);
+    return { 
+      id: doc.id, 
+      source: 'Fapshi', 
+      orderId: doc.id, 
+      userId: data.userId, 
+      serviceId: null, 
+      serviceName: 'Recharge Fapshi', 
+      quantity: 1, 
+      price: amount, 
+      cost, 
+      profit: amount - cost, 
+      profitMargin: amount ? Math.round(((amount - cost) / amount) * 100) : 0, 
+      status: 'Confirmé', 
+      createdAt: data.dateConfirmed || data.dateInitiated 
+    };
   });
 
   const allOrders = [...mtpOrders, ...exoOrders, ...fapshiOrders].sort((a, b) => {
     return getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt);
   });
 
-  const totalOrders = allOrders.length; const totalRevenue = allOrders.reduce((sum, o) => sum + o.price, 0);
-  const totalCost = allOrders.reduce((sum, o) => sum + o.cost, 0); const totalProfit = totalRevenue - totalCost;
+  const totalOrders = allOrders.length; 
+  const totalRevenue = allOrders.reduce((sum, o) => sum + o.price, 0);
+  const totalCost = allOrders.reduce((sum, o) => sum + o.cost, 0); 
+  const totalProfit = totalRevenue - totalCost;
   const avgMargin = totalRevenue ? Math.round((totalProfit / totalRevenue) * 100) : 0;
 
   const result = { orders: allOrders.slice(0, 50), stats: { total: totalOrders, revenue: totalRevenue, cost: totalCost, profit: totalProfit, avgMargin } };
-  adminCache.orders = result; adminCache.lastFetch.orders = Date.now();
+  adminCache.orders = result; 
+  adminCache.lastFetch.orders = Date.now();
   return result;
 }
 
@@ -1089,6 +1138,33 @@ async function getPaymentStats() {
   return result;
 }
 
+// ─── Admin : Top services les plus commandés ───
+async function getTopServicesData(source) {
+  // Utiliser les commandes déjà en cache (getOrdersData) pour éviter des lectures supplémentaires
+  const ordersData = await getOrdersData(); // cela utilise le cache si disponible
+  let orders = ordersData.orders || [];
+  if (source && source !== 'all') {
+    orders = orders.filter(o => o.source === source);
+  }
+  // Compter par service (on utilise le nom + source pour distinguer)
+  const map = {};
+  orders.forEach(o => {
+    const key = `${o.source}|${o.serviceName}`;
+    if (!map[key]) {
+      map[key] = { 
+        serviceName: o.serviceName, 
+        source: o.source, 
+        count: 0,
+        serviceId: o.serviceId || null
+      };
+    }
+    map[key].count++;
+  });
+  // Transformer en tableau et trier par count décroissant
+  const top = Object.values(map).sort((a, b) => b.count - a.count).slice(0, 10);
+  return top;
+}
+
 const adminRouter = express.Router();
 adminRouter.use(checkAdminPassword);
 
@@ -1096,11 +1172,19 @@ adminRouter.get('/ping', (req, res) => res.json({ success: true, message: 'Admin
 adminRouter.get('/stats', async (req, res) => { try { res.json({ success: true, data: await getStatsData() }); } catch (error) { res.status(500).json({ success: false, error: error.message }); } });
 adminRouter.get('/services', async (req, res) => { try { res.json({ success: true, data: await getServicesData() }); } catch (error) { res.status(500).json({ success: false, error: error.message }); } });
 adminRouter.get('/orders', async (req, res) => { try { res.json({ success: true, data: await getOrdersData() }); } catch (error) { res.status(500).json({ success: false, error: error.message }); } });
-// Nouvelle route pour les statistiques de paiement
 adminRouter.get('/payment-stats', async (req, res) => {
   try {
     const data = await getPaymentStats();
     res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+adminRouter.get('/top-services', async (req, res) => {
+  try {
+    const { source } = req.query; // 'MTP', 'EXO', 'AfriqueBoost', 'all'
+    const top = await getTopServicesData(source);
+    res.json({ success: true, topServices: top });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
