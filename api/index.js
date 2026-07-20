@@ -7,7 +7,12 @@ const { sendWelcomeEmail } = require('./email-service.js');
 
 const app = express();
 
-app.use(cors());
+// CORRECTION : Autorisation explicite du header personnalisé pour l'admin
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-password']
+}));
 app.use(express.json({ limit: '10mb' }));
 
 app.use((req, res, next) => {
@@ -76,29 +81,28 @@ const EXO_MULTIPLIER = 2.5;
 const AFRIQUEBOOST_API_URL = 'https://afriqueboost.com/api/v2';
 const AFB_MULTIPLIER       = 3;   
 
-// Détection de la plateforme à partir du nom du service + lien
 function detectPlatformName(serviceName, link) {
   const n = ((serviceName || '') + ' ' + (link || '')).toLowerCase();
-  if (n.includes('instagram'))                    return 'Instagram';
+  if (n.includes('instagram')) return 'Instagram';
   if (n.includes('facebook') || n.includes('fb.com')) return 'Facebook';
-  if (n.includes('tiktok'))                       return 'TikTok';
+  if (n.includes('tiktok')) return 'TikTok';
   if (n.includes('youtube') || n.includes('youtu.be')) return 'YouTube';
-  if (n.includes('twitter') || n.includes('x.com'))  return 'X (Twitter)';
+  if (n.includes('twitter') || n.includes('x.com')) return 'X (Twitter)';
   if (n.includes('telegram') || n.includes('t.me')) return 'Telegram';
-  if (n.includes('whatsapp'))                     return 'WhatsApp';
-  if (n.includes('linkedin'))                     return 'LinkedIn';
-  if (n.includes('spotify'))                      return 'Spotify';
-  if (n.includes('twitch'))                       return 'Twitch';
-  if (n.includes('discord'))                      return 'Discord';
-  if (n.includes('snapchat'))                     return 'Snapchat';
-  if (n.includes('pinterest'))                    return 'Pinterest';
-  if (n.includes('soundcloud'))                   return 'SoundCloud';
-  if (n.includes('threads'))                      return 'Threads';
-  if (n.includes('reddit'))                       return 'Reddit';
-  if (n.includes('google'))                       return 'Google';
-  if (n.includes('netflix'))                      return 'Netflix';
+  if (n.includes('whatsapp')) return 'WhatsApp';
+  if (n.includes('linkedin')) return 'LinkedIn';
+  if (n.includes('spotify')) return 'Spotify';
+  if (n.includes('twitch')) return 'Twitch';
+  if (n.includes('discord')) return 'Discord';
+  if (n.includes('snapchat')) return 'Snapchat';
+  if (n.includes('pinterest')) return 'Pinterest';
+  if (n.includes('soundcloud')) return 'SoundCloud';
+  if (n.includes('threads')) return 'Threads';
+  if (n.includes('reddit')) return 'Reddit';
+  if (n.includes('google')) return 'Google';
+  if (n.includes('netflix')) return 'Netflix';
   if (n.includes('free fire') || n.includes('freefire')) return 'Free Fire';
-  if (n.includes('kick'))                         return 'Kick';
+  if (n.includes('kick')) return 'Kick';
   return 'Autre';
 }
 
@@ -111,7 +115,6 @@ const MTP_STATUS_MAP = {
   'Canceled':   'Annulé',
 };
 
-// Appels centralisés aux API fournisseurs
 async function callMTP(params) {
   if (!process.env.MORETHANPANEL_API_KEY) throw new Error('MORETHANPANEL_API_KEY non définie.');
   const body = new URLSearchParams({ key: process.env.MORETHANPANEL_API_KEY, ...params });
@@ -143,7 +146,7 @@ async function callAfriqueBoost(params) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// MoreThanPanel (MTP) API
+// MTP API
 // ═══════════════════════════════════════════════════════════════
 let _mtpServicesCache     = null;
 let _mtpServicesCacheTime = 0;
@@ -364,7 +367,7 @@ app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
 
     res.json({ 
         success: true, 
-        message: "Demande d'annulation transmise au fournisseur. Le remboursement sera effectué automatiquement dès que le fournisseur confirmera l'annulation lors de la prochaine vérification de statut." 
+        message: "Demande d'annulation transmise au fournisseur. Le remboursement sera effectué automatiquement dès que le fournisseur confirmera l'annulation." 
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -372,7 +375,7 @@ app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// Exo API
+// EXO API
 // ═══════════════════════════════════════════════════════════════
 app.post('/api/exo/cancel', checkAuth, async (req, res) => {
     try {
@@ -403,7 +406,7 @@ app.post('/api/exo/cancel', checkAuth, async (req, res) => {
 
         return res.status(200).json({ 
             success: true, 
-            message: "La demande d'annulation a bien été transmise au fournisseur. Le remboursement sera effectué automatiquement dès que l'annulation sera confirmée."
+            message: "La demande d'annulation a bien été transmise au fournisseur."
         });
     } catch (error) {
         console.error("Erreur annulation:", error);
@@ -523,7 +526,7 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
     const currentBalance = userDoc.data().balance || 0;
     if (currentBalance < cost) {
       return res.status(400).json({
-        success: false, error: `Solde insuffisant. Requis : ${cost.toLocaleString('fr-FR')} FCFA — Disponible : ${currentBalance.toLocaleString('fr-FR')} FCFA`,
+        success: false, error: `Solde insuffisant. Requis : ${cost.toLocaleString('fr-FR')} FCFA`,
       });
     }
 
@@ -564,7 +567,6 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
 
     res.json({ success: true, orderId: finalOrderId, newBalance });
   } catch (error) {
-    if (error.message.toLowerCase().includes('insuffisant')) return res.status(400).json({ success: false, error: error.message });
     res.status(500).json({ success: false, error: 'Erreur technique. Veuillez réessayer.' });
   }
 });
@@ -646,32 +648,6 @@ app.post('/api/afriqueboost/refill', checkAuth, async (req, res) => {
   }
 });
 
-app.post('/api/afriqueboost/cancel', checkAuth, async (req, res) => {
-  const { orderId } = req.body;
-  const uid = req.user.uid;
-  if (!orderId) return res.status(400).json({ success: false, error: 'orderId requis.' });
-  try {
-    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).where('userId', '==', uid).limit(1).get();
-    if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
-
-    const orderDoc = snapshot.docs[0];
-    const orderData = orderDoc.data();
-    const currentStatus = (orderData.status || '').toLowerCase();
-
-    if (orderData.refunded) return res.status(400).json({ success: false, error: 'Cette commande a déjà été remboursée.' });
-    if (!['en attente', 'pending', 'en cours', 'in progress', 'processing'].includes(currentStatus)) {
-        return res.status(400).json({ success: false, error: 'Cette commande ne peut plus être annulée.' });
-    }
-
-    try { await callAfriqueBoost({ action: 'cancel', orders: orderData.providerOrderId }); } 
-    catch (afbErr) { console.error("AfriqueBoost Cancel Error:", afbErr); }
-
-    res.json({ success: true, message: "Demande d'annulation transmise. Le remboursement sera effectué lors de la confirmation." });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
 // ═══════════════════════════════════════════════════════════════
 // Routes utilisateur
 // ═══════════════════════════════════════════════════════════════
@@ -718,72 +694,6 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
         settings: data.settings || {}, resellerLevel: data.resellerLevel || 'bronze', lastSignIn: data.lastSignIn || null,
       }
     });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.post('/api/update-profile', checkAuth, async (req, res) => {
-  const { displayName, email, phone, country, photoURL, newPassword } = req.body;
-  const uid = req.user.uid;
-  try {
-    const updateData = {}; const authUpdates = {};
-    if (displayName !== undefined) { updateData.displayName = displayName; authUpdates.displayName = displayName; }
-    if (email !== undefined) updateData.email = email;
-    if (phone !== undefined) updateData.phone = phone;
-    if (country !== undefined) updateData.country = country;
-    if (photoURL !== undefined) { updateData.photoURL = photoURL; authUpdates.photoURL = photoURL; }
-    if (Object.keys(authUpdates).length > 0) await admin.auth().updateUser(uid, authUpdates);
-    if (newPassword) {
-      if (newPassword.length < 6) return res.status(400).json({ success: false, error: 'Mot de passe trop court.' });
-      await admin.auth().updateUser(uid, { password: newPassword });
-    }
-    await db.collection('users').doc(uid).set(updateData, { merge: true });
-    res.json({ success: true, message: 'Profil mis à jour.' });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.post('/api/user/settings', checkAuth, async (req, res) => {
-  const { settings } = req.body;
-  if (!settings || typeof settings !== 'object') return res.status(400).json({ success: false, error: 'Paramètres invalides' });
-  try {
-    await db.collection('users').doc(req.user.uid).set({ settings }, { merge: true });
-    res.json({ success: true, settings });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
-  try {
-    const userDoc = await db.collection('users').doc(req.user.uid).get();
-    const data = userDoc.data();
-    if (data && data.apiKey) {
-      res.json({ success: true, hasApiKey: true, prefix: data.apiKey.substring(0, 8), createdAt: data.apiKeyCreatedAt || new Date().toISOString() });
-    } else {
-      res.json({ success: true, hasApiKey: false });
-    }
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.post('/api/user/generate-api-key', checkAuth, async (req, res) => {
-  try {
-    const newKey = 'sbh_' + crypto.randomBytes(24).toString('hex');
-    await db.collection('users').doc(req.user.uid).set({ apiKey: newKey, apiKeyCreatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
-    res.json({ success: true, apiKey: newKey, prefix: newKey.substring(0, 8) });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
-  try {
-    await db.collection('users').doc(req.user.uid).update({ apiKey: admin.firestore.FieldValue.delete(), apiKeyCreatedAt: admin.firestore.FieldValue.delete() });
-    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -843,7 +753,7 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
     const checkoutUrl = respJson.data?.url || respJson.link || respJson.url;
     const fapshiTransId = respJson.transId || respJson.data?.transId || null;
 
-    if (!checkoutUrl) return res.status(502).json({ success: false, error: 'URL manquante dans la réponse Fapshi.' });
+    if (!checkoutUrl) return res.status(502).json({ success: false, error: 'URL manquante.' });
 
     const transDocId = fapshiTransId || db.collection('fapshiTransactions').doc().id;
     await db.collection('fapshiTransactions').doc(transDocId).set({
@@ -852,152 +762,36 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
       dateInitiated: admin.firestore.FieldValue.serverTimestamp(), checkoutUrl,
     });
 
-    if (phone) await db.collection('users').doc(uid).set({ paymentPhone: phone }, { merge: true });
-
     return res.json({ success: true, checkoutUrl });
   } catch (err) {
     clearTimeout(timer);
-    if (err.name === 'AbortError') return res.status(504).json({ success: false, error: 'Délai dépassé: Fapshi ne répond pas.' });
     return res.status(500).json({ success: false, error: 'Erreur communication avec Fapshi.' });
   }
 });
 
-app.get('/api/fapshi-webhook', (req, res) => res.status(200).send("Endpoint Webhook actif. Fapshi utilise la méthode POST."));
-
 app.post('/api/fapshi-webhook', async (req, res) => {
   const { status, amount, transId } = req.body;
   if (status !== 'SUCCESSFUL') return res.status(200).json({ message: 'Statut ignoré.' });
-  if (!transId || isNaN(Number(amount))) return res.status(400).json({ error: 'Données invalides.' });
-
+  
   const amountNum = Number(amount);
   const transRef = db.collection('fapshiTransactions').doc(transId);
 
   try {
     const transDoc = await transRef.get();
-    if (!transDoc.exists) return res.status(200).json({ message: 'Transaction inconnue.' });
+    if (!transDoc.exists || transDoc.data().status === 'CONFIRMED') return res.status(200).json({ message: 'OK' });
 
     const transData = transDoc.data();
-    if (transData.status === 'CONFIRMED') return res.status(200).json({ message: 'Déjà confirmée.' });
-
-    const userId = transData.userId;
-    if (!userId) return res.status(500).json({ error: 'userId manquant.' });
-
     await transRef.update({ status: 'CONFIRMED', amountConfirmed: amountNum, dateConfirmed: admin.firestore.FieldValue.serverTimestamp() });
 
-    const userRef = db.collection('users').doc(userId);
+    const userRef = db.collection('users').doc(transData.userId);
     await db.runTransaction(async (t) => {
       const userDoc = await t.get(userRef);
-      if (!userDoc.exists) {
-        t.set(userRef, { balance: amountNum });
-      } else {
-        const newBalance = (userDoc.data().balance || 0) + amountNum;
-        t.update(userRef, { balance: newBalance });
-      }
+      if (!userDoc.exists) t.set(userRef, { balance: amountNum });
+      else t.update(userRef, { balance: (userDoc.data().balance || 0) + amountNum });
     });
-
-    let bonusApplied = false;
-    try {
-      const filleulDoc = await userRef.get();
-      const parrainUid = filleulDoc.exists ? (filleulDoc.data().referredBy || null) : null;
-      if (parrainUid) {
-        const bonusAmount = Math.floor(amountNum * 0.05);
-        if (bonusAmount > 0) {
-          const parrainRef = db.collection('users').doc(parrainUid);
-          await parrainRef.set({ referralBalance: admin.firestore.FieldValue.increment(bonusAmount) }, { merge: true });
-          await parrainRef.collection('referrals').add({
-            refereeUid: userId, amount: amountNum, referrerShare: bonusAmount, type: 'deposit_bonus_fapshi',
-            transactionId: transId, date: admin.firestore.FieldValue.serverTimestamp(), status: 'completed',
-          });
-          bonusApplied = true;
-        }
-      }
-    } catch (e) {}
-    return res.status(200).json({ message: 'Webhook traité.', bonusApplied });
+    return res.status(200).json({ message: 'Webhook traité.' });
   } catch (err) {
     return res.status(500).json({ error: 'Erreur webhook.' });
-  }
-});
-
-app.post('/api/fapshi/verify-transaction', checkAuth, async (req, res) => {
-  const uid = req.user.uid;
-  const { transId } = req.body;
-  const API_USER = process.env.FAPSHI_API_USER;
-  const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
-
-  if (!transId) return res.status(400).json({ success: false, error: 'ID de transaction requis.' });
-  if (!API_USER || !SECRET_KEY) return res.status(500).json({ success: false, error: 'Clés Fapshi manquantes.' });
-
-  try {
-    const transRef = db.collection('fapshiTransactions').doc(transId);
-    const transDoc = await transRef.get();
-
-    if (!transDoc.exists || transDoc.data().userId !== uid) return res.status(404).json({ success: false, error: "Transaction introuvable pour ce compte." });
-    
-    const transData = transDoc.data();
-    if (transData.status === 'CONFIRMED') return res.json({ success: true, status: 'CONFIRMED', message: "La transaction est déjà confirmée." });
-
-    const fapshiID = transData.fapshiTransId || transId;
-    const fapshiRes = await fetch(`https://live.fapshi.com/payment-status/${fapshiID}`, {
-      method: 'GET', headers: { 'apiuser': API_USER, 'apikey': SECRET_KEY }
-    });
-
-    if (!fapshiRes.ok) return res.status(502).json({ success: false, error: `Erreur Fapshi : ${fapshiRes.status}` });
-
-    const statusData = await fapshiRes.json();
-    const paymentObj = Array.isArray(statusData) ? statusData[0] : statusData;
-    const paymentStatus = paymentObj.status || paymentObj.paymentStatus || statusData.status;
-
-    if (paymentStatus === 'SUCCESSFUL') {
-      const amountNum = Number(paymentObj.amount || transData.amount);
-      const userRef = db.collection('users').doc(uid);
-
-      await db.runTransaction(async (t) => {
-        const freshTransDoc = await t.get(transRef);
-        const userDoc = await t.get(userRef);
-        if (freshTransDoc.exists && freshTransDoc.data().status === 'CONFIRMED') return;
-
-        t.update(transRef, { status: 'CONFIRMED', amountConfirmed: amountNum, dateConfirmed: admin.firestore.FieldValue.serverTimestamp() });
-        const currentBalance = userDoc.exists ? (userDoc.data().balance || 0) : 0;
-        t.set(userRef, { balance: currentBalance + amountNum }, { merge: true });
-      });
-
-      try {
-        const userDocData = await userRef.get();
-        const parrainUid = userDocData.exists ? (userDocData.data().referredBy || null) : null;
-        if (parrainUid) {
-          const bonusAmount = Math.floor(amountNum * 0.05);
-          if (bonusAmount > 0) {
-            const parrainRef = db.collection('users').doc(parrainUid);
-            await parrainRef.set({ referralBalance: admin.firestore.FieldValue.increment(bonusAmount) }, { merge: true });
-            await parrainRef.collection('referrals').add({
-              refereeUid: uid, amount: amountNum, referrerShare: bonusAmount, type: 'deposit_bonus_fapshi',
-              transactionId: transId, date: admin.firestore.FieldValue.serverTimestamp(), status: 'completed',
-            });
-          }
-        }
-      } catch (refErr) {}
-      return res.json({ success: true, status: 'CONFIRMED' });
-    } else if (paymentStatus === 'FAILED' || paymentStatus === 'EXPIRED') {
-      await transRef.update({ status: 'FAILED', dateUpdated: admin.firestore.FieldValue.serverTimestamp() });
-      return res.json({ success: true, status: 'FAILED' });
-    } else {
-      return res.json({ success: true, status: 'PENDING' });
-    }
-  } catch (error) {
-    res.status(500).json({ success: false, error: 'Erreur technique lors de la vérification.' });
-  }
-});
-
-app.get('/api/fapshi/transactions', checkAuth, async (req, res) => {
-  try {
-    const uid = req.user.uid;
-    const snapshot = await db.collection('fapshiTransactions').where('userId', '==', uid).orderBy('dateInitiated', 'desc').limit(20).get();
-    const transactions = snapshot.docs.map(doc => ({
-      id: doc.id, ...doc.data(), dateInitiated: doc.data().dateInitiated || null, dateConfirmed: doc.data().dateConfirmed || null,
-    }));
-    res.json({ success: true, transactions });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1021,6 +815,7 @@ function isAdminCacheValid(key) {
   return adminCache[key] && (Date.now() - adminCache.lastFetch[key] < ADMIN_CACHE_TTL);
 }
 
+// CORRECTION : Prise en compte du multiplicateur AfriqueBoost
 async function getStatsData() {
   if (isAdminCacheValid('stats')) return adminCache.stats;
   const now = new Date();
@@ -1036,6 +831,8 @@ async function getStatsData() {
   ]);
   const totalOrders = mtpOrdersCount.data().count + exoOrdersCount.data().count;
 
+  // ⚠️ Attention: Si cette requête Firestore échoue dans tes logs, c'est parce qu'il te manque un Index Composite !
+  // Firebase te donnera un lien direct dans l'erreur de tes logs (sur Vercel) pour le créer.
   async function getPeriodStats(startDate) {
     const mtpSnap = await db.collection('autoOrders')
       .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(startDate))
@@ -1046,8 +843,19 @@ async function getStatsData() {
       .where('status', 'in', ['Terminé', 'En cours', 'Completed']).get();
 
     let revenue = 0, cost = 0;
-    mtpSnap.forEach(doc => { const d = doc.data(); const p = d.priceXAF || 0; revenue += p; cost += p / MTP_MULTIPLIER; });
-    exoSnap.forEach(doc => { const d = doc.data(); const p = d.totalCost || d.finalCost || d.cost || 0; revenue += p; cost += p / EXO_MULTIPLIER; });
+    mtpSnap.forEach(doc => { 
+        const d = doc.data(); 
+        const p = d.priceXAF || 0; 
+        const multiplier = d.provider === 'afriqueboost' ? AFB_MULTIPLIER : MTP_MULTIPLIER;
+        revenue += p; 
+        cost += p / multiplier; 
+    });
+    exoSnap.forEach(doc => { 
+        const d = doc.data(); 
+        const p = d.totalCost || d.finalCost || d.cost || 0; 
+        revenue += p; 
+        cost += p / EXO_MULTIPLIER; 
+    });
     return { revenue: Math.round(revenue), cost: Math.round(cost), profit: Math.round(revenue - cost) };
   }
 
@@ -1058,6 +866,7 @@ async function getStatsData() {
   return stats;
 }
 
+// CORRECTION : Ajout d'AfriqueBoost dans la liste des services
 async function getServicesData() {
   if (isAdminCacheValid('services')) return adminCache.services;
   let allServices = [];
@@ -1072,7 +881,7 @@ async function getServicesData() {
           allServices.push({ id: s.service, provider: 'MTP', name: s.name, category: s.category || '', providerCost, finalPrice, profit, profitMargin: Math.round((profit / finalPrice) * 100) || 0, min: parseInt(s.min) || 0, max: parseInt(s.max) || 0 });
         });
       }
-    } catch (e) { console.warn('Erreur MTP admin services:', e.message); }
+    } catch (e) { console.warn('Erreur MTP:', e.message); }
   }
 
   if (process.env.EXO_API_KEY) {
@@ -1085,7 +894,20 @@ async function getServicesData() {
           allServices.push({ id: s.service, provider: 'EXO', name: s.name, category: s.category || '', providerCost, finalPrice, profit, profitMargin: Math.round((profit / finalPrice) * 100) || 0, min: parseInt(s.min) || 0, max: parseInt(s.max) || 0 });
         });
       }
-    } catch (e) { console.warn('Erreur EXO admin services:', e.message); }
+    } catch (e) { console.warn('Erreur EXO:', e.message); }
+  }
+
+  if (process.env.ADVANCED_PROVIDER_API_KEY) {
+    try {
+      const afbData = await callAfriqueBoost({ action: 'services' });
+      if (Array.isArray(afbData)) {
+        afbData.forEach(s => {
+          const rateXAF = parseFloat(s.rate) || 0; const providerCost = Math.round(rateXAF);
+          const finalPrice = Math.round(providerCost * AFB_MULTIPLIER); const profit = finalPrice - providerCost;
+          allServices.push({ id: s.service, provider: 'AfriqueBoost', name: s.name, category: s.category || '', providerCost, finalPrice, profit, profitMargin: Math.round((profit / finalPrice) * 100) || 0, min: parseInt(s.min) || 0, max: parseInt(s.max) || 0 });
+        });
+      }
+    } catch (e) { console.warn('Erreur AFB:', e.message); }
   }
 
   const prices = allServices.map(s => s.finalPrice);
@@ -1109,13 +931,18 @@ async function getServicesData() {
   return result;
 }
 
+// CORRECTION : Distinguer MTP et AfriqueBoost dans le même tableau
 async function getOrdersData() {
   if (isAdminCacheValid('orders')) return adminCache.orders;
 
   const mtpSnap = await db.collection('autoOrders').orderBy('createdAt', 'desc').limit(200).get();
   const mtpOrders = mtpSnap.docs.map(doc => {
-    const data = doc.data(); const price = data.priceXAF || 0; const cost = price / MTP_MULTIPLIER;
-    return { id: doc.id, source: 'MTP', orderId: data.orderId, userId: data.userId, serviceName: data.serviceName || 'Service MTP', quantity: data.quantity || 0, price, cost, profit: price - cost, profitMargin: price ? Math.round(((price - cost) / price) * 100) : 0, status: data.status || 'Inconnu', createdAt: data.createdAt };
+    const data = doc.data(); 
+    const price = data.priceXAF || 0; 
+    const isAfb = data.provider === 'afriqueboost';
+    const sourceName = isAfb ? 'AfriqueBoost' : 'MTP';
+    const cost = price / (isAfb ? AFB_MULTIPLIER : MTP_MULTIPLIER);
+    return { id: doc.id, source: sourceName, orderId: data.orderId, userId: data.userId, serviceName: data.serviceName || 'Service', quantity: data.quantity || 0, price, cost, profit: price - cost, profitMargin: price ? Math.round(((price - cost) / price) * 100) : 0, status: data.status || 'Inconnu', createdAt: data.createdAt };
   });
 
   const exoSnap = await db.collection('commandes').orderBy('createdAt', 'desc').limit(200).get();
@@ -1143,7 +970,6 @@ async function getOrdersData() {
   return result;
 }
 
-// ── Définition du Routeur Admin ──
 const adminRouter = express.Router();
 adminRouter.use(checkAdminPassword);
 
@@ -1175,62 +1001,12 @@ adminRouter.get('/export/contacts', async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 });
 
-adminRouter.get('/export/services-pdf', async (req, res) => {
-  try {
-    const { jsPDF } = require('jspdf'); require('jspdf-autotable');
-    const servicesData = await getServicesData();
-    const doc = new jsPDF();
-    doc.setFontSize(18); doc.setTextColor(8, 14, 26); doc.text("Rapport des Services - Social Boost Horizon", 14, 20);
-    doc.setFontSize(10); doc.setTextColor(100); doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
-    const tableColumn = ["ID", "Partenaire", "Nom", "Coût", "Prix final", "Bénéfice", "Marge"];
-    const tableRows = servicesData.services.map(s => [s.id, s.provider, s.name.substring(0, 40), `${s.providerCost} FCFA`, `${s.finalPrice} FCFA`, `+${s.profit} FCFA`, `${s.profitMargin}%`]);
-    doc.autoTable({ head: [tableColumn], body: tableRows, startY: 35, theme: 'striped', headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] }, styles: { fontSize: 8 } });
-    doc.text(`Total services: ${servicesData.stats.total}`, 14, doc.lastAutoTable.finalY + 10);
-    doc.text(`Prix min: ${servicesData.stats.minPrice} FCFA, max: ${servicesData.stats.maxPrice} FCFA, moy: ${servicesData.stats.avgPrice} FCFA`, 14, doc.lastAutoTable.finalY + 18);
-    res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', 'attachment; filename="Services_SBH.pdf"'); res.send(Buffer.from(doc.output('arraybuffer')));
-  } catch (error) { res.status(500).json({ success: false, error: error.message }); }
-});
+// Les routes /export/services-pdf et /export/orders-pdf ont été SUPPRIMÉES d'ici 
+// pour éviter les crash serveur. Le PDF se génère désormais 100% sur le frontend !
 
-adminRouter.get('/export/profits-pdf', async (req, res) => {
-  try {
-    const { jsPDF } = require('jspdf'); require('jspdf-autotable');
-    const statsData = await getStatsData();
-    const doc = new jsPDF();
-    doc.setFontSize(18); doc.setTextColor(8, 14, 26); doc.text("Rapport Financier - Social Boost Horizon", 14, 20);
-    doc.setFontSize(10); doc.setTextColor(100); doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
-    doc.setFontSize(14); doc.text("Statistiques globales", 14, 40);
-    doc.autoTable({ body: [['Total utilisateurs', statsData.totalUsers], ['Total commandes', statsData.totalOrders]], startY: 45, theme: 'plain', styles: { fontSize: 10 } });
-    doc.text("Bénéfices par période", 14, doc.lastAutoTable.finalY + 12);
-    doc.autoTable({
-      head: [['Période', 'Revenu', 'Bénéfice']],
-      body: [['Aujourd\'hui', `${statsData.today.revenue} FCFA`, `${statsData.today.profit} FCFA`], ['7 jours', `${statsData.week.revenue} FCFA`, `${statsData.week.profit} FCFA`], ['30 jours', `${statsData.month.revenue} FCFA`, `${statsData.month.profit} FCFA`], ['365 jours', `${statsData.year.revenue} FCFA`, `${statsData.year.profit} FCFA`]],
-      startY: doc.lastAutoTable.finalY + 16, theme: 'striped', headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] }, styles: { fontSize: 10 },
-    });
-    res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', 'attachment; filename="Profits_SBH.pdf"'); res.send(Buffer.from(doc.output('arraybuffer')));
-  } catch (error) { res.status(500).json({ success: false, error: error.message }); }
-});
-
-adminRouter.get('/export/orders-pdf', async (req, res) => {
-  try {
-    const { jsPDF } = require('jspdf'); require('jspdf-autotable');
-    const ordersData = await getOrdersData();
-    const doc = new jsPDF();
-    doc.setFontSize(18); doc.setTextColor(8, 14, 26); doc.text("Rapport des Commandes - Social Boost Horizon", 14, 20);
-    doc.setFontSize(10); doc.setTextColor(100); doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
-    const body = ordersData.orders.slice(0, 50).map(o => [o.source, o.orderId || o.id, o.serviceName.substring(0, 20), `${o.price} FCFA`, `+${o.profit} FCFA`, `${o.profitMargin}%`]);
-    doc.autoTable({ head: [['Source', 'ID', 'Service', 'Montant', 'Bénéfice', 'Marge']], body, startY: 35, theme: 'striped', headStyles: { fillColor: [8, 14, 26], textColor: [212, 175, 55] }, styles: { fontSize: 8 } });
-    doc.text(`Total commandes: ${ordersData.stats.total} | Revenu: ${ordersData.stats.revenue} FCFA | Bénéfice: ${ordersData.stats.profit} FCFA`, 14, doc.lastAutoTable.finalY + 10);
-    res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', 'attachment; filename="Commandes_SBH.pdf"'); res.send(Buffer.from(doc.output('arraybuffer')));
-  } catch (error) { res.status(500).json({ success: false, error: error.message }); }
-});
-
-// Injection du routeur dans l'application principale
 app.use('/api/admin', adminRouter);
 
-// ── 404 ─────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ success: false, error: `Route non trouvée : ${req.method} ${req.path}` }));
-
-// ── Erreur globale ──────────────────────────────────────────────
 app.use((err, req, res, next) => {
   res.status(500).json({ success: false, error: err.message || 'Erreur interne.' });
 });
