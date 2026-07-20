@@ -163,7 +163,7 @@
 
     <div class="section">
         <div class="section-title">
-            Utilisateurs
+            Utilisateurs récents
             <button class="btn-action btn-green" onclick="exportVCF()"><i class="fas fa-address-book"></i> Exporter VCF</button>
         </div>
         <div class="table-wrap">
@@ -223,7 +223,7 @@
             }
             if (!res.ok) {
                 const text = await res.text();
-                throw new Error(`Erreur réseau (Code ${res.status}). Assurez-vous que l'API est en ligne.`);
+                throw new Error(`Erreur réseau (Code ${res.status}).`);
             }
             return await res.json();
         } catch (e) {
@@ -282,7 +282,7 @@
             tbody.innerHTML = '<tr><td colspan="7" class="loading">Aucun service trouvé</td></tr>';
             return;
         }
-        services.forEach(s => {
+        services.slice(0, 100).forEach(s => {
             let badge = '';
             if (s.provider === 'MTP') badge = 'badge-mtp';
             if (s.provider === 'EXO') badge = 'badge-exo';
@@ -326,7 +326,7 @@
             tbody.innerHTML = '<tr><td colspan="8" class="loading">Aucune commande</td></tr>';
             return;
         }
-        orders.slice(0, 50).forEach(o => {
+        orders.forEach(o => {
             let badge = 'badge-fapshi';
             if (o.source === 'MTP') badge = 'badge-mtp';
             if (o.source === 'EXO') badge = 'badge-exo';
@@ -362,7 +362,7 @@
             tbody.innerHTML = '<tr><td colspan="6" class="loading">Aucun utilisateur</td></tr>';
             return;
         }
-        users.slice(0, 30).forEach(u => {
+        users.forEach(u => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${u.id}</td>
@@ -388,7 +388,7 @@
         profitChartInstance = new Chart(ctx1, {
             type: 'bar',
             data: {
-                labels: ['Aujourd\'hui', '7 jours', '30 jours', '365 jours'],
+                labels: ['Aujourd\'hui', '7 jours', '30 jours', 'Est. Annee'],
                 datasets: [
                     { label: 'Revenu', data: [stats.today.revenue, stats.week.revenue, stats.month.revenue, stats.year.revenue], backgroundColor: 'rgba(77,166,255,0.6)', borderColor: '#4DA6FF', borderWidth: 1 },
                     { label: 'Bénéfice', data: [stats.today.profit, stats.week.profit, stats.month.profit, stats.year.profit], backgroundColor: 'rgba(34,197,94,0.6)', borderColor: '#22c55e', borderWidth: 1 }
@@ -418,7 +418,6 @@
         });
     }
 
-    // CORRECTION : Les exports PDF se font maintenant à 100% dans le navigateur !
     function exportServicesPDF() {
         if (!allServices || allServices.length === 0) return alert("Aucun service à exporter.");
         try {
@@ -431,7 +430,7 @@
             doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
             
             const tableColumn = ["ID", "Partenaire", "Nom", "Cout", "Prix final", "Benefice", "Marge"];
-            const tableRows = allServices.map(s => [
+            const tableRows = allServices.slice(0, 100).map(s => [
                 s.id, s.provider, s.name.substring(0, 40), 
                 `${s.providerCost} FCFA`, `${s.finalPrice} FCFA`, `+${s.profit} FCFA`, `${s.profitMargin}%`
             ]);
@@ -458,7 +457,7 @@
             doc.setFontSize(10); doc.setTextColor(100); 
             doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
             
-            const body = allOrders.slice(0, 50).map(o => [
+            const body = allOrders.map(o => [
                 o.source, o.orderId || o.id, o.serviceName.substring(0, 20), 
                 `${o.price} FCFA`, `+${o.profit} FCFA`, `${o.profitMargin}%`
             ]);
@@ -475,7 +474,6 @@
         }
     }
 
-    // Export des contacts VCF via le backend (texte simple = ok pour le serveur)
     async function exportVCF() {
         try {
             const res = await fetch('/api/admin/export/contacts', {
