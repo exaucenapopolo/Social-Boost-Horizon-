@@ -146,12 +146,15 @@
         .avatar-circle:hover { box-shadow: 0 0 24px rgba(139,92,246,0.6); }
         @media (max-width: 768px) {
             header { padding: 0.5rem 1rem; }
-            .logo-text .social, .logo-text .horizon { display: none; }
-            .logo-text .boost { font-size: 1.2rem; }
+            /* On réduit la taille des trois mots mais on les garde tous visibles */
+            .logo-text .social { font-size: 0.6rem; letter-spacing: 1px; }
+            .logo-text .boost { font-size: 1.3rem; }
+            .logo-text .horizon { font-size: 0.6rem; letter-spacing: 1px; }
             .nav-link span { display: none; }
             .nav-link { padding: 8px 12px; }
             .balance-pill { padding: 6px 12px; }
             .balance-pill span { font-size: 0.75rem; }
+            .logo-img { height: 36px; width: 36px; }
         }
 
         .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
@@ -264,13 +267,39 @@
         .quality-stripe.medium { background: linear-gradient(180deg, #10B981, #059669); }
         .quality-stripe.elite { background: linear-gradient(180deg, #8B5CF6, #7C3AED); }
 
-        .service-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .service-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 10px; flex-wrap: wrap; gap: 6px;
+        }
         .service-id { background: rgba(139,92,246,0.15); color: var(--purple-light); padding: 4px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 600; }
         .badge { padding: 3px 10px; border-radius: 6px; font-size: 0.65rem; font-weight: 600; }
         .badge-refill { background: rgba(16,185,129,0.2); color: var(--green); }
 
-        .service-name { font-size: 0.95rem; font-weight: 500; margin-bottom: 12px; line-height: 1.4; }
-        .service-details { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 10px; margin-bottom: 8px; }
+        .service-name-wrapper {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 12px;
+        }
+        .service-platform-icon {
+            width: 28px; height: 28px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.05);
+            padding: 4px;
+        }
+        .service-platform-icon img {
+            width: 100%; height: 100%; object-fit: contain;
+        }
+        .service-platform-icon .fallback {
+            font-size: 1rem; font-weight: 700; color: var(--gold);
+        }
+        .service-name {
+            font-size: 0.95rem; font-weight: 500; line-height: 1.4;
+        }
+
+        .service-details {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px; background: rgba(255,255,255,0.03); border-radius: 10px; margin-bottom: 8px;
+        }
         .service-price { font-size: 1.2rem; font-weight: 700; color: var(--gold); }
 
         /* ---- PANNEAU DE COMMANDE ---- */
@@ -543,7 +572,6 @@
     const db = firebase.firestore();
     const auth = firebase.auth();
 
-    // URL relative — fonctionne sur Vercel ou en local sans modification
     const BACKEND_URL = '';
 
     const CURRENCY_CONFIG = {
@@ -585,8 +613,9 @@
         return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2 }).format(local) + ' ' + userCurrency.symbol;
     }
 
-    // Vrais logos Wikipedia
-    function getPlatformLogoHTML(platform) {
+    // --- Fonction améliorée pour les logos avec fallback ---
+    function getPlatformLogoHTML(platform, size = 26) {
+        // Map des logos (URLs Wikimedia Commons stables)
         const logoMap = {
             instagram:  'https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png',
             facebook:   'https://upload.wikimedia.org/wikipedia/commons/b/b9/2023_Facebook_icon.svg',
@@ -624,9 +653,10 @@
         };
         const url = logoMap[platform];
         if (url) {
-            return `<img src="${url}" alt="${platform}" onerror="this.style.display='none';this.parentElement.innerHTML='<span style=\\'font-size:1.2rem;font-weight:700;\\'>${platform.charAt(0).toUpperCase()}</span>'">`;
+            return `<img src="${url}" alt="${platform}" style="width:${size}px;height:${size}px;object-fit:contain;" onerror="this.style.display='none';this.parentElement.innerHTML='<span class=\\'fallback\\' style=\\'font-size:${size*0.6}px;font-weight:700;\\'>${platform.charAt(0).toUpperCase()}</span>'">`;
         }
-        return `<span style="font-size:1.2rem;font-weight:700;">${platform.charAt(0).toUpperCase()}</span>`;
+        // Fallback : lettre
+        return `<span class="fallback" style="font-size:${size*0.6}px;font-weight:700;">${platform.charAt(0).toUpperCase()}</span>`;
     }
 
     function detectPlatform(service) {
@@ -693,9 +723,7 @@
         return t;
     }
 
-    // ──────────────────────────────────────────
-    // Chargement des services (MTP uniquement)
-    // ──────────────────────────────────────────
+    // Chargement des services (MTP)
     async function loadServices() {
         try {
             document.getElementById('servicesCount').textContent = 'Chargement des services...';
@@ -739,7 +767,7 @@
             chip.className = 'plat-chip';
             chip.dataset.platform = platform;
             chip.title = `${platform.charAt(0).toUpperCase() + platform.slice(1)} (${count} services)`;
-            chip.innerHTML = getPlatformLogoHTML(platform);
+            chip.innerHTML = getPlatformLogoHTML(platform, 26);
             chip.addEventListener('click', ()=>{
                 document.querySelectorAll('.plat-chip').forEach(c=>c.classList.remove('active'));
                 chip.classList.add('active');
@@ -792,13 +820,18 @@
         if (!filtered.length) { grid.innerHTML = '<div style="grid-column:1/-1; text-align:center;padding:40px;color:var(--text-muted);">Aucun service trouvé</div>'; return; }
         grid.innerHTML = filtered.map(s=>{
             const q = s.name.toLowerCase().includes('hq')||s.name.toLowerCase().includes('premium') ? 'elite' : (s.name.toLowerCase().includes('medium') ? 'medium' : 'basic');
+            // Construction du logo de la plateforme
+            const platformLogo = `<div class="service-platform-icon">${getPlatformLogoHTML(s.platform, 22)}</div>`;
             return `<div class="service-card" data-id="${s.id}">
                 <div class="quality-stripe ${q}"></div>
                 <div class="service-header">
                     <span class="service-id">#${s.id}</span>
                     ${s.refill ? '<span class="badge badge-refill">Recharge</span>' : ''}
                 </div>
-                <div class="service-name">${s.translatedName}</div>
+                <div class="service-name-wrapper">
+                    ${platformLogo}
+                    <span class="service-name">${s.translatedName}</span>
+                </div>
                 <div class="service-details"><span>${s.min}–${s.max}</span><span class="service-price">${formatPrice(s.priceXAF)}</span></div>
             </div>`;
         }).join('');
@@ -815,7 +848,7 @@
     document.getElementById('openQualityModal').addEventListener('click', ()=> document.getElementById('qualityModal').classList.add('open'));
     document.getElementById('closeQualityModal').addEventListener('click', ()=> document.getElementById('qualityModal').classList.remove('open'));
 
-    // Panneau de commande
+    // Panneau de commande (identique)
     const orderPanel          = document.getElementById('orderPanel');
     const orderPanelOverlay   = document.getElementById('orderPanelOverlay');
     const closePanel          = document.getElementById('closePanel');
