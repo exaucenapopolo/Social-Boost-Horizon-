@@ -81,8 +81,8 @@ app.get('/api/health', (req, res) => {
 // CONFIGURATIONS FOURNISSEURS GLOBALES (MTP, EXO, AFB)
 // ═══════════════════════════════════════════════════════════════
 const MTP_API_URL    = 'https://morethanpanel.com/api/v2';
-const MTP_USD_TO_XAF = 650;   
-const MTP_MULTIPLIER = 2.3;     
+const MTP_USD_TO_XAF = 620;   
+const MTP_MULTIPLIER = 3;     
 
 const EXO_API_URL    = 'https://exosupplier.com/api/v2';
 const EXO_USD_TO_XAF = 650;
@@ -816,7 +816,7 @@ app.post('/api/fapshi-webhook', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// ADMIN API (Routes Administrateur Optimsées - Quota Provisoire / Zéro Dépassement)
+// ADMIN API (ZÉRO LECTURE FIRESTORE)
 // ═══════════════════════════════════════════════════════════════
 
 const ADMIN_PASSWORD = '209644209644';
@@ -828,86 +828,14 @@ function checkAdminPassword(req, res, next) {
   next();
 }
 
-// Augmentation du temps de mise en cache à 30 minutes pour bloquer les requêtes répétés
 const ADMIN_CACHE_TTL = 30 * 60 * 1000; 
-let adminCache = { stats: null, services: null, users: null, orders: null, payments: null, topServices: null, lastFetch: { stats: 0, services: 0, users: 0, orders: 0, payments: 0, topServices: 0 } };
+let adminCache = { services: null, lastFetch: { services: 0 } };
 
 function isAdminCacheValid(key) {
   return adminCache[key] && (Date.now() - adminCache.lastFetch[key] < ADMIN_CACHE_TTL);
 }
 
-// CORRECTION QUOTA CRITIQUE : Calcul léger sans parcourir des milliers de documents sur 1 an
-async function getStatsData() {
-  if (isAdminCacheValid('stats')) return adminCache.stats;
-  
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-  // Agrégations gratuites/ultra-économiques (1 seule lecture par tranche de 1000 docs)
-  const [usersCount, mtpOrdersCount, exoOrdersCount] = await Promise.all([
-    db.collection('users').count().get(),
-    db.collection('autoOrders').count().get(),
-    db.collection('commandes').count().get(),
-  ]);
-  const totalOrders = mtpOrdersCount.data().count + exoOrdersCount.data().count;
-
-  const validStatuses = ['Terminé', 'En cours', 'Completed', 'In progress', 'Processing', 'Terminée'];
-
-  // Récupération UNIQUEMENT des 100 dernières commandes récentes pour estimer les statistiques (Max 200 lectures au lieu de 50 000)
-  const [mtpSnap, exoSnap] = await Promise.all([
-    db.collection('autoOrders').orderBy('createdAt', 'desc').limit(100).get(),
-    db.collection('commandes').orderBy('createdAt', 'desc').limit(100).get(),
-  ]);
-
-  function processSnapshots(startDate) {
-    let revenue = 0, cost = 0;
-    mtpSnap.forEach(doc => {
-      const d = doc.data();
-      const createdAtMs = getTimestampMs(d.createdAt);
-      if (createdAtMs >= startDate.getTime() && validStatuses.includes(d.status)) {
-        const p = d.priceXAF || 0;
-        const multiplier = d.provider === 'afriqueboost' ? AFB_MULTIPLIER : MTP_MULTIPLIER;
-        revenue += p;
-        cost += p / multiplier;
-      }
-    });
-
-    exoSnap.forEach(doc => {
-      const d = doc.data();
-      const createdAtMs = getTimestampMs(d.createdAt);
-      if (createdAtMs >= startDate.getTime() && validStatuses.includes(d.status)) {
-        const p = d.totalCost || d.finalCost || d.cost || 0;
-        revenue += p;
-        cost += p / EXO_MULTIPLIER;
-      }
-    });
-
-    return { revenue: Math.round(revenue), cost: Math.round(cost), profit: Math.round(revenue - cost) };
-  }
-
-  const todayStats = processSnapshots(today);
-  const weekStats  = processSnapshots(weekAgo);
-  const monthStats = processSnapshots(monthAgo);
-  // Extrapolation sécurisée pour l'année sans détruire le quota Firestore
-  const yearStats  = { revenue: monthStats.revenue * 12, cost: monthStats.cost * 12, profit: monthStats.profit * 12 };
-
-  const stats = { 
-    totalUsers: usersCount.data().count, 
-    totalOrders, 
-    today: todayStats, 
-    week: weekStats, 
-    month: monthStats, 
-    year: yearStats, 
-    lastUpdated: new Date().toISOString() 
-  };
-  
-  adminCache.stats = stats; 
-  adminCache.lastFetch.stats = Date.now();
-  return stats;
-}
-
+// Récupération directe des services depuis les API partenaires sans toucher Firestore
 async function getServicesData() {
   if (isAdminCacheValid('services')) return adminCache.services;
   let allServices = [];
@@ -972,246 +900,16 @@ async function getServicesData() {
   return result;
 }
 
-// CORRECTION QUOTA : Limite stricte à 30 commandes par fournisseur (Max 80 lectures par appel)
-async function getOrdersData() {
-  if (isAdminCacheValid('orders')) return adminCache.orders;
-
-  const mtpSnap = await db.collection('autoOrders').orderBy('createdAt', 'desc').limit(30).get();
-  const mtpOrders = mtpSnap.docs.map(doc => {
-    const data = doc.data(); 
-    const price = data.priceXAF || 0; 
-    const isAfb = data.provider === 'afriqueboost';
-    const sourceName = isAfb ? 'AfriqueBoost' : 'MTP';
-    const cost = price / (isAfb ? AFB_MULTIPLIER : MTP_MULTIPLIER);
-    return { 
-      id: doc.id, 
-      source: sourceName, 
-      orderId: data.orderId, 
-      userId: data.userId, 
-      serviceId: data.serviceId || null, // pour les top services
-      serviceName: data.serviceName || 'Service', 
-      quantity: data.quantity || 0, 
-      price, 
-      cost, 
-      profit: price - cost, 
-      profitMargin: price ? Math.round(((price - cost) / price) * 100) : 0, 
-      status: data.status || 'Inconnu', 
-      createdAt: data.createdAt 
-    };
-  });
-
-  const exoSnap = await db.collection('commandes').orderBy('createdAt', 'desc').limit(30).get();
-  const exoOrders = exoSnap.docs.map(doc => {
-    const data = doc.data(); 
-    const price = data.totalCost || data.finalCost || data.cost || 0; 
-    const cost = price / EXO_MULTIPLIER;
-    return { 
-      id: doc.id, 
-      source: 'EXO', 
-      orderId: data.orderId || data.id, 
-      userId: data.userId, 
-      serviceId: data.serviceId || data.id, // tentative d'ID
-      serviceName: data.serviceName || 'Service EXO', 
-      quantity: data.quantity || 0, 
-      price, 
-      cost, 
-      profit: price - cost, 
-      profitMargin: price ? Math.round(((price - cost) / price) * 100) : 0, 
-      status: data.status || 'Inconnu', 
-      createdAt: data.createdAt 
-    };
-  });
-
-  const fapshiSnap = await db.collection('fapshiTransactions').where('status', '==', 'CONFIRMED').limit(20).get();
-  const fapshiOrders = fapshiSnap.docs.map(doc => {
-    const data = doc.data(); 
-    const amount = data.amount || 0; 
-    const cost = Math.round(amount * 0.8);
-    return { 
-      id: doc.id, 
-      source: 'Fapshi', 
-      orderId: doc.id, 
-      userId: data.userId, 
-      serviceId: null, 
-      serviceName: 'Recharge Fapshi', 
-      quantity: 1, 
-      price: amount, 
-      cost, 
-      profit: amount - cost, 
-      profitMargin: amount ? Math.round(((amount - cost) / amount) * 100) : 0, 
-      status: 'Confirmé', 
-      createdAt: data.dateConfirmed || data.dateInitiated 
-    };
-  });
-
-  const allOrders = [...mtpOrders, ...exoOrders, ...fapshiOrders].sort((a, b) => {
-    return getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt);
-  });
-
-  const totalOrders = allOrders.length; 
-  const totalRevenue = allOrders.reduce((sum, o) => sum + o.price, 0);
-  const totalCost = allOrders.reduce((sum, o) => sum + o.cost, 0); 
-  const totalProfit = totalRevenue - totalCost;
-  const avgMargin = totalRevenue ? Math.round((totalProfit / totalRevenue) * 100) : 0;
-
-  const result = { orders: allOrders.slice(0, 50), stats: { total: totalOrders, revenue: totalRevenue, cost: totalCost, profit: totalProfit, avgMargin } };
-  adminCache.orders = result; 
-  adminCache.lastFetch.orders = Date.now();
-  return result;
-}
-
-// ─── Admin : Statistiques des transactions de paiement ───
-async function getPaymentStats() {
-  if (isAdminCacheValid('payments')) return adminCache.payments;
-
-  // 1. Dernières 30 transactions Fapshi (tous statuts)
-  const fapshiSnap = await db.collection('fapshiTransactions')
-    .orderBy('dateInitiated', 'desc')
-    .limit(30)
-    .get();
-  const fapshiTransactions = fapshiSnap.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      source: 'Fapshi',
-      userId: data.userId,
-      amount: data.amount || 0,
-      currency: data.currency || 'XAF',
-      status: data.status || 'PENDING',
-      date: data.dateConfirmed || data.dateInitiated,
-      description: data.description || '',
-    };
-  });
-
-  // 2. Dernières 30 transactions Swychr (tous statuts)
-  const swychrSnap = await db.collection('transactions')
-    .orderBy('createdAt', 'desc')
-    .limit(30)
-    .get();
-  const swychrTransactions = swychrSnap.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      source: 'Swychr',
-      userId: data.userId,
-      amount: data.amountXAF || data.amount || 0,
-      currency: data.currency || 'XAF',
-      status: data.status || 'pending',
-      date: data.createdAt,
-      description: data.label || data.description || '',
-    };
-  });
-
-  // Filtrer les transactions confirmées/réussies pour les totaux
-  const confirmedFapshi = fapshiTransactions.filter(t => t.status === 'CONFIRMED');
-  const completedSwychr = swychrTransactions.filter(t => t.status === 'completed' || t.status === 'success');
-
-  // Fusion et tri par date décroissante
-  const all = [...fapshiTransactions, ...swychrTransactions];
-  all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  // Totaux
-  const totalFapshi = confirmedFapshi.reduce((sum, t) => sum + t.amount, 0);
-  const totalSwychr = completedSwychr.reduce((sum, t) => sum + t.amount, 0);
-  const totalAll = totalFapshi + totalSwychr;
-  const countFapshi = confirmedFapshi.length;
-  const countSwychr = completedSwychr.length;
-  const countAll = countFapshi + countSwychr;
-
-  // Montant des 30 derniers jours (parmi les 30 dernières transactions)
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const recent = all.filter(t => {
-    const date = t.date ? new Date(t.date) : null;
-    return date && date >= thirtyDaysAgo;
-  });
-  const totalRecent = recent.reduce((sum, t) => sum + t.amount, 0);
-
-  const result = {
-    fapshi: { total: totalFapshi, count: countFapshi, transactions: fapshiTransactions },
-    swychr: { total: totalSwychr, count: countSwychr, transactions: swychrTransactions },
-    all: { total: totalAll, count: countAll, totalRecent, transactions: all.slice(0, 30) },
-  };
-
-  adminCache.payments = result;
-  adminCache.lastFetch.payments = Date.now();
-  return result;
-}
-
-// ─── Admin : Top services les plus commandés ───
-async function getTopServicesData(source) {
-  // Utiliser les commandes déjà en cache (getOrdersData) pour éviter des lectures supplémentaires
-  const ordersData = await getOrdersData(); // cela utilise le cache si disponible
-  let orders = ordersData.orders || [];
-  if (source && source !== 'all') {
-    orders = orders.filter(o => o.source === source);
-  }
-  // Compter par service (on utilise le nom + source pour distinguer)
-  const map = {};
-  orders.forEach(o => {
-    const key = `${o.source}|${o.serviceName}`;
-    if (!map[key]) {
-      map[key] = { 
-        serviceName: o.serviceName, 
-        source: o.source, 
-        count: 0,
-        serviceId: o.serviceId || null
-      };
-    }
-    map[key].count++;
-  });
-  // Transformer en tableau et trier par count décroissant
-  const top = Object.values(map).sort((a, b) => b.count - a.count).slice(0, 10);
-  return top;
-}
-
 const adminRouter = express.Router();
 adminRouter.use(checkAdminPassword);
 
 adminRouter.get('/ping', (req, res) => res.json({ success: true, message: 'Admin API accessible' }));
-adminRouter.get('/stats', async (req, res) => { try { res.json({ success: true, data: await getStatsData() }); } catch (error) { res.status(500).json({ success: false, error: error.message }); } });
-adminRouter.get('/services', async (req, res) => { try { res.json({ success: true, data: await getServicesData() }); } catch (error) { res.status(500).json({ success: false, error: error.message }); } });
-adminRouter.get('/orders', async (req, res) => { try { res.json({ success: true, data: await getOrdersData() }); } catch (error) { res.status(500).json({ success: false, error: error.message }); } });
-adminRouter.get('/payment-stats', async (req, res) => {
-  try {
-    const data = await getPaymentStats();
-    res.json({ success: true, data });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-adminRouter.get('/top-services', async (req, res) => {
-  try {
-    const { source } = req.query; // 'MTP', 'EXO', 'AfriqueBoost', 'all'
-    const top = await getTopServicesData(source);
-    res.json({ success: true, topServices: top });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// CORRECTION QUOTA : Limite d'utilisateurs ramenée à 30 (au lieu de 500)
-adminRouter.get('/users', async (req, res) => {
-  try {
-    if (isAdminCacheValid('users')) return res.json({ success: true, cached: true, data: adminCache.users });
-    const snapshot = await db.collection('users').select('displayName', 'username', 'email', 'phone', 'balance', 'totalOrders', 'createdAt').orderBy('createdAt', 'desc').limit(30).get();
-    const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    const result = { users, topByBalance: [...users].sort((a, b) => (b.balance || 0) - (a.balance || 0)).slice(0, 10), topByOrders: [...users].sort((a, b) => (b.totalOrders || 0) - (a.totalOrders || 0)).slice(0, 10), total: users.length };
-    adminCache.users = result; adminCache.lastFetch.users = Date.now();
-    res.json({ success: true, data: result });
-  } catch (error) { res.status(500).json({ success: false, error: error.message }); }
-});
-
-adminRouter.get('/export/contacts', async (req, res) => {
-  try {
-    const snapshot = await db.collection('users').select('displayName', 'username', 'phone').limit(100).get();
-    let vcf = '';
-    snapshot.forEach(doc => {
-      const data = doc.data(); const phone = data.phone || '';
-      if (phone) { const name = data.displayName || data.username || 'Client SBH'; vcf += `BEGIN:VCARD\nVERSION:3.0\nFN:SBH - ${name}\nTEL;TYPE=CELL:${phone}\nEND:VCARD\n`; }
-    });
-    res.setHeader('Content-Type', 'text/vcard;charset=utf-8'); res.setHeader('Content-Disposition', 'attachment; filename="SBH_Contacts.vcf"'); res.send(vcf);
-  } catch (error) { res.status(500).json({ success: false, error: error.message }); }
+adminRouter.get('/services', async (req, res) => { 
+  try { 
+    res.json({ success: true, data: await getServicesData() }); 
+  } catch (error) { 
+    res.status(500).json({ success: false, error: error.message }); 
+  } 
 });
 
 app.use('/api/admin', adminRouter);
