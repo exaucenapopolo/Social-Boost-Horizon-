@@ -81,8 +81,8 @@ app.get('/api/health', (req, res) => {
 // CONFIGURATIONS FOURNISSEURS GLOBALES (MTP, EXO, AFB)
 // ═══════════════════════════════════════════════════════════════
 const MTP_API_URL    = 'https://morethanpanel.com/api/v2';
-const MTP_USD_TO_XAF = 620;   
-const MTP_MULTIPLIER = 3;     
+const MTP_USD_TO_XAF = 650;   
+const MTP_MULTIPLIER = 2.5;     
 
 const EXO_API_URL    = 'https://exosupplier.com/api/v2';
 const EXO_USD_TO_XAF = 650;
