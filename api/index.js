@@ -89,7 +89,7 @@ const EXO_USD_TO_XAF = 650;
 const EXO_MULTIPLIER = 2.5;
 
 const AFRIQUEBOOST_API_URL = 'https://afriqueboost.com/api/v2';
-const AFB_MULTIPLIER       = 3;   
+const AFB_MULTIPLIER       = 2.5;   
 
 function detectPlatformName(serviceName, link) {
   const n = ((serviceName || '') + ' ' + (link || '')).toLowerCase();
