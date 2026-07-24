@@ -115,12 +115,13 @@
       background: var(--pv-btn-color, #F0A500); color: #fff; font-weight: 600;
     }
 
-    /* Nouveau Pied de page Mockup */
+    /* Pied de page Mockup */
     .pv-footer {
       padding: 20px; text-align: center; border-top: 1px solid rgba(128,128,128,0.2);
       margin-top: auto; display: none;
     }
-    .pv-socials { display: flex; justify-content: center; gap: 15px; font-size: 1.3rem; }
+    .pv-owner-name { font-size: 0.95rem; font-weight: 700; margin-bottom: 8px; color: var(--pv-text); display: none;}
+    .pv-socials { display: flex; justify-content: center; gap: 15px; font-size: 1.3rem; margin-top: 10px;}
     .pv-socials a { color: var(--pv-text); opacity: 0.6; transition: 0.2s; text-decoration: none; }
 
     .status-banner {
@@ -145,7 +146,8 @@
 
   <header>
     <div class="header-title"><i class="fas fa-store"></i> Gestion Boutique</div>
-    <a href="dashboard.html" class="btn btn-outline" style="padding: 6px 12px;"><i class="fas fa-arrow-left"></i> Retour</a>
+    <!-- Bouton explicite renvoyant vers le dashboard boutique -->
+    <a href="dashboard-boutique.html" class="btn btn-outline" style="padding: 6px 12px; border-color: var(--accent-primary); color: var(--accent-primary);"><i class="fas fa-tachometer-alt"></i> Tableau de bord Boutique</a>
   </header>
 
   <div id="globalLoader"><i class="fas fa-circle-notch fa-spin fa-2x"></i></div>
@@ -214,7 +216,7 @@
             <input type="hidden" id="logoUrl">
           </div>
 
-          <!-- NOUVELLE SECTION : Personnalisation Avancée -->
+          <!-- Apparence -->
           <h3 class="section-title"><i class="fas fa-palette"></i> Apparence & Couleurs</h3>
           <div class="form-row">
             <div class="form-group">
@@ -234,10 +236,15 @@
             </div>
           </div>
 
-          <!-- NOUVELLE SECTION : Réseaux Sociaux -->
-          <h3 class="section-title"><i class="fas fa-share-alt"></i> Réseaux Sociaux (Optionnel)</h3>
-          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: -10px; margin-bottom: 15px;">Ajoutez les liens de vos profils pour qu'ils s'affichent en bas de votre boutique.</p>
+          <!-- Pied de page & Réseaux Sociaux -->
+          <h3 class="section-title"><i class="fas fa-address-card"></i> Pied de page & Propriétaire</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: -10px; margin-bottom: 15px;">Informations affichées en bas de votre boutique.</p>
           
+          <div class="form-group">
+            <label>Nom du Propriétaire (Optionnel)</label>
+            <input type="text" id="storeOwnerName" class="form-control" placeholder="Ex: Jean Dupont" oninput="updatePreview()">
+          </div>
+
           <div class="form-row">
             <div class="form-group">
               <label><i class="fab fa-facebook" style="color: #1877F2;"></i> Lien Facebook</label>
@@ -288,12 +295,10 @@
           </div>
         </div>
 
-        <!-- Section Pied de Page -->
         <div class="pv-footer" id="pvFooter">
-          <div style="font-size: 0.8rem; margin-bottom: 10px; opacity: 0.7;">Retrouvez-nous sur</div>
-          <div class="pv-socials" id="pvSocialIcons">
-            <!-- Les icônes s'afficheront ici dynamiquement -->
-          </div>
+          <div class="pv-owner-name" id="pvOwnerName"></div>
+          <div style="font-size: 0.8rem; opacity: 0.7;" id="pvSocialTitle">Retrouvez-nous sur</div>
+          <div class="pv-socials" id="pvSocialIcons"></div>
         </div>
 
       </div>
@@ -302,7 +307,6 @@
   </div>
 
   <script>
-    // Configuration Firebase... 
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -366,7 +370,6 @@
       document.getElementById('pvSlogan').innerText = document.getElementById('storeSlogan').value;
       document.getElementById('pvDesc').innerText = document.getElementById('storeDesc').value;
 
-      // Appliquer les couleurs CSS au téléphone
       const mockup = document.getElementById('phoneMockup');
       mockup.style.setProperty('--pv-accent', color);
       mockup.style.setProperty('--pv-btn-color', btnColor);
@@ -381,11 +384,26 @@
         mockup.style.setProperty('--pv-card', '#FFFFFF');
       }
 
-      // Gestion dynamique des réseaux sociaux
+      const ownerName = document.getElementById('storeOwnerName').value;
       const fb = document.getElementById('storeFb').value;
       const ig = document.getElementById('storeIg').value;
       const yt = document.getElementById('storeYt').value;
       const tt = document.getElementById('storeTt').value;
+
+      const footer = document.getElementById('pvFooter');
+      const ownerEl = document.getElementById('pvOwnerName');
+      const socialTitle = document.getElementById('pvSocialTitle');
+      const iconsContainer = document.getElementById('pvSocialIcons');
+
+      let hasFooterContent = false;
+
+      if (ownerName.trim() !== "") {
+        ownerEl.innerText = "Par " + ownerName;
+        ownerEl.style.display = 'block';
+        hasFooterContent = true;
+      } else {
+        ownerEl.style.display = 'none';
+      }
 
       let socialHtml = "";
       if (fb) socialHtml += `<a href="#" style="color: #1877F2;"><i class="fab fa-facebook"></i></a>`;
@@ -393,11 +411,17 @@
       if (yt) socialHtml += `<a href="#" style="color: #FF0000;"><i class="fab fa-youtube"></i></a>`;
       if (tt) socialHtml += `<a href="#" style="color: ${theme === 'dark' ? '#FFFFFF' : '#000000'};"><i class="fab fa-tiktok"></i></a>`;
 
-      const footer = document.getElementById('pvFooter');
-      const iconsContainer = document.getElementById('pvSocialIcons');
-
       if (socialHtml !== "") {
         iconsContainer.innerHTML = socialHtml;
+        socialTitle.style.display = 'block';
+        iconsContainer.style.display = 'flex';
+        hasFooterContent = true;
+      } else {
+        socialTitle.style.display = 'none';
+        iconsContainer.style.display = 'none';
+      }
+
+      if (hasFooterContent) {
         footer.style.display = 'block';
       } else {
         footer.style.display = 'none';
@@ -406,7 +430,7 @@
 
     async function saveStore(isPublishing = false) {
       if(!document.getElementById('storeName').value) return alert("Le nom est requis.");
-      if(!document.getElementById('storeWa').value) return alert("Le numéro WhatsApp est requis pour recevoir les commandes.");
+      if(!document.getElementById('storeWa').value) return alert("Le numéro WhatsApp est requis.");
 
       const btn = document.getElementById('btnSaveDraft');
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
@@ -430,12 +454,12 @@
           description: document.getElementById('storeDesc').value,
           whatsapp: document.getElementById('storeWa').value,
           themeColor: document.getElementById('storeColor').value,
-          btnColor: document.getElementById('storeBtnColor').value, // Sauvegarde Couleur Bouton
+          btnColor: document.getElementById('storeBtnColor').value, 
           themeMode: document.getElementById('storeTheme').value,
           margin: parseFloat(document.getElementById('storeMargin').value) || 0,
           logoUrl: finalLogoUrl,
           
-          // Sauvegarde des réseaux sociaux
+          ownerName: document.getElementById('storeOwnerName').value,
           facebookUrl: document.getElementById('storeFb').value,
           instagramUrl: document.getElementById('storeIg').value,
           youtubeUrl: document.getElementById('storeYt').value,
@@ -449,27 +473,27 @@
           const newDoc = await db.collection('stores').add(storeData);
           currentStoreId = newDoc.id;
           await db.collection('users').doc(currentUser.uid).update({ storeId: currentStoreId });
-          alert("Boutique créée !");
+          alert("Boutique créée avec succès !");
         } else {
           if(isPublishing) storeData.status = "published";
           await db.collection('stores').doc(currentStoreId).update(storeData);
-          if(!isPublishing) alert("Enregistré !");
+          if(!isPublishing) alert("Modifications enregistrées !");
         }
 
         document.getElementById('btnPublish').style.display = 'block';
         if(storeData.status === "published") showLink();
 
-      } catch (e) { alert("Erreur de sauvegarde."); }
-      finally { btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer'; btn.classList.remove('btn-disabled'); }
+      } catch (e) { alert("Erreur lors de la sauvegarde."); }
+      finally { btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer les modifications'; btn.classList.remove('btn-disabled'); }
     }
 
     async function publishStore() {
-      if(!currentStoreId) return alert("Enregistrez d'abord.");
-      if(!confirm("Publier la boutique en ligne ?")) return;
+      if(!currentStoreId) return alert("Veuillez d'abord enregistrer.");
+      if(!confirm("Voulez-vous publier cette boutique en ligne ?")) return;
       
       const link = `https://socialboosthorizon.com/boutique.html?id=${currentStoreId}`;
       await db.collection('stores').doc(currentStoreId).update({ status: "published", storeUrl: link });
-      alert("Publié avec succès !");
+      alert("Boutique publiée avec succès !");
       showLink(link);
     }
 
@@ -482,18 +506,16 @@
         document.getElementById('storeDesc').value = d.description || "";
         document.getElementById('storeWa').value = d.whatsapp || "";
         
-        // Couleurs
         document.getElementById('storeColor').value = d.themeColor || "#F0A500";
         document.getElementById('storeBtnColor').value = d.btnColor || "#F0A500";
         document.getElementById('storeTheme').value = d.themeMode || "light";
         
-        // Réseaux sociaux
+        document.getElementById('storeOwnerName').value = d.ownerName || "";
         document.getElementById('storeFb').value = d.facebookUrl || "";
         document.getElementById('storeIg').value = d.instagramUrl || "";
         document.getElementById('storeYt').value = d.youtubeUrl || "";
         document.getElementById('storeTt').value = d.tiktokUrl || "";
 
-        // Marge
         document.getElementById('storeMargin').value = d.margin !== undefined ? d.margin : 0;
         updateMarginExample(); 
 
@@ -505,7 +527,7 @@
         document.getElementById('btnPublish').style.display = 'block';
         if(d.status === "published") showLink(d.storeUrl);
         
-        updatePreview(); // Pour afficher directement le pied de page s'il y a des liens
+        updatePreview(); 
       }
     }
 
@@ -517,7 +539,7 @@
       document.getElementById('btnViewStore').href = url;
 
       const encodedUrl = encodeURIComponent(url);
-      const shareText = encodeURIComponent("Découvrez ma nouvelle boutique en ligne et mes services !");
+      const shareText = encodeURIComponent("Découvrez ma boutique en ligne et mes services !");
       
       document.getElementById('btnShareWa').href = `https://wa.me/?text=${shareText}%20${encodedUrl}`;
       document.getElementById('btnShareFb').href = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
@@ -525,7 +547,7 @@
 
     function copyLink() {
       navigator.clipboard.writeText(document.getElementById('storeLinkDisplay').innerText);
-      alert("Lien copié !");
+      alert("Lien de la boutique copié !");
     }
   </script>
 </body>

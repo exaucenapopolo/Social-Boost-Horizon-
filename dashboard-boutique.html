@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Tableau de Bord Boutique - Social Boost Horizon</title>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+  <style>
+    :root {
+      --bg-main: #06060A;
+      --bg-card: #111122;
+      --text-main: #FFFFFF;
+      --text-muted: rgba(255, 255, 255, 0.6);
+      --accent-primary: #F0A500; 
+      --border-color: rgba(255, 255, 255, 0.1);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body { background-color: var(--bg-main); color: var(--text-main); margin: 0; padding: 0; min-height: 100vh; }
+
+    header {
+      background: rgba(8, 8, 18, 0.9); backdrop-filter: blur(10px);
+      padding: 1rem 2rem; border-bottom: 1px solid var(--border-color);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .header-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.2rem; font-weight: 700; }
+
+    .container { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
+    
+    .welcome-section { margin-bottom: 2rem; }
+    .welcome-section h1 { font-family: 'Space Grotesk', sans-serif; font-size: 1.8rem; margin: 0 0 0.5rem 0; }
+    .welcome-section p { color: var(--text-muted); margin: 0; }
+
+    /* Cartes de solde */
+    .balances-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+    .balance-card {
+      background: var(--bg-card); border: 1px solid var(--border-color);
+      border-radius: 16px; padding: 1.5rem; text-align: center;
+    }
+    .balance-title { color: var(--text-muted); font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+    .balance-amount { font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; color: var(--accent-primary); }
+    .balance-amount.secondary { color: #0FB5A6; }
+
+    /* Carte Boutique */
+    .store-card {
+      background: var(--bg-card); border: 1px solid var(--border-color);
+      border-radius: 16px; padding: 2rem;
+    }
+    .store-card h2 { font-family: 'Space Grotesk', sans-serif; margin-top: 0; margin-bottom: 1.5rem; font-size: 1.3rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;}
+    
+    .store-info { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
+    .info-label { color: var(--text-muted); font-size: 0.9rem; }
+    .info-value { font-weight: 600; font-size: 1.1rem; }
+    .store-link { color: #0FB5A6; font-family: monospace; word-break: break-all; text-decoration: none; }
+    .store-link:hover { text-decoration: underline; }
+
+    .btn {
+      padding: 12px 20px; border-radius: 8px; font-weight: 600; cursor: pointer;
+      border: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      text-decoration: none; transition: 0.2s; 
+    }
+    .btn-primary { background: var(--accent-primary); color: #000; }
+    .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
+    .btn-primary:hover { opacity: 0.9; }
+
+    #globalLoader { text-align: center; padding: 5rem; color: var(--accent-primary); }
+    #mainContent { display: none; }
+    #noStoreView { display: none; text-align: center; padding: 2rem 0; }
+    #hasStoreView { display: none; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-title"><i class="fas fa-store"></i> Tableau de Bord Boutique</div>
+    <a href="gestion-boutique.html" class="btn btn-outline" style="padding: 6px 12px;"><i class="fas fa-cog"></i> Gérer ma boutique</a>
+  </header>
+
+  <div id="globalLoader"><i class="fas fa-circle-notch fa-spin fa-2x"></i></div>
+
+  <div id="mainContent" class="container">
+    
+    <div class="welcome-section">
+      <h1>Bienvenue, <span id="userNameDisplay">...</span> 👋</h1>
+      <p>Suivez ici les performances et les gains de votre boutique de revente.</p>
+    </div>
+
+    <!-- Section des soldes -->
+    <div class="balances-grid">
+      <div class="balance-card">
+        <div class="balance-title">Solde Principal (Site)</div>
+        <div class="balance-amount" id="mainBalanceDisplay">0 FCFA</div>
+      </div>
+      <div class="balance-card">
+        <div class="balance-title">Solde Boutique (Gains)</div>
+        <div class="balance-amount secondary" id="storeBalanceDisplay">0 FCFA</div>
+      </div>
+    </div>
+
+    <!-- Section Boutique -->
+    <div class="store-card">
+      <h2>
+        <span><i class="fas fa-shopping-bag"></i> Informations de la Boutique</span>
+      </h2>
+      
+      <!-- S'il n'a pas de boutique -->
+      <div id="noStoreView">
+        <i class="fas fa-store-slash fa-3x" style="color: var(--border-color); margin-bottom: 1rem;"></i>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Vous n'avez pas encore configuré votre boutique.</p>
+        <a href="gestion-boutique.html" class="btn btn-primary"><i class="fas fa-plus-circle"></i> Créer ma boutique</a>
+      </div>
+
+      <!-- S'il a une boutique -->
+      <div id="hasStoreView">
+        <div class="store-info">
+          <div>
+            <div class="info-label">Nom de la boutique</div>
+            <div class="info-value" id="storeNameDisplay">Chargement...</div>
+          </div>
+          <div>
+            <div class="info-label">Propriétaire enregistré</div>
+            <div class="info-value" id="storeOwnerDisplay">Non renseigné</div>
+          </div>
+          <div>
+            <div class="info-label">Lien public de la boutique</div>
+            <a href="#" target="_blank" class="info-value store-link" id="storeLinkDisplay">Non publié</a>
+          </div>
+        </div>
+        <a href="gestion-boutique.html" class="btn btn-primary"><i class="fas fa-edit"></i> Modifier les paramètres de la boutique</a>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
+      authDomain: "social-boost-horizon.firebaseapp.com",
+      projectId: "social-boost-horizon",
+      storageBucket: "social-boost-horizon.appspot.com",
+      messagingSenderId: "43658165639",
+      appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        try {
+          const userDoc = await db.collection('users').doc(user.uid).get();
+          if(userDoc.exists) {
+            const userData = userDoc.data();
+            
+            // Affichage du nom de l'utilisateur
+            document.getElementById('userNameDisplay').innerText = userData.nom || "Revendeur";
+            
+            // Gestion des soldes (solde principal et solde boutique)
+            const soldePrincipal = userData.solde || 0;
+            const soldeBoutique = userData.soldeBoutique || 0;
+            
+            document.getElementById('mainBalanceDisplay').innerText = soldePrincipal + " FCFA";
+            document.getElementById('storeBalanceDisplay').innerText = soldeBoutique + " FCFA";
+
+            // Vérification de la boutique associée
+            if(userData.storeId) {
+              await loadStoreDetails(userData.storeId);
+              document.getElementById('noStoreView').style.display = 'none';
+              document.getElementById('hasStoreView').style.display = 'block';
+            } else {
+              document.getElementById('hasStoreView').style.display = 'none';
+              document.getElementById('noStoreView').style.display = 'block';
+            }
+
+            document.getElementById('globalLoader').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
+          }
+        } catch (error) {
+          console.error("Erreur de chargement du tableau de bord boutique :", error);
+        }
+      } else {
+        window.location.href = "login.html";
+      }
+    });
+
+    async function loadStoreDetails(storeId) {
+      try {
+        const storeDoc = await db.collection('stores').doc(storeId).get();
+        if(storeDoc.exists) {
+          const storeData = storeDoc.data();
+          document.getElementById('storeNameDisplay').innerText = storeData.name || "Ma Boutique";
+          document.getElementById('storeOwnerDisplay').innerText = storeData.ownerName || "Non renseigné";
+          
+          if (storeData.status === "published" && storeData.storeUrl) {
+            const linkEl = document.getElementById('storeLinkDisplay');
+            linkEl.innerText = storeData.storeUrl;
+            linkEl.href = storeData.storeUrl;
+          } else {
+            document.getElementById('storeLinkDisplay').innerText = "Boutique non publiée (Mode Brouillon)";
+            document.getElementById('storeLinkDisplay').removeAttribute('href');
+          }
+        }
+      } catch (error) {
+        console.error("Erreur lecture boutique :", error);
+      }
+    }
+  </script>
+</body>
+</html>
