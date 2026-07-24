@@ -73,6 +73,14 @@
     .btn-publish { background: #0FB5A6; color: #000; margin-top: 10px; }
     .btn-disabled { opacity: 0.5; pointer-events: none; }
 
+    /* Nouveaux boutons sociaux et voir la boutique */
+    .btn-wa { background: #25D366; color: #fff; width: auto; padding: 8px 12px; font-size: 0.9rem; }
+    .btn-wa:hover { background: #1ebc59; }
+    .btn-fb { background: #1877F2; color: #fff; width: auto; padding: 8px 12px; font-size: 0.9rem; }
+    .btn-fb:hover { background: #1464cc; }
+    .btn-view { border: 1px solid #0FB5A6; color: #0FB5A6; background: transparent; width: auto; padding: 8px 12px; }
+    .btn-view:hover { background: rgba(15, 181, 166, 0.1); }
+
     .upload-area {
       border: 2px dashed var(--border-color); border-radius: 8px; padding: 1.5rem; text-align: center; cursor: pointer; background: rgba(255,255,255,0.02);
     }
@@ -111,7 +119,7 @@
       margin-bottom: 20px; display: none; flex-direction: column; gap: 10px;
     }
     .store-link-box {
-      background: rgba(0,0,0,0.5); padding: 10px; border-radius: 6px; display: flex; gap: 10px; color: #0FB5A6; font-family: monospace;
+      background: rgba(0,0,0,0.5); padding: 10px; border-radius: 6px; display: flex; gap: 10px; color: #0FB5A6; font-family: monospace; align-items: center;
     }
 
     #globalLoader { text-align: center; padding: 5rem; color: var(--accent-primary); }
@@ -140,10 +148,20 @@
       <div class="card">
         <div id="statusBanner" class="status-banner">
           <h3 style="margin:0; font-size: 1rem; color: #0FB5A6;"><i class="fas fa-check-circle"></i> Boutique En Ligne</h3>
+          
           <div class="store-link-box">
             <span id="storeLinkDisplay" style="flex:1; overflow:hidden; text-overflow:ellipsis;"></span>
-            <button class="btn btn-primary" style="width:auto; padding: 5px 10px;" onclick="copyLink()"><i class="fas fa-copy"></i></button>
+            <button class="btn btn-primary" style="width:auto; padding: 5px 10px;" onclick="copyLink()" title="Copier le lien"><i class="fas fa-copy"></i></button>
+            <a id="btnViewStore" href="#" target="_blank" class="btn btn-view" title="Voir ma boutique"><i class="fas fa-external-link-alt"></i></a>
           </div>
+          
+          <!-- Nouveaux boutons de partage -->
+          <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px; flex-wrap: wrap;">
+            <span style="font-size: 0.9rem; color: var(--text-muted); font-weight: 600;">Partager sur :</span>
+            <a id="btnShareWa" href="#" target="_blank" class="btn btn-wa"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+            <a id="btnShareFb" href="#" target="_blank" class="btn btn-fb"><i class="fab fa-facebook-f"></i> Facebook</a>
+          </div>
+
         </div>
 
         <h2>Configuration</h2>
@@ -162,6 +180,15 @@
             <div class="form-group">
               <label>Numéro WhatsApp (Commandes) *</label>
               <input type="tel" id="storeWa" class="form-control" placeholder="+237600000000" required>
+            </div>
+          </div>
+
+          <!-- NOUVELLE SECTION : Marge de Revente -->
+          <div class="form-group">
+            <label>Votre Marge de Revente (%) *</label>
+            <input type="number" id="storeMargin" class="form-control" placeholder="Ex: 100" value="0" min="0" oninput="updateMarginExample()">
+            <div id="marginExampleText" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px; border-left: 3px solid var(--accent-primary);">
+              <em>Exemple : Si un service coûte <strong>500 FCFA</strong>, avec une marge de <strong>0%</strong>, il sera revendu à <strong>500 FCFA</strong> (soit <strong>0 FCFA</strong> de bénéfice pour vous).</em>
             </div>
           </div>
 
@@ -227,7 +254,7 @@
   </div>
 
   <script>
-    // Configuration Firebase... (Remets tes identifiants exacts)
+    // Configuration Firebase... (Remets tes identifiants exacts ici si tu les modifies)
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -257,6 +284,7 @@
           document.getElementById('globalLoader').style.display = 'none';
           document.getElementById('mainContent').style.display = 'flex';
           updatePreview();
+          updateMarginExample(); // Initialiser le texte de l'exemple au chargement
         }
       } else { window.location.href = "login.html"; }
     });
@@ -269,6 +297,17 @@
       document.getElementById('pvLogo').style.display = 'inline-block';
       document.getElementById('uploadStatus').innerHTML = 'Image prête à être enregistrée.';
     });
+
+    // Nouvelle fonction pour mettre à jour le texte explicatif de la marge
+    function updateMarginExample() {
+      const marginInput = parseFloat(document.getElementById('storeMargin').value) || 0;
+      const basePrice = 500;
+      const profit = (basePrice * marginInput) / 100;
+      const resalePrice = basePrice + profit;
+      
+      document.getElementById('marginExampleText').innerHTML = 
+        `<em>Exemple : Si un service coûte chez nous <strong>${basePrice} FCFA</strong>, avec votre marge de <strong>${marginInput}%</strong>, il sera revendu à <strong>${resalePrice} FCFA</strong> (soit <strong>${profit} FCFA</strong> de bénéfice pour vous).</em>`;
+    }
 
     function updatePreview() {
       const name = document.getElementById('storeName').value || "Nom";
@@ -321,6 +360,7 @@
           whatsapp: document.getElementById('storeWa').value,
           themeColor: document.getElementById('storeColor').value,
           themeMode: document.getElementById('storeTheme').value,
+          margin: parseFloat(document.getElementById('storeMargin').value) || 0, // Sauvegarde de la marge
           logoUrl: finalLogoUrl,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
@@ -364,6 +404,11 @@
         document.getElementById('storeWa').value = d.whatsapp || "";
         document.getElementById('storeColor').value = d.themeColor || "#F0A500";
         document.getElementById('storeTheme').value = d.themeMode || "light";
+        
+        // Chargement de la marge (si elle existe, sinon 0)
+        document.getElementById('storeMargin').value = d.margin !== undefined ? d.margin : 0;
+        updateMarginExample(); // Mise à jour de l'affichage du texte
+
         if(d.logoUrl) {
           document.getElementById('logoUrl').value = d.logoUrl;
           document.getElementById('pvLogo').src = d.logoUrl;
@@ -378,6 +423,16 @@
       if(!url) url = `https://socialboosthorizon.com/boutique.html?id=${currentStoreId}`;
       document.getElementById('statusBanner').style.display = 'flex';
       document.getElementById('storeLinkDisplay').innerText = url;
+
+      // Mise à jour du bouton "Voir ma boutique"
+      document.getElementById('btnViewStore').href = url;
+
+      // Mise à jour des boutons de partage social
+      const encodedUrl = encodeURIComponent(url);
+      const shareText = encodeURIComponent("Découvrez ma nouvelle boutique en ligne et mes services !");
+      
+      document.getElementById('btnShareWa').href = `https://wa.me/?text=${shareText}%20${encodedUrl}`;
+      document.getElementById('btnShareFb').href = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
     }
 
     function copyLink() {
