@@ -5,9 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Boutique</title>
 
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 
+  <!-- Polices et Icônes -->
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
@@ -65,7 +67,7 @@
 
   <div id="storeContent">
     <div class="store-header">
-      <img id="sLogo" class="logo" src="">
+      <img id="sLogo" class="logo" src="" alt="Logo">
       <h1 id="sTitle" class="title">Boutique</h1>
       <div id="sSlogan" class="slogan"></div>
     </div>
@@ -73,10 +75,12 @@
     <div id="sDesc" class="desc"></div>
 
     <div class="container" id="catalog">
-      </div>
+      <!-- Les services seront injectés ici -->
+    </div>
   </div>
 
   <script>
+    // 1. Initialisation de Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       projectId: "social-boost-horizon",
@@ -84,7 +88,6 @@
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // 1. Récupérer l'ID dans l'URL
     const params = new URLSearchParams(window.location.search);
     const storeId = params.get('id');
 
@@ -92,11 +95,60 @@
     let resellerWa = "";
     let resellerDiscount = 0;
 
+    // 2. Configuration des Devises
+    const CURRENCY_CONFIG = {
+        'cm': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇲' },
+        'cd': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+        'sn': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇸🇳' },
+        'ci': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇨🇮' },
+        'Cameroun': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇲' },
+        'RDC': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
+        'Sénégal': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇸🇳' },
+        'Côte d\'Ivoire': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇨🇮' }
+    };
+    let userCurrency = CURRENCY_CONFIG['Cameroun']; // Devise par défaut
+
+    // Fonctions de conversion et de formatage
+    function convertFromXAF(amountXAF) {
+        return amountXAF * userCurrency.rate;
+    }
+
+    function formatPrice(amountXAF) {
+        const localAmount = convertFromXAF(amountXAF);
+        if (userCurrency.rate === 1) {
+            return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(localAmount)) + ' ' + userCurrency.symbol;
+        } else {
+            return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(localAmount) + ' ' + userCurrency.symbol;
+        }
+    }
+
+    // 3. Création du style de la modale de commande (injecté dynamiquement)
+    function injectModalStyles() {
+        if(document.getElementById('modalStylesSBH')) return;
+        const style = document.createElement('style');
+        style.id = 'modalStylesSBH';
+        style.innerHTML = `
+            #orderModalOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+            .order-modal { background: var(--card); border: 1px solid var(--border); border-radius: 15px; width: 92%; max-width: 450px; padding: 25px; box-shadow: 0 15px 40px rgba(0,0,0,0.4); max-height: 90vh; overflow-y: auto; }
+            .order-modal h3 { margin-top: 0; margin-bottom: 20px; font-size: 1.15rem; color: var(--text); line-height: 1.3;}
+            .order-modal label { font-size: 0.85rem; font-weight: 700; opacity: 0.85; display: block; margin-bottom: 6px; color: var(--text); }
+            .order-modal input, .order-modal textarea { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 2px solid var(--border); background: var(--bg); color: var(--text); font-family: inherit; font-size: 0.95rem; transition: border-color 0.2s ease; }
+            .order-modal input:focus, .order-modal textarea:focus { outline: none; border-color: var(--accent); }
+            .order-modal .price-display { font-size: 1.5rem; font-weight: 800; color: var(--accent); margin-bottom: 20px; text-align: center; }
+            .order-modal .btn-confirm { width: 100%; padding: 14px; border: none; border-radius: 8px; background: var(--accent); color: #fff; font-weight: 700; cursor: pointer; font-size: 1rem; display: flex; justify-content: center; gap: 8px; align-items: center; margin-bottom: 12px; transition: 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+            .order-modal .btn-confirm:hover { filter: brightness(1.1); transform: translateY(-1px); }
+            .order-modal .btn-cancel { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--text); font-weight: 600; cursor: pointer; transition: 0.2s; }
+            .order-modal .btn-cancel:hover { background: var(--border); }
+            .order-modal .info-text { font-size: 0.8rem; opacity: 0.7; margin-top: -10px; margin-bottom: 15px; display: block; }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // 4. Initialisation de la boutique et récupération des données du revendeur
     async function initStore() {
       if(!storeId) return document.getElementById('loader').innerText = "Lien invalide.";
 
       try {
-        // 2. Charger les infos de la boutique
         const storeDoc = await db.collection('stores').doc(storeId).get();
         if(!storeDoc.exists || storeDoc.data().status !== 'published') {
           return document.getElementById('loader').innerText = "Boutique introuvable ou hors ligne.";
@@ -104,15 +156,20 @@
         
         storeData = storeDoc.data();
         
-        // 3. Charger le profil du revendeur (pour la remise)
+        // Récupération des informations du propriétaire de la boutique
         const userDoc = await db.collection('users').doc(storeData.ownerId).get();
         if(userDoc.exists) {
-          resellerDiscount = userDoc.data().discountRate || 0;
+          const uData = userDoc.data();
+          resellerDiscount = uData.discountRate || 0;
+          
+          // Ajuster la devise si le pays du revendeur est connu
+          const country = uData.country || uData.pays || 'Cameroun';
+          if (CURRENCY_CONFIG[country]) userCurrency = CURRENCY_CONFIG[country];
         }
 
         resellerWa = storeData.whatsapp || "";
 
-        // 4. Appliquer le design (Couleur & Thème)
+        // Application du thème personnalisé de la boutique
         document.documentElement.style.setProperty('--accent', storeData.themeColor || '#F0A500');
         if(storeData.themeMode === 'dark') {
           document.documentElement.style.setProperty('--bg', '#06060A');
@@ -121,7 +178,7 @@
           document.documentElement.style.setProperty('--border', 'rgba(255,255,255,0.1)');
         }
 
-        // 5. Remplir l'en-tête
+        // Remplissage des informations d'en-tête
         document.title = storeData.name;
         document.getElementById('sTitle').innerText = storeData.name;
         document.getElementById('sSlogan').innerText = storeData.slogan || "";
@@ -131,17 +188,19 @@
           document.getElementById('sLogo').style.display = 'inline-block';
         }
 
-        // 6. Charger le catalogue via API
+        // Chargement du catalogue
         await loadCatalog();
 
         document.getElementById('loader').style.display = 'none';
         document.getElementById('storeContent').style.display = 'block';
 
       } catch (error) {
-        document.getElementById('loader').innerText = "Erreur de chargement.";
+        console.error(error);
+        document.getElementById('loader').innerText = "Erreur lors du chargement de la boutique.";
       }
     }
 
+    // 5. Chargement des services depuis l'API
     async function loadCatalog() {
       try {
         const res = await fetch('https://social-boost-exaucenapopolo2.replit.app/api/exo-services');
@@ -155,25 +214,35 @@
             html += `<div class="platform-title"><i class="fas fa-layer-group"></i> ${platform}</div>`;
             
             services.forEach(svc => {
-              // Calcul du prix final
-              const price = parseFloat(svc.priceXAF) || 0;
-              const finalPrice = Math.ceil(price - (price * (resellerDiscount / 100)));
-              const unit = (svc.isPerOne || svc.isPackage) ? '/ unité' : '/ 1000';
+              const basePrice = parseFloat(svc.priceXAF) || 0;
+              // Calcul du prix revendeur final (arrondi au supérieur)
+              const finalPrice = Math.ceil(basePrice - (basePrice * (resellerDiscount / 100)));
               
-              // Préparation du message WhatsApp
-              const msg = encodeURIComponent(`Bonjour, je souhaite commander ce service sur votre boutique :\n\n📌 Service: ${svc.name}\n💰 Prix estimé: ${finalPrice} FCFA ${unit}`);
-              const waLink = `https://wa.me/${resellerWa.replace('+', '')}?text=${msg}`;
+              const isPerUnit = svc.isPerOne === true || svc.isPackage === true;
+              const isCustomComments = svc.isCustomComments === true;
+              const unit = isPerUnit ? '/ unité' : '/ 1000';
+              
+              // Préparation des données du service pour la modale
+              const svcData = encodeURIComponent(JSON.stringify({
+                  id: svc.id, 
+                  name: svc.name, 
+                  price: finalPrice, 
+                  isPerUnit: isPerUnit, 
+                  isCustomComments: isCustomComments, 
+                  min: svc.min || 1, 
+                  max: svc.max || 1000000
+              }));
 
               html += `
                 <div class="service-card">
                   <div class="service-header">
                     <div class="service-name">${svc.name}</div>
                     <div style="text-align:right;">
-                      <div class="service-price">${finalPrice} FCFA</div>
+                      <div class="service-price">${formatPrice(finalPrice)}</div>
                       <div class="service-unit">${unit}</div>
                     </div>
                   </div>
-                  <a href="${waLink}" target="_blank" class="btn-buy"><i class="fab fa-whatsapp"></i> Commander</a>
+                  <button onclick="openOrderModal('${svcData}')" class="btn-buy"><i class="fas fa-shopping-cart"></i> Commander</button>
                 </div>
               `;
             });
@@ -182,10 +251,128 @@
 
         catalogDiv.innerHTML = html;
       } catch(e) {
-        document.getElementById('catalog').innerHTML = "<p style='text-align:center'>Catalogue momentanément indisponible.</p>";
+        console.error(e);
+        document.getElementById('catalog').innerHTML = "<p style='text-align:center'>Le catalogue est momentanément indisponible.</p>";
       }
     }
 
+    // 6. Gestion de la modale de commande
+    function openOrderModal(encodedData) {
+        const svc = JSON.parse(decodeURIComponent(encodedData));
+        
+        injectModalStyles();
+        let modal = document.getElementById('orderModalOverlay');
+        
+        // Si la modale n'existe pas encore dans le DOM, on la crée
+        if(!modal) {
+            modal = document.createElement('div');
+            modal.id = 'orderModalOverlay';
+            modal.innerHTML = `
+                <div class="order-modal">
+                    <h3 id="mServiceName"></h3>
+                    
+                    <label><i class="fas fa-link"></i> Lien (URL)</label>
+                    <input type="url" id="mLink" placeholder="https://..." required>
+                    
+                    <div id="mQtySection">
+                        <label id="mQtyLabel"><i class="fas fa-sort-numeric-up"></i> Quantité</label>
+                        <input type="number" id="mQty" placeholder="Ex: 1000">
+                        <span class="info-text" id="mQtyLimits"></span>
+                    </div>
+                    
+                    <div id="mCommentSection" style="display:none;">
+                        <label><i class="fas fa-comments"></i> Vos commentaires (1 par ligne)</label>
+                        <textarea id="mComments" rows="4" placeholder="Un commentaire par ligne..."></textarea>
+                        <span class="info-text" id="mCommentCount">0 commentaire(s)</span>
+                    </div>
+                    
+                    <div class="price-display" id="mTotalPrice">0 FCFA</div>
+                    
+                    <button class="btn-confirm" id="mBtnConfirm"><i class="fab fa-whatsapp"></i> Continuer sur WhatsApp</button>
+                    <button class="btn-cancel" onclick="closeOrderModal()">Annuler</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        // Configuration de la modale avec les infos du service cliqué
+        document.getElementById('mServiceName').innerText = svc.name;
+        const qtyInput = document.getElementById('mQty');
+        const commentsInput = document.getElementById('mComments');
+        const priceDisplay = document.getElementById('mTotalPrice');
+        
+        qtyInput.value = '';
+        qtyInput.min = svc.min;
+        commentsInput.value = '';
+        document.getElementById('mLink').value = '';
+        
+        // Affichage conditionnel (Commentaires ou Quantité)
+        if(svc.isCustomComments) {
+            document.getElementById('mQtySection').style.display = 'none';
+            document.getElementById('mCommentSection').style.display = 'block';
+            document.getElementById('mCommentCount').innerText = `Min: ${svc.min} | Max: ${svc.max}`;
+        } else {
+            document.getElementById('mQtySection').style.display = 'block';
+            document.getElementById('mCommentSection').style.display = 'none';
+            document.getElementById('mQtyLimits').innerText = `Minimum: ${svc.min} | Maximum: ${svc.max}`;
+        }
+        
+        // Fonction de calcul du prix en temps réel
+        function calculate() {
+            let qty = 0;
+            if(svc.isCustomComments) {
+                const comments = commentsInput.value.split('\n').filter(c => c.trim());
+                qty = comments.length;
+                document.getElementById('mCommentCount').innerText = `${qty} commentaire(s) | Min: ${svc.min}`;
+            } else {
+                qty = parseInt(qtyInput.value) || 0;
+            }
+            
+            // Logique de calcul basée sur le type de service
+            let total = svc.isPerUnit ? svc.price * qty : (svc.price / 1000) * qty;
+            priceDisplay.innerText = formatPrice(Math.round(total));
+            return { qty, total };
+        }
+        
+        // Écouteurs d'événements pour mettre à jour le prix pendant la saisie
+        qtyInput.oninput = calculate;
+        commentsInput.oninput = calculate;
+        calculate(); // Calcul initial
+        
+        // Action au clic sur le bouton de confirmation (WhatsApp)
+        document.getElementById('mBtnConfirm').onclick = () => {
+            const link = document.getElementById('mLink').value.trim();
+            if(!link) return alert("Veuillez entrer un lien valide pour le service.");
+            
+            const { qty, total } = calculate();
+            
+            // Vérification des limites de quantité
+            if(qty < svc.min) return alert(`La quantité minimum pour ce service est de ${svc.min}`);
+            if(qty > svc.max) return alert(`La quantité maximum pour ce service est de ${svc.max}`);
+            
+            // Construction du message WhatsApp
+            let msg = `Bonjour, je souhaite commander ce service sur votre boutique :\n\n📌 Service: ${svc.name}\n🔗 Lien: ${link}\n🔢 Quantité: ${qty}\n💰 Total à payer: ${formatPrice(Math.round(total))}`;
+            
+            if(svc.isCustomComments) {
+                msg += `\n\n💬 Mes commentaires :\n${commentsInput.value.trim()}`;
+            }
+            
+            // Ouverture de WhatsApp
+            const waLink = `https://wa.me/${resellerWa.replace('+', '')}?text=${encodeURIComponent(msg)}`;
+            window.open(waLink, '_blank');
+            closeOrderModal();
+        };
+        
+        // Affichage de la modale
+        modal.style.display = 'flex';
+    }
+    
+    function closeOrderModal() {
+        const modal = document.getElementById('orderModalOverlay');
+        if(modal) modal.style.display = 'none';
+    }
+
+    // Démarrage du script
     initStore();
   </script>
 </body>
