@@ -50,7 +50,7 @@
       object-fit: cover;
       border: 3px solid var(--accent);
       background: #fff;
-      display: inline-block; /* toujours visible si présent */
+      display: none; /* affiché si présent */
     }
     .store-header .title-group {
       display: flex;
@@ -190,8 +190,7 @@
       background: var(--bg);
       border-color: var(--accent);
     }
-    /* les icônes des marques gardent leur couleur native sauf si on force */
-    .platform-tab i.fa-brands { color: inherit; } /* on laisse la couleur définie inline */
+    .platform-tab i.fa-brands { color: inherit; }
 
     /* ===== LISTE DES SERVICES ===== */
     .services-grid {
@@ -397,13 +396,19 @@
     }
     .whatsapp-float:hover { transform: scale(1.08); }
 
-    /* ===== PIED DE PAGE (RÉSEAUX SOCIAUX) ===== */
+    /* ===== PIED DE PAGE (RÉSEAUX SOCIAUX + NOM PROPRIÉTAIRE) ===== */
     .store-footer {
       margin-top: 40px;
       padding: 25px 20px;
       border-top: 1px solid var(--border);
       text-align: center;
       background: var(--card);
+    }
+    .store-footer .owner-name {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: var(--text);
     }
     .store-footer .social-links {
       display: flex;
@@ -466,12 +471,7 @@
         </div>
         <div class="country-selector">
           <span class="flag" id="currentFlag">🇨🇲</span>
-          <select id="countrySelect">
-            <option value="Cameroun">Cameroun (XAF)</option>
-            <option value="RDC">RDC (CDF)</option>
-            <option value="Sénégal">Sénégal (XOF)</option>
-            <option value="Côte d'Ivoire">Côte d'Ivoire (XOF)</option>
-          </select>
+          <select id="countrySelect"></select>
         </div>
       </div>
 
@@ -481,8 +481,9 @@
       <!-- Grille des services -->
       <div id="servicesGrid" class="services-grid"></div>
 
-      <!-- Pied de page avec réseaux sociaux -->
+      <!-- Pied de page avec propriétaire et réseaux sociaux -->
       <div class="store-footer" id="storeFooter" style="display:none;">
+        <div class="owner-name" id="ownerNameDisplay"></div>
         <div class="social-links" id="socialLinks"></div>
         <div class="footer-text">© 2026 Tous droits réservés</div>
       </div>
@@ -540,26 +541,48 @@
     let currentPlatform = null;
     let searchTerm = '';
 
-    // Marge du revendeur (en pourcentage)
+    // Marge du revendeur
     let resellerMargin = 0;
 
-    // ==================== 2. DEVISE ====================
+    // ==================== 2. DEVISE AVEC PAYS ÉTENDUS ====================
     const CURRENCY_CONFIG = {
       'Cameroun': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇲' },
       'RDC': { code: 'CDF', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
       'Sénégal': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇸🇳' },
       'Côte d\'Ivoire': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇨🇮' },
+      'Gabon': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇬🇦' },
+      'Congo': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇬' },
+      'Bénin': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇯' },
+      'Burkina Faso': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇧🇫' },
+      'Guinée': { code: 'GNF', symbol: 'FG', rate: 0.0001, flag: '🇬🇳' },
+      'Mali': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇲🇱' },
+      'Niger': { code: 'XOF', symbol: 'FCFA', rate: 1, flag: '🇳🇪' },
+      'Tchad': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇹🇩' },
+      'Centrafrique': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇨🇫' },
+      'Guinée équatoriale': { code: 'XAF', symbol: 'FCFA', rate: 1, flag: '🇬🇶' },
+      'Nigeria': { code: 'NGN', symbol: '₦', rate: 0.0007, flag: '🇳🇬' },
+      'Ghana': { code: 'GHS', symbol: '₵', rate: 0.06, flag: '🇬🇭' },
+      'Kenya': { code: 'KES', symbol: 'KSh', rate: 0.0065, flag: '🇰🇪' },
+      'Ouganda': { code: 'UGX', symbol: 'USh', rate: 0.0002, flag: '🇺🇬' },
+      'Tanzanie': { code: 'TZS', symbol: 'TSh', rate: 0.0003, flag: '🇹🇿' },
+      'Éthiopie': { code: 'ETB', symbol: 'Br', rate: 0.015, flag: '🇪🇹' },
+      'Afrique du Sud': { code: 'ZAR', symbol: 'R', rate: 0.04, flag: '🇿🇦' },
+      'Maroc': { code: 'MAD', symbol: 'DH', rate: 0.085, flag: '🇲🇦' },
+      'Tunisie': { code: 'TND', symbol: 'DT', rate: 0.28, flag: '🇹🇳' },
+      'Algérie': { code: 'DZD', symbol: 'DA', rate: 0.006, flag: '🇩🇿' },
+      'Égypte': { code: 'EGP', symbol: 'E£', rate: 0.025, flag: '🇪🇬' },
+      'Mauritanie': { code: 'MRU', symbol: 'UM', rate: 0.02, flag: '🇲🇷' },
     };
+
     let userCurrency = CURRENCY_CONFIG['Cameroun'];
 
     function convertFromXAF(amountXAF) {
       return amountXAF * userCurrency.rate;
     }
     function formatPrice(amountXAF) {
-      // Appliquer la marge du revendeur
       const withMargin = amountXAF * (1 + resellerMargin / 100);
       const localAmount = convertFromXAF(withMargin);
-      if (userCurrency.rate === 1) {
+      if (userCurrency.rate === 1 || userCurrency.code === 'XOF' || userCurrency.code === 'XAF') {
         return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(localAmount)) + ' ' + userCurrency.symbol;
       } else {
         return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(localAmount) + ' ' + userCurrency.symbol;
@@ -612,7 +635,7 @@
         }
         storeData = storeDoc.data();
 
-        // Appliquer les données de la boutique
+        // Appliquer les données
         if (storeData.logoUrl) {
           document.getElementById('sLogo').src = storeData.logoUrl;
           document.getElementById('sLogo').style.display = 'inline-block';
@@ -621,7 +644,7 @@
         document.getElementById('sSlogan').textContent = storeData.slogan || "";
         document.getElementById('sDesc').textContent = storeData.description || "";
 
-        // Thème et couleurs
+        // Thème
         if (storeData.themeMode === 'dark') {
           document.documentElement.style.setProperty('--bg', '#111122');
           document.documentElement.style.setProperty('--card', '#1a1a2e');
@@ -633,16 +656,14 @@
           document.documentElement.style.setProperty('--text', '#212529');
           document.documentElement.style.setProperty('--border', 'rgba(0,0,0,0.1)');
         }
-        // Couleur principale (accent) et bouton
         const accent = storeData.themeColor || '#F0A500';
         const btnColor = storeData.btnColor || accent;
         document.documentElement.style.setProperty('--accent', accent);
         document.documentElement.style.setProperty('--btn-color', btnColor);
 
-        // Marge du revendeur
         resellerMargin = storeData.margin || 0;
 
-        // WhatsApp flottant
+        // WhatsApp
         if (storeData.whatsapp) {
           resellerWa = storeData.whatsapp.replace(/\D/g, '');
           const waBtn = document.getElementById('waFloatBtn');
@@ -650,11 +671,11 @@
           waBtn.style.display = 'flex';
         }
 
-        // Charger les services
         await fetchCatalog();
-
-        // Pied de page avec réseaux sociaux
         buildFooter();
+
+        // Remplir le sélecteur de pays
+        populateCountrySelector();
 
         document.getElementById('loader').style.display = 'none';
         document.getElementById('storeContent').style.display = 'block';
@@ -684,26 +705,19 @@
 
         renderTabs();
         const platformNames = Object.keys(platformsMap);
-        if (platformNames.length > 0) {
-          currentPlatform = platformNames[0];
-        } else {
-          currentPlatform = 'all';
-        }
+        currentPlatform = platformNames.length > 0 ? platformNames[0] : 'all';
         renderServices();
 
-        // Écouter la recherche
         document.getElementById('searchInput').addEventListener('input', function(e) {
           searchTerm = e.target.value.trim().toLowerCase();
           renderServices();
         });
 
-        // Sélecteur de pays
         document.getElementById('countrySelect').addEventListener('change', function() {
           const country = this.value;
           userCurrency = CURRENCY_CONFIG[country];
           document.getElementById('currentFlag').textContent = userCurrency.flag;
-          renderServices(); // rafraîchir les prix
-          // Mettre à jour le prix dans la modale si ouverte
+          renderServices();
           if (currentSelectedService) updateModalPrice();
         });
 
@@ -713,7 +727,23 @@
       }
     }
 
-    // ==================== 6. RENDU DES ONGLETS ====================
+    // ==================== 6. SÉLECTEUR DE PAYS ====================
+    function populateCountrySelector() {
+      const select = document.getElementById('countrySelect');
+      const countries = Object.keys(CURRENCY_CONFIG).sort();
+      select.innerHTML = '';
+      countries.forEach(country => {
+        const config = CURRENCY_CONFIG[country];
+        const opt = document.createElement('option');
+        opt.value = country;
+        opt.textContent = `${config.flag} ${country} (${config.code})`;
+        if (country === 'Cameroun') opt.selected = true;
+        select.appendChild(opt);
+      });
+      document.getElementById('currentFlag').textContent = CURRENCY_CONFIG['Cameroun'].flag;
+    }
+
+    // ==================== 7. RENDU DES ONGLETS ====================
     function renderTabs() {
       const container = document.getElementById('platformTabs');
       const platformNames = Object.keys(platformsMap);
@@ -749,7 +779,7 @@
       });
     }
 
-    // ==================== 7. RENDU DES SERVICES ====================
+    // ==================== 8. RENDU DES SERVICES ====================
     function renderServices() {
       const grid = document.getElementById('servicesGrid');
 
@@ -796,11 +826,20 @@
       grid.innerHTML = html;
     }
 
-    // ==================== 8. PIED DE PAGE (RÉSEAUX SOCIAUX) ====================
+    // ==================== 9. PIED DE PAGE ====================
     function buildFooter() {
       const footer = document.getElementById('storeFooter');
+      const ownerEl = document.getElementById('ownerNameDisplay');
       const socialLinks = document.getElementById('socialLinks');
       if (!storeData) return;
+
+      const ownerName = storeData.ownerName || '';
+      if (ownerName.trim() !== '') {
+        ownerEl.textContent = 'Propriétaire : ' + ownerName;
+        ownerEl.style.display = 'block';
+      } else {
+        ownerEl.style.display = 'none';
+      }
 
       const networks = [
         { url: storeData.facebookUrl, icon: 'fa-facebook', color: '#1877F2' },
@@ -818,7 +857,7 @@
         }
       });
 
-      if (hasLink) {
+      if (hasLink || ownerName.trim() !== '') {
         socialLinks.innerHTML = html;
         footer.style.display = 'block';
       } else {
@@ -826,7 +865,7 @@
       }
     }
 
-    // ==================== 9. MODALE DE COMMANDE ====================
+    // ==================== 10. MODALE DE COMMANDE ====================
     let currentSelectedService = null;
 
     function openOrderModal(service) {
@@ -855,11 +894,9 @@
       let total = isPerUnit
         ? (currentSelectedService.priceXAF * qty)
         : ((currentSelectedService.priceXAF / 1000) * qty);
-      // Appliquer la marge avant affichage
       document.getElementById('modalPrice').textContent = formatPrice(Math.round(total));
     }
 
-    // Envoi de la commande
     document.getElementById('orderForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       if (!currentSelectedService) return;
@@ -912,7 +949,7 @@
       }
     });
 
-    // ==================== 10. LANCEMENT ====================
+    // ==================== 11. LANCEMENT ====================
     loadStore();
   </script>
 </body>
