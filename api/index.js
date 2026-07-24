@@ -86,7 +86,7 @@ const MTP_MULTIPLIER = 2.5;
 
 const EXO_API_URL    = 'https://exosupplier.com/api/v2';
 const EXO_USD_TO_XAF = 650;
-const EXO_MULTIPLIER = 2.5;
+const EXO_MULTIPLIER = 1.51;
 
 const AFRIQUEBOOST_API_URL = 'https://afriqueboost.com/api/v2';
 const AFB_MULTIPLIER       = 2.5;   
