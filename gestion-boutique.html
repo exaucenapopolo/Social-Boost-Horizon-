@@ -51,6 +51,7 @@
     }
 
     h2 { font-family: 'Space Grotesk', sans-serif; margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; font-size: 1.3rem;}
+    h3.section-title { font-family: 'Space Grotesk', sans-serif; margin-top: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.8rem; font-size: 1.1rem; color: #fff;}
 
     .form-row { display: flex; gap: 15px; flex-wrap: wrap; }
     .form-group { margin-bottom: 1.5rem; flex: 1; min-width: 200px; }
@@ -73,7 +74,6 @@
     .btn-publish { background: #0FB5A6; color: #000; margin-top: 10px; }
     .btn-disabled { opacity: 0.5; pointer-events: none; }
 
-    /* Nouveaux boutons sociaux et voir la boutique */
     .btn-wa { background: #25D366; color: #fff; width: auto; padding: 8px 12px; font-size: 0.9rem; }
     .btn-wa:hover { background: #1ebc59; }
     .btn-fb { background: #1877F2; color: #fff; width: auto; padding: 8px 12px; font-size: 0.9rem; }
@@ -94,6 +94,7 @@
       width: 100%; height: 650px; border: 10px solid #1a1a2e; border-radius: 40px;
       background: var(--pv-bg, #F8F9FA); overflow-y: auto; position: relative;
       color: var(--pv-text, #212529); transition: all 0.3s ease;
+      display: flex; flex-direction: column;
     }
     .phone-mockup::-webkit-scrollbar { display: none; }
     
@@ -103,7 +104,7 @@
     .pv-slogan { font-size: 0.8rem; opacity: 0.7; margin-top: 5px; }
     .pv-desc { font-size: 0.85rem; padding: 15px; text-align: center; opacity: 0.8; }
     
-    .pv-services { padding: 15px; }
+    .pv-services { padding: 15px; flex-grow: 1; }
     .pv-service-card {
       background: var(--pv-card, #FFFFFF); border: 1px solid rgba(128,128,128,0.2);
       border-radius: 10px; padding: 15px; margin-bottom: 12px;
@@ -111,8 +112,16 @@
     .pv-service-price { color: var(--pv-accent, #F0A500); font-weight: 700; font-size: 1.1rem; }
     .mockup-btn {
       margin-top: 10px; width: 100%; padding: 8px; border-radius: 6px; border: none;
-      background: var(--pv-accent, #F0A500); color: #fff; font-weight: 600;
+      background: var(--pv-btn-color, #F0A500); color: #fff; font-weight: 600;
     }
+
+    /* Nouveau Pied de page Mockup */
+    .pv-footer {
+      padding: 20px; text-align: center; border-top: 1px solid rgba(128,128,128,0.2);
+      margin-top: auto; display: none;
+    }
+    .pv-socials { display: flex; justify-content: center; gap: 15px; font-size: 1.3rem; }
+    .pv-socials a { color: var(--pv-text); opacity: 0.6; transition: 0.2s; text-decoration: none; }
 
     .status-banner {
       background: rgba(15, 181, 166, 0.1); border: 1px solid #0FB5A6; padding: 15px; border-radius: 8px;
@@ -125,7 +134,6 @@
     #globalLoader { text-align: center; padding: 5rem; color: var(--accent-primary); }
     #mainContent { display: none; }
 
-    /* Rendre le layout parfait sur mobile */
     @media (max-width: 850px) {
       .dashboard-container { flex-direction: column; align-items: center; }
       .form-section { width: 100%; }
@@ -155,16 +163,14 @@
             <a id="btnViewStore" href="#" target="_blank" class="btn btn-view" title="Voir ma boutique"><i class="fas fa-external-link-alt"></i></a>
           </div>
           
-          <!-- Nouveaux boutons de partage -->
           <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px; flex-wrap: wrap;">
             <span style="font-size: 0.9rem; color: var(--text-muted); font-weight: 600;">Partager sur :</span>
             <a id="btnShareWa" href="#" target="_blank" class="btn btn-wa"><i class="fab fa-whatsapp"></i> WhatsApp</a>
             <a id="btnShareFb" href="#" target="_blank" class="btn btn-fb"><i class="fab fa-facebook-f"></i> Facebook</a>
           </div>
-
         </div>
 
-        <h2>Configuration</h2>
+        <h2>Configuration Générale</h2>
         <form id="storeForm">
           
           <div class="form-group">
@@ -183,7 +189,7 @@
             </div>
           </div>
 
-          <!-- NOUVELLE SECTION : Marge de Revente -->
+          <!-- Marge de Revente -->
           <div class="form-group">
             <label>Votre Marge de Revente (%) *</label>
             <input type="number" id="storeMargin" class="form-control" placeholder="Ex: 100" value="0" min="0" oninput="updateMarginExample()">
@@ -197,20 +203,6 @@
             <textarea id="storeDesc" class="form-control" rows="2" oninput="updatePreview()"></textarea>
           </div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label>Couleur Principale</label>
-              <input type="color" id="storeColor" class="form-control" value="#F0A500" oninput="updatePreview()">
-            </div>
-            <div class="form-group">
-              <label>Thème de la boutique</label>
-              <select id="storeTheme" class="form-control" onchange="updatePreview()">
-                <option value="light">Clair (Blanc)</option>
-                <option value="dark">Sombre (Noir)</option>
-              </select>
-            </div>
-          </div>
-
           <div class="form-group">
             <label>Logo de la boutique</label>
             <input type="file" id="logoUpload" accept="image/*" style="display: none;">
@@ -222,7 +214,53 @@
             <input type="hidden" id="logoUrl">
           </div>
 
-          <button type="button" id="btnSaveDraft" class="btn btn-primary" onclick="saveStore(false)">
+          <!-- NOUVELLE SECTION : Personnalisation Avancée -->
+          <h3 class="section-title"><i class="fas fa-palette"></i> Apparence & Couleurs</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Couleur Principale</label>
+              <input type="color" id="storeColor" class="form-control" value="#F0A500" oninput="updatePreview()">
+            </div>
+            <div class="form-group">
+              <label>Couleur des Boutons</label>
+              <input type="color" id="storeBtnColor" class="form-control" value="#F0A500" oninput="updatePreview()">
+            </div>
+            <div class="form-group">
+              <label>Thème global</label>
+              <select id="storeTheme" class="form-control" onchange="updatePreview()">
+                <option value="light">Clair (Blanc)</option>
+                <option value="dark">Sombre (Noir)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- NOUVELLE SECTION : Réseaux Sociaux -->
+          <h3 class="section-title"><i class="fas fa-share-alt"></i> Réseaux Sociaux (Optionnel)</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: -10px; margin-bottom: 15px;">Ajoutez les liens de vos profils pour qu'ils s'affichent en bas de votre boutique.</p>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label><i class="fab fa-facebook" style="color: #1877F2;"></i> Lien Facebook</label>
+              <input type="url" id="storeFb" class="form-control" placeholder="https://facebook.com/votrepage" oninput="updatePreview()">
+            </div>
+            <div class="form-group">
+              <label><i class="fab fa-instagram" style="color: #E1306C;"></i> Lien Instagram</label>
+              <input type="url" id="storeIg" class="form-control" placeholder="https://instagram.com/votreprofil" oninput="updatePreview()">
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label><i class="fab fa-youtube" style="color: #FF0000;"></i> Lien YouTube</label>
+              <input type="url" id="storeYt" class="form-control" placeholder="https://youtube.com/@votrechaine" oninput="updatePreview()">
+            </div>
+            <div class="form-group">
+              <label><i class="fab fa-tiktok" style="color: #fff;"></i> Lien TikTok</label>
+              <input type="url" id="storeTt" class="form-control" placeholder="https://tiktok.com/@votreprofil" oninput="updatePreview()">
+            </div>
+          </div>
+
+          <button type="button" id="btnSaveDraft" class="btn btn-primary" onclick="saveStore(false)" style="margin-top: 1rem;">
             <i class="fas fa-save"></i> Enregistrer les modifications
           </button>
           <button type="button" id="btnPublish" class="btn btn-publish" style="display: none;" onclick="publishStore()">
@@ -241,6 +279,7 @@
           <div id="pvSlogan" class="pv-slogan">Slogan</div>
         </div>
         <div id="pvDesc" class="pv-desc">Description</div>
+        
         <div class="pv-services">
           <div class="pv-service-card" id="pvCardMock">
             <div style="font-weight: 600; font-size: 0.9rem;">Exemple de Service</div>
@@ -248,13 +287,22 @@
             <button class="mockup-btn" id="pvBtn">Commander via WhatsApp</button>
           </div>
         </div>
+
+        <!-- Section Pied de Page -->
+        <div class="pv-footer" id="pvFooter">
+          <div style="font-size: 0.8rem; margin-bottom: 10px; opacity: 0.7;">Retrouvez-nous sur</div>
+          <div class="pv-socials" id="pvSocialIcons">
+            <!-- Les icônes s'afficheront ici dynamiquement -->
+          </div>
+        </div>
+
       </div>
     </div>
 
   </div>
 
   <script>
-    // Configuration Firebase... (Remets tes identifiants exacts ici si tu les modifies)
+    // Configuration Firebase... 
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -284,7 +332,7 @@
           document.getElementById('globalLoader').style.display = 'none';
           document.getElementById('mainContent').style.display = 'flex';
           updatePreview();
-          updateMarginExample(); // Initialiser le texte de l'exemple au chargement
+          updateMarginExample();
         }
       } else { window.location.href = "login.html"; }
     });
@@ -298,7 +346,6 @@
       document.getElementById('uploadStatus').innerHTML = 'Image prête à être enregistrée.';
     });
 
-    // Nouvelle fonction pour mettre à jour le texte explicatif de la marge
     function updateMarginExample() {
       const marginInput = parseFloat(document.getElementById('storeMargin').value) || 0;
       const basePrice = 500;
@@ -313,6 +360,7 @@
       const name = document.getElementById('storeName').value || "Nom";
       const theme = document.getElementById('storeTheme').value;
       const color = document.getElementById('storeColor').value;
+      const btnColor = document.getElementById('storeBtnColor').value;
       
       document.getElementById('pvTitle').innerText = name;
       document.getElementById('pvSlogan').innerText = document.getElementById('storeSlogan').value;
@@ -321,6 +369,7 @@
       // Appliquer les couleurs CSS au téléphone
       const mockup = document.getElementById('phoneMockup');
       mockup.style.setProperty('--pv-accent', color);
+      mockup.style.setProperty('--pv-btn-color', btnColor);
       
       if(theme === 'dark') {
         mockup.style.setProperty('--pv-bg', '#111122');
@@ -330,6 +379,28 @@
         mockup.style.setProperty('--pv-bg', '#F8F9FA');
         mockup.style.setProperty('--pv-text', '#212529');
         mockup.style.setProperty('--pv-card', '#FFFFFF');
+      }
+
+      // Gestion dynamique des réseaux sociaux
+      const fb = document.getElementById('storeFb').value;
+      const ig = document.getElementById('storeIg').value;
+      const yt = document.getElementById('storeYt').value;
+      const tt = document.getElementById('storeTt').value;
+
+      let socialHtml = "";
+      if (fb) socialHtml += `<a href="#" style="color: #1877F2;"><i class="fab fa-facebook"></i></a>`;
+      if (ig) socialHtml += `<a href="#" style="color: #E1306C;"><i class="fab fa-instagram"></i></a>`;
+      if (yt) socialHtml += `<a href="#" style="color: #FF0000;"><i class="fab fa-youtube"></i></a>`;
+      if (tt) socialHtml += `<a href="#" style="color: ${theme === 'dark' ? '#FFFFFF' : '#000000'};"><i class="fab fa-tiktok"></i></a>`;
+
+      const footer = document.getElementById('pvFooter');
+      const iconsContainer = document.getElementById('pvSocialIcons');
+
+      if (socialHtml !== "") {
+        iconsContainer.innerHTML = socialHtml;
+        footer.style.display = 'block';
+      } else {
+        footer.style.display = 'none';
       }
     }
 
@@ -359,9 +430,17 @@
           description: document.getElementById('storeDesc').value,
           whatsapp: document.getElementById('storeWa').value,
           themeColor: document.getElementById('storeColor').value,
+          btnColor: document.getElementById('storeBtnColor').value, // Sauvegarde Couleur Bouton
           themeMode: document.getElementById('storeTheme').value,
-          margin: parseFloat(document.getElementById('storeMargin').value) || 0, // Sauvegarde de la marge
+          margin: parseFloat(document.getElementById('storeMargin').value) || 0,
           logoUrl: finalLogoUrl,
+          
+          // Sauvegarde des réseaux sociaux
+          facebookUrl: document.getElementById('storeFb').value,
+          instagramUrl: document.getElementById('storeIg').value,
+          youtubeUrl: document.getElementById('storeYt').value,
+          tiktokUrl: document.getElementById('storeTt').value,
+          
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
@@ -402,12 +481,21 @@
         document.getElementById('storeSlogan').value = d.slogan || "";
         document.getElementById('storeDesc').value = d.description || "";
         document.getElementById('storeWa').value = d.whatsapp || "";
+        
+        // Couleurs
         document.getElementById('storeColor').value = d.themeColor || "#F0A500";
+        document.getElementById('storeBtnColor').value = d.btnColor || "#F0A500";
         document.getElementById('storeTheme').value = d.themeMode || "light";
         
-        // Chargement de la marge (si elle existe, sinon 0)
+        // Réseaux sociaux
+        document.getElementById('storeFb').value = d.facebookUrl || "";
+        document.getElementById('storeIg').value = d.instagramUrl || "";
+        document.getElementById('storeYt').value = d.youtubeUrl || "";
+        document.getElementById('storeTt').value = d.tiktokUrl || "";
+
+        // Marge
         document.getElementById('storeMargin').value = d.margin !== undefined ? d.margin : 0;
-        updateMarginExample(); // Mise à jour de l'affichage du texte
+        updateMarginExample(); 
 
         if(d.logoUrl) {
           document.getElementById('logoUrl').value = d.logoUrl;
@@ -416,6 +504,8 @@
         }
         document.getElementById('btnPublish').style.display = 'block';
         if(d.status === "published") showLink(d.storeUrl);
+        
+        updatePreview(); // Pour afficher directement le pied de page s'il y a des liens
       }
     }
 
@@ -424,10 +514,8 @@
       document.getElementById('statusBanner').style.display = 'flex';
       document.getElementById('storeLinkDisplay').innerText = url;
 
-      // Mise à jour du bouton "Voir ma boutique"
       document.getElementById('btnViewStore').href = url;
 
-      // Mise à jour des boutons de partage social
       const encodedUrl = encodeURIComponent(url);
       const shareText = encodeURIComponent("Découvrez ma nouvelle boutique en ligne et mes services !");
       
