@@ -239,23 +239,6 @@
     }
     .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
-    .payment-methods {
-      display: flex; justify-content: center; flex-wrap: wrap;
-      gap: 20px; margin-top: 25px; padding-top: 25px;
-      border-top: 1px solid rgba(255,255,255,0.08);
-    }
-    .payment-method {
-      display: flex; flex-direction: column; align-items: center; gap: 6px;
-      opacity: 0.75; transition: all 0.3s; cursor: default;
-    }
-    .payment-method:hover { opacity: 1; transform: translateY(-3px); }
-    .payment-method img {
-      width: 48px; height: 48px; object-fit: contain;
-      border-radius: 12px; background: white; padding: 6px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    }
-    .payment-method span { font-size: 0.7rem; color: var(--text-light); text-align: center; }
-
     .assistance-note {
       margin-top: 25px; padding-top: 20px;
       border-top: 1px solid rgba(255,255,255,0.08);
@@ -401,9 +384,100 @@
 
     @media (max-width: 480px) {
       .balance-amount { font-size: 2rem; }
-      .payment-methods { gap: 12px; }
-      .payment-method img { width: 38px; height: 38px; }
     }
+
+    /* ═══════ MODALE DE VÉRIFICATION ═══════ */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(8px);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      background: linear-gradient(145deg, #0f1f3a, #1a2a4a);
+      border: 1px solid var(--gold);
+      border-radius: 28px;
+      max-width: 500px;
+      width: 100%;
+      padding: 40px 30px;
+      text-align: center;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+      position: relative;
+    }
+    .modal-box .close-modal {
+      position: absolute;
+      top: 16px; right: 20px;
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.5);
+      font-size: 1.6rem;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .modal-box .close-modal:hover { color: #fff; }
+    .modal-box .modal-icon {
+      font-size: 3.5rem;
+      color: var(--gold);
+      margin-bottom: 16px;
+    }
+    .modal-box h2 {
+      font-size: 1.6rem;
+      margin-bottom: 12px;
+      color: #fff;
+    }
+    .modal-box p {
+      color: var(--text-light);
+      font-size: 1rem;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .modal-box .modal-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .modal-box .modal-actions .btn-verify {
+      background: linear-gradient(135deg, var(--gold-deep), var(--gold));
+      border: none;
+      color: #080e1a;
+      padding: 14px;
+      border-radius: 50px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .modal-box .modal-actions .btn-verify:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 25px rgba(212,175,55,0.4);
+    }
+    .modal-box .modal-actions .btn-later {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      padding: 12px;
+      border-radius: 50px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: 0.3s;
+      font-size: 0.95rem;
+    }
+    .modal-box .modal-actions .btn-later:hover {
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(255,255,255,0.4);
+    }
+    .modal-box .modal-actions .btn-later i { margin-right: 8px; }
   </style>
 </head>
 <body>
@@ -411,7 +485,8 @@
   <div class="stars"></div>
 
   <header>
-    <a href="index.html" class="logo-link">
+    <!-- Logo → dashboard.html -->
+    <a href="dashboard.html" class="logo-link">
       <img src="https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg" alt="Logo" class="logo-img">
       <div class="logo-text">
         <span class="social">SOCIAL</span>
@@ -487,9 +562,15 @@
           <input type="number" id="amount" name="amount" placeholder="Ou montant personnalisé" min="500" required>
         </div>
 
+        <!-- Nouveau message d'information -->
         <div class="info-box">
-          <i class="fas fa-shield-halved"></i>
-          <p>Paiement 100% sécurisé. Votre solde sera crédité automatiquement après confirmation de l'opérateur.</p>
+          <i class="fas fa-circle-info"></i>
+          <p>
+            <strong>Important :</strong> Après avoir effectué le paiement, votre solde ne sera pas crédité automatiquement.
+            Vous devez <strong>vérifier votre transaction</strong> depuis la section prévue à cet effet.
+            <br>
+            <a href="wallet.html" style="color: var(--light-blue); font-weight: 600; text-decoration: underline;">Aller à mon portefeuille</a>
+          </p>
         </div>
 
         <button type="submit" class="submit-btn" id="submitBtn">
@@ -498,37 +579,12 @@
         </button>
       </form>
 
-      <div class="payment-methods">
-        <div class="payment-method">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Orange_Money_logo.svg/200px-Orange_Money_logo.svg.png" alt="Orange Money">
-          <span>Orange Money</span>
-        </div>
-        <div class="payment-method">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/MTN_Mobile_Money_logo.svg/200px-MTN_Mobile_Money_logo.svg.png" alt="MTN MoMo">
-          <span>MTN MoMo</span>
-        </div>
-        <div class="payment-method">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/M-PESA_LOGO.svg/200px-M-PESA_LOGO.svg.png" alt="M-Pesa">
-          <span>M-Pesa</span>
-        </div>
-        <div class="payment-method">
-          <img src="https://www.vodacom.co.tz/images/icons/mpesa-logo.png" alt="Vodacom M-Pesa" onerror="this.style.display='none'; this.nextElementSibling.style.display='none';">
-          <span>Vodacom M-Pesa</span>
-        </div>
-        <div class="payment-method">
-          <img src="https://www.togocom.tg/templates/togocom/assets/img/tmoney.png" alt="T-money" onerror="this.style.display='none'; this.nextElementSibling.style.display='none';">
-          <span>T-money</span>
-        </div>
-        <div class="payment-method">
-          <img src="https://www.moov-africa.com/sites/default/files/logo-moov-money.png" alt="Moov Money" onerror="this.style.display='none'; this.nextElementSibling.style.display='none';">
-          <span>Moov Money</span>
-        </div>
-      </div>
+      <!-- Suppression de la section payment-methods -->
 
       <div class="assistance-note">
         <p><i class="fas fa-clock"></i> Le crédit peut prendre quelques minutes selon l'opérateur. Patience, votre solde sera mis à jour automatiquement.</p>
-        <p style="margin-top:8px;"><i class="fas fa-headset"></i> Si le délai dépasse 30 minutes, contactez l'<a href="dashboard.html">assistance</a> avec votre preuve de paiement.</p>
-        <p style="margin-top:8px;"><i class="fas fa-search"></i> Vous ne trouvez pas votre moyen de paiement ? <a href="dashboard.html">Contactez-nous</a> pour une solution.</p>
+        <p style="margin-top:8px;"><i class="fas fa-headset"></i> Si le délai dépasse 30 minutes, contactez l'<a href="assistance.html">assistance</a> avec votre preuve de paiement.</p>
+        <p style="margin-top:8px;"><i class="fas fa-search"></i> Vous ne trouvez pas votre moyen de paiement ? <a href="assistance.html">Contactez-nous</a> pour une solution.</p>
       </div>
 
       <a href="https://socialboosthorizon.com/telecharger.html?app=sbh" target="_blank" class="app-download-teaser" data-aos="fade-up">
@@ -579,6 +635,30 @@
     <div class="loading-text">Initialisation du paiement…</div>
   </div>
 
+  <!-- ═══════ MODALE DE VÉRIFICATION ═══════ -->
+  <div class="modal-overlay" id="verifyModal">
+    <div class="modal-box">
+      <button class="close-modal" id="closeModalBtn">&times;</button>
+      <div class="modal-icon"><i class="fas fa-hand-holding-usd"></i></div>
+      <h2>Vérifiez votre transaction</h2>
+      <p>
+        Vous avez initié un paiement. Pour que votre solde soit mis à jour, vous devez
+        <strong>vérifier le statut</strong> de votre transaction.
+      </p>
+      <p style="font-size: 0.9rem; color: rgba(255,255,255,0.7);">
+        Si vous ne vérifiez pas, votre solde ne sera pas crédité automatiquement.
+      </p>
+      <div class="modal-actions">
+        <a href="https://socialboosthorizon.com/payment-success" class="btn-verify" id="verifyBtn">
+          <i class="fas fa-check-circle"></i> Vérifier ma transaction
+        </a>
+        <button class="btn-later" id="laterBtn">
+          <i class="fas fa-times-circle"></i> Fermer (je vérifierai plus tard)
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
@@ -608,7 +688,7 @@
     let currentUser = null;
     let userData = null;
 
-    // ═══════════ CONFIGURATION DEVISES (exactement comme dashboard.html) ═══════════
+    // ═══════════ CONFIGURATION DEVISES ═══════════
     const CURRENCY_CONFIG = {
       'cm': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇨🇲' },
       'ga': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇬🇦' },
@@ -658,10 +738,9 @@
       'Zambie': { code:'ZMW', symbol:'ZK', rate:0.041, flag:'🇿🇲' }
     };
 
-    // ═══════════ FONCTIONS DE CONVERSION (identiques à dashboard.html) ═══════════
+    // ═══════════ FONCTIONS DE CONVERSION ═══════════
     let selectedCountry = 'CM';
 
-    // Obtenir la configuration pour un pays (code pays en minuscule ou nom)
     function getCurrencyConfig(countryCode) {
       const key = countryCode.toLowerCase();
       return CURRENCY_CONFIG[key] || CURRENCY_CONFIG['cm'];
@@ -740,9 +819,7 @@
             phoneInput.value = '';
           }
 
-          // Récupérer le pays depuis les données utilisateur (ou par défaut Cameroun)
           let userCountryCode = userData.country || 'CM';
-          // Si le pays est stocké sous forme de nom, on le convertit en code
           const countrySelect = document.getElementById('country');
           const options = countrySelect.options;
           let found = false;
@@ -754,7 +831,6 @@
             }
           }
           if (!found) {
-            // Essayer de trouver par nom (cas où userData.country est "Cameroun" etc.)
             for (let i = 0; i < options.length; i++) {
               const label = options[i].textContent;
               if (label.includes(userCountryCode)) {
@@ -892,16 +968,46 @@
       }
     });
 
-    // ═══════════ VÉRIFICATION PAIEMENT PENDING ═══════════
+    // ═══════════ VÉRIFICATION PAIEMENT PENDING + MODALE ═══════════
+    const modalOverlay = document.getElementById('verifyModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const laterBtn = document.getElementById('laterBtn');
+    const verifyBtn = document.getElementById('verifyBtn');
+
+    function showModal() {
+      modalOverlay.classList.add('active');
+    }
+
+    function hideModal() {
+      modalOverlay.classList.remove('active');
+    }
+
+    // Fermeture de la modale
+    closeModalBtn.addEventListener('click', hideModal);
+    laterBtn.addEventListener('click', hideModal);
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) hideModal();
+    });
+
+    // Vérification : on redirige vers payment-success
+    verifyBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      // On pourrait ajouter un paramètre transactionId si besoin
+      window.location.href = 'https://socialboosthorizon.com/payment-success';
+    });
+
+    // Au chargement, vérifier la présence d'un paiement en attente
     window.addEventListener('load', () => {
       const pending = localStorage.getItem('pendingPayment');
       if (pending) {
         try {
           const paymentData = JSON.parse(pending);
           const age = Date.now() - paymentData.timestamp;
+          // Si le paiement a moins de 30 minutes, on affiche la modale
           if (age < 30 * 60 * 1000) {
-            checkPaymentStatus(paymentData.transactionId);
+            showModal();
           } else {
+            // Trop vieux, on supprime
             localStorage.removeItem('pendingPayment');
           }
         } catch (e) {
@@ -910,6 +1016,7 @@
       }
     });
 
+    // Fonction checkPaymentStatus (gardée pour compatibilité, mais non utilisée directement)
     async function checkPaymentStatus(transactionId) {
       try {
         const response = await fetch(`${BACKEND_URL}/api/confirm-swychr?transactionId=${transactionId}`);
