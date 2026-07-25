@@ -524,7 +524,6 @@
           <div>Solde : <span id="customerBalanceDisplay">0</span></div>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
-          <!-- MODIFICATION ICI : Ajout du bouton de vérification -->
           <button id="btnVerifyPayment" class="btn-recharge" style="display:none; background:#28a745;" onclick="manualVerifyPayment()">
             <i class="fas fa-sync-alt"></i> Vérifier
           </button>
@@ -672,7 +671,7 @@
       'Niger': { code: 'XOF', iso: 'NE', symbol: 'FCFA', rate: 1, flag: '🇳🇪' },
       'Tchad': { code: 'XAF', iso: 'TD', symbol: 'FCFA', rate: 1, flag: '🇹🇩' },
       'Centrafrique': { code: 'XAF', iso: 'CF', symbol: 'FCFA', rate: 1, flag: '🇨🇫' },
-      'Guinée équatoriale': { code: 'XAF', iso: 'GQ', symbol: 'FCFA', rate: 1, flag: '🇬🇶' },
+      'Guinée équatoriale': { code: 'XAF', iso: 'GQ', symbol: 'FCFA', rate: 1, flag: '🇬GQ' },
       'Nigeria': { code: 'NGN', iso: 'NG', symbol: '₦', rate: 0.0007, flag: '🇳🇬' },
       'Ghana': { code: 'GHS', iso: 'GH', symbol: '₵', rate: 0.06, flag: '🇬🇭' },
       'Kenya': { code: 'KES', iso: 'KE', symbol: 'KSh', rate: 0.0065, flag: '🇰🇪' },
@@ -733,7 +732,6 @@
         bar.style.display = 'flex';
         balDisplay.textContent = formatPrice(customerBalanceXAF, false); 
         
-        // MODIFICATION ICI : Logique pour afficher le bouton Vérifier
         if (localStorage.getItem('pendingStorePayment_' + storeId)) {
           if(btnVerify) btnVerify.style.display = 'flex';
         } else {
@@ -832,7 +830,7 @@
         amount: amountLocal,
         amountXAF: amountXAF,
         currency: config.code,
-        storeId: storeId // MODIFICATION ICI : On ajoute le storeId
+        storeId: storeId
       };
 
       try {
@@ -867,7 +865,6 @@
       }
     });
 
-    // MODIFICATION ICI : Remplacement par la fonction manuelle
     async function manualVerifyPayment() {
       const pending = localStorage.getItem('pendingStorePayment_' + storeId);
       if (!pending) return;
@@ -920,8 +917,6 @@
         document.getElementById('loader').innerHTML = "Erreur : ID de la boutique introuvable.";
         return;
       }
-      
-      // Ligne de vérification automatique retirée ici pour privilégier la vérification manuelle
       
       try {
         const storeDoc = await db.collection('stores').doc(storeId).get();
@@ -1178,6 +1173,13 @@
         return;
       }
 
+      // === CALCUL DE LA MARGE LORS DE LA COMMANDE ===
+      const isPerUnit = currentSelectedService.isPerOne || currentSelectedService.isPackage;
+      let totalBase = isPerUnit ? (currentSelectedService.priceXAF * qty) : ((currentSelectedService.priceXAF / 1000) * qty);
+      const exactTotalBase = Math.round(totalBase);
+      // Le bénéfice est la différence entre ce que paie le client et le prix fournisseur
+      const profitXAF = computedTotalXAF - exactTotalBase;
+
       if (customerBalanceXAF < computedTotalXAF) {
         const manqueXAF = computedTotalXAF - customerBalanceXAF;
         closeOrderModal();
@@ -1212,8 +1214,27 @@
         const result = await res.json();
         
         if (result.success) {
+          // 1. Débiter le compte du client sur cette boutique
           const docRef = db.collection('stores').doc(storeId).collection('customers').doc(customerEmail);
           await docRef.update({ balance: firebase.firestore.FieldValue.increment(-computedTotalXAF) });
+
+          // 2. Créditer le compte du revendeur (Le propriétaire)
+          if (storeData.ownerId && profitXAF > 0) {
+            const ownerRef = db.collection('users').doc(storeData.ownerId);
+            await ownerRef.update({ 
+              soldeBoutique: firebase.firestore.FieldValue.increment(profitXAF) 
+            });
+
+            // 3. Ajouter la transaction dans l'historique pour le tableau de bord
+            await db.collection('stores').doc(storeId).collection('transactions').add({
+              serviceName: currentSelectedService.name,
+              quantity: qty,
+              totalPaid: computedTotalXAF,
+              profit: profitXAF,
+              customerEmail: customerEmail,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          }
 
           alert(`✅ Commande réussie !\n\nID: ${result.orderId}`);
           closeOrderModal();

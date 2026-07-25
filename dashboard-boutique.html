@@ -63,6 +63,21 @@
     .store-link { color: #0FB5A6; font-family: monospace; word-break: break-all; text-decoration: none; }
     .store-link:hover { text-decoration: underline; }
 
+    /* Historique des Ventes / Gains */
+    .history-card {
+      background: var(--bg-card); border: 1px solid var(--border-color);
+      border-radius: 16px; padding: 2rem; margin-top: 2rem; display: none;
+    }
+    .history-card h2 { font-family: 'Space Grotesk', sans-serif; margin-top: 0; margin-bottom: 1.5rem; font-size: 1.3rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; color: #fff;}
+    
+    .table-responsive { overflow-x: auto; }
+    .tx-table { width: 100%; border-collapse: collapse; text-align: left; }
+    .tx-table th, .tx-table td { padding: 14px 10px; border-bottom: 1px solid var(--border-color); }
+    .tx-table th { color: var(--text-muted); font-weight: 600; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;}
+    .tx-table td { font-size: 0.95rem; }
+    .tx-profit { color: #0FB5A6; font-weight: 700; }
+    .tx-empty { text-align: center; color: var(--text-muted); padding: 30px; font-size: 1rem;}
+
     .btn {
       padding: 12px 20px; border-radius: 8px; font-weight: 600; cursor: pointer;
       border: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -139,6 +154,28 @@
       </div>
     </div>
 
+    <!-- Historique des Ventes -->
+    <div class="history-card" id="transactionsSection">
+      <h2><i class="fas fa-chart-line"></i> Derniers gains (Commandes)</h2>
+      <div class="table-responsive">
+        <table class="tx-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Client</th>
+              <th>Service</th>
+              <th>Qté</th>
+              <th>Prix Payé</th>
+              <th>Votre Gain</th>
+            </tr>
+          </thead>
+          <tbody id="transactionsBody">
+            <tr><td colspan="6" class="tx-empty"><i class="fas fa-spinner fa-spin"></i> Chargement de vos gains...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
 
   <script>
@@ -176,9 +213,12 @@
               await loadStoreDetails(userData.storeId);
               document.getElementById('noStoreView').style.display = 'none';
               document.getElementById('hasStoreView').style.display = 'block';
+              document.getElementById('transactionsSection').style.display = 'block';
+              await loadTransactions(userData.storeId);
             } else {
               document.getElementById('hasStoreView').style.display = 'none';
               document.getElementById('noStoreView').style.display = 'block';
+              document.getElementById('transactionsSection').style.display = 'none';
             }
 
             document.getElementById('globalLoader').style.display = 'none';
@@ -211,6 +251,49 @@
         }
       } catch (error) {
         console.error("Erreur lecture boutique :", error);
+      }
+    }
+
+    async function loadTransactions(storeId) {
+      const tbody = document.getElementById('transactionsBody');
+      try {
+        const snapshot = await db.collection('stores').doc(storeId).collection('transactions')
+                                 .orderBy('createdAt', 'desc')
+                                 .limit(20)
+                                 .get();
+
+        if (snapshot.empty) {
+          tbody.innerHTML = `<tr><td colspan="6" class="tx-empty"><i class="fas fa-box-open"></i> Vous n'avez pas encore fait de ventes avec votre boutique.</td></tr>`;
+          return;
+        }
+
+        let rowsHtml = '';
+        snapshot.forEach(doc => {
+          const tx = doc.data();
+          
+          // Formater la date
+          let dateStr = "En attente";
+          if (tx.createdAt) {
+            const dateObj = tx.createdAt.toDate();
+            dateStr = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + " à " + dateObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          }
+
+          rowsHtml += `
+            <tr>
+              <td style="color: var(--text-muted); font-size: 0.85rem;">${dateStr}</td>
+              <td style="font-weight: 600;">${tx.customerEmail || 'Anonyme'}</td>
+              <td>${tx.serviceName || 'Service inconnu'}</td>
+              <td>${tx.quantity || 0}</td>
+              <td>${tx.totalPaid || 0} FCFA</td>
+              <td class="tx-profit">+${tx.profit || 0} FCFA</td>
+            </tr>
+          `;
+        });
+        
+        tbody.innerHTML = rowsHtml;
+      } catch (error) {
+        console.error("Erreur lors de la lecture des transactions :", error);
+        tbody.innerHTML = `<tr><td colspan="6" class="tx-empty" style="color: #F87171;">Impossible de charger les transactions.</td></tr>`;
       }
     }
   </script>
