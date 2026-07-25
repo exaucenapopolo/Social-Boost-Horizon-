@@ -197,6 +197,11 @@
       padding: 12px; margin-top: 15px; border-radius: 8px;
       color: var(--accent-green); font-size: 0.9rem;
     }
+    .info-message {
+      background: rgba(77, 166, 255, 0.1); border-left: 4px solid var(--accent-blue);
+      padding: 12px; margin-top: 15px; border-radius: 8px;
+      color: var(--accent-blue); font-size: 0.9rem;
+    }
 
     /* --- Bloc d'instructions pour la vérification --- */
     .instruction-block {
@@ -323,6 +328,48 @@
     .empty-activities   { text-align: center; padding: 30px; color: var(--text-muted); }
     .empty-activities i { font-size: 2rem; opacity: 0.4; }
 
+    /* Notification de retour de paiement */
+    .payment-return-banner {
+      background: linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05));
+      border: 1px solid var(--accent-gold);
+      border-radius: 16px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .payment-return-banner i {
+      font-size: 2rem;
+      color: var(--accent-gold);
+    }
+    .payment-return-banner .content {
+      flex: 1;
+    }
+    .payment-return-banner .content strong {
+      color: #fff;
+    }
+    .payment-return-banner .content .sub {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+    .payment-return-banner .btn-scroll {
+      background: var(--accent-gold);
+      color: #080e1a;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 30px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.3s;
+      font-family: var(--font-primary);
+    }
+    .payment-return-banner .btn-scroll:hover {
+      transform: scale(1.02);
+      box-shadow: 0 4px 15px rgba(212,175,55,0.4);
+    }
+
     footer {
       background: rgba(8,14,26,0.9); border-top: 1px solid var(--border-light);
       padding: 18px; text-align: center;
@@ -435,6 +482,18 @@
         </button>
       </h3>
 
+      <!-- Bannière de retour de paiement (affichée si une transaction est en attente) -->
+      <div id="paymentReturnBanner" class="payment-return-banner" style="display:none;">
+        <i class="fas fa-hand-holding-usd"></i>
+        <div class="content">
+          <strong>Vous venez d'effectuer un paiement ?</strong>
+          <div class="sub">Vérifiez le statut de votre transaction ci-dessous et cliquez sur « Vérifier » si elle est encore en attente.</div>
+        </div>
+        <button class="btn-scroll" onclick="document.getElementById('activityList').scrollIntoView({behavior:'smooth'})">
+          Voir les transactions
+        </button>
+      </div>
+
       <div class="balance-banner" id="balanceBanner" style="display:none;">
         <div>
           <div class="balance-label">Solde actuel</div>
@@ -480,7 +539,7 @@
     const auth = firebase.auth();
     const db   = firebase.firestore();
 
-    // ── CONFIGURATION DES DEVISES (exactement comme dans dashboard.html) ──
+    // ── CONFIGURATION DES DEVISES ──
     const CURRENCY_CONFIG = {
       'cm': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇨🇲' },
       'ga': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇬🇦' },
@@ -530,8 +589,8 @@
       'Zambie': { code:'ZMW', symbol:'ZK', rate:0.041, flag:'🇿🇲' }
     };
 
-    // ── Fonctions de conversion (exactement comme dans dashboard.html) ──
-    let userCurrency = CURRENCY_CONFIG['Cameroun']; // valeur par défaut
+    // ── Fonctions de conversion ──
+    let userCurrency = CURRENCY_CONFIG['Cameroun'];
 
     function convertFromXAF(xaf) {
       return Math.round(xaf * userCurrency.rate);
@@ -552,8 +611,8 @@
     function showMsg(text, type = 'error') {
       const el = document.getElementById('message');
       el.textContent  = text;
-      el.className    = type === 'error' ? 'error-message' : 'success-message';
-      if (type === 'info') el.className = 'error-message';
+      el.className    = type === 'error' ? 'error-message' :
+                        type === 'success' ? 'success-message' : 'info-message';
       el.style.display = 'block';
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
@@ -610,7 +669,7 @@
       }
     }
 
-    // ── Mise à jour de l'affichage du solde avec la devise ──
+    // ── Mise à jour de l'affichage du solde ──
     function updateBalanceDisplay(balanceXAF) {
       lastKnownBalance = balanceXAF;
       const banner = document.getElementById('balanceBanner');
@@ -663,7 +722,7 @@
       }
     };
 
-    // ── Rendu des transactions (avec conversion de devise) ──────
+    // ── Rendu des transactions ──────────────────────────────────
     function renderActivities(transactions) {
       const loadingEl    = document.getElementById('activitiesLoading');
       const listEl       = document.getElementById('activityList');
@@ -729,6 +788,9 @@
             const transactions = [];
             snapshot.forEach(doc => transactions.push({ id: doc.id, ...doc.data() }));
             renderActivities(transactions);
+            // Masquer la bannière de retour si aucune transaction en attente
+            const hasPending = transactions.some(tx => (tx.status || '').toUpperCase() === 'PENDING');
+            document.getElementById('paymentReturnBanner').style.display = hasPending ? 'flex' : 'none';
           },
           err => {
             console.error('Erreur listener activités:', err);
@@ -737,7 +799,7 @@
         );
     }
 
-    // ── Charger les données utilisateur et mettre à jour la devise ──
+    // ── Charger les données utilisateur ──────────────────────
     async function loadUserData(uid) {
       try {
         const userDoc = await db.collection('users').doc(uid).get();
@@ -745,7 +807,6 @@
         const data = userDoc.data();
         globalUserData = data;
 
-        // Mise à jour de la devise à partir du pays
         const country = data.country || 'Cameroun';
         if (CURRENCY_CONFIG[country]) {
           userCurrency = CURRENCY_CONFIG[country];
@@ -756,7 +817,6 @@
         if (data.paymentPhone) {
           document.getElementById('phone').value = data.paymentPhone;
         }
-        // Mettre à jour le solde avec la nouvelle devise
         if (data.balance !== undefined) {
           updateBalanceDisplay(data.balance);
         }
@@ -765,12 +825,11 @@
       }
     }
 
-    // ── Écoute en temps réel du solde (et mise à jour devise) ────
+    // ── Écoute en temps réel du solde ──────────────────────────
     function watchBalance(uid) {
       db.collection('users').doc(uid).onSnapshot(doc => {
         if (!doc.exists) return;
         const data = doc.data();
-        // Si le pays change, on met à jour la devise
         const country = data.country || 'Cameroun';
         if (CURRENCY_CONFIG[country]) {
           userCurrency = CURRENCY_CONFIG[country];
@@ -817,7 +876,8 @@
       const description = document.getElementById('description').value.trim();
       if (!description) { showMsg('Veuillez entrer une description.'); return; }
 
-      const redirectUrl = window.location.origin + '/payment-success.html';
+      const redirectUrl = window.location.origin + '/fonds.html'; // on reste sur la même page
+
       toggleLoader(true);
 
       try {
@@ -851,6 +911,9 @@
           throw new Error('URL de paiement non reçue. Veuillez réessayer.');
         }
 
+        // On stocke une indication que le paiement a été initié
+        localStorage.setItem('paymentInitiated', 'true');
+
         showMsg('✅ Redirection vers la page de paiement Fapshi…', 'success');
         setTimeout(() => { window.location.href = data.checkoutUrl; }, 800);
 
@@ -860,6 +923,25 @@
         toggleLoader(false);
       }
     });
+
+    // ── Gestion du retour de paiement ──────────────────────────
+    function handlePaymentReturn() {
+      const initFlag = localStorage.getItem('paymentInitiated');
+      if (initFlag === 'true') {
+        // On affiche la bannière pour encourager la vérification
+        document.getElementById('paymentReturnBanner').style.display = 'flex';
+        // On supprime le flag pour ne pas le réafficher à chaque chargement
+        localStorage.removeItem('paymentInitiated');
+        // On force un rafraîchissement des transactions pour voir l'état
+        if (currentUser) {
+          loadRecentActivities(currentUser.uid);
+        }
+        // Scroll vers la section des transactions
+        setTimeout(() => {
+          document.getElementById('activityList').scrollIntoView({ behavior: 'smooth' });
+        }, 500);
+      }
+    }
 
     // ── Authentification Firebase ──────────────────────────────
     auth.onAuthStateChanged(user => {
@@ -872,6 +954,9 @@
       loadUserData(user.uid);
       watchBalance(user.uid);
       loadRecentActivities(user.uid);
+
+      // Vérifier si l'utilisateur revient d'un paiement
+      handlePaymentReturn();
 
       // Menu hamburger
       const btn  = document.getElementById('hamburgerBtn');
