@@ -1,4 +1,4 @@
-<!-- fonds.html complet avec chat en direct et instruction de vérification avant le bouton -->
+<!-- fonds.html – version corrigée avec vérification manuelle via nouvelle route -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
-  <!-- HubSpot Live Chat (intégration depuis assistance.html) -->
+  <!-- HubSpot Live Chat -->
   <script type="text/javascript" id="hs-script-loader" async defer src="//js-eu1.hs-scripts.com/146169041.js"></script>
 
   <style>
@@ -72,7 +72,6 @@
       100% { transform: translate(40px, -30px) scale(1.1); }
     }
 
-    /* ── Header ── */
     header {
       position: sticky; top: 0; z-index: 100;
       background: rgba(8, 14, 26, 0.85);
@@ -125,7 +124,6 @@
     }
     .hamburger-menu a:hover { background: rgba(255,255,255,0.05); color: #fff; padding-left: 30px; }
 
-    /* ── Layout principal ── */
     main {
       flex: 1; max-width: 1100px; margin: 0 auto;
       padding: 30px 20px 40px; width: 100%;
@@ -133,7 +131,6 @@
     }
     @media (min-width: 992px) { main { grid-template-columns: 1fr 1fr; } }
 
-    /* ── Carte formulaire ── */
     .payment-card {
       background: var(--card-bg); backdrop-filter: blur(15px);
       border: 1px solid var(--border-light); border-radius: 28px;
@@ -171,7 +168,6 @@
     }
     .form-group input::placeholder { color: rgba(255,255,255,0.3); }
 
-    /* --- INSTRUCTION BLOC (déplacé avant le bouton) --- */
     .instruction-block {
       margin-top: 20px;
       margin-bottom: 20px;
@@ -263,7 +259,6 @@
     }
     .overlay-text { color: var(--accent-green); font-weight: 600; font-size: 1rem; }
 
-    /* ── Carte activités ── */
     .activities-card {
       background: var(--card-bg); backdrop-filter: blur(15px);
       border: 1px solid var(--border-light); border-radius: 28px;
@@ -445,7 +440,7 @@
                  value="Ajout de fonds pour SBH" required>
         </div>
 
-        <!-- ═══ BLOC D'INSTRUCTION DÉPLACÉ AVANT LE BOUTON ═══ -->
+        <!-- Bloc d'instruction avant le bouton -->
         <div class="instruction-block">
           <i class="fas fa-info-circle"></i>
           <div>
@@ -465,7 +460,6 @@
         <div id="message" style="display:none;"></div>
       </form>
 
-      <!-- Mention du chat en direct (dans le formulaire, après le bouton) -->
       <div style="margin-top: 20px; text-align: center; font-size: 0.85rem; color: var(--text-muted);">
         <i class="fas fa-comment-dots" style="color: var(--accent-gold);"></i>
         Vous préférez discuter en direct ? Utilisez notre
@@ -532,7 +526,7 @@
   <script>
     AOS.init({ duration: 600, once: true });
 
-    // ── Firebase ──────────────────────────────────────────────────
+    // Firebase
     const firebaseConfig = {
       apiKey:            "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain:        "social-boost-horizon.firebaseapp.com",
@@ -595,25 +589,23 @@
       'Zambie': { code:'ZMW', symbol:'ZK', rate:0.041, flag:'🇿🇲' }
     };
 
-    // ── Fonctions de conversion ──
     let userCurrency = CURRENCY_CONFIG['Cameroun'];
 
     function convertFromXAF(xaf) {
       return Math.round(xaf * userCurrency.rate);
     }
-
     function formatCurrency(xaf) {
       return `${convertFromXAF(xaf).toLocaleString('fr-FR')} ${userCurrency.symbol}`;
     }
 
-    // ── Variables globales ──────────────────────────────────────
+    // ── Variables globales ──
     const BACKEND_URL = '';
     let currentUser       = null;
     let unsubscribeActivities = null;
     let lastKnownBalance  = null;
     let globalUserData    = {};
 
-    // ── Helpers ───────────────────────────────────────────────────
+    // ── Helpers ──
     function showMsg(text, type = 'error') {
       const el = document.getElementById('message');
       el.textContent  = text;
@@ -675,7 +667,6 @@
       }
     }
 
-    // ── Mise à jour de l'affichage du solde ──
     function updateBalanceDisplay(balanceXAF) {
       lastKnownBalance = balanceXAF;
       const banner = document.getElementById('balanceBanner');
@@ -688,7 +679,7 @@
       }
     }
 
-    // ── Vérification Manuelle ──────────────────────────────────
+    // ── Vérification Manuelle (nouvelle route) ──
     window.verifySinglePayment = async function(transId, btnElement) {
       const originalHtml = btnElement.innerHTML;
       btnElement.disabled = true;
@@ -697,7 +688,7 @@
 
       try {
         const idToken = await currentUser.getIdToken();
-        const res = await fetch(BACKEND_URL + '/api/fapshi-webhook', {
+        const res = await fetch(BACKEND_URL + '/api/fapshi-check-status', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -711,10 +702,16 @@
         if (data.success) {
           if (data.status === 'CONFIRMED') {
             showMsg('✅ Paiement confirmé ! Votre solde a été mis à jour.', 'success');
+            // Rafraîchir les transactions et le solde
+            if (currentUser) {
+              loadRecentActivities(currentUser.uid);
+            }
           } else if (data.status === 'FAILED') {
             showMsg('❌ Ce paiement a échoué ou a expiré chez Fapshi.', 'error');
-          } else {
+          } else if (data.status === 'PENDING') {
             showMsg('ℹ️ Le paiement est toujours en attente chez Fapshi. Patientez encore un peu.', 'info');
+          } else {
+            showMsg('Statut inconnu: ' + data.status, 'error');
           }
         } else {
           showMsg('Erreur: ' + (data.error || 'Impossible de vérifier la transaction.'), 'error');
@@ -728,7 +725,7 @@
       }
     };
 
-    // ── Rendu des transactions ──────────────────────────────────
+    // ── Rendu des transactions ──
     function renderActivities(transactions) {
       const loadingEl    = document.getElementById('activitiesLoading');
       const listEl       = document.getElementById('activityList');
@@ -754,6 +751,7 @@
         const transId = tx.id;
 
         let verifyBtnHtml = '';
+        // Afficher le bouton uniquement si le statut est PENDING
         if ((tx.status || '').toUpperCase() === 'PENDING') {
           verifyBtnHtml = `
             <button class="verify-inline-btn" onclick="verifySinglePayment('${transId}', this)">
@@ -777,7 +775,7 @@
       }).join('');
     }
 
-    // ── Écoute temps réel des transactions ──────────────────────
+    // ── Écoute temps réel des transactions ──
     function loadRecentActivities(userId) {
       document.getElementById('activitiesLoading').style.display = 'block';
       document.getElementById('activityList').style.display      = 'none';
@@ -804,7 +802,7 @@
         );
     }
 
-    // ── Charger les données utilisateur ──────────────────────
+    // ── Charger les données utilisateur ──
     async function loadUserData(uid) {
       try {
         const userDoc = await db.collection('users').doc(uid).get();
@@ -830,7 +828,7 @@
       }
     }
 
-    // ── Écoute en temps réel du solde ──────────────────────────
+    // ── Écoute en temps réel du solde ──
     function watchBalance(uid) {
       db.collection('users').doc(uid).onSnapshot(doc => {
         if (!doc.exists) return;
@@ -847,7 +845,7 @@
       });
     }
 
-    // ── Bouton rafraîchir ──────────────────────────────────────
+    // ── Bouton rafraîchir ──
     document.getElementById('refreshActivities').addEventListener('click', () => {
       if (!currentUser) return;
       const icon = document.getElementById('refreshIcon');
@@ -856,7 +854,7 @@
       setTimeout(() => icon.classList.remove('fa-spin'), 1500);
     });
 
-    // ── Soumission du formulaire ────────────────────────────────
+    // ── Soumission du formulaire ──
     document.getElementById('payment-form').addEventListener('submit', async e => {
       e.preventDefault();
       hideMsg();
@@ -928,7 +926,7 @@
       }
     });
 
-    // ── Gestion du retour de paiement ──────────────────────────
+    // ── Gestion du retour de paiement ──
     function handlePaymentReturn() {
       const initFlag = localStorage.getItem('paymentInitiated');
       if (initFlag === 'true') {
@@ -943,7 +941,7 @@
       }
     }
 
-    // ── Authentification Firebase ──────────────────────────────
+    // ── Authentification ──
     auth.onAuthStateChanged(user => {
       if (!user) {
         window.location.href = 'login.html';
