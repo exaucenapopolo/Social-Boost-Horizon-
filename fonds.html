@@ -1,4 +1,4 @@
-<!-- fonds.html – version corrigée avec vérification manuelle via nouvelle route -->
+<!-- fonds.html – version corrigée avec gestion des statuts étendue -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -679,7 +679,7 @@
       }
     }
 
-    // ── Vérification Manuelle (nouvelle route) ──
+    // ── Vérification Manuelle ──
     window.verifySinglePayment = async function(transId, btnElement) {
       const originalHtml = btnElement.innerHTML;
       btnElement.disabled = true;
@@ -702,7 +702,6 @@
         if (data.success) {
           if (data.status === 'CONFIRMED') {
             showMsg('✅ Paiement confirmé ! Votre solde a été mis à jour.', 'success');
-            // Rafraîchir les transactions et le solde
             if (currentUser) {
               loadRecentActivities(currentUser.uid);
             }
@@ -711,7 +710,8 @@
           } else if (data.status === 'PENDING') {
             showMsg('ℹ️ Le paiement est toujours en attente chez Fapshi. Patientez encore un peu.', 'info');
           } else {
-            showMsg('Statut inconnu: ' + data.status, 'error');
+            // Pour tout autre statut, on le considère comme en attente
+            showMsg('ℹ️ Statut actuel : ' + data.status + '. En attente de confirmation.', 'info');
           }
         } else {
           showMsg('Erreur: ' + (data.error || 'Impossible de vérifier la transaction.'), 'error');
@@ -750,9 +750,10 @@
         const desc   = tx.description || '';
         const transId = tx.id;
 
+        // Afficher le bouton si le statut n'est ni CONFIRMED ni FAILED
+        const statusUpper = (tx.status || '').toUpperCase();
         let verifyBtnHtml = '';
-        // Afficher le bouton uniquement si le statut est PENDING
-        if ((tx.status || '').toUpperCase() === 'PENDING') {
+        if (statusUpper !== 'CONFIRMED' && statusUpper !== 'FAILED') {
           verifyBtnHtml = `
             <button class="verify-inline-btn" onclick="verifySinglePayment('${transId}', this)">
               <i class="fas fa-sync-alt"></i> Vérifier
@@ -792,7 +793,10 @@
             const transactions = [];
             snapshot.forEach(doc => transactions.push({ id: doc.id, ...doc.data() }));
             renderActivities(transactions);
-            const hasPending = transactions.some(tx => (tx.status || '').toUpperCase() === 'PENDING');
+            const hasPending = transactions.some(tx => {
+              const s = (tx.status || '').toUpperCase();
+              return s !== 'CONFIRMED' && s !== 'FAILED';
+            });
             document.getElementById('paymentReturnBanner').style.display = hasPending ? 'flex' : 'none';
           },
           err => {
