@@ -62,7 +62,6 @@ module.exports = async function handler(req, res) {
     const rawStatus = String(realPartnerStatus).toLowerCase().trim();
     console.log(`📊 VRAI statut extrait du paiement : "${rawStatus}"`);
 
-    // Listes de correspondances de statuts
     const statusSucces = ["1", "success", "completed", "terminé", "succès", "reussi", "successful", "paid"];
     const statusEchec = ["-1", "2", "failed", "echec", "annulé", "cancelled", "rejected", "error"];
     
@@ -87,7 +86,6 @@ module.exports = async function handler(req, res) {
 
       const txData = txDoc.get ? txDoc.data() : txDoc;
 
-      // Sécurité anti-double rechargement
       if (txData.status === 'completed') {
         console.log("✅ Déjà crédité précédemment.");
         return { finalStatus: 'success', message: 'Déjà crédité' };
@@ -103,14 +101,24 @@ module.exports = async function handler(req, res) {
           currentBalance = userDoc.data().balance || 0;
         }
 
-        // CORRECTION SÉCURISÉE : Calcul manuel direct dans la transaction pour éviter le bug d'import 'admin'
         const newBalance = currentBalance + Number(txData.amountXAF);
+        transaction.update(userRef, { balance: newBalance });
+
+        // --- DEBUT MODIFICATION : MISE À JOUR DU SOLDE BOUTIQUE ---
+        if (txData.storeId && txData.email) {
+          const storeCustomerRef = db.collection('stores').doc(txData.storeId).collection('customers').doc(txData.email);
+          const storeCustomerDoc = await transaction.get(storeCustomerRef);
+          
+          let currentStoreBalance = 0;
+          if (storeCustomerDoc.exists) {
+            currentStoreBalance = storeCustomerDoc.data().balance || 0;
+          }
+          
+          const newStoreBalance = currentStoreBalance + Number(txData.amountXAF);
+          transaction.set(storeCustomerRef, { balance: newStoreBalance }, { merge: true });
+        }
+        // --- FIN MODIFICATION ---
         
-        transaction.update(userRef, {
-          balance: newBalance
-        });
-        
-        // Clôture la transaction
         transaction.update(txRef, {
           status: 'completed',
           verifiedBy: 'api_direct_check_success',
@@ -140,4 +148,3 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: error.message, finalStatus: 'pending' });
   }
 };
-        

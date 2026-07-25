@@ -2,24 +2,22 @@ const { db } = require('./_firebase');
 
 module.exports = async function handler(req, res) {
   // 1. === DÉBUT DES RÈGLES DE SÉCURITÉ CORS ===
-  // On autorise n'importe quel site (dont ton GitHub Pages) à discuter avec ce serveur Vercel
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  // Si le navigateur fait sa requête de pré-vérification (OPTIONS), on lui dit "OK, tu peux passer"
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
   // === FIN DES RÈGLES DE SÉCURITÉ ===
 
-  // 2. On vérifie que la vraie requête est bien un POST pour envoyer les données
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Méthode non autorisée' });
   }
 
   try {
-    const { email, userId, username, country, phone, amount, amountXAF, currency } = req.body;
+    // MODIFICATION ICI : Ajout de storeId pour l'extraction des données
+    const { email, userId, username, country, phone, amount, amountXAF, currency, storeId } = req.body;
 
     // 3. Authentification auprès de Swychr
     const authRes = await fetch('https://api.accountpe.com/api/payin/admin/auth', {
@@ -36,36 +34,27 @@ module.exports = async function handler(req, res) {
       throw new Error('Échec de l\'authentification Swychr');
     }
 
-    // 4. NOUVEAU SYSTÈME : Génération d'un ID de transaction unique et incrémenté
-    // Nous ciblons le document 'transactions' dans la collection 'counters'
+    // 4. Génération d'un ID de transaction unique et incrémenté
     const counterRef = db.collection('counters').doc('transactions');
     
     const transactionId = await db.runTransaction(async (transaction) => {
-      // On récupère l'état actuel du compteur
       const counterDoc = await transaction.get(counterRef);
       let currentCount = 0;
       
-      // Si le compteur existe déjà, on prend sa valeur
       if (counterDoc.exists) {
         currentCount = counterDoc.data().count || 0;
       }
       
-      // On incrémente de +1
       const nextCount = currentCount + 1;
-      
-      // On sauvegarde la nouvelle valeur dans la base de données
       transaction.set(counterRef, { count: nextCount }, { merge: true });
       
-      // On retourne le format désiré, par exemple : SBH-PAY-3988
       return `SBH-PAY-${nextCount}`;
     });
 
-    // Utilisation de l'hôte pour le callback
     const host = req.headers.host || 'socialboosthorizon.com';
     const baseUrl = `https://${host}`;
 
-    // 5. Création enrichie de la transaction dans ta base de données avec le nouvel ID
-    // Utilisation d'un objet Date() JavaScript natif pour que Firestore crée un vrai Timestamp
+    // 5. Création de la transaction dans la base de données avec le storeId
     await db.collection('transactions').doc(transactionId).set({
       userId: userId,
       username: username || 'Client',
@@ -75,6 +64,7 @@ module.exports = async function handler(req, res) {
       amount: amount,
       amountXAF: amountXAF,
       currency: currency,
+      storeId: storeId || null, // MODIFICATION ICI : On enregistre la boutique
       status: 'pending',
       type: 'Recharge',
       label: `Recharge Swychr (${currency})`,
@@ -120,4 +110,3 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ success: false, error: error.message });
   }
 };
-      
