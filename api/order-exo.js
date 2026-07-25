@@ -37,15 +37,47 @@ export default async function handler(req, res) {
     }
 
     try {
+        const { exoServiceId, link, quantity, comments, contactType, contact, isGuest, storeId } = req.body;
+        let uid;
+        let orderedFromStore = null;
+
         const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+
+        // ==========================================
+        // 1. LOGIQUE PRINCIPALE : Utilisateur Plateforme
+        // ==========================================
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.split('Bearer ')[1];
+            try {
+                const decodedToken = await admin.auth().verifyIdToken(token);
+                uid = decodedToken.uid;
+            } catch (authError) {
+                return res.status(401).json({ success: false, error: 'Token invalide ou expiré.' });
+            }
+        } 
+        // ==========================================
+        // 2. LOGIQUE SECONDAIRE : Invité Boutique
+        // ==========================================
+        else if (isGuest && storeId) {
+            const storeDoc = await db.collection('stores').doc(storeId).get();
+            if (!storeDoc.exists) {
+                return res.status(404).json({ success: false, error: 'Boutique introuvable.' });
+            }
+            uid = storeDoc.data().ownerId; // Compte du revendeur
+            orderedFromStore = storeId;    // Traçabilité de la commande
+            
+            if (!uid) {
+                return res.status(400).json({ success: false, error: 'Propriétaire de boutique introuvable.' });
+            }
+        } 
+        // ==========================================
+        // 3. REJET : Requête non autorisée
+        // ==========================================
+        else {
             return res.status(401).json({ success: false, error: 'Vous devez être connecté.' });
         }
-        const token = authHeader.split('Bearer ')[1];
-        const decodedToken = await admin.auth().verifyIdToken(token);
-        const uid = decodedToken.uid;
 
-        const { exoServiceId, link, quantity, comments, contactType, contact } = req.body;
+        // --- La suite du traitement reste commune et intacte ---
 
         const userRef = db.collection('users').doc(uid);
         const userDoc = await userRef.get();
@@ -74,9 +106,9 @@ export default async function handler(req, res) {
         const PROFIT_MULTIPLIER = 1.5;
         const priceXAFPer1000 = parseFloat(service.rate) * EXCHANGE_RATE_USD_TO_XAF * PROFIT_MULTIPLIER;
         
-        let finalQuantity = service.type === 'Custom Comments' ? comments.length : quantity;
+        let finalQuantity = service.type === 'Custom Comments' ? (comments ? comments.length : 0) : quantity;
         let cost = (priceXAFPer1000 / 1000) * finalQuantity;
-        let unitPrice = cost / finalQuantity; // NOUVEAU : Sauvegarde du prix unitaire
+        let unitPrice = cost / finalQuantity; 
 
         if (currentBalance < cost) {
             return res.status(400).json({ success: false, error: 'Solde insuffisant pour cette commande.' });
@@ -89,7 +121,7 @@ export default async function handler(req, res) {
         orderData.append('link', link);
         
         if (service.type === 'Custom Comments') {
-            orderData.append('comments', comments.join('\n'));
+            orderData.append('comments', comments ? comments.join('\n') : '');
         } else {
             orderData.append('quantity', quantity);
         }
@@ -144,11 +176,12 @@ export default async function handler(req, res) {
                 link: link,
                 quantity: finalQuantity,
                 cost: cost,
-                unitPrice: unitPrice, // NOUVEAU : Très important pour les remboursements partiels
+                unitPrice: unitPrice, 
                 status: 'En attente',
-                isRefunded: false, // NOUVEAU : Sécurité anti-double remboursement
+                isRefunded: false, 
                 date: admin.firestore.FieldValue.serverTimestamp(),
-                contactInfo: contact || 'Aucun contact'
+                contactInfo: contact || 'Aucun contact',
+                orderedFromStore: orderedFromStore
             });
         });
 
@@ -165,4 +198,5 @@ export default async function handler(req, res) {
         }
         return res.status(500).json({ success: false, error: 'Une erreur technique est survenue. Réessayez plus tard.' });
     }
-}
+                           }
+                                             
