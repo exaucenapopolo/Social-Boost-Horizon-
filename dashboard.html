@@ -206,6 +206,34 @@
       transform: translateY(-2px);
     }
     @media (max-width: 480px) { .app-promo-banner { flex-direction: column; text-align: center; } }
+    
+    /* PWA Install Button Styles */
+    #pwaInstallContainer {
+      display: none; /* Hidden by default, shown by JS if PWA is installable */
+      margin: 15px 20px;
+      text-align: center;
+    }
+    #pwaInstallContainer .btn-pwa {
+      width: 100%;
+      padding: 14px 20px;
+      font-size: 0.95rem;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #D4AF37, #B8860B);
+      color: #080e1a;
+      box-shadow: 0 4px 15px rgba(212,175,55,0.35);
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.3s ease;
+    }
+    #pwaInstallContainer .btn-pwa:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(212,175,55,0.55);
+    }
 
     /* ══════════════ GRILLE PRINCIPALE ══════════════ */
     .dashboard-main {
@@ -794,6 +822,13 @@
     <i class="fas fa-download" style="font-size:1.2rem;"></i>
   </a>
 
+  <!-- SECTION D'INSTALLATION PWA AJOUTÉE ICI -->
+  <div id="pwaInstallContainer" data-aos="fade-up" data-aos-delay="50">
+    <button id="pwaInstallBtn" class="btn-pwa">
+      <i class="fas fa-download"></i> Installer l'application Web
+    </button>
+  </div>
+
   <div class="dashboard-main">
 
     <div class="dash-card accent-gold" data-aos="fade-up" data-aos-delay="0">
@@ -911,8 +946,6 @@
   </div>
 
   <div class="actions-row" data-aos="fade-up">
-    <!-- Nouveau bouton d'installation PWA -->
-    <button class="action-pill" id="installAppBtn"><i class="fas fa-download"></i> Installer l'application</button>
     <button class="action-pill" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Déconnexion</button>
   </div>
 
@@ -1367,6 +1400,45 @@
     });
 
     AOS.init({ duration: 800, once: true, offset: 50 });
+    
+    // ══════════════ LOGIQUE D'INSTALLATION PWA ══════════════
+    let deferredPrompt;
+    const pwaInstallContainer = document.getElementById('pwaInstallContainer');
+    const pwaInstallBtn = document.getElementById('pwaInstallBtn');
+
+    // Écoute de l'événement natif d'installation
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Empêche la barre d'installation native automatique sur mobile
+      e.preventDefault();
+      // On sauvegarde l'événement pour l'utiliser lors du clic
+      deferredPrompt = e;
+      // On affiche notre bouton personnalisé
+      pwaInstallContainer.style.display = 'block';
+    });
+
+    // Action au clic sur notre bouton
+    pwaInstallBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        // Affiche la boîte de dialogue native du navigateur
+        deferredPrompt.prompt();
+        // Attendre que l'utilisateur réponde à l'invite
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`Résultat de l'invite d'installation : ${outcome}`);
+        // Une fois utilisé, l'événement ne peut plus être relancé
+        deferredPrompt = null;
+        // On cache le bouton
+        pwaInstallContainer.style.display = 'none';
+      }
+    });
+
+    // Si l'application a bien été installée, on s'assure de cacher l'UI
+    window.addEventListener('appinstalled', () => {
+      pwaInstallContainer.style.display = 'none';
+      deferredPrompt = null;
+      console.log('L\'application PWA a été installée avec succès !');
+    });
+    // ════════════════════════════════════════════════════════
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
     }
@@ -1379,40 +1451,6 @@
         s0.parentNode.insertBefore(s1, s0);
       })();
     });
-
-    // ══════════════ BOUTON D'INSTALLATION PWA ══════════════
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      // Le bouton est déjà visible, on peut éventuellement ajouter un indicateur
-      const installBtn = document.getElementById('installAppBtn');
-      if (installBtn) {
-        installBtn.innerHTML = '<i class="fas fa-download"></i> Installer l\'application';
-        installBtn.style.display = 'inline-flex';
-      }
-    });
-
-    document.getElementById('installAppBtn').addEventListener('click', async () => {
-      if (deferredPrompt) {
-        // Afficher la bannière d'installation native
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        deferredPrompt = null;
-        if (outcome === 'accepted') {
-          console.log('Installation acceptée');
-          // Optionnel : afficher un message de remerciement
-        } else {
-          console.log('Installation refusée');
-        }
-      } else {
-        // Si l'installation n'est pas disponible, rediriger vers la page de téléchargement
-        window.location.href = 'telecharger.html';
-      }
-    });
-
-    // Optionnel : cacher le bouton si l'événement n'est pas déclenché au bout de quelques secondes
-    // (mais on le laisse visible car il redirige vers telecharger.html)
   </script>
 </body>
 </html>
