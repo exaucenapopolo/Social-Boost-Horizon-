@@ -79,7 +79,7 @@
 
     /* ===== BARRE CLIENT (SOLDE) ===== */
     .customer-bar {
-      display: none; /* Affiché uniquement si connecté */
+      display: none;
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 50px;
@@ -524,6 +524,11 @@
           <div>Solde : <span id="customerBalanceDisplay">0</span></div>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
+          <!-- MODIFICATION ICI : Ajout du bouton de vérification -->
+          <button id="btnVerifyPayment" class="btn-recharge" style="display:none; background:#28a745;" onclick="manualVerifyPayment()">
+            <i class="fas fa-sync-alt"></i> Vérifier
+          </button>
+          
           <button class="btn-recharge" onclick="openDepositModal()"><i class="fas fa-plus"></i> Recharger</button>
           <button class="btn-logout" onclick="logoutCustomer()" title="Se déconnecter"><i class="fas fa-sign-out-alt"></i></button>
         </div>
@@ -586,7 +591,7 @@
     </div>
   </div>
 
-  <!-- Modale d'Identité (Création/Connexion de l'espace client) -->
+  <!-- Modale d'Identité -->
   <div id="identityModalOverlay" class="modal-overlay">
     <div class="modal-box">
       <h3><i class="fas fa-user-circle" style="color:var(--accent); margin-right:8px;"></i>Espace Client</h3>
@@ -647,7 +652,6 @@
     let searchTerm = '';
     let resellerMargin = 0;
 
-    // Gestion Client Boutique
     let customerEmail = localStorage.getItem('storeCustomerEmail_' + storeId) || null;
     let customerBalanceXAF = 0;
     let customerUnsubscribe = null;
@@ -709,7 +713,6 @@
         if (doc.exists) {
           customerBalanceXAF = doc.data().balance || 0;
         } else {
-          // Création du compte client s'il n'existe pas
           docRef.set({ 
             email: customerEmail, 
             balance: 0, 
@@ -724,10 +727,18 @@
     function updateCustomerUI() {
       const bar = document.getElementById('customerAccountBar');
       const balDisplay = document.getElementById('customerBalanceDisplay');
+      const btnVerify = document.getElementById('btnVerifyPayment');
+      
       if (customerEmail) {
         bar.style.display = 'flex';
-        // On affiche le solde tel quel (sans lui appliquer la marge boutique)
         balDisplay.textContent = formatPrice(customerBalanceXAF, false); 
+        
+        // MODIFICATION ICI : Logique pour afficher le bouton Vérifier
+        if (localStorage.getItem('pendingStorePayment_' + storeId)) {
+          if(btnVerify) btnVerify.style.display = 'flex';
+        } else {
+          if(btnVerify) btnVerify.style.display = 'none';
+        }
       } else {
         bar.style.display = 'none';
       }
@@ -820,7 +831,8 @@
         phone: phone,
         amount: amountLocal,
         amountXAF: amountXAF,
-        currency: config.code
+        currency: config.code,
+        storeId: storeId // MODIFICATION ICI : On ajoute le storeId
       };
 
       try {
@@ -833,7 +845,6 @@
         const data = await response.json();
         
         if (data.success && data.checkoutUrl) {
-          // Sauvegarder la transaction en attente pour cette boutique
           localStorage.setItem('pendingStorePayment_' + storeId, JSON.stringify({
             transactionId: data.transactionId,
             amountXAF: amountXAF,
@@ -856,37 +867,36 @@
       }
     });
 
-    async function checkPendingPayment() {
+    // MODIFICATION ICI : Remplacement par la fonction manuelle
+    async function manualVerifyPayment() {
       const pending = localStorage.getItem('pendingStorePayment_' + storeId);
-      if (pending) {
-        try {
-          const paymentData = JSON.parse(pending);
-          const age = Date.now() - paymentData.timestamp;
-          if (age < 30 * 60 * 1000) {
-            document.getElementById('loader').style.display = 'block';
-            document.getElementById('storeContent').style.display = 'none';
-            document.getElementById('loaderText').textContent = "Vérification de votre paiement...";
-            
-            const res = await fetch(`${BACKEND_URL}/api/confirm-swychr?transactionId=${paymentData.transactionId}`);
-            const data = await res.json();
+      if (!pending) return;
 
-            if (data.finalStatus === 'success') {
-              if (customerEmail) {
-                const docRef = db.collection('stores').doc(storeId).collection('customers').doc(customerEmail);
-                await docRef.update({ balance: firebase.firestore.FieldValue.increment(paymentData.amountXAF) });
-                alert("Paiement réussi ! Votre solde a été mis à jour.");
-              }
-              localStorage.removeItem('pendingStorePayment_' + storeId);
-            } else if (data.finalStatus === 'failed') {
-              alert("Le paiement a échoué ou a été annulé.");
-              localStorage.removeItem('pendingStorePayment_' + storeId);
-            }
-          } else {
-            localStorage.removeItem('pendingStorePayment_' + storeId);
-          }
-        } catch (e) {
+      const btn = document.getElementById('btnVerifyPayment');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Patientez...';
+      btn.disabled = true;
+
+      try {
+        const paymentData = JSON.parse(pending);
+        const res = await fetch(`${BACKEND_URL}/api/confirm-swychr?transactionId=${paymentData.transactionId}`);
+        const data = await res.json();
+
+        if (data.finalStatus === 'success') {
+          alert("✅ Paiement validé avec succès ! Ton solde est à jour.");
           localStorage.removeItem('pendingStorePayment_' + storeId);
+        } else if (data.finalStatus === 'failed') {
+          alert("❌ Le paiement a échoué ou a été annulé.");
+          localStorage.removeItem('pendingStorePayment_' + storeId);
+        } else {
+          alert("⏳ Ton paiement est toujours en cours de traitement chez l'opérateur. Réessaie dans une minute !");
         }
+      } catch (e) {
+        alert("⚠️ Erreur de connexion lors de la vérification.");
+      } finally {
+        updateCustomerUI(); 
+        btn.innerHTML = originalText;
+        btn.disabled = false;
       }
     }
 
@@ -911,7 +921,7 @@
         return;
       }
       
-      await checkPendingPayment();
+      // Ligne de vérification automatique retirée ici pour privilégier la vérification manuelle
       
       try {
         const storeDoc = await db.collection('stores').doc(storeId).get();
@@ -1068,7 +1078,7 @@
       
       servicesToShow.forEach(service => {
         const isPerUnit = service.isPerOne || service.isPackage;
-        const priceDisplay = formatPrice(service.priceXAF); // avec marge par defaut
+        const priceDisplay = formatPrice(service.priceXAF);
         const unitDisplay = isPerUnit ? "/ unité" : "/ 1000";
 
         html += `
@@ -1118,7 +1128,7 @@
 
     // ==================== 7. LOGIQUE DE COMMANDE ET SOLDE ====================
     let currentSelectedService = null;
-    let computedTotalXAF = 0; // Total avec marge
+    let computedTotalXAF = 0; 
 
     function openOrderModal(service) {
       currentSelectedService = service;
@@ -1146,10 +1156,7 @@
       
       let totalBase = isPerUnit ? (currentSelectedService.priceXAF * qty) : ((currentSelectedService.priceXAF / 1000) * qty);
       
-      // On calcule le total exact en XAF avec la marge appliquée pour le client
       computedTotalXAF = Math.round(totalBase * (1 + resellerMargin / 100));
-      
-      // On l'affiche converti dans la devise locale choisie
       document.getElementById('modalPrice').textContent = formatPrice(totalBase); 
     }
 
@@ -1157,7 +1164,6 @@
       e.preventDefault();
       if (!currentSelectedService) return;
 
-      // 1. Demander l'identification si non connecté
       if (!customerEmail) {
         closeOrderModal();
         openIdentityModal(true);
@@ -1172,15 +1178,13 @@
         return;
       }
 
-      // 2. Vérification du solde du client (en XAF)
       if (customerBalanceXAF < computedTotalXAF) {
         const manqueXAF = computedTotalXAF - customerBalanceXAF;
         closeOrderModal();
-        openDepositModal(manqueXAF); // Redirige vers le paiement du manque
+        openDepositModal(manqueXAF); 
         return;
       }
 
-      // 3. Procéder à la commande
       const btn = document.getElementById('btnConfirmOrder');
       btn.disabled = true;
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Traitement...';
@@ -1196,7 +1200,7 @@
           quantity: qty,
           contactType: contact.includes('@') ? 'email' : 'whatsapp',
           contact: contact || customerEmail,
-          isGuest: true // Gardé tel quel pour l'API
+          isGuest: true 
         };
 
         const res = await fetch(`${BACKEND_URL}/api/order-exo`, {
@@ -1208,7 +1212,6 @@
         const result = await res.json();
         
         if (result.success) {
-          // 4. Déduction du solde du client localement
           const docRef = db.collection('stores').doc(storeId).collection('customers').doc(customerEmail);
           await docRef.update({ balance: firebase.firestore.FieldValue.increment(-computedTotalXAF) });
 
