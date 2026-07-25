@@ -19,7 +19,6 @@ module.exports = async function handler(req, res) {
     console.log(`\n=== ÉTAPE 1 : DÉBUT DE LA VÉRIFICATION POUR ${transactionId} ===`);
 
     // 1. AUTHENTIFICATION CHEZ LE PARTENAIRE
-    console.log('=== ÉTAPE 2 : AUTHENTIFICATION API ===');
     const authRes = await fetch('https://api.accountpe.com/api/payin/admin/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -33,7 +32,6 @@ module.exports = async function handler(req, res) {
     if (!authData.token) {
       throw new Error("Échec authentification Swychr : Token introuvable");
     }
-    console.log('=== ÉTAPE 3 : TOKEN REÇU AVEC SUCCÈS ===');
 
     // 2. VÉRIFICATION DU STATUT DU PAIEMENT
     const statusRes = await fetch('https://api.accountpe.com/api/payin/payment_link_status', {
@@ -54,7 +52,6 @@ module.exports = async function handler(req, res) {
     } catch (e) {
       throw new Error("Réponse API Swychr invalide (non JSON)");
     }
-    console.log('=== ÉTAPE 4 : STATUT API SWYCHR RÉCUPÉRÉ ===');
 
     // 3. ANALYSE DU STATUT
     const attributes = statusData?.data?.data?.attributes || statusData?.data?.attributes || {};
@@ -74,10 +71,10 @@ module.exports = async function handler(req, res) {
     }
 
     // 4. TRANSACTION FIREBASE
-    console.log('=== ÉTAPE 5 : DÉBUT TRANSACTION FIREBASE ===');
     const txRef = db.collection('transactions').doc(transactionId);
     
     const result = await db.runTransaction(async (transaction) => {
+      // --- PHASE DE LECTURE (GET) ---
       const txDoc = await transaction.get(txRef);
       if (!txDoc.exists) {
         throw new Error(`Transaction ${transactionId} introuvable dans Firebase`);
@@ -95,12 +92,16 @@ module.exports = async function handler(req, res) {
       let currentStoreBalance = 0;
 
       if (interpretedStatus === 'success') {
-        userRef = db.collection('users').doc(txData.userId);
-        const userDoc = await transaction.get(userRef);
-        if (userDoc.exists) {
-          currentBalance = userDoc.data().balance || 0;
+        // Lecture de l'utilisateur global (s'il existe)
+        if (txData.userId) {
+          userRef = db.collection('users').doc(txData.userId);
+          const userDoc = await transaction.get(userRef);
+          if (userDoc.exists) {
+            currentBalance = userDoc.data().balance || 0;
+          }
         }
 
+        // Lecture du client de la boutique
         if (txData.storeId && txData.email) {
           storeCustomerRef = db.collection('stores').doc(txData.storeId).collection('customers').doc(txData.email);
           const storeCustomerDoc = await transaction.get(storeCustomerRef);
@@ -110,21 +111,30 @@ module.exports = async function handler(req, res) {
         }
       }
 
+      // --- PHASE D'ÉCRITURE (SET / UPDATE) ---
       if (interpretedStatus === 'success') {
-        const newBalance = currentBalance + Number(txData.amountXAF);
-        transaction.update(userRef, { balance: newBalance });
+        const amountToAdd = Number(txData.amountXAF) || 0;
 
+        // A. Mise à jour ou création de l'utilisateur global (UTILISATION DE SET AVEC MERGE)
+        if (userRef) {
+          const newBalance = currentBalance + amountToAdd;
+          transaction.set(userRef, { balance: newBalance }, { merge: true });
+        }
+
+        // B. Mise à jour ou création du client de la boutique (UTILISATION DE SET AVEC MERGE)
         if (storeCustomerRef) {
-          const newStoreBalance = currentStoreBalance + Number(txData.amountXAF);
+          const newStoreBalance = currentStoreBalance + amountToAdd;
           transaction.set(storeCustomerRef, { balance: newStoreBalance }, { merge: true });
         }
         
+        // C. Mise à jour du statut de la transaction
         transaction.update(txRef, {
           status: 'completed',
           verifiedBy: 'api_direct_check_success',
           paidAt: new Date().toISOString()
         });
         
+        console.log(`💰 SUCCÈS : Solde mis à jour avec succès !`);
         return { finalStatus: 'success', message: 'Solde mis à jour avec succès' };
       } 
       else if (interpretedStatus === 'failed') {
@@ -138,13 +148,11 @@ module.exports = async function handler(req, res) {
       return { finalStatus: 'pending', message: 'Toujours en attente chez l\'opérateur' };
     });
 
-    console.log('=== ÉTAPE 6 : FIN DE LA VÉRIFICATION AVEC SUCCÈS ===');
     return res.status(200).json(result);
 
   } catch (error) {
     console.error('💥 ERREUR INTERCEPTEUR 500 :', error.message);
-    console.error(error.stack);
     return res.status(500).json({ error: error.message, finalStatus: 'error' });
   }
 };
-          
+        
