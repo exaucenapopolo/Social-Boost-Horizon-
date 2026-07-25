@@ -911,6 +911,8 @@
   </div>
 
   <div class="actions-row" data-aos="fade-up">
+    <!-- Nouveau bouton d'installation PWA -->
+    <button class="action-pill" id="installAppBtn"><i class="fas fa-download"></i> Installer l'application</button>
     <button class="action-pill" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Déconnexion</button>
   </div>
 
@@ -1377,6 +1379,40 @@
         s0.parentNode.insertBefore(s1, s0);
       })();
     });
+
+    // ══════════════ BOUTON D'INSTALLATION PWA ══════════════
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      // Le bouton est déjà visible, on peut éventuellement ajouter un indicateur
+      const installBtn = document.getElementById('installAppBtn');
+      if (installBtn) {
+        installBtn.innerHTML = '<i class="fas fa-download"></i> Installer l\'application';
+        installBtn.style.display = 'inline-flex';
+      }
+    });
+
+    document.getElementById('installAppBtn').addEventListener('click', async () => {
+      if (deferredPrompt) {
+        // Afficher la bannière d'installation native
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        if (outcome === 'accepted') {
+          console.log('Installation acceptée');
+          // Optionnel : afficher un message de remerciement
+        } else {
+          console.log('Installation refusée');
+        }
+      } else {
+        // Si l'installation n'est pas disponible, rediriger vers la page de téléchargement
+        window.location.href = 'telecharger.html';
+      }
+    });
+
+    // Optionnel : cacher le bouton si l'événement n'est pas déclenché au bout de quelques secondes
+    // (mais on le laisse visible car il redirige vers telecharger.html)
   </script>
 </body>
 </html>
