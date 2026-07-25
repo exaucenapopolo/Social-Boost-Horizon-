@@ -856,7 +856,8 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
       throw new Error('Configuration Fapshi incomplète.');
     }
 
-    const fapshiRes = await fetch(`https://live.fapshi.com/transaction-status/${fapshiTransId}`, {
+    // ⭐ LA MODIFICATION EST ICI : on utilise "payment-status" 
+    const fapshiRes = await fetch(`https://live.fapshi.com/payment-status/${fapshiTransId}`, {
       headers: {
         'apiuser': API_USER,
         'apikey': SECRET_KEY,
