@@ -37,9 +37,11 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { exoServiceId, link, quantity, comments, contactType, contact, isGuest, storeId } = req.body;
+        // Ajout de customerEmail pour identifier le client de la boutique
+        const { exoServiceId, link, quantity, comments, contactType, contact, isGuest, storeId, customerEmail } = req.body;
         let uid;
         let orderedFromStore = null;
+        let storeMargin = 0; // Marge de la boutique
 
         const authHeader = req.headers.authorization;
 
@@ -63,8 +65,10 @@ export default async function handler(req, res) {
             if (!storeDoc.exists) {
                 return res.status(404).json({ success: false, error: 'Boutique introuvable.' });
             }
-            uid = storeDoc.data().ownerId; // Compte du revendeur
+            const storeData = storeDoc.data();
+            uid = storeData.ownerId; // Compte du revendeur
             orderedFromStore = storeId;    // Traçabilité de la commande
+            storeMargin = storeData.margin || 0; // Récupération de la marge
             
             if (!uid) {
                 return res.status(400).json({ success: false, error: 'Propriétaire de boutique introuvable.' });
@@ -77,8 +81,7 @@ export default async function handler(req, res) {
             return res.status(401).json({ success: false, error: 'Vous devez être connecté.' });
         }
 
-        // --- La suite du traitement reste commune et intacte ---
-
+        // --- Vérification de l'utilisateur (revendeur ou direct) ---
         const userRef = db.collection('users').doc(uid);
         const userDoc = await userRef.get();
 
@@ -89,6 +92,7 @@ export default async function handler(req, res) {
         const userData = userDoc.data();
         let currentBalance = userData.balance || 0;
 
+        // --- Récupération du service chez le fournisseur ---
         const url = 'https://exosupplier.com/api/v2';
         const fetchServicesData = new URLSearchParams();
         fetchServicesData.append('key', process.env.EXO_API_KEY);
@@ -102,18 +106,42 @@ export default async function handler(req, res) {
             return res.status(400).json({ success: false, error: 'Service invalide ou expiré.' });
         }
 
+        // --- Calculs des prix ---
         const EXCHANGE_RATE_USD_TO_XAF = 620;
         const PROFIT_MULTIPLIER = 1.5;
         const priceXAFPer1000 = parseFloat(service.rate) * EXCHANGE_RATE_USD_TO_XAF * PROFIT_MULTIPLIER;
         
         let finalQuantity = service.type === 'Custom Comments' ? (comments ? comments.length : 0) : quantity;
+        
+        // Coût de gros (que le revendeur paie à la plateforme)
         let cost = (priceXAFPer1000 / 1000) * finalQuantity;
         let unitPrice = cost / finalQuantity; 
+        
+        // Calculs spécifiques si c'est une commande depuis une boutique
+        let exactCustomerPrice = cost;
+        let profitForReseller = 0;
 
-        if (currentBalance < cost) {
-            return res.status(400).json({ success: false, error: 'Solde insuffisant pour cette commande.' });
+        if (isGuest && storeId && customerEmail) {
+            // Le prix exact payé par le client final
+            exactCustomerPrice = Math.round(cost * (1 + storeMargin / 100));
+            // Le bénéfice qui ira dans "soldeBoutique" du revendeur
+            profitForReseller = exactCustomerPrice - Math.round(cost);
+            
+            // On vérifie le solde du client AVANT d'envoyer la commande au fournisseur
+            const customerRef = db.collection('stores').doc(storeId).collection('customers').doc(customerEmail);
+            const customerDoc = await customerRef.get();
+            const customerBal = customerDoc.exists ? (customerDoc.data().balance || 0) : 0;
+            
+            if (customerBal < exactCustomerPrice) {
+                 return res.status(400).json({ success: false, error: 'Solde client insuffisant sur la boutique.' });
+            }
         }
 
+        if (currentBalance < cost) {
+            return res.status(400).json({ success: false, error: 'Solde revendeur insuffisant pour traiter cette commande.' });
+        }
+
+        // --- Envoi de la commande au fournisseur ---
         const orderData = new URLSearchParams();
         orderData.append('key', process.env.EXO_API_KEY);
         orderData.append('action', 'add');
@@ -140,6 +168,7 @@ export default async function handler(req, res) {
         let finalFormattedOrderId; 
         let newBalance;
 
+        // --- MISE À JOUR SÉCURISÉE DE LA BASE DE DONNÉES ---
         await db.runTransaction(async (transaction) => {
             const counterRef = db.collection('counters').doc('commandes');
             const currentUserRef = db.collection('users').doc(uid);
@@ -147,9 +176,41 @@ export default async function handler(req, res) {
             const counterDoc = await transaction.get(counterRef);
             const currentUserDoc = await transaction.get(currentUserRef);
 
+            // Vérification de sécurité du revendeur
             const balanceInTransaction = currentUserDoc.data().balance || 0;
             if (balanceInTransaction < cost) {
-                throw new Error("Solde devenu insuffisant pendant le traitement.");
+                throw new Error("Solde revendeur devenu insuffisant pendant le traitement.");
+            }
+
+            // GESTION BOUTIQUE DANS LA TRANSACTION
+            let customerRef = null;
+            if (isGuest && storeId && customerEmail) {
+                customerRef = db.collection('stores').doc(storeId).collection('customers').doc(customerEmail);
+                const customerDocSnapshot = await transaction.get(customerRef);
+                const custBalTrans = customerDocSnapshot.exists ? (customerDocSnapshot.data().balance || 0) : 0;
+                
+                // Vérification de sécurité du client
+                if (custBalTrans < exactCustomerPrice) {
+                    throw new Error("Solde client devenu insuffisant pendant le traitement.");
+                }
+
+                // 1. Débiter le client de la boutique
+                transaction.set(customerRef, { balance: custBalTrans - exactCustomerPrice }, { merge: true });
+                
+                // 2. Créditer le bénéfice au revendeur
+                const currentSoldeBoutique = currentUserDoc.data().soldeBoutique || 0;
+                transaction.update(currentUserRef, { soldeBoutique: currentSoldeBoutique + profitForReseller });
+                
+                // 3. Enregistrer la transaction dans l'historique de la boutique
+                const storeTransactionRef = db.collection('stores').doc(storeId).collection('transactions').doc();
+                transaction.set(storeTransactionRef, {
+                    serviceName: service.name,
+                    quantity: finalQuantity,
+                    totalPaid: exactCustomerPrice,
+                    profit: profitForReseller,
+                    customerEmail: customerEmail,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp()
+                });
             }
 
             let nextOrderId = 1; 
@@ -162,9 +223,11 @@ export default async function handler(req, res) {
 
             const detectedPlatform = detectPlatform(service.name, link);
 
+            // Mise à jour de l'ID global et du solde principal du revendeur
             transaction.set(counterRef, { lastId: nextOrderId }, { merge: true });
             transaction.update(currentUserRef, { balance: newBalance });
 
+            // Enregistrement de la commande principale
             const newOrderRef = db.collection('commandes').doc(); 
             transaction.set(newOrderRef, {
                 orderId: finalFormattedOrderId, 
@@ -181,7 +244,8 @@ export default async function handler(req, res) {
                 isRefunded: false, 
                 date: admin.firestore.FieldValue.serverTimestamp(),
                 contactInfo: contact || 'Aucun contact',
-                orderedFromStore: orderedFromStore
+                orderedFromStore: orderedFromStore,
+                customerEmail: isGuest ? customerEmail : null // Optionnel: garder la trace sur la commande
             });
         });
 
@@ -193,10 +257,10 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error("Erreur de commande:", error);
-        if (error.message === "Solde devenu insuffisant pendant le traitement.") {
+        if (error.message.includes("Solde")) {
              return res.status(400).json({ success: false, error: error.message });
         }
         return res.status(500).json({ success: false, error: 'Une erreur technique est survenue. Réessayez plus tard.' });
     }
-                           }
-                                             
+        }
+        
