@@ -816,6 +816,131 @@ app.post('/api/fapshi-webhook', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// NOUVELLE ROUTE : Vérification manuelle du statut Fapshi
+// ═══════════════════════════════════════════════════════════════
+app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
+  const { transId } = req.body;
+  const uid = req.user.uid;
+
+  if (!transId) {
+    return res.status(400).json({ success: false, error: 'transId requis.' });
+  }
+
+  try {
+    // 1. Récupérer la transaction dans Firestore
+    const transRef = db.collection('fapshiTransactions').doc(transId);
+    const transDoc = await transRef.get();
+
+    if (!transDoc.exists) {
+      return res.status(404).json({ success: false, error: 'Transaction introuvable.' });
+    }
+
+    const transData = transDoc.data();
+
+    // Vérifier que l'utilisateur est bien le propriétaire
+    if (transData.userId !== uid) {
+      return res.status(403).json({ success: false, error: 'Accès non autorisé.' });
+    }
+
+    // Si déjà confirmé, retourner le statut sans rien faire
+    if (transData.status === 'CONFIRMED') {
+      return res.json({ success: true, status: 'CONFIRMED', alreadyCredited: true });
+    }
+
+    // 2. Interroger l'API Fapshi pour obtenir le statut actuel
+    const fapshiTransId = transData.fapshiTransId || transId;
+    const API_USER = process.env.FAPSHI_API_USER;
+    const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
+
+    if (!API_USER || !SECRET_KEY) {
+      throw new Error('Configuration Fapshi incomplète.');
+    }
+
+    const fapshiRes = await fetch(`https://live.fapshi.com/transaction-status/${fapshiTransId}`, {
+      headers: {
+        'apiuser': API_USER,
+        'apikey': SECRET_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!fapshiRes.ok) {
+      const errorText = await fapshiRes.text();
+      throw new Error(`Fapshi API error: ${fapshiRes.status} - ${errorText}`);
+    }
+
+    const fapshiData = await fapshiRes.json();
+
+    // 3. Interpréter le statut retourné par Fapshi
+    // Exemples possibles : 'SUCCESSFUL', 'PENDING', 'FAILED', 'EXPIRED', etc.
+    let status = fapshiData.status || 'PENDING';
+    // Normaliser en majuscules pour la comparaison
+    const statusUpper = status.toUpperCase();
+
+    // 4. Mettre à jour Firestore et le solde si nécessaire
+    let updatedStatus = statusUpper;
+    let credited = false;
+
+    if (statusUpper === 'SUCCESSFUL') {
+      // Vérifier si déjà crédité (anti-double)
+      if (transData.status === 'CONFIRMED') {
+        // déjà fait, ne rien faire
+        credited = true;
+      } else {
+        // Créditer le solde
+        const amountToCredit = transData.amount || 0;
+        if (amountToCredit > 0) {
+          const userRef = db.collection('users').doc(uid);
+          await db.runTransaction(async (t) => {
+            const userDoc = await t.get(userRef);
+            const currentBalance = userDoc.exists ? (userDoc.data().balance || 0) : 0;
+            t.update(userRef, { balance: currentBalance + amountToCredit });
+            t.update(transRef, {
+              status: 'CONFIRMED',
+              dateConfirmed: admin.firestore.FieldValue.serverTimestamp()
+            });
+          });
+          credited = true;
+          updatedStatus = 'CONFIRMED';
+        } else {
+          // Montant invalide, on marque comme échec
+          await transRef.update({ status: 'FAILED' });
+          updatedStatus = 'FAILED';
+        }
+      }
+    } else if (statusUpper === 'PENDING' || statusUpper === 'WAITING' || statusUpper === 'INITIATED') {
+      // Statut toujours en attente, ne pas toucher au solde
+      // Mettre à jour la date de dernière vérification
+      await transRef.update({ lastChecked: admin.firestore.FieldValue.serverTimestamp() });
+      updatedStatus = 'PENDING';
+    } else if (statusUpper === 'FAILED' || statusUpper === 'EXPIRED' || statusUpper === 'CANCELED' || statusUpper === 'REVERSED') {
+      // Échec ou annulation, on marque la transaction comme FAILED
+      await transRef.update({ status: 'FAILED' });
+      updatedStatus = 'FAILED';
+    } else {
+      // Statut inconnu, on le stocke tel quel
+      await transRef.update({ status: statusUpper });
+      updatedStatus = statusUpper;
+    }
+
+    // 5. Retourner la réponse
+    return res.json({
+      success: true,
+      status: updatedStatus,
+      credited: credited,
+      fapshiStatus: status
+    });
+
+  } catch (error) {
+    console.error('Erreur /api/fapshi-check-status:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Erreur lors de la vérification du statut.'
+    });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
 // ADMIN API (ZÉRO LECTURE FIRESTORE)
 // ═══════════════════════════════════════════════════════════════
 
