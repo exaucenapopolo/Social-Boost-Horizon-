@@ -1,7 +1,7 @@
 const { db, admin } = require('./_firebase');
 
 module.exports = async function handler(req, res) {
-  // 1. CORS
+  // === RÈGLES DE SÉCURITÉ CORS ===
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -19,7 +19,7 @@ module.exports = async function handler(req, res) {
   try {
     console.log(`\n=== DÉBUT VÉRIFICATION SWYCHR : ${transactionId} ===`);
 
-    // 2. AUTHENTIFICATION
+    // 1. AUTHENTIFICATION CHEZ LE PARTENAIRE
     const authRes = await fetch('https://api.accountpe.com/api/payin/admin/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -35,7 +35,7 @@ module.exports = async function handler(req, res) {
       throw new Error("Impossible de s'authentifier chez Swychr");
     }
 
-    // 3. APPEL API VERS SWYCHR
+    // 2. VÉRIFICATION DU STATUT DU PAIEMENT
     const statusRes = await fetch('https://api.accountpe.com/api/payin/payment_link_status', {
       method: 'POST',
       headers: {
@@ -55,7 +55,7 @@ module.exports = async function handler(req, res) {
       throw new Error("Format de réponse invalide (Pas du JSON)");
     }
 
-    // 4. EXTRACTION DU VRAI STATUT IMBRIQUÉ
+    // 3. ANALYSE DU STATUT
     const attributes = statusData?.data?.data?.attributes || statusData?.data?.attributes || {};
     const realPartnerStatus = attributes.status || "inconnu";
     
@@ -72,18 +72,19 @@ module.exports = async function handler(req, res) {
       interpretedStatus = "failed";
     }
 
-    console.log(`🎯 Statut interprété par notre logique : "${interpretedStatus}"`);
+    console.log(`🎯 Statut interprété : "${interpretedStatus}"`);
 
-    // 5. MISE À JOUR DE LA BASE DE DONNÉES FIREBASE
+    // 4. TRANSACTION FIREBASE CORRIGÉE (LECTURES D'ABORD, ÉCRITURES ENSUITE)
     const txRef = db.collection('transactions').doc(transactionId);
     
     const result = await db.runTransaction(async (transaction) => {
+      // --- PHASE DE LECTURE (GET) ---
+      
+      // A. Lecture de la transaction
       const txDoc = await transaction.get(txRef);
-
       if (!txDoc.exists) {
         throw new Error("Transaction introuvable dans Firebase");
       }
-
       const txData = txDoc.get ? txDoc.data() : txDoc;
 
       if (txData.status === 'completed') {
@@ -91,45 +92,56 @@ module.exports = async function handler(req, res) {
         return { finalStatus: 'success', message: 'Déjà crédité' };
       }
 
-      // Si c'est un succès, on valide l'argent !
+      let userRef = null;
+      let currentBalance = 0;
+      let storeCustomerRef = null;
+      let currentStoreBalance = 0;
+
+      // Si le paiement est un succès, on prépare les lectures des utilisateurs
       if (interpretedStatus === 'success') {
-        const userRef = db.collection('users').doc(txData.userId);
+        // B. Lecture de l'utilisateur principal
+        userRef = db.collection('users').doc(txData.userId);
         const userDoc = await transaction.get(userRef);
-        
-        let currentBalance = 0;
         if (userDoc.exists) {
           currentBalance = userDoc.data().balance || 0;
         }
 
-        const newBalance = currentBalance + Number(txData.amountXAF);
-        transaction.update(userRef, { balance: newBalance });
-
-        // --- DEBUT MODIFICATION : MISE À JOUR DU SOLDE BOUTIQUE ---
+        // C. Lecture du client de la boutique (si applicable)
         if (txData.storeId && txData.email) {
-          const storeCustomerRef = db.collection('stores').doc(txData.storeId).collection('customers').doc(txData.email);
+          storeCustomerRef = db.collection('stores').doc(txData.storeId).collection('customers').doc(txData.email);
           const storeCustomerDoc = await transaction.get(storeCustomerRef);
-          
-          let currentStoreBalance = 0;
           if (storeCustomerDoc.exists) {
             currentStoreBalance = storeCustomerDoc.data().balance || 0;
           }
-          
+        }
+      }
+
+      // --- PHASE D'ÉCRITURE (UPDATE / SET) ---
+      
+      if (interpretedStatus === 'success') {
+        // A. Mise à jour de l'utilisateur principal
+        const newBalance = currentBalance + Number(txData.amountXAF);
+        transaction.update(userRef, { balance: newBalance });
+
+        // B. Mise à jour du client de la boutique
+        if (storeCustomerRef) {
           const newStoreBalance = currentStoreBalance + Number(txData.amountXAF);
           transaction.set(storeCustomerRef, { balance: newStoreBalance }, { merge: true });
         }
-        // --- FIN MODIFICATION ---
         
+        // C. Mise à jour de la transaction
         transaction.update(txRef, {
           status: 'completed',
           verifiedBy: 'api_direct_check_success',
           paidAt: new Date().toISOString()
         });
         
-        console.log(`💰 SUCCÈS : Utilisateur ${txData.userId} crédité ! Nouveau solde: ${newBalance} XAF`);
+        console.log(`💰 SUCCÈS : Utilisateur ${txData.userId} crédité !`);
         return { finalStatus: 'success', message: 'Solde mis à jour avec succès' };
       } 
       
       else if (interpretedStatus === 'failed') {
+        // Écriture pour un paiement échoué
         transaction.update(txRef, {
           status: 'failed',
           verifiedBy: 'api_direct_check_failed'
@@ -145,6 +157,8 @@ module.exports = async function handler(req, res) {
 
   } catch (error) {
     console.error('💥 ERREUR CRITIQUE:', error);
-    return res.status(500).json({ error: error.message, finalStatus: 'pending' });
+    // On renvoie l'erreur détaillée pour faciliter le débogage si besoin
+    return res.status(500).json({ error: error.message, finalStatus: 'error' });
   }
 };
+        
