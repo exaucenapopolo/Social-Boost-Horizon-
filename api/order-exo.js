@@ -106,15 +106,19 @@ export default async function handler(req, res) {
             return res.status(400).json({ success: false, error: 'Service invalide ou expiré.' });
         }
 
-        // --- Calculs des prix ---
+        // --- Calculs de prix et marges très précis ---
         const EXCHANGE_RATE_USD_TO_XAF = 650;
         const PROFIT_MULTIPLIER = 1.51;
-        const priceXAFPer1000 = parseFloat(service.rate) * EXCHANGE_RATE_USD_TO_XAF * PROFIT_MULTIPLIER;
+        const providerPricePer1000 = parseFloat(service.rate) * EXCHANGE_RATE_USD_TO_XAF;
         
         let finalQuantity = service.type === 'Custom Comments' ? (comments ? comments.length : 0) : quantity;
         
-        // Coût de gros (que le revendeur paie à la plateforme)
-        let cost = (priceXAFPer1000 / 1000) * finalQuantity;
+        // Coût fournisseur pur
+        let providerCost = Math.round((providerPricePer1000 / 1000) * finalQuantity);
+        
+        // Coût de gros (que le revendeur paie à la plateforme) - Prix de revente final
+        let cost = Math.round(providerCost * PROFIT_MULTIPLIER);
+        let profit = cost - providerCost; // Bénéfice net pour l'admin
         let unitPrice = cost / finalQuantity; 
         
         // Calculs spécifiques si c'est une commande depuis une boutique
@@ -172,6 +176,7 @@ export default async function handler(req, res) {
         await db.runTransaction(async (transaction) => {
             const counterRef = db.collection('counters').doc('commandes');
             const currentUserRef = db.collection('users').doc(uid);
+            const adminProfitRef = db.collection('counters').doc('adminProfits');
             
             const counterDoc = await transaction.get(counterRef);
             const currentUserDoc = await transaction.get(currentUserRef);
@@ -226,6 +231,9 @@ export default async function handler(req, res) {
             // Mise à jour de l'ID global et du solde principal du revendeur
             transaction.set(counterRef, { lastId: nextOrderId }, { merge: true });
             transaction.update(currentUserRef, { balance: newBalance });
+            
+            // Incrémentation automatique des bénéfices pour l'admin
+            transaction.set(adminProfitRef, { soldeBenefice: admin.firestore.FieldValue.increment(profit) }, { merge: true });
 
             // Enregistrement de la commande principale
             const newOrderRef = db.collection('commandes').doc(); 
@@ -238,7 +246,9 @@ export default async function handler(req, res) {
                 serviceName: service.name,
                 link: link,
                 quantity: finalQuantity,
-                cost: cost,
+                providerCost: providerCost, // Stockage du prix fournisseur
+                cost: cost, // Stockage du prix de revente
+                profit: profit, // Stockage du bénéfice
                 unitPrice: unitPrice, 
                 status: 'En attente',
                 isRefunded: false, 
@@ -262,5 +272,4 @@ export default async function handler(req, res) {
         }
         return res.status(500).json({ success: false, error: 'Une erreur technique est survenue. Réessayez plus tard.' });
     }
-        }
-        
+}

@@ -196,11 +196,15 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     const service = allServices.find(s => parseInt(s.service || s.id) === parseInt(serviceId));
     if (!service) return res.status(400).json({ success: false, error: 'Service introuvable ou expiré.' });
     
+    // Calcul précis des bénéfices pour ne pas épuiser Firestore
     const rate = parseFloat(service.rate) || 0;
-    const priceXAF = Math.round(rate * MTP_USD_TO_XAF * MTP_MULTIPLIER);
     const qty = parseInt(quantity);
     const isPackage = (service.type || '').toLowerCase().includes('package');
-    const cost = isPackage ? priceXAF : Math.round((priceXAF / 1000) * qty);
+    const unitProviderCost = rate * MTP_USD_TO_XAF;
+    
+    const providerCost = isPackage ? Math.round(unitProviderCost) : Math.round((unitProviderCost / 1000) * qty);
+    const cost = Math.round(providerCost * MTP_MULTIPLIER);
+    const profit = cost - providerCost;
 
     const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
@@ -223,6 +227,7 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     await db.runTransaction(async (transaction) => {
       const counterRef = db.collection('counters').doc('autoOrders');
       const freshUserRef = db.collection('users').doc(uid);
+      const adminProfitRef = db.collection('counters').doc('adminProfits');
       
       const counterDoc = await transaction.get(counterRef);
       const freshUserDoc = await transaction.get(freshUserRef);
@@ -237,12 +242,15 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
 
       transaction.set(counterRef, { lastId: nextId }, { merge: true });
       transaction.update(freshUserRef, { balance: newBalance });
+      // On incrémente le solde des bénéfices sans avoir à faire une lecture supplémentaire !
+      transaction.set(adminProfitRef, { soldeBenefice: admin.firestore.FieldValue.increment(profit) }, { merge: true });
 
       const orderRef = db.collection('autoOrders').doc();
       transaction.set(orderRef, {
         orderId: finalOrderId, userId: uid, provider: 'mtp', providerOrderId: orderResult.order,
         serviceId: parseInt(serviceId), serviceName: service.name, platform, link, quantity: qty,
-        priceXAF: cost, status: 'En attente', createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        providerCost: providerCost, priceXAF: cost, profit: profit, // Nouvelles données de rentabilité
+        status: 'En attente', createdAt: admin.firestore.FieldValue.serverTimestamp(),
         providerStartCount: 0, providerRemains: qty, refunded: false,
       });
     });
@@ -322,6 +330,14 @@ app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
             status: newStatus, providerStartCount: startCount, providerRemains: remains,
             refunded: true, refundedAmount: refundAmount, lastChecked: admin.firestore.FieldValue.serverTimestamp()
           });
+
+          // Déduire le bénéfice annulé du compteur global pour que tes calculs soient toujours justes
+          const originalProfit = orderData.profit || 0;
+          const originalCost = orderData.priceXAF || 1;
+          const profitToDeduct = Math.round((refundAmount / originalCost) * originalProfit);
+          if (profitToDeduct > 0) {
+            t.set(db.collection('counters').doc('adminProfits'), { soldeBenefice: admin.firestore.FieldValue.increment(-profitToDeduct) }, { merge: true });
+          }
         });
         isRefunded = true;
       }
@@ -476,6 +492,14 @@ app.post('/api/exo-status', checkAuth, async (req, res) => {
                         status: mappedStatus, exoRemains: remains, isRefunded: true,
                         refundAmount: refundAmount, updatedAt: admin.firestore.FieldValue.serverTimestamp()
                     });
+
+                    // Déduire le bénéfice annulé du compteur global admin
+                    const originalProfit = orderData.profit || 0;
+                    const originalCost = orderData.cost || 1;
+                    const profitToDeduct = Math.round((refundAmount / originalCost) * originalProfit);
+                    if (profitToDeduct > 0) {
+                      t.set(db.collection('counters').doc('adminProfits'), { soldeBenefice: admin.firestore.FieldValue.increment(-profitToDeduct) }, { merge: true });
+                    }
                 });
                 isRefunded = true;
             }
@@ -531,11 +555,14 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
     const service = allServices.find(s => parseInt(s.service || s.id) === parseInt(serviceId));
     if (!service) return res.status(400).json({ success: false, error: 'Service AfriqueBoost introuvable.' });
     
+    // Calcul de la marge pour AfriqueBoost
     const rateXAF = parseFloat(service.rate) || 0;
-    const priceXAF = Math.round(rateXAF * AFB_MULTIPLIER);
     const qty = parseInt(quantity);
     const isPackage = (service.type || '').toLowerCase().includes('package');
-    const cost = isPackage ? priceXAF : Math.round((priceXAF / 1000) * qty);
+    
+    const providerCost = isPackage ? Math.round(rateXAF) : Math.round((rateXAF / 1000) * qty);
+    const cost = Math.round(providerCost * AFB_MULTIPLIER);
+    const profit = cost - providerCost;
 
     const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
@@ -558,6 +585,7 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
     await db.runTransaction(async (transaction) => {
       const counterRef = db.collection('counters').doc('autoOrders');
       const freshUserRef = db.collection('users').doc(uid);
+      const adminProfitRef = db.collection('counters').doc('adminProfits');
       
       const counterDoc = await transaction.get(counterRef);
       const freshUserDoc = await transaction.get(freshUserRef);
@@ -572,12 +600,15 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
 
       transaction.set(counterRef, { lastId: nextId }, { merge: true });
       transaction.update(freshUserRef, { balance: newBalance });
+      // Incrémentation automatique des bénéfices sans lecture supplémentaire
+      transaction.set(adminProfitRef, { soldeBenefice: admin.firestore.FieldValue.increment(profit) }, { merge: true });
 
       const orderRef = db.collection('autoOrders').doc();
       transaction.set(orderRef, {
         orderId: finalOrderId, userId: uid, provider: 'afriqueboost', providerOrderId: orderResult.order,
         serviceId: parseInt(serviceId), serviceName: service.name, platform, link, quantity: qty,
-        priceXAF: cost, status: 'En attente', createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        providerCost: providerCost, priceXAF: cost, profit: profit, // On ajoute la rentabilité
+        status: 'En attente', createdAt: admin.firestore.FieldValue.serverTimestamp(),
         providerStartCount: 0, providerRemains: qty, refunded: false,
       });
     });
@@ -634,6 +665,14 @@ app.get('/api/afriqueboost/status/:orderId', checkAuth, async (req, res) => {
             status: newStatus, providerStartCount: startCount, providerRemains: remains,
             refunded: true, refundedAmount: refundAmount, lastChecked: admin.firestore.FieldValue.serverTimestamp()
           });
+
+          // Déduire le bénéfice annulé
+          const originalProfit = orderData.profit || 0;
+          const originalCost = orderData.priceXAF || 1;
+          const profitToDeduct = Math.round((refundAmount / originalCost) * originalProfit);
+          if (profitToDeduct > 0) {
+            t.set(db.collection('counters').doc('adminProfits'), { soldeBenefice: admin.firestore.FieldValue.increment(-profitToDeduct) }, { merge: true });
+          }
         });
         isRefunded = true;
       }
@@ -815,9 +854,6 @@ app.post('/api/fapshi-webhook', async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// NOUVELLE ROUTE : Vérification manuelle du statut Fapshi
-// ═══════════════════════════════════════════════════════════════
 app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
   const { transId } = req.body;
   const uid = req.user.uid;
@@ -827,7 +863,6 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
   }
 
   try {
-    // 1. Récupérer la transaction dans Firestore
     const transRef = db.collection('fapshiTransactions').doc(transId);
     const transDoc = await transRef.get();
 
@@ -837,17 +872,14 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
 
     const transData = transDoc.data();
 
-    // Vérifier que l'utilisateur est bien le propriétaire
     if (transData.userId !== uid) {
       return res.status(403).json({ success: false, error: 'Accès non autorisé.' });
     }
 
-    // Si déjà confirmé, retourner le statut sans rien faire
     if (transData.status === 'CONFIRMED') {
       return res.json({ success: true, status: 'CONFIRMED', alreadyCredited: true });
     }
 
-    // 2. Interroger l'API Fapshi pour obtenir le statut actuel
     const fapshiTransId = transData.fapshiTransId || transId;
     const API_USER = process.env.FAPSHI_API_USER;
     const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
@@ -856,7 +888,6 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
       throw new Error('Configuration Fapshi incomplète.');
     }
 
-    // ⭐ LA MODIFICATION EST ICI : on utilise "payment-status" 
     const fapshiRes = await fetch(`https://live.fapshi.com/payment-status/${fapshiTransId}`, {
       headers: {
         'apiuser': API_USER,
@@ -871,24 +902,16 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
     }
 
     const fapshiData = await fapshiRes.json();
-
-    // 3. Interpréter le statut retourné par Fapshi
-    // Exemples possibles : 'SUCCESSFUL', 'PENDING', 'FAILED', 'EXPIRED', etc.
     let status = fapshiData.status || 'PENDING';
-    // Normaliser en majuscules pour la comparaison
     const statusUpper = status.toUpperCase();
 
-    // 4. Mettre à jour Firestore et le solde si nécessaire
     let updatedStatus = statusUpper;
     let credited = false;
 
     if (statusUpper === 'SUCCESSFUL') {
-      // Vérifier si déjà crédité (anti-double)
       if (transData.status === 'CONFIRMED') {
-        // déjà fait, ne rien faire
         credited = true;
       } else {
-        // Créditer le solde
         const amountToCredit = transData.amount || 0;
         if (amountToCredit > 0) {
           const userRef = db.collection('users').doc(uid);
@@ -904,27 +927,21 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
           credited = true;
           updatedStatus = 'CONFIRMED';
         } else {
-          // Montant invalide, on marque comme échec
           await transRef.update({ status: 'FAILED' });
           updatedStatus = 'FAILED';
         }
       }
     } else if (statusUpper === 'PENDING' || statusUpper === 'WAITING' || statusUpper === 'INITIATED') {
-      // Statut toujours en attente, ne pas toucher au solde
-      // Mettre à jour la date de dernière vérification
       await transRef.update({ lastChecked: admin.firestore.FieldValue.serverTimestamp() });
       updatedStatus = 'PENDING';
     } else if (statusUpper === 'FAILED' || statusUpper === 'EXPIRED' || statusUpper === 'CANCELED' || statusUpper === 'REVERSED') {
-      // Échec ou annulation, on marque la transaction comme FAILED
       await transRef.update({ status: 'FAILED' });
       updatedStatus = 'FAILED';
     } else {
-      // Statut inconnu, on le stocke tel quel
       await transRef.update({ status: statusUpper });
       updatedStatus = statusUpper;
     }
 
-    // 5. Retourner la réponse
     return res.json({
       success: true,
       status: updatedStatus,
@@ -942,7 +959,7 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// ADMIN API (ZÉRO LECTURE FIRESTORE)
+// ADMIN API 
 // ═══════════════════════════════════════════════════════════════
 
 const ADMIN_PASSWORD = '209644209644';
@@ -961,7 +978,6 @@ function isAdminCacheValid(key) {
   return adminCache[key] && (Date.now() - adminCache.lastFetch[key] < ADMIN_CACHE_TTL);
 }
 
-// Récupération directe des services depuis les API partenaires sans toucher Firestore
 async function getServicesData() {
   if (isAdminCacheValid('services')) return adminCache.services;
   let allServices = [];
@@ -1036,6 +1052,70 @@ adminRouter.get('/services', async (req, res) => {
   } catch (error) { 
     res.status(500).json({ success: false, error: error.message }); 
   } 
+});
+
+// NOUVELLE ROUTE : Historique des bénéfices et commandes
+adminRouter.get('/profits-history', async (req, res) => {
+  try {
+    const { start, end } = req.query;
+    
+    // 1. Lire le solde total global accumulé (Juste 1 lecture Firestore !!)
+    const adminProfitDoc = await db.collection('counters').doc('adminProfits').get();
+    const soldeBenefice = adminProfitDoc.exists ? (adminProfitDoc.data().soldeBenefice || 0) : 0;
+    
+    let orders = [];
+    
+    // 2. Prendre uniquement les commandes du jour demandé pour limiter la lecture
+    if (start && end) {
+      const startDate = new Date(parseInt(start));
+      const endDate = new Date(parseInt(end));
+      
+      const autoOrdersSnap = await db.collection('autoOrders')
+        .where('createdAt', '>=', startDate)
+        .where('createdAt', '<=', endDate)
+        .get();
+        
+      const commandesSnap = await db.collection('commandes')
+        .where('date', '>=', startDate)
+        .where('date', '<=', endDate)
+        .get();
+        
+      autoOrdersSnap.forEach(doc => {
+        const data = doc.data();
+        orders.push({
+          id: data.orderId || doc.id,
+          provider: data.provider,
+          serviceName: data.serviceName,
+          providerCost: data.providerCost || 0,
+          resalePrice: data.priceXAF || 0,
+          profit: data.profit || 0,
+          date: data.createdAt,
+          status: data.status
+        });
+      });
+      
+      commandesSnap.forEach(doc => {
+        const data = doc.data();
+        orders.push({
+          id: data.orderId || doc.id,
+          provider: 'EXO',
+          serviceName: data.serviceName,
+          providerCost: data.providerCost || 0,
+          resalePrice: data.cost || 0,
+          profit: data.profit || 0,
+          date: data.date,
+          status: data.status
+        });
+      });
+      
+      // Trier de la plus récente à la plus ancienne
+      orders.sort((a, b) => getTimestampMs(b.date) - getTimestampMs(a.date));
+    }
+    
+    res.json({ success: true, soldeBenefice, orders });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 app.use('/api/admin', adminRouter);
