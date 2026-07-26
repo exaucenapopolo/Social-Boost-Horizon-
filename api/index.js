@@ -1066,7 +1066,8 @@ adminRouter.get('/daily-profits', async (req, res) => {
         providerCost: d.providerCost || 0,
         finalPrice: d.priceXAF || 0,
         profit: d.profit || 0,
-        date: d.createdAt ? d.createdAt.toDate() : null
+        // CORRECTION 1 : On utilise getTimestampMs pour éviter les crashs si la date n'est pas un pur Timestamp
+        date: getTimestampMs(d.createdAt) 
       });
       dailyTotalProfit += (d.profit || 0);
     });
@@ -1081,13 +1082,14 @@ adminRouter.get('/daily-profits', async (req, res) => {
         providerCost: d.providerCost || 0,
         finalPrice: d.cost || 0,
         profit: d.profit || 0,
-        date: d.date ? d.date.toDate() : null
+        // CORRECTION 1 : Même chose ici pour EXO
+        date: getTimestampMs(d.date) 
       });
       dailyTotalProfit += (d.profit || 0);
     });
 
-    // Trier les commandes de la plus récente à la plus ancienne
-    dailyOrders.sort((a, b) => b.date - a.date);
+    // CORRECTION 2 : Le tri est maintenant mathématiquement stable (chiffres au lieu d'objets)
+    dailyOrders.sort((a, b) => (b.date || 0) - (a.date || 0));
 
     // Récupérer le solde global de bénéfice cumulé (indépendant de la date, pour la case statique)
     const globalDoc = await db.collection('adminStats').doc('global').get();
