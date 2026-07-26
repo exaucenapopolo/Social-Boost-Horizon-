@@ -48,6 +48,10 @@
         .btn-danger:hover { background: var(--red); color: white; }
         .section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 30px; }
         .section-title { font-size: 1.2rem; font-weight: 600; border-left: 4px solid var(--gold); padding-left: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        
+        .stat-card { background: rgba(34, 197, 94, 0.1); border: 1px solid var(--green); padding: 15px 20px; border-radius: 8px; color: var(--text-light); text-align: center; }
+        .stat-card .value { font-size: 1.8rem; font-weight: 800; color: var(--green); margin-top: 5px; }
+        
         .table-wrap { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
         th, td { padding: 12px 15px; border-bottom: 1px solid var(--border); text-align: left; }
@@ -89,6 +93,31 @@
 
     <div id="errorBanner" class="error-banner"></div>
 
+    <!-- Bénéfices et Commandes -->
+    <div class="section">
+        <div class="section-title">
+            Statistiques & Bénéfices
+            <div class="stat-card">
+                <div>Solde Bénéfice Total (À ce jour)</div>
+                <div class="value" id="totalProfitValue">0 FCFA</div>
+            </div>
+        </div>
+        
+        <div class="filter-bar">
+            <span>Historique journalier :</span>
+            <input type="date" id="profitDate" onchange="loadProfits()">
+        </div>
+        
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>ID Cmd</th><th>Service</th><th>Fournisseur</th><th>Date</th><th>Achat Frns</th><th>Revente</th><th>Bénéfice Net</th></tr>
+                </thead>
+                <tbody id="profitsBody"><tr><td colspan="7" class="loading">Chargement...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
     <!-- Services -->
     <div class="section">
         <div class="section-title">
@@ -129,13 +158,16 @@
     </div>
 
     <div style="text-align: center; padding: 20px 0; color: #94a3b8; border-top: 1px solid var(--border); font-size: 0.9rem;">
-        <i class="fas fa-crown" style="color: var(--gold);"></i> Fondateur : <strong style="color: var(--gold);">NAPOPOLO EXAUCE</strong> &nbsp;|&nbsp; Social Boost Horizon &copy; 2025
+        <i class="fas fa-crown" style="color: var(--gold);"></i> Fondateur : <strong style="color: var(--gold);">NAPOPOLO EXAUCE</strong> &nbsp;|&nbsp; Cinexau Music House &copy; 2026
     </div>
 </div>
 
 <script>
     const ADMIN_PASS = '209644209644';
     let token = sessionStorage.getItem('sbh_admin_token');
+    
+    // Configurer la date par défaut sur la date du jour
+    document.getElementById('profitDate').valueAsDate = new Date();
     
     if (token) {
         document.getElementById('authOverlay').style.display = 'none';
@@ -192,7 +224,7 @@
 
     async function loadAll() {
         try {
-            await loadServices();
+            await Promise.all([loadServices(), loadProfits()]);
         } catch (e) {
             showError('Erreur lors du chargement des données : ' + e.message);
         }
@@ -201,6 +233,61 @@
     async function refreshAll() {
         document.querySelectorAll('.loading').forEach(el => el.textContent = 'Chargement...');
         await loadAll();
+    }
+
+    // --- Statistiques & Bénéfices ---
+    async function loadProfits() {
+        const selectedDate = document.getElementById('profitDate').value;
+        if(!selectedDate) return;
+
+        const startOfDay = new Date(`${selectedDate}T00:00:00`).getTime();
+        const endOfDay = new Date(`${selectedDate}T23:59:59.999`).getTime();
+
+        const data = await fetchAdmin(`/profits-history?start=${startOfDay}&end=${endOfDay}`);
+        if (data && data.success) {
+            document.getElementById('totalProfitValue').textContent = `${data.soldeBenefice.toLocaleString('fr-FR')} FCFA`;
+            renderProfits(data.orders);
+        }
+    }
+
+    function renderProfits(orders) {
+        const tbody = document.getElementById('profitsBody');
+        tbody.innerHTML = '';
+        if (!orders || orders.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="loading">Aucune commande pour cette journée</td></tr>';
+            return;
+        }
+
+        orders.forEach(o => {
+            let providerBadge = '';
+            const provLower = (o.provider || '').toLowerCase();
+            if (provLower === 'mtp') providerBadge = '<span class="badge badge-mtp">MTP</span>';
+            else if (provLower === 'exo') providerBadge = '<span class="badge badge-exo">EXO</span>';
+            else if (provLower === 'afriqueboost') providerBadge = '<span class="badge badge-afb">AfriqueBoost</span>';
+            else providerBadge = `<span class="badge">${o.provider}</span>`;
+
+            const tr = document.createElement('tr');
+            
+            // Format de date
+            let displayDate = 'N/A';
+            if(o.date) {
+                const d = new Date(o.date._seconds ? o.date._seconds * 1000 : o.date);
+                if(!isNaN(d.getTime())) {
+                    displayDate = d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+                }
+            }
+
+            tr.innerHTML = `
+                <td style="font-size:0.8rem">${o.id}</td>
+                <td title="${o.serviceName}">${(o.serviceName || '').substring(0, 30)}...</td>
+                <td>${providerBadge}</td>
+                <td>${displayDate}</td>
+                <td style="color:#94a3b8;">${(o.providerCost || 0).toLocaleString('fr-FR')} FCFA</td>
+                <td style="font-weight:bold;color:var(--blue);">${(o.resalePrice || 0).toLocaleString('fr-FR')} FCFA</td>
+                <td style="color:var(--green); font-weight:bold;">+${(o.profit || 0).toLocaleString('fr-FR')} FCFA</td>
+            `;
+            tbody.appendChild(tr);
+        });
     }
 
     // --- Services ---
@@ -272,7 +359,7 @@
         doc.setFontSize(10);
         doc.setTextColor(136, 136, 136);
         doc.text('Fondateur : NAPOPOLO EXAUCE', 14, doc.internal.pageSize.height - 10);
-        doc.text('Social Boost Horizon © 2025', 14, doc.internal.pageSize.height - 5);
+        doc.text('Cinexau Music House © 2026', 14, doc.internal.pageSize.height - 5);
     }
 
     function exportServicesPDF() {
@@ -281,7 +368,7 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             doc.setFontSize(18); doc.setTextColor(212, 175, 55); 
-            doc.text("Rapport des Services - Social Boost Horizon", 14, 20);
+            doc.text("Rapport des Services - Cinexau Music House", 14, 20);
             doc.setFontSize(10); doc.setTextColor(100); 
             doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
             const tableColumn = ["ID", "Partenaire", "Nom", "Cout", "Prix final", "Benefice", "Marge"];
@@ -295,7 +382,7 @@
                 styles: { fontSize: 8 } 
             });
             addFooter(doc);
-            doc.save('Services_SBH.pdf');
+            doc.save('Services_CMH.pdf');
         } catch (e) {
             alert('Erreur export PDF Services : ' + e.message);
         }
