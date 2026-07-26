@@ -107,8 +107,8 @@ export default async function handler(req, res) {
         }
 
         // --- Calculs des prix ---
-        const EXCHANGE_RATE_USD_TO_XAF = 620;
-        const PROFIT_MULTIPLIER = 1.5;
+        const EXCHANGE_RATE_USD_TO_XAF = 650;
+        const PROFIT_MULTIPLIER = 1.51;
         const priceXAFPer1000 = parseFloat(service.rate) * EXCHANGE_RATE_USD_TO_XAF * PROFIT_MULTIPLIER;
         
         let finalQuantity = service.type === 'Custom Comments' ? (comments ? comments.length : 0) : quantity;
