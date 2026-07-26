@@ -106,21 +106,21 @@ export default async function handler(req, res) {
             return res.status(400).json({ success: false, error: 'Service invalide ou expiré.' });
         }
 
-        // --- Calculs de prix et marges très précis ---
+        // --- Calculs des prix ---
         const EXCHANGE_RATE_USD_TO_XAF = 650;
         const PROFIT_MULTIPLIER = 1.51;
-        const providerPricePer1000 = parseFloat(service.rate) * EXCHANGE_RATE_USD_TO_XAF;
+        const priceXAFPer1000 = parseFloat(service.rate) * EXCHANGE_RATE_USD_TO_XAF * PROFIT_MULTIPLIER;
         
         let finalQuantity = service.type === 'Custom Comments' ? (comments ? comments.length : 0) : quantity;
         
-        // Coût fournisseur pur
-        let providerCost = Math.round((providerPricePer1000 / 1000) * finalQuantity);
-        
-        // Coût de gros (que le revendeur paie à la plateforme) - Prix de revente final
-        let cost = Math.round(providerCost * PROFIT_MULTIPLIER);
-        let profit = cost - providerCost; // Bénéfice net pour l'admin
+        // Coût de gros (que le revendeur paie à la plateforme)
+        let cost = (priceXAFPer1000 / 1000) * finalQuantity;
         let unitPrice = cost / finalQuantity; 
         
+        // Calcul du coût réel fournisseur et de la marge (bénéfice net pour la plateforme)
+        let providerCost = (parseFloat(service.rate) * EXCHANGE_RATE_USD_TO_XAF / 1000) * finalQuantity;
+        let platformProfit = Math.round(cost - providerCost);
+
         // Calculs spécifiques si c'est une commande depuis une boutique
         let exactCustomerPrice = cost;
         let profitForReseller = 0;
@@ -176,7 +176,7 @@ export default async function handler(req, res) {
         await db.runTransaction(async (transaction) => {
             const counterRef = db.collection('counters').doc('commandes');
             const currentUserRef = db.collection('users').doc(uid);
-            const adminProfitRef = db.collection('counters').doc('adminProfits');
+            const adminStatsRef = db.collection('adminStats').doc('global'); // Référence pour le solde bénéfice global
             
             const counterDoc = await transaction.get(counterRef);
             const currentUserDoc = await transaction.get(currentUserRef);
@@ -228,14 +228,12 @@ export default async function handler(req, res) {
 
             const detectedPlatform = detectPlatform(service.name, link);
 
-            // Mise à jour de l'ID global et du solde principal du revendeur
+            // Mise à jour de l'ID global, du solde principal du revendeur, et du solde bénéfice global
             transaction.set(counterRef, { lastId: nextOrderId }, { merge: true });
             transaction.update(currentUserRef, { balance: newBalance });
-            
-            // Incrémentation automatique des bénéfices pour l'admin
-            transaction.set(adminProfitRef, { soldeBenefice: admin.firestore.FieldValue.increment(profit) }, { merge: true });
+            transaction.set(adminStatsRef, { soldeBenefices: admin.firestore.FieldValue.increment(platformProfit) }, { merge: true });
 
-            // Enregistrement de la commande principale
+            // Enregistrement de la commande principale avec le coût et le bénéfice enregistrés
             const newOrderRef = db.collection('commandes').doc(); 
             transaction.set(newOrderRef, {
                 orderId: finalFormattedOrderId, 
@@ -246,9 +244,9 @@ export default async function handler(req, res) {
                 serviceName: service.name,
                 link: link,
                 quantity: finalQuantity,
-                providerCost: providerCost, // Stockage du prix fournisseur
-                cost: cost, // Stockage du prix de revente
-                profit: profit, // Stockage du bénéfice
+                cost: cost,
+                providerCost: Math.round(providerCost),
+                profit: platformProfit,
                 unitPrice: unitPrice, 
                 status: 'En attente',
                 isRefunded: false, 

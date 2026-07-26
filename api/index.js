@@ -196,15 +196,15 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     const service = allServices.find(s => parseInt(s.service || s.id) === parseInt(serviceId));
     if (!service) return res.status(400).json({ success: false, error: 'Service introuvable ou expiré.' });
     
-    // Calcul précis des bénéfices pour ne pas épuiser Firestore
     const rate = parseFloat(service.rate) || 0;
+    const priceXAF = Math.round(rate * MTP_USD_TO_XAF * MTP_MULTIPLIER);
     const qty = parseInt(quantity);
     const isPackage = (service.type || '').toLowerCase().includes('package');
-    const unitProviderCost = rate * MTP_USD_TO_XAF;
+    const cost = isPackage ? priceXAF : Math.round((priceXAF / 1000) * qty);
     
-    const providerCost = isPackage ? Math.round(unitProviderCost) : Math.round((unitProviderCost / 1000) * qty);
-    const cost = Math.round(providerCost * MTP_MULTIPLIER);
-    const profit = cost - providerCost;
+    // Calcul de la marge/bénéfice
+    const providerCost = isPackage ? Math.round(rate * MTP_USD_TO_XAF) : Math.round((rate * MTP_USD_TO_XAF / 1000) * qty);
+    const platformProfit = cost - providerCost;
 
     const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
@@ -227,7 +227,7 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     await db.runTransaction(async (transaction) => {
       const counterRef = db.collection('counters').doc('autoOrders');
       const freshUserRef = db.collection('users').doc(uid);
-      const adminProfitRef = db.collection('counters').doc('adminProfits');
+      const adminStatsRef = db.collection('adminStats').doc('global');
       
       const counterDoc = await transaction.get(counterRef);
       const freshUserDoc = await transaction.get(freshUserRef);
@@ -242,14 +242,14 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
 
       transaction.set(counterRef, { lastId: nextId }, { merge: true });
       transaction.update(freshUserRef, { balance: newBalance });
-      // On incrémente le solde des bénéfices sans avoir à faire une lecture supplémentaire !
-      transaction.set(adminProfitRef, { soldeBenefice: admin.firestore.FieldValue.increment(profit) }, { merge: true });
+      // Ajout du bénéfice au solde global d'administration
+      transaction.set(adminStatsRef, { soldeBenefices: admin.firestore.FieldValue.increment(platformProfit) }, { merge: true });
 
       const orderRef = db.collection('autoOrders').doc();
       transaction.set(orderRef, {
         orderId: finalOrderId, userId: uid, provider: 'mtp', providerOrderId: orderResult.order,
         serviceId: parseInt(serviceId), serviceName: service.name, platform, link, quantity: qty,
-        providerCost: providerCost, priceXAF: cost, profit: profit, // Nouvelles données de rentabilité
+        priceXAF: cost, providerCost: providerCost, profit: platformProfit, 
         status: 'En attente', createdAt: admin.firestore.FieldValue.serverTimestamp(),
         providerStartCount: 0, providerRemains: qty, refunded: false,
       });
@@ -330,14 +330,6 @@ app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
             status: newStatus, providerStartCount: startCount, providerRemains: remains,
             refunded: true, refundedAmount: refundAmount, lastChecked: admin.firestore.FieldValue.serverTimestamp()
           });
-
-          // Déduire le bénéfice annulé du compteur global pour que tes calculs soient toujours justes
-          const originalProfit = orderData.profit || 0;
-          const originalCost = orderData.priceXAF || 1;
-          const profitToDeduct = Math.round((refundAmount / originalCost) * originalProfit);
-          if (profitToDeduct > 0) {
-            t.set(db.collection('counters').doc('adminProfits'), { soldeBenefice: admin.firestore.FieldValue.increment(-profitToDeduct) }, { merge: true });
-          }
         });
         isRefunded = true;
       }
@@ -492,14 +484,6 @@ app.post('/api/exo-status', checkAuth, async (req, res) => {
                         status: mappedStatus, exoRemains: remains, isRefunded: true,
                         refundAmount: refundAmount, updatedAt: admin.firestore.FieldValue.serverTimestamp()
                     });
-
-                    // Déduire le bénéfice annulé du compteur global admin
-                    const originalProfit = orderData.profit || 0;
-                    const originalCost = orderData.cost || 1;
-                    const profitToDeduct = Math.round((refundAmount / originalCost) * originalProfit);
-                    if (profitToDeduct > 0) {
-                      t.set(db.collection('counters').doc('adminProfits'), { soldeBenefice: admin.firestore.FieldValue.increment(-profitToDeduct) }, { merge: true });
-                    }
                 });
                 isRefunded = true;
             }
@@ -555,14 +539,15 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
     const service = allServices.find(s => parseInt(s.service || s.id) === parseInt(serviceId));
     if (!service) return res.status(400).json({ success: false, error: 'Service AfriqueBoost introuvable.' });
     
-    // Calcul de la marge pour AfriqueBoost
     const rateXAF = parseFloat(service.rate) || 0;
+    const priceXAF = Math.round(rateXAF * AFB_MULTIPLIER);
     const qty = parseInt(quantity);
     const isPackage = (service.type || '').toLowerCase().includes('package');
+    const cost = isPackage ? priceXAF : Math.round((priceXAF / 1000) * qty);
     
+    // Calcul de la marge/bénéfice
     const providerCost = isPackage ? Math.round(rateXAF) : Math.round((rateXAF / 1000) * qty);
-    const cost = Math.round(providerCost * AFB_MULTIPLIER);
-    const profit = cost - providerCost;
+    const platformProfit = cost - providerCost;
 
     const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
@@ -585,7 +570,7 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
     await db.runTransaction(async (transaction) => {
       const counterRef = db.collection('counters').doc('autoOrders');
       const freshUserRef = db.collection('users').doc(uid);
-      const adminProfitRef = db.collection('counters').doc('adminProfits');
+      const adminStatsRef = db.collection('adminStats').doc('global');
       
       const counterDoc = await transaction.get(counterRef);
       const freshUserDoc = await transaction.get(freshUserRef);
@@ -600,14 +585,14 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
 
       transaction.set(counterRef, { lastId: nextId }, { merge: true });
       transaction.update(freshUserRef, { balance: newBalance });
-      // Incrémentation automatique des bénéfices sans lecture supplémentaire
-      transaction.set(adminProfitRef, { soldeBenefice: admin.firestore.FieldValue.increment(profit) }, { merge: true });
+      // Ajout du bénéfice au solde global d'administration
+      transaction.set(adminStatsRef, { soldeBenefices: admin.firestore.FieldValue.increment(platformProfit) }, { merge: true });
 
       const orderRef = db.collection('autoOrders').doc();
       transaction.set(orderRef, {
         orderId: finalOrderId, userId: uid, provider: 'afriqueboost', providerOrderId: orderResult.order,
         serviceId: parseInt(serviceId), serviceName: service.name, platform, link, quantity: qty,
-        providerCost: providerCost, priceXAF: cost, profit: profit, // On ajoute la rentabilité
+        priceXAF: cost, providerCost: providerCost, profit: platformProfit, 
         status: 'En attente', createdAt: admin.firestore.FieldValue.serverTimestamp(),
         providerStartCount: 0, providerRemains: qty, refunded: false,
       });
@@ -665,14 +650,6 @@ app.get('/api/afriqueboost/status/:orderId', checkAuth, async (req, res) => {
             status: newStatus, providerStartCount: startCount, providerRemains: remains,
             refunded: true, refundedAmount: refundAmount, lastChecked: admin.firestore.FieldValue.serverTimestamp()
           });
-
-          // Déduire le bénéfice annulé
-          const originalProfit = orderData.profit || 0;
-          const originalCost = orderData.priceXAF || 1;
-          const profitToDeduct = Math.round((refundAmount / originalCost) * originalProfit);
-          if (profitToDeduct > 0) {
-            t.set(db.collection('counters').doc('adminProfits'), { soldeBenefice: admin.firestore.FieldValue.increment(-profitToDeduct) }, { merge: true });
-          }
         });
         isRefunded = true;
       }
@@ -959,7 +936,7 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// ADMIN API 
+// ADMIN API (ZÉRO LECTURE FIRESTORE POUR LES SERVICES)
 // ═══════════════════════════════════════════════════════════════
 
 const ADMIN_PASSWORD = '209644209644';
@@ -978,6 +955,7 @@ function isAdminCacheValid(key) {
   return adminCache[key] && (Date.now() - adminCache.lastFetch[key] < ADMIN_CACHE_TTL);
 }
 
+// Récupération directe des services depuis les API partenaires sans toucher Firestore
 async function getServicesData() {
   if (isAdminCacheValid('services')) return adminCache.services;
   let allServices = [];
@@ -1054,65 +1032,73 @@ adminRouter.get('/services', async (req, res) => {
   } 
 });
 
-// NOUVELLE ROUTE : Historique des bénéfices et commandes
-adminRouter.get('/profits-history', async (req, res) => {
+// NOUVELLE ROUTE : Historique quotidien et bénéfices limités par jour pour économiser les lectures
+adminRouter.get('/daily-profits', async (req, res) => {
   try {
-    const { start, end } = req.query;
-    
-    // 1. Lire le solde total global accumulé (Juste 1 lecture Firestore !!)
-    const adminProfitDoc = await db.collection('counters').doc('adminProfits').get();
-    const soldeBenefice = adminProfitDoc.exists ? (adminProfitDoc.data().soldeBenefice || 0) : 0;
-    
-    let orders = [];
-    
-    // 2. Prendre uniquement les commandes du jour demandé pour limiter la lecture
-    if (start && end) {
-      const startDate = new Date(parseInt(start));
-      const endDate = new Date(parseInt(end));
-      
-      const autoOrdersSnap = await db.collection('autoOrders')
-        .where('createdAt', '>=', startDate)
-        .where('createdAt', '<=', endDate)
-        .get();
-        
-      const commandesSnap = await db.collection('commandes')
-        .where('date', '>=', startDate)
-        .where('date', '<=', endDate)
-        .get();
-        
-      autoOrdersSnap.forEach(doc => {
-        const data = doc.data();
-        orders.push({
-          id: data.orderId || doc.id,
-          provider: data.provider,
-          serviceName: data.serviceName,
-          providerCost: data.providerCost || 0,
-          resalePrice: data.priceXAF || 0,
-          profit: data.profit || 0,
-          date: data.createdAt,
-          status: data.status
-        });
+    const { date } = req.query; // format attendu : YYYY-MM-DD
+    if (!date) return res.status(400).json({ success: false, error: "Date requise" });
+
+    // Création des limites de temps pour la journée demandée
+    const startDate = new Date(`${date}T00:00:00.000Z`);
+    const endDate = new Date(`${date}T23:59:59.999Z`);
+
+    // Récupération ciblée uniquement des commandes de la journée pour économiser le quota
+    const mtpAfbSnapshot = await db.collection('autoOrders')
+      .where('createdAt', '>=', startDate)
+      .where('createdAt', '<=', endDate)
+      .get();
+
+    const exoSnapshot = await db.collection('commandes')
+      .where('date', '>=', startDate)
+      .where('date', '<=', endDate)
+      .get();
+
+    let dailyOrders = [];
+    let dailyTotalProfit = 0;
+
+    mtpAfbSnapshot.forEach(doc => {
+      const d = doc.data();
+      dailyOrders.push({
+        id: d.orderId,
+        provider: d.provider,
+        serviceName: d.serviceName,
+        qty: d.quantity,
+        providerCost: d.providerCost || 0,
+        finalPrice: d.priceXAF || 0,
+        profit: d.profit || 0,
+        date: d.createdAt ? d.createdAt.toDate() : null
       });
-      
-      commandesSnap.forEach(doc => {
-        const data = doc.data();
-        orders.push({
-          id: data.orderId || doc.id,
-          provider: 'EXO',
-          serviceName: data.serviceName,
-          providerCost: data.providerCost || 0,
-          resalePrice: data.cost || 0,
-          profit: data.profit || 0,
-          date: data.date,
-          status: data.status
-        });
+      dailyTotalProfit += (d.profit || 0);
+    });
+
+    exoSnapshot.forEach(doc => {
+      const d = doc.data();
+      dailyOrders.push({
+        id: d.orderId,
+        provider: 'EXO',
+        serviceName: d.serviceName,
+        qty: d.quantity,
+        providerCost: d.providerCost || 0,
+        finalPrice: d.cost || 0,
+        profit: d.profit || 0,
+        date: d.date ? d.date.toDate() : null
       });
-      
-      // Trier de la plus récente à la plus ancienne
-      orders.sort((a, b) => getTimestampMs(b.date) - getTimestampMs(a.date));
-    }
-    
-    res.json({ success: true, soldeBenefice, orders });
+      dailyTotalProfit += (d.profit || 0);
+    });
+
+    // Trier les commandes de la plus récente à la plus ancienne
+    dailyOrders.sort((a, b) => b.date - a.date);
+
+    // Récupérer le solde global de bénéfice cumulé (indépendant de la date, pour la case statique)
+    const globalDoc = await db.collection('adminStats').doc('global').get();
+    const globalProfit = globalDoc.exists ? (globalDoc.data().soldeBenefices || 0) : 0;
+
+    res.json({ 
+        success: true, 
+        orders: dailyOrders, 
+        dailyTotalProfit, 
+        globalProfit 
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
