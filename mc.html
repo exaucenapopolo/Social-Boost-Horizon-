@@ -187,7 +187,7 @@
     const ADMIN_PASS = '209644209644';
     let token = sessionStorage.getItem('sbh_admin_token');
     
-    // Initialiser la date à aujourd'hui pour l'historique
+    // Initialiser la date à aujourd'hui
     document.getElementById('historyDate').value = new Date().toISOString().split('T')[0];
 
     if (token) {
@@ -264,61 +264,74 @@
         const selectedDate = document.getElementById('historyDate').value;
         if(!selectedDate) return;
 
-        const data = await fetchAdmin(`/daily-profits?date=${selectedDate}`);
-        if(data && data.success) {
-            // Mettre à jour les compteurs
-            document.getElementById('globalProfitValue').innerHTML = `${(data.globalProfit || 0).toLocaleString()} <span style="font-size:1rem;color:#94a3b8;">FCFA</span>`;
-            document.getElementById('dailyProfitValue').innerHTML = `+${(data.dailyTotalProfit || 0).toLocaleString()} <span style="font-size:1rem;color:#94a3b8;">FCFA</span>`;
+        try {
+            const data = await fetchAdmin(`/daily-profits?date=${selectedDate}`);
+            if(data && data.success) {
+                const globalProfit = Number(data.globalProfit || 0);
+                const dailyTotalProfit = Number(data.dailyTotalProfit || 0);
 
-            // Remplir le tableau
-            const tbody = document.getElementById('historyBody');
-            tbody.innerHTML = '';
-            
-            if(!data.orders || data.orders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="loading">Aucune commande enregistrée pour cette date.</td></tr>';
-                return;
+                document.getElementById('globalProfitValue').innerHTML = `${globalProfit.toLocaleString()} <span style="font-size:1rem;color:#94a3b8;">FCFA</span>`;
+                document.getElementById('dailyProfitValue').innerHTML = `+${dailyTotalProfit.toLocaleString()} <span style="font-size:1rem;color:#94a3b8;">FCFA</span>`;
+
+                const tbody = document.getElementById('historyBody');
+                tbody.innerHTML = '';
+                
+                if(!data.orders || data.orders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="loading">Aucune commande enregistrée pour cette date.</td></tr>';
+                    return;
+                }
+
+                data.orders.forEach(order => {
+                    let badge = '';
+                    const provider = String(order.provider || '').toUpperCase();
+                    if (provider === 'MTP') badge = 'badge-mtp';
+                    else if (provider === 'EXO') badge = 'badge-exo';
+                    else badge = 'badge-afb';
+
+                    const orderTime = order.date ? new Date(order.date).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'}) : '--:--';
+                    const providerCost = Number(order.providerCost || 0);
+                    const finalPrice = Number(order.finalPrice || 0);
+                    const profit = Number(order.profit || 0);
+                    const serviceName = String(order.serviceName || 'Service inconnu');
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td style="font-weight:600; color:var(--text-light);">${order.id || 'N/A'}</td>
+                        <td>${orderTime}</td>
+                        <td><span class="badge ${badge}">${provider || 'Inconnu'}</span></td>
+                        <td title="${serviceName}">${serviceName.substring(0, 30)}${serviceName.length > 30 ? '...' : ''}</td>
+                        <td style="color:#94a3b8;">${providerCost.toLocaleString()} FCFA</td>
+                        <td style="color:var(--blue); font-weight:bold;">${finalPrice.toLocaleString()} FCFA</td>
+                        <td style="color:var(--green); font-weight:800;">+${profit.toLocaleString()} FCFA</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
             }
-
-            data.orders.forEach(order => {
-                let badge = '';
-                const provider = (order.provider || '').toUpperCase();
-                if (provider === 'MTP') badge = 'badge-mtp';
-                else if (provider === 'EXO') badge = 'badge-exo';
-                else badge = 'badge-afb';
-
-                const orderTime = order.date ? new Date(order.date).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'}) : '--:--';
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="font-weight:600; color:var(--text-light);">${order.id || 'N/A'}</td>
-                    <td>${orderTime}</td>
-                    <td><span class="badge ${badge}">${provider || 'Inconnu'}</span></td>
-                    <td title="${order.serviceName}">${(order.serviceName || '').substring(0, 30)}...</td>
-                    <td style="color:#94a3b8;">${order.providerCost.toLocaleString()} FCFA</td>
-                    <td style="color:var(--blue); font-weight:bold;">${order.finalPrice.toLocaleString()} FCFA</td>
-                    <td style="color:var(--green); font-weight:800;">+${order.profit.toLocaleString()} FCFA</td>
-                `;
-                tbody.appendChild(tr);
-            });
+        } catch (e) {
+            console.error('Erreur loadDailyHistory:', e);
         }
     }
 
     // --- Services ---
     async function loadServices() {
-        const data = await fetchAdmin('/services');
-        if (data && data.success) {
-            allServices = data.data.services || [];
-            const stats = data.data.stats || {};
-            document.getElementById('serviceStats').textContent =
-                `Total: ${stats.total || 0} | Min: ${stats.minPrice || 0} FCFA | Max: ${stats.maxPrice || 0} FCFA | Moy: ${stats.avgPrice || 0} FCFA`;
-            filterServices();
+        try {
+            const data = await fetchAdmin('/services');
+            if (data && data.success) {
+                allServices = data.data.services || [];
+                const stats = data.data.stats || {};
+                document.getElementById('serviceStats').textContent =
+                    `Total: ${stats.total || 0} | Min: ${stats.minPrice || 0} FCFA | Max: ${stats.maxPrice || 0} FCFA | Moy: ${stats.avgPrice || 0} FCFA`;
+                filterServices();
+            }
+        } catch (e) {
+            console.error('Erreur loadServices:', e);
         }
     }
 
     function renderServices(services) {
         const tbody = document.getElementById('servicesBody');
         tbody.innerHTML = '';
-        if (!services.length) {
+        if (!services || !services.length) {
             tbody.innerHTML = '<tr><td colspan="7" class="loading">Aucun service trouvé</td></tr>';
             return;
         }
@@ -328,15 +341,20 @@
             if (s.provider === 'EXO') badge = 'badge-exo';
             if (s.provider === 'AfriqueBoost') badge = 'badge-afb';
 
+            const providerCost = Number(s.providerCost || 0);
+            const finalPrice = Number(s.finalPrice || 0);
+            const profit = Number(s.profit || 0);
+            const name = String(s.name || '');
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${s.id}</td>
                 <td><span class="badge ${badge}">${s.provider}</span></td>
-                <td title="${s.name}">${s.name.substring(0, 40)}</td>
-                <td>${s.providerCost.toLocaleString()} FCFA</td>
-                <td style="font-weight:bold;color:var(--blue);">${s.finalPrice.toLocaleString()} FCFA</td>
-                <td style="color:var(--green);">+${s.profit.toLocaleString()} FCFA</td>
-                <td>${s.profitMargin}%</td>
+                <td title="${name}">${name.substring(0, 40)}</td>
+                <td>${providerCost.toLocaleString()} FCFA</td>
+                <td style="font-weight:bold;color:var(--blue);">${finalPrice.toLocaleString()} FCFA</td>
+                <td style="color:var(--green);">+${profit.toLocaleString()} FCFA</td>
+                <td>${s.profitMargin || 0}%</td>
             `;
             tbody.appendChild(tr);
         });
@@ -350,7 +368,7 @@
 
         let filtered = allServices;
         if (filter !== 'all') filtered = filtered.filter(s => s.provider === filter);
-        if (search) filtered = filtered.filter(s => s.name.toLowerCase().includes(search));
+        if (search) filtered = filtered.filter(s => String(s.name || '').toLowerCase().includes(search));
         if (idSearch) filtered = filtered.filter(s => String(s.id).includes(idSearch));
         if (limit !== 'all') {
             const num = parseInt(limit);
@@ -386,8 +404,11 @@
             doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
             const tableColumn = ["ID", "Partenaire", "Nom", "Cout", "Prix final", "Benefice", "Marge"];
             const tableRows = allServices.slice(0, 100).map(s => [
-                s.id, s.provider, s.name.substring(0, 40), 
-                `${s.providerCost} FCFA`, `${s.finalPrice} FCFA`, `+${s.profit} FCFA`, `${s.profitMargin}%`
+                s.id, s.provider, String(s.name || '').substring(0, 40), 
+                `${Number(s.providerCost || 0).toLocaleString()} FCFA`, 
+                `${Number(s.finalPrice || 0).toLocaleString()} FCFA`, 
+                `+${Number(s.profit || 0).toLocaleString()} FCFA`, 
+                `${s.profitMargin || 0}%`
             ]);
             doc.autoTable({ 
                 head: [tableColumn], body: tableRows, startY: 35, theme: 'striped', 
