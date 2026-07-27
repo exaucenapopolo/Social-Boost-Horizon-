@@ -7,7 +7,6 @@ const { sendWelcomeEmail } = require('./email-service.js');
 
 const app = express();
 
-// Autorisation explicite du header personnalisé pour l'admin
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -20,7 +19,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Helper pour convertir un timestamp/date Firestore ou JS de manière sécurisée en millisecondes
 function getTimestampMs(val) {
   if (!val) return 0;
   if (typeof val.toDate === 'function') return val.toDate().getTime();
@@ -202,7 +200,6 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     const isPackage = (service.type || '').toLowerCase().includes('package');
     const cost = isPackage ? priceXAF : Math.round((priceXAF / 1000) * qty);
     
-    // Calcul de la marge/bénéfice
     const providerCost = isPackage ? Math.round(rate * MTP_USD_TO_XAF) : Math.round((rate * MTP_USD_TO_XAF / 1000) * qty);
     const platformProfit = cost - providerCost;
 
@@ -242,7 +239,6 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
 
       transaction.set(counterRef, { lastId: nextId }, { merge: true });
       transaction.update(freshUserRef, { balance: newBalance });
-      // Ajout du bénéfice au solde global d'administration
       transaction.set(adminStatsRef, { soldeBenefices: admin.firestore.FieldValue.increment(platformProfit) }, { merge: true });
 
       const orderRef = db.collection('autoOrders').doc();
@@ -545,7 +541,6 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
     const isPackage = (service.type || '').toLowerCase().includes('package');
     const cost = isPackage ? priceXAF : Math.round((priceXAF / 1000) * qty);
     
-    // Calcul de la marge/bénéfice
     const providerCost = isPackage ? Math.round(rateXAF) : Math.round((rateXAF / 1000) * qty);
     const platformProfit = cost - providerCost;
 
@@ -585,7 +580,6 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
 
       transaction.set(counterRef, { lastId: nextId }, { merge: true });
       transaction.update(freshUserRef, { balance: newBalance });
-      // Ajout du bénéfice au solde global d'administration
       transaction.set(adminStatsRef, { soldeBenefices: admin.firestore.FieldValue.increment(platformProfit) }, { merge: true });
 
       const orderRef = db.collection('autoOrders').doc();
@@ -936,7 +930,7 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// ADMIN API (ZÉRO LECTURE FIRESTORE POUR LES SERVICES)
+// ADMIN API
 // ═══════════════════════════════════════════════════════════════
 
 const ADMIN_PASSWORD = '209644209644';
@@ -955,7 +949,6 @@ function isAdminCacheValid(key) {
   return adminCache[key] && (Date.now() - adminCache.lastFetch[key] < ADMIN_CACHE_TTL);
 }
 
-// Récupération directe des services depuis les API partenaires sans toucher Firestore
 async function getServicesData() {
   if (isAdminCacheValid('services')) return adminCache.services;
   let allServices = [];
@@ -965,9 +958,22 @@ async function getServicesData() {
       const mtpData = await callMTP({ action: 'services' });
       if (Array.isArray(mtpData)) {
         mtpData.forEach(s => {
-          const rate = parseFloat(s.rate) || 0; const providerCost = Math.round(rate * MTP_USD_TO_XAF);
-          const finalPrice = Math.round(providerCost * MTP_MULTIPLIER); const profit = finalPrice - providerCost;
-          allServices.push({ id: s.service, provider: 'MTP', name: s.name, category: s.category || '', providerCost, finalPrice, profit, profitMargin: Math.round((profit / finalPrice) * 100) || 0, min: parseInt(s.min) || 0, max: parseInt(s.max) || 0 });
+          const rate = parseFloat(s.rate) || 0; 
+          const providerCost = Math.round(rate * MTP_USD_TO_XAF);
+          const finalPrice = Math.round(providerCost * MTP_MULTIPLIER); 
+          const profit = finalPrice - providerCost;
+          allServices.push({ 
+            id: s.service, 
+            provider: 'MTP', 
+            name: s.name || '', 
+            category: s.category || '', 
+            providerCost, 
+            finalPrice, 
+            profit, 
+            profitMargin: finalPrice > 0 ? Math.round((profit / finalPrice) * 100) : 0, 
+            min: parseInt(s.min) || 0, 
+            max: parseInt(s.max) || 0 
+          });
         });
       }
     } catch (e) { console.warn('Erreur MTP:', e.message); }
@@ -978,9 +984,22 @@ async function getServicesData() {
       const exoData = await callExo({ action: 'services' });
       if (Array.isArray(exoData)) {
         exoData.forEach(s => {
-          const rate = parseFloat(s.rate) || 0; const providerCost = Math.round(rate * EXO_USD_TO_XAF);
-          const finalPrice = Math.round(providerCost * EXO_MULTIPLIER); const profit = finalPrice - providerCost;
-          allServices.push({ id: s.service, provider: 'EXO', name: s.name, category: s.category || '', providerCost, finalPrice, profit, profitMargin: Math.round((profit / finalPrice) * 100) || 0, min: parseInt(s.min) || 0, max: parseInt(s.max) || 0 });
+          const rate = parseFloat(s.rate) || 0; 
+          const providerCost = Math.round(rate * EXO_USD_TO_XAF);
+          const finalPrice = Math.round(providerCost * EXO_MULTIPLIER); 
+          const profit = finalPrice - providerCost;
+          allServices.push({ 
+            id: s.service, 
+            provider: 'EXO', 
+            name: s.name || '', 
+            category: s.category || '', 
+            providerCost, 
+            finalPrice, 
+            profit, 
+            profitMargin: finalPrice > 0 ? Math.round((profit / finalPrice) * 100) : 0, 
+            min: parseInt(s.min) || 0, 
+            max: parseInt(s.max) || 0 
+          });
         });
       }
     } catch (e) { console.warn('Erreur EXO:', e.message); }
@@ -991,16 +1010,30 @@ async function getServicesData() {
       const afbData = await callAfriqueBoost({ action: 'services' });
       if (Array.isArray(afbData)) {
         afbData.forEach(s => {
-          const rateXAF = parseFloat(s.rate) || 0; const providerCost = Math.round(rateXAF);
-          const finalPrice = Math.round(providerCost * AFB_MULTIPLIER); const profit = finalPrice - providerCost;
-          allServices.push({ id: s.service, provider: 'AfriqueBoost', name: s.name, category: s.category || '', providerCost, finalPrice, profit, profitMargin: Math.round((profit / finalPrice) * 100) || 0, min: parseInt(s.min) || 0, max: parseInt(s.max) || 0 });
+          const rateXAF = parseFloat(s.rate) || 0; 
+          const providerCost = Math.round(rateXAF);
+          const finalPrice = Math.round(providerCost * AFB_MULTIPLIER); 
+          const profit = finalPrice - providerCost;
+          allServices.push({ 
+            id: s.service, 
+            provider: 'AfriqueBoost', 
+            name: s.name || '', 
+            category: s.category || '', 
+            providerCost, 
+            finalPrice, 
+            profit, 
+            profitMargin: finalPrice > 0 ? Math.round((profit / finalPrice) * 100) : 0, 
+            min: parseInt(s.min) || 0, 
+            max: parseInt(s.max) || 0 
+          });
         });
       }
     } catch (e) { console.warn('Erreur AFB:', e.message); }
   }
 
   const prices = allServices.map(s => s.finalPrice);
-  const minPrice = prices.length ? Math.min(...prices) : 0; const maxPrice = prices.length ? Math.max(...prices) : 0;
+  const minPrice = prices.length ? Math.min(...prices) : 0; 
+  const maxPrice = prices.length ? Math.max(...prices) : 0;
   const avgPrice = prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : 0;
 
   const byProvider = {};
@@ -1016,7 +1049,8 @@ async function getServicesData() {
       })),
     },
   };
-  adminCache.services = result; adminCache.lastFetch.services = Date.now();
+  adminCache.services = result; 
+  adminCache.lastFetch.services = Date.now();
   return result;
 }
 
@@ -1032,25 +1066,29 @@ adminRouter.get('/services', async (req, res) => {
   } 
 });
 
-// NOUVELLE ROUTE : Historique quotidien et bénéfices limités par jour pour économiser les lectures
 adminRouter.get('/daily-profits', async (req, res) => {
   try {
-    const { date } = req.query; // format attendu : YYYY-MM-DD
+    const { date } = req.query;
     if (!date) return res.status(400).json({ success: false, error: "Date requise" });
 
-    // Création des limites de temps pour la journée demandée
     const startDate = new Date(`${date}T00:00:00.000Z`);
     const endDate = new Date(`${date}T23:59:59.999Z`);
 
-    // Récupération ciblée uniquement des commandes de la journée pour économiser le quota
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return res.status(400).json({ success: false, error: "Format de date invalide (AAAA-MM-JJ attendu)" });
+    }
+
+    const startTimestamp = admin.firestore.Timestamp.fromDate(startDate);
+    const endTimestamp = admin.firestore.Timestamp.fromDate(endDate);
+
     const mtpAfbSnapshot = await db.collection('autoOrders')
-      .where('createdAt', '>=', startDate)
-      .where('createdAt', '<=', endDate)
+      .where('createdAt', '>=', startTimestamp)
+      .where('createdAt', '<=', endTimestamp)
       .get();
 
     const exoSnapshot = await db.collection('commandes')
-      .where('date', '>=', startDate)
-      .where('date', '<=', endDate)
+      .where('date', '>=', startTimestamp)
+      .where('date', '<=', endTimestamp)
       .get();
 
     let dailyOrders = [];
@@ -1058,42 +1096,40 @@ adminRouter.get('/daily-profits', async (req, res) => {
 
     mtpAfbSnapshot.forEach(doc => {
       const d = doc.data();
+      const profit = Number(d.profit || 0);
       dailyOrders.push({
-        id: d.orderId,
-        provider: d.provider,
-        serviceName: d.serviceName,
-        qty: d.quantity,
-        providerCost: d.providerCost || 0,
-        finalPrice: d.priceXAF || 0,
-        profit: d.profit || 0,
-        // CORRECTION 1 : On utilise getTimestampMs pour éviter les crashs si la date n'est pas un pur Timestamp
+        id: d.orderId || doc.id,
+        provider: d.provider || 'Inconnu',
+        serviceName: d.serviceName || 'Service inconnu',
+        qty: d.quantity || 0,
+        providerCost: Number(d.providerCost || 0),
+        finalPrice: Number(d.priceXAF || 0),
+        profit: profit,
         date: getTimestampMs(d.createdAt) 
       });
-      dailyTotalProfit += (d.profit || 0);
+      dailyTotalProfit += profit;
     });
 
     exoSnapshot.forEach(doc => {
       const d = doc.data();
+      const profit = Number(d.profit || 0);
       dailyOrders.push({
-        id: d.orderId,
+        id: d.orderId || doc.id,
         provider: 'EXO',
-        serviceName: d.serviceName,
-        qty: d.quantity,
-        providerCost: d.providerCost || 0,
-        finalPrice: d.cost || 0,
-        profit: d.profit || 0,
-        // CORRECTION 1 : Même chose ici pour EXO
+        serviceName: d.serviceName || 'Service inconnu',
+        qty: d.quantity || 0,
+        providerCost: Number(d.providerCost || 0),
+        finalPrice: Number(d.cost || 0),
+        profit: profit,
         date: getTimestampMs(d.date) 
       });
-      dailyTotalProfit += (d.profit || 0);
+      dailyTotalProfit += profit;
     });
 
-    // CORRECTION 2 : Le tri est maintenant mathématiquement stable (chiffres au lieu d'objets)
     dailyOrders.sort((a, b) => (b.date || 0) - (a.date || 0));
 
-    // Récupérer le solde global de bénéfice cumulé (indépendant de la date, pour la case statique)
     const globalDoc = await db.collection('adminStats').doc('global').get();
-    const globalProfit = globalDoc.exists ? (globalDoc.data().soldeBenefices || 0) : 0;
+    const globalProfit = globalDoc.exists ? Number(globalDoc.data().soldeBenefices || 0) : 0;
 
     res.json({ 
         success: true, 
@@ -1102,6 +1138,7 @@ adminRouter.get('/daily-profits', async (req, res) => {
         globalProfit 
     });
   } catch (error) {
+    console.error("Erreur daily-profits:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
