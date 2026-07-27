@@ -7,6 +7,7 @@ const { sendWelcomeEmail } = require('./email-service.js');
 
 const app = express();
 
+// Autorisation explicite du header personnalisé pour l'admin
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -19,6 +20,7 @@ app.use((req, res, next) => {
   next();
 });
 
+// Helper pour convertir un timestamp/date Firestore ou JS de manière sécurisée en millisecondes
 function getTimestampMs(val) {
   if (!val) return 0;
   if (typeof val.toDate === 'function') return val.toDate().getTime();
@@ -199,9 +201,6 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     const qty = parseInt(quantity);
     const isPackage = (service.type || '').toLowerCase().includes('package');
     const cost = isPackage ? priceXAF : Math.round((priceXAF / 1000) * qty);
-    
-    const providerCost = isPackage ? Math.round(rate * MTP_USD_TO_XAF) : Math.round((rate * MTP_USD_TO_XAF / 1000) * qty);
-    const platformProfit = cost - providerCost;
 
     const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
@@ -224,7 +223,6 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     await db.runTransaction(async (transaction) => {
       const counterRef = db.collection('counters').doc('autoOrders');
       const freshUserRef = db.collection('users').doc(uid);
-      const adminStatsRef = db.collection('adminStats').doc('global');
       
       const counterDoc = await transaction.get(counterRef);
       const freshUserDoc = await transaction.get(freshUserRef);
@@ -239,14 +237,12 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
 
       transaction.set(counterRef, { lastId: nextId }, { merge: true });
       transaction.update(freshUserRef, { balance: newBalance });
-      transaction.set(adminStatsRef, { soldeBenefices: admin.firestore.FieldValue.increment(platformProfit) }, { merge: true });
 
       const orderRef = db.collection('autoOrders').doc();
       transaction.set(orderRef, {
         orderId: finalOrderId, userId: uid, provider: 'mtp', providerOrderId: orderResult.order,
         serviceId: parseInt(serviceId), serviceName: service.name, platform, link, quantity: qty,
-        priceXAF: cost, providerCost: providerCost, profit: platformProfit, 
-        status: 'En attente', createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        priceXAF: cost, status: 'En attente', createdAt: admin.firestore.FieldValue.serverTimestamp(),
         providerStartCount: 0, providerRemains: qty, refunded: false,
       });
     });
@@ -540,9 +536,6 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
     const qty = parseInt(quantity);
     const isPackage = (service.type || '').toLowerCase().includes('package');
     const cost = isPackage ? priceXAF : Math.round((priceXAF / 1000) * qty);
-    
-    const providerCost = isPackage ? Math.round(rateXAF) : Math.round((rateXAF / 1000) * qty);
-    const platformProfit = cost - providerCost;
 
     const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
@@ -565,7 +558,6 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
     await db.runTransaction(async (transaction) => {
       const counterRef = db.collection('counters').doc('autoOrders');
       const freshUserRef = db.collection('users').doc(uid);
-      const adminStatsRef = db.collection('adminStats').doc('global');
       
       const counterDoc = await transaction.get(counterRef);
       const freshUserDoc = await transaction.get(freshUserRef);
@@ -580,14 +572,12 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
 
       transaction.set(counterRef, { lastId: nextId }, { merge: true });
       transaction.update(freshUserRef, { balance: newBalance });
-      transaction.set(adminStatsRef, { soldeBenefices: admin.firestore.FieldValue.increment(platformProfit) }, { merge: true });
 
       const orderRef = db.collection('autoOrders').doc();
       transaction.set(orderRef, {
         orderId: finalOrderId, userId: uid, provider: 'afriqueboost', providerOrderId: orderResult.order,
         serviceId: parseInt(serviceId), serviceName: service.name, platform, link, quantity: qty,
-        priceXAF: cost, providerCost: providerCost, profit: platformProfit, 
-        status: 'En attente', createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        priceXAF: cost, status: 'En attente', createdAt: admin.firestore.FieldValue.serverTimestamp(),
         providerStartCount: 0, providerRemains: qty, refunded: false,
       });
     });
@@ -825,6 +815,9 @@ app.post('/api/fapshi-webhook', async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// NOUVELLE ROUTE : Vérification manuelle du statut Fapshi
+// ═══════════════════════════════════════════════════════════════
 app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
   const { transId } = req.body;
   const uid = req.user.uid;
@@ -834,6 +827,7 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
   }
 
   try {
+    // 1. Récupérer la transaction dans Firestore
     const transRef = db.collection('fapshiTransactions').doc(transId);
     const transDoc = await transRef.get();
 
@@ -843,14 +837,17 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
 
     const transData = transDoc.data();
 
+    // Vérifier que l'utilisateur est bien le propriétaire
     if (transData.userId !== uid) {
       return res.status(403).json({ success: false, error: 'Accès non autorisé.' });
     }
 
+    // Si déjà confirmé, retourner le statut sans rien faire
     if (transData.status === 'CONFIRMED') {
       return res.json({ success: true, status: 'CONFIRMED', alreadyCredited: true });
     }
 
+    // 2. Interroger l'API Fapshi pour obtenir le statut actuel
     const fapshiTransId = transData.fapshiTransId || transId;
     const API_USER = process.env.FAPSHI_API_USER;
     const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
@@ -859,6 +856,7 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
       throw new Error('Configuration Fapshi incomplète.');
     }
 
+    // ⭐ LA MODIFICATION EST ICI : on utilise "payment-status" 
     const fapshiRes = await fetch(`https://live.fapshi.com/payment-status/${fapshiTransId}`, {
       headers: {
         'apiuser': API_USER,
@@ -873,16 +871,24 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
     }
 
     const fapshiData = await fapshiRes.json();
+
+    // 3. Interpréter le statut retourné par Fapshi
+    // Exemples possibles : 'SUCCESSFUL', 'PENDING', 'FAILED', 'EXPIRED', etc.
     let status = fapshiData.status || 'PENDING';
+    // Normaliser en majuscules pour la comparaison
     const statusUpper = status.toUpperCase();
 
+    // 4. Mettre à jour Firestore et le solde si nécessaire
     let updatedStatus = statusUpper;
     let credited = false;
 
     if (statusUpper === 'SUCCESSFUL') {
+      // Vérifier si déjà crédité (anti-double)
       if (transData.status === 'CONFIRMED') {
+        // déjà fait, ne rien faire
         credited = true;
       } else {
+        // Créditer le solde
         const amountToCredit = transData.amount || 0;
         if (amountToCredit > 0) {
           const userRef = db.collection('users').doc(uid);
@@ -898,21 +904,27 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
           credited = true;
           updatedStatus = 'CONFIRMED';
         } else {
+          // Montant invalide, on marque comme échec
           await transRef.update({ status: 'FAILED' });
           updatedStatus = 'FAILED';
         }
       }
     } else if (statusUpper === 'PENDING' || statusUpper === 'WAITING' || statusUpper === 'INITIATED') {
+      // Statut toujours en attente, ne pas toucher au solde
+      // Mettre à jour la date de dernière vérification
       await transRef.update({ lastChecked: admin.firestore.FieldValue.serverTimestamp() });
       updatedStatus = 'PENDING';
     } else if (statusUpper === 'FAILED' || statusUpper === 'EXPIRED' || statusUpper === 'CANCELED' || statusUpper === 'REVERSED') {
+      // Échec ou annulation, on marque la transaction comme FAILED
       await transRef.update({ status: 'FAILED' });
       updatedStatus = 'FAILED';
     } else {
+      // Statut inconnu, on le stocke tel quel
       await transRef.update({ status: statusUpper });
       updatedStatus = statusUpper;
     }
 
+    // 5. Retourner la réponse
     return res.json({
       success: true,
       status: updatedStatus,
@@ -930,7 +942,7 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// ADMIN API
+// ADMIN API (ZÉRO LECTURE FIRESTORE)
 // ═══════════════════════════════════════════════════════════════
 
 const ADMIN_PASSWORD = '209644209644';
@@ -949,6 +961,7 @@ function isAdminCacheValid(key) {
   return adminCache[key] && (Date.now() - adminCache.lastFetch[key] < ADMIN_CACHE_TTL);
 }
 
+// Récupération directe des services depuis les API partenaires sans toucher Firestore
 async function getServicesData() {
   if (isAdminCacheValid('services')) return adminCache.services;
   let allServices = [];
@@ -958,22 +971,9 @@ async function getServicesData() {
       const mtpData = await callMTP({ action: 'services' });
       if (Array.isArray(mtpData)) {
         mtpData.forEach(s => {
-          const rate = parseFloat(s.rate) || 0; 
-          const providerCost = Math.round(rate * MTP_USD_TO_XAF);
-          const finalPrice = Math.round(providerCost * MTP_MULTIPLIER); 
-          const profit = finalPrice - providerCost;
-          allServices.push({ 
-            id: s.service, 
-            provider: 'MTP', 
-            name: s.name || '', 
-            category: s.category || '', 
-            providerCost, 
-            finalPrice, 
-            profit, 
-            profitMargin: finalPrice > 0 ? Math.round((profit / finalPrice) * 100) : 0, 
-            min: parseInt(s.min) || 0, 
-            max: parseInt(s.max) || 0 
-          });
+          const rate = parseFloat(s.rate) || 0; const providerCost = Math.round(rate * MTP_USD_TO_XAF);
+          const finalPrice = Math.round(providerCost * MTP_MULTIPLIER); const profit = finalPrice - providerCost;
+          allServices.push({ id: s.service, provider: 'MTP', name: s.name, category: s.category || '', providerCost, finalPrice, profit, profitMargin: Math.round((profit / finalPrice) * 100) || 0, min: parseInt(s.min) || 0, max: parseInt(s.max) || 0 });
         });
       }
     } catch (e) { console.warn('Erreur MTP:', e.message); }
@@ -984,22 +984,9 @@ async function getServicesData() {
       const exoData = await callExo({ action: 'services' });
       if (Array.isArray(exoData)) {
         exoData.forEach(s => {
-          const rate = parseFloat(s.rate) || 0; 
-          const providerCost = Math.round(rate * EXO_USD_TO_XAF);
-          const finalPrice = Math.round(providerCost * EXO_MULTIPLIER); 
-          const profit = finalPrice - providerCost;
-          allServices.push({ 
-            id: s.service, 
-            provider: 'EXO', 
-            name: s.name || '', 
-            category: s.category || '', 
-            providerCost, 
-            finalPrice, 
-            profit, 
-            profitMargin: finalPrice > 0 ? Math.round((profit / finalPrice) * 100) : 0, 
-            min: parseInt(s.min) || 0, 
-            max: parseInt(s.max) || 0 
-          });
+          const rate = parseFloat(s.rate) || 0; const providerCost = Math.round(rate * EXO_USD_TO_XAF);
+          const finalPrice = Math.round(providerCost * EXO_MULTIPLIER); const profit = finalPrice - providerCost;
+          allServices.push({ id: s.service, provider: 'EXO', name: s.name, category: s.category || '', providerCost, finalPrice, profit, profitMargin: Math.round((profit / finalPrice) * 100) || 0, min: parseInt(s.min) || 0, max: parseInt(s.max) || 0 });
         });
       }
     } catch (e) { console.warn('Erreur EXO:', e.message); }
@@ -1010,30 +997,16 @@ async function getServicesData() {
       const afbData = await callAfriqueBoost({ action: 'services' });
       if (Array.isArray(afbData)) {
         afbData.forEach(s => {
-          const rateXAF = parseFloat(s.rate) || 0; 
-          const providerCost = Math.round(rateXAF);
-          const finalPrice = Math.round(providerCost * AFB_MULTIPLIER); 
-          const profit = finalPrice - providerCost;
-          allServices.push({ 
-            id: s.service, 
-            provider: 'AfriqueBoost', 
-            name: s.name || '', 
-            category: s.category || '', 
-            providerCost, 
-            finalPrice, 
-            profit, 
-            profitMargin: finalPrice > 0 ? Math.round((profit / finalPrice) * 100) : 0, 
-            min: parseInt(s.min) || 0, 
-            max: parseInt(s.max) || 0 
-          });
+          const rateXAF = parseFloat(s.rate) || 0; const providerCost = Math.round(rateXAF);
+          const finalPrice = Math.round(providerCost * AFB_MULTIPLIER); const profit = finalPrice - providerCost;
+          allServices.push({ id: s.service, provider: 'AfriqueBoost', name: s.name, category: s.category || '', providerCost, finalPrice, profit, profitMargin: Math.round((profit / finalPrice) * 100) || 0, min: parseInt(s.min) || 0, max: parseInt(s.max) || 0 });
         });
       }
     } catch (e) { console.warn('Erreur AFB:', e.message); }
   }
 
   const prices = allServices.map(s => s.finalPrice);
-  const minPrice = prices.length ? Math.min(...prices) : 0; 
-  const maxPrice = prices.length ? Math.max(...prices) : 0;
+  const minPrice = prices.length ? Math.min(...prices) : 0; const maxPrice = prices.length ? Math.max(...prices) : 0;
   const avgPrice = prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : 0;
 
   const byProvider = {};
@@ -1049,8 +1022,7 @@ async function getServicesData() {
       })),
     },
   };
-  adminCache.services = result; 
-  adminCache.lastFetch.services = Date.now();
+  adminCache.services = result; adminCache.lastFetch.services = Date.now();
   return result;
 }
 
@@ -1064,83 +1036,6 @@ adminRouter.get('/services', async (req, res) => {
   } catch (error) { 
     res.status(500).json({ success: false, error: error.message }); 
   } 
-});
-
-adminRouter.get('/daily-profits', async (req, res) => {
-  try {
-    const { date } = req.query;
-    if (!date) return res.status(400).json({ success: false, error: "Date requise" });
-
-    const startDate = new Date(`${date}T00:00:00.000Z`);
-    const endDate = new Date(`${date}T23:59:59.999Z`);
-
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      return res.status(400).json({ success: false, error: "Format de date invalide (AAAA-MM-JJ attendu)" });
-    }
-
-    const startTimestamp = admin.firestore.Timestamp.fromDate(startDate);
-    const endTimestamp = admin.firestore.Timestamp.fromDate(endDate);
-
-    const mtpAfbSnapshot = await db.collection('autoOrders')
-      .where('createdAt', '>=', startTimestamp)
-      .where('createdAt', '<=', endTimestamp)
-      .get();
-
-    const exoSnapshot = await db.collection('commandes')
-      .where('date', '>=', startTimestamp)
-      .where('date', '<=', endTimestamp)
-      .get();
-
-    let dailyOrders = [];
-    let dailyTotalProfit = 0;
-
-    mtpAfbSnapshot.forEach(doc => {
-      const d = doc.data();
-      const profit = Number(d.profit || 0);
-      dailyOrders.push({
-        id: d.orderId || doc.id,
-        provider: d.provider || 'Inconnu',
-        serviceName: d.serviceName || 'Service inconnu',
-        qty: d.quantity || 0,
-        providerCost: Number(d.providerCost || 0),
-        finalPrice: Number(d.priceXAF || 0),
-        profit: profit,
-        date: getTimestampMs(d.createdAt) 
-      });
-      dailyTotalProfit += profit;
-    });
-
-    exoSnapshot.forEach(doc => {
-      const d = doc.data();
-      const profit = Number(d.profit || 0);
-      dailyOrders.push({
-        id: d.orderId || doc.id,
-        provider: 'EXO',
-        serviceName: d.serviceName || 'Service inconnu',
-        qty: d.quantity || 0,
-        providerCost: Number(d.providerCost || 0),
-        finalPrice: Number(d.cost || 0),
-        profit: profit,
-        date: getTimestampMs(d.date) 
-      });
-      dailyTotalProfit += profit;
-    });
-
-    dailyOrders.sort((a, b) => (b.date || 0) - (a.date || 0));
-
-    const globalDoc = await db.collection('adminStats').doc('global').get();
-    const globalProfit = globalDoc.exists ? Number(globalDoc.data().soldeBenefices || 0) : 0;
-
-    res.json({ 
-        success: true, 
-        orders: dailyOrders, 
-        dailyTotalProfit, 
-        globalProfit 
-    });
-  } catch (error) {
-    console.error("Erreur daily-profits:", error);
-    res.status(500).json({ success: false, error: error.message });
-  }
 });
 
 app.use('/api/admin', adminRouter);
