@@ -701,15 +701,13 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
         profile: {
           displayName: req.user.name || '', email: req.user.email || '', photoURL: req.user.picture || null,
           phone: '', country: '', balance: 0, totalOrders: 0, createdAt: new Date().toISOString(), settings: {}, resellerLevel: 'bronze',
-          memberBadge: 'Nouveau membre' // Valeur par défaut
+          memberBadge: 'Nouveau membre'
         }
       });
     }
     const data = userDoc.data();
     
-    // --- NOUVEAUTÉ : Calcul du temps d'activité pour le badge ---
     const createdAtMs = data.createdAt ? getTimestampMs(data.createdAt) : Date.now();
-    // On calcule la différence en mois (approximation: 30.44 jours par mois)
     const diffMonths = Math.floor((Date.now() - createdAtMs) / (1000 * 60 * 60 * 24 * 30.44));
     
     let memberBadge = "Nouveau membre";
@@ -724,7 +722,7 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
         photoURL: data.photoURL || req.user.picture || null, phone: data.phone || '', country: data.country || '',
         balance: data.balance || 0, totalOrders: data.totalOrders || 0, createdAt: data.createdAt || new Date().toISOString(),
         settings: data.settings || {}, resellerLevel: data.resellerLevel || 'bronze', lastSignIn: data.lastSignIn || null,
-        memberBadge // Envoi du badge calculé au frontend
+        memberBadge
       }
     });
   } catch (error) {
@@ -732,13 +730,12 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
   }
 });
 
-// --- NOUVEAUTÉ : Route pour mettre à jour le profil ---
+// Route pour mettre à jour les informations classiques du profil
 app.post('/api/update-profile', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
     const { displayName, phone, country, settings, photoURL } = req.body;
     
-    // Créer un objet avec uniquement les champs fournis dans la requête
     const updateData = {};
     if (displayName !== undefined) updateData.displayName = displayName;
     if (phone !== undefined) updateData.phone = phone;
@@ -748,7 +745,6 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
     
     updateData.updatedAt = admin.firestore.FieldValue.serverTimestamp();
 
-    // On utilise merge: true pour ne pas écraser les autres données de l'utilisateur
     await db.collection('users').doc(uid).set(updateData, { merge: true });
     
     res.json({ success: true, message: 'Profil mis à jour avec succès.' });
@@ -757,7 +753,43 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
   }
 });
 
-// --- NOUVEAUTÉ : Obtenir les informations de la clé API développeur ---
+// --- NOUVEAUTÉ : Route pour mettre à jour spécifiquement les paramètres (settings) ---
+app.post('/api/user/settings', checkAuth, async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    const newSettings = req.body; // Exemple : { hideBalance: true, speedMode: false }
+    
+    // On vérifie qu'on a bien reçu des données
+    if (!newSettings || typeof newSettings !== 'object' || Object.keys(newSettings).length === 0) {
+      return res.status(400).json({ success: false, error: 'Aucun paramètre fourni.' });
+    }
+
+    // On prépare un objet de mise à jour sécurisé en utilisant la "notation par points" (dot notation)
+    // Cela permet de modifier uniquement les paramètres envoyés sans écraser le reste de l'objet "settings"
+    const updatePayload = {};
+    for (const [key, value] of Object.entries(newSettings)) {
+      updatePayload[`settings.${key}`] = value;
+    }
+    updatePayload.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+
+    // On applique la mise à jour au document utilisateur
+    await db.collection('users').doc(uid).update(updatePayload);
+    
+    res.json({ success: true, message: 'Paramètres mis à jour avec succès.' });
+  } catch (error) {
+    // Si l'utilisateur n'existe pas encore (très rare à ce stade), on gère l'erreur
+    if (error.code === 5) { // 5 = NOT_FOUND dans Firestore
+      await db.collection('users').doc(req.user.uid).set({
+        settings: req.body,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      return res.json({ success: true, message: 'Paramètres créés et mis à jour avec succès.' });
+    }
+    console.error('Erreur /api/user/settings:', error);
+    res.status(500).json({ success: false, error: 'Erreur lors de la mise à jour des paramètres.' });
+  }
+});
+
 app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
@@ -776,27 +808,22 @@ app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
   }
 });
 
-// --- NOUVEAUTÉ : Générer une nouvelle clé API développeur ---
 app.post('/api/user/generate-api-key', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
     
-    // Génération d'une chaîne aléatoire sécurisée pour servir de clé
     const newApiKey = 'sbh_live_' + crypto.randomBytes(24).toString('hex');
     
-    // Sauvegarde de la clé dans le document utilisateur
     await db.collection('users').doc(uid).set({
       apiKey: newApiKey,
       apiKeyCreatedAt: admin.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
     
-    // On retourne la clé complète pour que le front-end l'affiche à l'utilisateur
     res.json({ success: true, apiKey: newApiKey });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Erreur lors de la génération de la clé API.' });
   }
 });
-
 
 // ═══════════════════════════════════════════════════════════════
 // Fapshi – Paiement Mobile Money
@@ -894,9 +921,6 @@ app.post('/api/fapshi-webhook', async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// NOUVELLE ROUTE : Vérification manuelle du statut Fapshi
-// ═══════════════════════════════════════════════════════════════
 app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
   const { transId } = req.body;
   const uid = req.user.uid;
@@ -906,7 +930,6 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
   }
 
   try {
-    // 1. Récupérer la transaction dans Firestore
     const transRef = db.collection('fapshiTransactions').doc(transId);
     const transDoc = await transRef.get();
 
@@ -916,17 +939,14 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
 
     const transData = transDoc.data();
 
-    // Vérifier que l'utilisateur est bien le propriétaire
     if (transData.userId !== uid) {
       return res.status(403).json({ success: false, error: 'Accès non autorisé.' });
     }
 
-    // Si déjà confirmé, retourner le statut sans rien faire
     if (transData.status === 'CONFIRMED') {
       return res.json({ success: true, status: 'CONFIRMED', alreadyCredited: true });
     }
 
-    // 2. Interroger l'API Fapshi pour obtenir le statut actuel
     const fapshiTransId = transData.fapshiTransId || transId;
     const API_USER = process.env.FAPSHI_API_USER;
     const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
@@ -935,7 +955,6 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
       throw new Error('Configuration Fapshi incomplète.');
     }
 
-    // ⭐ LA MODIFICATION EST ICI : on utilise "payment-status" 
     const fapshiRes = await fetch(`https://live.fapshi.com/payment-status/${fapshiTransId}`, {
       headers: {
         'apiuser': API_USER,
@@ -951,23 +970,16 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
 
     const fapshiData = await fapshiRes.json();
 
-    // 3. Interpréter le statut retourné par Fapshi
-    // Exemples possibles : 'SUCCESSFUL', 'PENDING', 'FAILED', 'EXPIRED', etc.
     let status = fapshiData.status || 'PENDING';
-    // Normaliser en majuscules pour la comparaison
     const statusUpper = status.toUpperCase();
 
-    // 4. Mettre à jour Firestore et le solde si nécessaire
     let updatedStatus = statusUpper;
     let credited = false;
 
     if (statusUpper === 'SUCCESSFUL') {
-      // Vérifier si déjà crédité (anti-double)
       if (transData.status === 'CONFIRMED') {
-        // déjà fait, ne rien faire
         credited = true;
       } else {
-        // Créditer le solde
         const amountToCredit = transData.amount || 0;
         if (amountToCredit > 0) {
           const userRef = db.collection('users').doc(uid);
@@ -983,27 +995,21 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
           credited = true;
           updatedStatus = 'CONFIRMED';
         } else {
-          // Montant invalide, on marque comme échec
           await transRef.update({ status: 'FAILED' });
           updatedStatus = 'FAILED';
         }
       }
     } else if (statusUpper === 'PENDING' || statusUpper === 'WAITING' || statusUpper === 'INITIATED') {
-      // Statut toujours en attente, ne pas toucher au solde
-      // Mettre à jour la date de dernière vérification
       await transRef.update({ lastChecked: admin.firestore.FieldValue.serverTimestamp() });
       updatedStatus = 'PENDING';
     } else if (statusUpper === 'FAILED' || statusUpper === 'EXPIRED' || statusUpper === 'CANCELED' || statusUpper === 'REVERSED') {
-      // Échec ou annulation, on marque la transaction comme FAILED
       await transRef.update({ status: 'FAILED' });
       updatedStatus = 'FAILED';
     } else {
-      // Statut inconnu, on le stocke tel quel
       await transRef.update({ status: statusUpper });
       updatedStatus = statusUpper;
     }
 
-    // 5. Retourner la réponse
     return res.json({
       success: true,
       status: updatedStatus,
@@ -1040,7 +1046,6 @@ function isAdminCacheValid(key) {
   return adminCache[key] && (Date.now() - adminCache.lastFetch[key] < ADMIN_CACHE_TTL);
 }
 
-// Récupération directe des services depuis les API partenaires sans toucher Firestore
 async function getServicesData() {
   if (isAdminCacheValid('services')) return adminCache.services;
   let allServices = [];
