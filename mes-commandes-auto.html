@@ -548,7 +548,7 @@
         return `${localAmount.toLocaleString('fr-FR')} ${userCurrency.symbol}`;
       }
 
-      // ── Formatage date (CORRIGÉ) ────────────────────────────
+      // ── Formatage date ────────────────────────────
       function formatDate(timestamp) {
         if (!timestamp) return '-';
         let date;
@@ -660,23 +660,40 @@
           </div>`;
       }
 
-      // ── Charger les commandes ────────────────────────────────
+      // ── Charger les commandes (CORRIGÉ AVEC ANTI-CACHE ET FILTRE MTP) ──
       async function loadOrders() {
-        if (!userId) {
-          console.warn('loadOrders: userId manquant');
+        // Ajout d'une sécurité stricte pour être certain que l'utilisateur est bien initialisé
+        if (!userId || !auth.currentUser) {
+          console.warn('loadOrders: Utilisateur non connecté ou non détecté');
           return;
         }
         refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Chargement...';
         refreshBtn.disabled  = true;
+        
         try {
           const idToken  = await auth.currentUser.getIdToken();
-          const response = await fetch(`${BACKEND_URL}/api/mtp/user-orders`, {
-            headers: { 'Authorization': `Bearer ${idToken}` }
+          
+          // CRÉATION D'UN CACHE BUSTER (Paramètre de temps) pour forcer le navigateur à appeler le serveur
+          const cacheBuster = new Date().getTime();
+          
+          // AJOUT DES HEADERS STRICTS ANTI-CACHE
+          const response = await fetch(`${BACKEND_URL}/api/mtp/user-orders?_t=${cacheBuster}`, {
+            headers: { 
+                'Authorization': `Bearer ${idToken}`,
+                'Cache-Control': 'no-store, no-cache, must-revalidate',
+                'Pragma': 'no-cache'
+            },
+            cache: 'no-store' // Oblige le navigateur à ne pas utiliser sa mémoire tampon
           });
+          
           const data = await response.json();
           if (!data.success) throw new Error(data.error || 'Erreur serveur');
-          orders = data.orders || [];
-          console.log(`📦 ${orders.length} commandes récupérées`, orders); // utile pour déboguer
+          
+          // FILTRAGE STRICT : On ne garde que les commandes du fournisseur MTP pour ne pas mélanger
+          const allOrders = data.orders || [];
+          orders = allOrders.filter(o => !o.provider || o.provider === 'mtp');
+          
+          console.log(`📦 ${orders.length} commandes MTP récupérées`, orders);
           updateStats();
           renderOrders();
         } catch (error) {
@@ -890,19 +907,20 @@
 
       refreshBtn.addEventListener('click', loadOrders);
 
-      // ── Rechargement automatique ─────────────────────────────
+      // ── Rechargement automatique (SÉCURISÉ) ──────────────────
       function startAutoRefresh() {
         if (refreshInterval) clearInterval(refreshInterval);
         refreshInterval = setInterval(() => {
-          if (document.visibilityState === 'visible') {
+          // On vérifie que l'utilisateur est bien connecté avant d'actualiser
+          if (document.visibilityState === 'visible' && auth.currentUser) {
             loadOrders();
           }
-        }, 30000); // toutes les 30 secondes
+        }, 30000); 
       }
 
       // Recharger quand la page devient visible
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
+        if (document.visibilityState === 'visible' && auth.currentUser) {
           loadOrders();
         }
       });
