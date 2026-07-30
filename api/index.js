@@ -701,10 +701,22 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
         profile: {
           displayName: req.user.name || '', email: req.user.email || '', photoURL: req.user.picture || null,
           phone: '', country: '', balance: 0, totalOrders: 0, createdAt: new Date().toISOString(), settings: {}, resellerLevel: 'bronze',
+          memberBadge: 'Nouveau membre' // Valeur par défaut
         }
       });
     }
     const data = userDoc.data();
+    
+    // --- NOUVEAUTÉ : Calcul du temps d'activité pour le badge ---
+    const createdAtMs = data.createdAt ? getTimestampMs(data.createdAt) : Date.now();
+    // On calcule la différence en mois (approximation: 30.44 jours par mois)
+    const diffMonths = Math.floor((Date.now() - createdAtMs) / (1000 * 60 * 60 * 24 * 30.44));
+    
+    let memberBadge = "Nouveau membre";
+    if (diffMonths > 0) {
+      memberBadge = `Membre depuis ${diffMonths} mois`;
+    }
+    
     res.json({
       success: true,
       profile: {
@@ -712,12 +724,79 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
         photoURL: data.photoURL || req.user.picture || null, phone: data.phone || '', country: data.country || '',
         balance: data.balance || 0, totalOrders: data.totalOrders || 0, createdAt: data.createdAt || new Date().toISOString(),
         settings: data.settings || {}, resellerLevel: data.resellerLevel || 'bronze', lastSignIn: data.lastSignIn || null,
+        memberBadge // Envoi du badge calculé au frontend
       }
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// --- NOUVEAUTÉ : Route pour mettre à jour le profil ---
+app.post('/api/update-profile', checkAuth, async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    const { displayName, phone, country, settings, photoURL } = req.body;
+    
+    // Créer un objet avec uniquement les champs fournis dans la requête
+    const updateData = {};
+    if (displayName !== undefined) updateData.displayName = displayName;
+    if (phone !== undefined) updateData.phone = phone;
+    if (country !== undefined) updateData.country = country;
+    if (settings !== undefined) updateData.settings = settings;
+    if (photoURL !== undefined) updateData.photoURL = photoURL;
+    
+    updateData.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+
+    // On utilise merge: true pour ne pas écraser les autres données de l'utilisateur
+    await db.collection('users').doc(uid).set(updateData, { merge: true });
+    
+    res.json({ success: true, message: 'Profil mis à jour avec succès.' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Erreur lors de la mise à jour du profil.' });
+  }
+});
+
+// --- NOUVEAUTÉ : Obtenir les informations de la clé API développeur ---
+app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    const userDoc = await db.collection('users').doc(uid).get();
+    
+    if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
+    
+    const data = userDoc.data();
+    if (data.apiKey) {
+      res.json({ success: true, hasKey: true, createdAt: data.apiKeyCreatedAt });
+    } else {
+      res.json({ success: true, hasKey: false });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- NOUVEAUTÉ : Générer une nouvelle clé API développeur ---
+app.post('/api/user/generate-api-key', checkAuth, async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    
+    // Génération d'une chaîne aléatoire sécurisée pour servir de clé
+    const newApiKey = 'sbh_live_' + crypto.randomBytes(24).toString('hex');
+    
+    // Sauvegarde de la clé dans le document utilisateur
+    await db.collection('users').doc(uid).set({
+      apiKey: newApiKey,
+      apiKeyCreatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    
+    // On retourne la clé complète pour que le front-end l'affiche à l'utilisateur
+    res.json({ success: true, apiKey: newApiKey });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Erreur lors de la génération de la clé API.' });
+  }
+});
+
 
 // ═══════════════════════════════════════════════════════════════
 // Fapshi – Paiement Mobile Money
