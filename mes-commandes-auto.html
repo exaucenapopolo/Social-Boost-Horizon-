@@ -285,45 +285,6 @@
     }
     .copy-btn:hover { opacity: 1; color: var(--gold); }
 
-    /* Modale Commander */
-    .modal-overlay {
-      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
-      z-index: 1000; justify-content: center; align-items: center; padding: 20px;
-    }
-    .modal-overlay.active { display: flex; }
-    .modal-box {
-      background: linear-gradient(135deg, #0a1a2f, #0f2847);
-      border: 1px solid var(--primary-violet);
-      border-radius: 24px; padding: 30px; max-width: 450px; width: 100%;
-      animation: modalIn 0.3s ease;
-    }
-    @keyframes modalIn {
-      from { opacity: 0; transform: scale(0.9); }
-      to   { opacity: 1; transform: scale(1); }
-    }
-    .modal-box h3 {
-      color: var(--primary-violet); margin-bottom: 20px; text-align: center;
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-    }
-    .modal-option {
-      background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
-      border-radius: 14px; padding: 16px 18px; margin-bottom: 10px;
-      cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 15px;
-      text-decoration: none; color: #fff;
-    }
-    .modal-option:hover { background: rgba(139,92,246,0.1); border-color: var(--primary-violet); transform: translateX(5px); }
-    .modal-option i { font-size: 1.5rem; color: var(--primary-violet); width: 30px; text-align: center; }
-    .modal-option .option-text h4 { margin: 0; font-size: 1rem; }
-    .modal-option .option-text p { margin: 2px 0 0; font-size: 0.8rem; color: var(--text-light); }
-    .modal-close-btn {
-      display: block; width: 100%; margin-top: 15px; background: transparent;
-      border: 1px solid rgba(255,255,255,0.2); color: #fff;
-      padding: 10px; border-radius: 50px; cursor: pointer; font-weight: 600;
-      transition: 0.3s; font-family: var(--font-primary);
-    }
-    .modal-close-btn:hover { background: rgba(255,255,255,0.05); }
-
     /* État vide */
     .empty-state {
       text-align: center; padding: 60px 20px;
@@ -476,11 +437,10 @@
         messagingSenderId: "43658165639",
         appId: "1:43658165639:web:b8f492dc6a25cd12fc6722"
       };
-      firebase.initializeApp(firebaseConfig);
+      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
       const db   = firebase.firestore();
       const auth = firebase.auth();
 
-      // URL relative — fonctionne sur Vercel sans modification
       const BACKEND_URL = '';
 
       // ── Configuration multi-devises ──────────────────────────
@@ -540,7 +500,7 @@
         setTimeout(() => el.remove(), 5000);
       }
 
-      // ── Formatage prix ───────────────────────────────────────
+      // ── Formatage prix & date ────────────────────────────────
       function formatPrice(amountXAF) {
         const formatted = Math.round(amountXAF).toLocaleString('fr-FR');
         if (userCurrency.rate === 1) return `${formatted} ${userCurrency.symbol}`;
@@ -548,7 +508,6 @@
         return `${localAmount.toLocaleString('fr-FR')} ${userCurrency.symbol}`;
       }
 
-      // ── Formatage date ───────────────────────────────────────
       function formatDate(timestamp) {
         if (!timestamp) return '-';
         let date;
@@ -558,76 +517,115 @@
         return date.toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
       }
 
-      // ── Badge de statut ──────────────────────────────────────
+      // ── Badge de statut corrigé (Insensible à la casse) ──────
       function getStatusBadge(status) {
-        const map = {
-          'En attente':  { class: 'status-pending',   icon: 'clock',             label: 'En attente' },
-          'En cours':    { class: 'status-progress',  icon: 'spinner fa-spin',   label: 'En cours'   },
-          'Traitement':  { class: 'status-progress',  icon: 'cog fa-spin',       label: 'Traitement' },
-          'Terminé':     { class: 'status-completed', icon: 'check-circle',      label: 'Terminé'    },
-          'Partiel':     { class: 'status-partial',   icon: 'adjust',            label: 'Partiel'    },
-          'Annulé':      { class: 'status-cancelled', icon: 'times-circle',      label: 'Annulé'     },
-          'Pending':     { class: 'status-pending',   icon: 'clock',             label: 'En attente' },
-          'In progress': { class: 'status-progress',  icon: 'spinner fa-spin',   label: 'En cours'   },
-          'Processing':  { class: 'status-progress',  icon: 'cog fa-spin',       label: 'Traitement' },
-          'Completed':   { class: 'status-completed', icon: 'check-circle',      label: 'Terminé'    },
-          'Partial':     { class: 'status-partial',   icon: 'adjust',            label: 'Partiel'    },
-          'Canceled':    { class: 'status-cancelled', icon: 'times-circle',      label: 'Annulé'     }
-        };
-        const s = map[status] || { class: 'status-pending', icon: 'question', label: status };
-        return `<span class="status-badge ${s.class}"><i class="fas fa-${s.icon}"></i> ${s.label}</span>`;
+        const s = (status || '').trim().toLowerCase();
+        
+        if (['en attente', 'pending'].includes(s)) {
+          return `<span class="status-badge status-pending"><i class="fas fa-clock"></i> En attente</span>`;
+        }
+        if (['en cours', 'in progress', 'traitement', 'processing'].includes(s)) {
+          return `<span class="status-badge status-progress"><i class="fas fa-spinner fa-spin"></i> En cours</span>`;
+        }
+        if (['terminé', 'completed'].includes(s)) {
+          return `<span class="status-badge status-completed"><i class="fas fa-check-circle"></i> Terminé</span>`;
+        }
+        if (['partiel', 'partial'].includes(s)) {
+          return `<span class="status-badge status-partial"><i class="fas fa-adjust"></i> Partiel</span>`;
+        }
+        if (['annulé', 'canceled', 'cancelled'].includes(s)) {
+          return `<span class="status-badge status-cancelled"><i class="fas fa-times-circle"></i> Annulé</span>`;
+        }
+        
+        return `<span class="status-badge status-pending"><i class="fas fa-question"></i> ${status || 'Inconnu'}</span>`;
       }
 
-      // ── Tri ──────────────────────────────────────────────────
+      // ── Tri (Corrigé pour la casse) ──────────────────────────
       function sortOrders(list, sortOption) {
         const sorted = [...list];
         const getDate = o => o.createdAt ? new Date((o.createdAt.seconds ? o.createdAt.seconds * 1000 : o.createdAt)) : new Date(0);
+        
         switch (sortOption) {
           case 'date-desc':   sorted.sort((a,b)=> getDate(b)-getDate(a)); break;
           case 'date-asc':    sorted.sort((a,b)=> getDate(a)-getDate(b)); break;
           case 'amount-desc': sorted.sort((a,b)=> (b.priceXAF||0)-(a.priceXAF||0)); break;
           case 'amount-asc':  sorted.sort((a,b)=> (a.priceXAF||0)-(b.priceXAF||0)); break;
           case 'status': {
-            const p = { 'En attente':1,'Pending':1,'En cours':2,'In progress':2,'Traitement':2,'Processing':2,'Partiel':3,'Partial':3,'Terminé':4,'Completed':4,'Annulé':5,'Canceled':5 };
-            sorted.sort((a,b)=> (p[a.status||'']||99)-(p[b.status||'']||99));
+            const getRank = st => {
+              const s = (st || '').trim().toLowerCase();
+              if (['en attente', 'pending'].includes(s)) return 1;
+              if (['en cours', 'in progress', 'traitement', 'processing'].includes(s)) return 2;
+              if (['partiel', 'partial'].includes(s)) return 3;
+              if (['terminé', 'completed'].includes(s)) return 4;
+              if (['annulé', 'canceled', 'cancelled'].includes(s)) return 5;
+              return 99;
+            };
+            sorted.sort((a,b) => getRank(a.status) - getRank(b.status));
             break;
           }
         }
         return sorted;
       }
 
-      // ── Filtre par statut ────────────────────────────────────
+      // ── Filtre par statut (Corrigé pour la casse) ────────────
       function applyFilter(list, filter) {
         if (filter === 'all') return list;
-        const pending   = ['En attente','En cours','Traitement','Pending','In progress','Processing'];
-        const completed = ['Terminé','Completed'];
-        const partial   = ['Partiel','Partial'];
-        const cancelled = ['Annulé','Canceled'];
-        if (filter === 'pending')   return list.filter(o=> pending.includes(o.status||''));
-        if (filter === 'completed') return list.filter(o=> completed.includes(o.status||''));
-        if (filter === 'partial')   return list.filter(o=> partial.includes(o.status||''));
-        if (filter === 'cancelled') return list.filter(o=> cancelled.includes(o.status||''));
-        return list;
+        
+        const pending   = ['en attente','en cours','traitement','pending','in progress','processing'];
+        const completed = ['terminé','completed'];
+        const partial   = ['partiel','partial'];
+        const cancelled = ['annulé','canceled','cancelled'];
+        
+        return list.filter(o => {
+          const s = (o.status || '').trim().toLowerCase();
+          if (filter === 'pending')   return pending.includes(s);
+          if (filter === 'completed') return completed.includes(s);
+          if (filter === 'partial')   return partial.includes(s);
+          if (filter === 'cancelled') return cancelled.includes(s);
+          return true;
+        });
       }
 
-      // ── Partage ──────────────────────────────────────────────
+      // ── Fonctions de Partage Extériorisées (Corrige le bug HTML) ──
       function generateShareMessage(order) {
         return `📋 *Commande automatique #${order.orderId||'N/A'}*\n📅 Date : ${formatDate(order.createdAt)}\n🛠 Service : ${order.serviceName||'Service auto'}\n📊 Quantité : ${order.quantity||0}\n💰 Montant : ${formatPrice(order.priceXAF||0)}\n📌 Statut : ${order.status||'N/A'}\n🔗 Lien : ${order.link||'-'}\n✅ Commandé sur Social Boost Horizon`;
       }
 
+      window.shareOrderWhatsApp = function(orderId) {
+        const order = orders.find(o => o.orderId === orderId || o.id === orderId);
+        if(!order) return;
+        const msg = generateShareMessage(order);
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+      };
+
+      window.shareOrderFacebook = function(orderId) {
+        const order = orders.find(o => o.orderId === orderId || o.id === orderId);
+        if(!order) return;
+        const msg = generateShareMessage(order);
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=https://socialboosthorizon.com&quote=${encodeURIComponent(msg)}`, '_blank');
+      };
+
+      window.copyShareOrder = function(btn, orderId) {
+        const order = orders.find(o => o.orderId === orderId || o.id === orderId);
+        if(!order) return;
+        const msg = generateShareMessage(order);
+        navigator.clipboard.writeText(msg).then(() => {
+          btn.innerHTML = '<i class="fas fa-check"></i> Copié !';
+          setTimeout(() => { btn.innerHTML = '<i class="far fa-copy"></i> Copier'; }, 1500);
+        }).catch(() => notify("Erreur de copie", "error"));
+      };
+
       function shareOrderHTML(order) {
-        const msg     = generateShareMessage(order);
-        const encoded = encodeURIComponent(msg);
-        const safMsg  = msg.replace(/`/g,'\\`').replace(/'/g,"\\'");
+        const uId = order.orderId || order.id || '';
         return `
           <div class="share-section">
-            <button class="share-btn whatsapp" onclick="event.stopPropagation(); window.open('https://api.whatsapp.com/send?text=${encoded}','_blank')">
+            <button class="share-btn whatsapp" onclick="event.stopPropagation(); window.shareOrderWhatsApp('${uId}')">
               <i class="fab fa-whatsapp"></i> WhatsApp
             </button>
-            <button class="share-btn facebook" onclick="event.stopPropagation(); window.open('https://www.facebook.com/sharer/sharer.php?u=https://socialboosthorizon.com&quote=${encoded}','_blank')">
+            <button class="share-btn facebook" onclick="event.stopPropagation(); window.shareOrderFacebook('${uId}')">
               <i class="fab fa-facebook"></i> Facebook
             </button>
-            <button class="share-btn copy" onclick="event.stopPropagation(); navigator.clipboard.writeText(\`${safMsg}\`).then(()=>{this.innerHTML='<i class=\\'fas fa-check\\'></i> Copié !'; setTimeout(()=>{this.innerHTML='<i class=\\'far fa-copy\\'></i> Copier';},1500);})">
+            <button class="share-btn copy" onclick="event.stopPropagation(); window.copyShareOrder(this, '${uId}')">
               <i class="far fa-copy"></i> Copier
             </button>
           </div>`;
@@ -664,12 +662,19 @@
         }
       }
 
-      // ── Statistiques ─────────────────────────────────────────
+      // ── Statistiques (Corrigé pour la casse) ─────────────────
       function updateStats() {
         const total     = orders.length;
-        const pending   = orders.filter(o=> ['En attente','En cours','Traitement','Pending','In progress','Processing'].includes(o.status||'')).length;
-        const completed = orders.filter(o=> ['Terminé','Completed'].includes(o.status||'')).length;
-        const spent     = orders.reduce((s,o)=> s+(o.priceXAF||0), 0);
+        const pending   = orders.filter(o => {
+          const s = (o.status || '').trim().toLowerCase();
+          return ['en attente','en cours','traitement','pending','in progress','processing'].includes(s);
+        }).length;
+        const completed = orders.filter(o => {
+          const s = (o.status || '').trim().toLowerCase();
+          return ['terminé','completed'].includes(s);
+        }).length;
+        const spent     = orders.reduce((s,o)=> s + (Number(o.priceXAF) || 0), 0);
+        
         document.getElementById('totalOrders').textContent    = total;
         document.getElementById('pendingOrders').textContent  = pending;
         document.getElementById('completedOrders').textContent= completed;
@@ -698,7 +703,11 @@
           const delivered     = Math.max(0, quantity - remains);
           const progressPct   = quantity > 0 ? Math.min(100, Math.round((delivered / quantity) * 100)) : 0;
           const status        = order.status || 'En attente';
-          const canRefill     = !['Completed','Canceled','Terminé','Annulé'].includes(status);
+          
+          // Vérification du refill avec gestion de la casse
+          const sStatus       = (status).trim().toLowerCase();
+          const canRefill     = !['completed','canceled','cancelled','terminé','annulé'].includes(sStatus);
+          
           const provider      = order.provider || 'mtp';
           const providerBadge = provider === 'smmgen' ? 'S' : 'M';
           const providerClass = provider === 'smmgen' ? 'provider-s' : 'provider-m';
@@ -771,13 +780,11 @@
         }).join('');
       }
 
-      // ── Fournisseur d'une commande ───────────────────────────
       function getOrderProvider(orderId) {
         const order = orders.find(o=> o.orderId === orderId);
         return order?.provider || 'mtp';
       }
 
-      // ── Vérifier le statut ───────────────────────────────────
       async function checkStatus(orderId) {
         try {
           notify('Vérification du statut...', 'info');
@@ -794,7 +801,6 @@
         } catch (error) { notify(error.message, 'error'); }
       }
 
-      // ── Refill ───────────────────────────────────────────────
       async function requestRefill(orderId) {
         if (!confirm('Demander un refill pour cette commande ?')) return;
         try {
@@ -816,7 +822,6 @@
         } catch (error) { notify(error.message, 'error'); }
       }
 
-      // ── Annuler ──────────────────────────────────────────────
       async function cancelOrder(orderId) {
         if (!confirm('Annuler cette commande ? Un remboursement sera effectué si applicable.')) return;
         try {
@@ -841,7 +846,7 @@
         } catch (error) { notify(error.message, 'error'); }
       }
 
-      // ── Filtres ──────────────────────────────────────────────
+      // ── Écouteurs d'événements ───────────────────────────────
       document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           document.querySelectorAll('.filter-btn').forEach(b=> b.classList.remove('active'));
@@ -851,7 +856,6 @@
         });
       });
 
-      // ── Tri ──────────────────────────────────────────────────
       sortSelect.addEventListener('change', function () {
         currentSort = this.value;
         renderOrders();
