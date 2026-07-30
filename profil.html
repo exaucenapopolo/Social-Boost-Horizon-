@@ -1868,9 +1868,15 @@
 
       try {
         const idToken = await user.getIdToken();
-        // SOLUTION ANTI-CACHE : Ajout d'un timestamp (?t=...) et cache: 'no-store'
-        const response = await fetch(BACKEND_URL + '/api/user/profile?t=' + new Date().getTime(), {
-          headers: { 'Authorization': 'Bearer ' + idToken },
+        // SOLUTION ANTI-CACHE : Utilisation des en-têtes HTTP stricts pour forcer le chargement de nouvelles données
+        const response = await fetch(BACKEND_URL + '/api/user/profile?nocache=' + Date.now(), {
+          method: 'GET',
+          headers: { 
+            'Authorization': 'Bearer ' + idToken,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          },
           cache: 'no-store'
         });
 
@@ -2224,9 +2230,15 @@
     async function loadApiKeyInfo() {
       try {
         const idToken = await currentUser.getIdToken();
-        // SOLUTION ANTI-CACHE ici aussi
-        const response = await fetch(BACKEND_URL + '/api/user/api-key-info?t=' + new Date().getTime(), {
-          headers: { 'Authorization': 'Bearer ' + idToken },
+        // SOLUTION ANTI-CACHE : Utilisation des en-têtes HTTP stricts
+        const response = await fetch(BACKEND_URL + '/api/user/api-key-info?nocache=' + Date.now(), {
+          method: 'GET',
+          headers: { 
+            'Authorization': 'Bearer ' + idToken,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          },
           cache: 'no-store'
         });
         if (!response.ok) {
