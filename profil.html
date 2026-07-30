@@ -1493,9 +1493,13 @@
 
   <script>
     // ======================================================
-    //  🔥 CONFIGURATION
+    //  🔥 CONFIGURATION ET VARIABLES GLOBALES
     // ======================================================
     const BACKEND_URL = 'https://socialboosthorizon.com';
+
+    // Clés de cache pour la persistance 
+    const CACHE_KEY_SETTINGS = 'sbh_user_settings';
+    const CACHE_KEY_API_NEW = 'sbh_new_api_key';
 
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
@@ -1522,7 +1526,7 @@
     let pendingSettingChange = null;
     let userBalanceValue = 0;
 
-    // --- NEW CURRENCY CONFIG FROM DASHBOARD ---
+    // --- CURRENCY CONFIG ---
     const CURRENCY_CONFIG = {
       'cm': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇨🇲' },
       'ga': { code:'XAF', symbol:'FCFA', rate:1, flag:'🇬🇦' },
@@ -1577,7 +1581,6 @@
 
     function convertFromXAF(xaf) { return Math.round(xaf * userCurrency.rate); }
     function formatCurrency(xaf) { return `${convertFromXAF(xaf).toLocaleString('fr-FR')} ${userCurrency.symbol}`; }
-    // ------------------------------------------
 
     const profilePhotos = [
       "https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/Photo/49391629-jeune-homme-avatar-personnage-du-avatar-homme-icone-dessin-anime-illustration-gratuit-vectoriel.jpg",
@@ -1652,6 +1655,21 @@
     document.addEventListener('DOMContentLoaded', function() {
       AOS.init({ duration: 800, once: true });
 
+      // Charger les paramètres en cache pour un affichage instantané
+      const cachedSettings = localStorage.getItem(CACHE_KEY_SETTINGS);
+      if (cachedSettings) {
+        try {
+          currentSettings = JSON.parse(cachedSettings);
+          applySettingsToUI(currentSettings);
+        } catch(e) {
+          currentSettings = DEFAULT_SETTINGS;
+          applySettingsToUI(currentSettings);
+        }
+      } else {
+        currentSettings = DEFAULT_SETTINGS;
+        applySettingsToUI(currentSettings);
+      }
+
       const header = document.querySelector('header');
       const hamburger = document.getElementById('hamburgerBtn');
       hamburger.addEventListener('click', () => header.classList.toggle('open'));
@@ -1697,7 +1715,6 @@
         currentUser = user;
         await loadUserProfile(user);
         loadApiKeyInfo();
-        loadSettings();
         document.getElementById('loadingOverlay').style.display = 'none';
       });
 
@@ -1868,7 +1885,6 @@
 
       try {
         const idToken = await user.getIdToken();
-        // SOLUTION ANTI-CACHE : Utilisation des en-têtes HTTP stricts pour forcer le chargement de nouvelles données
         const response = await fetch(BACKEND_URL + '/api/user/profile?nocache=' + Date.now(), {
           method: 'GET',
           headers: { 
@@ -1907,14 +1923,12 @@
             photoURL: currentPhotoURL
           };
 
-          // --- MISE À JOUR DE LA LOGIQUE DE DEVISE ---
           userCountry = data.country || 'Cameroun';
           userCurrency = CURRENCY_CONFIG[userCountry] || CURRENCY_CONFIG['Cameroun'];
           userBalanceValue = data.balance || 0;
 
           currentSettings = data.settings || {};
-          applySettingsToUI(currentSettings);
-          updateBalanceDisplay();
+          applySettingsToUI(currentSettings); // Ceci sauvegarde aussi dans le localStorage
 
           document.getElementById('statJoined').textContent = safeFormatDate(data.createdAt, true);
           document.getElementById('statOrders').textContent = data.totalOrders || 0;
@@ -1938,6 +1952,7 @@
     }
 
     function applySettingsToUI(settings) {
+      localStorage.setItem(CACHE_KEY_SETTINGS, JSON.stringify(settings)); // Persistance du paramètre
       Object.keys(SETTINGS_MAP).forEach(elementId => {
         const key = SETTINGS_MAP[elementId];
         const el = document.getElementById(elementId);
@@ -2063,7 +2078,6 @@
           photoURL: currentPhotoURL
         };
 
-        // --- ACTUALISATION DE LA DEVISE SI LE PAYS EST MODIFIÉ ---
         userCountry = newCountry || 'Cameroun';
         userCurrency = CURRENCY_CONFIG[userCountry] || CURRENCY_CONFIG['Cameroun'];
         updateBalanceDisplay();
@@ -2148,10 +2162,6 @@
       document.getElementById('avatarModal').classList.remove('active');
     }
 
-    function loadSettings() {
-      applySettingsToUI(currentSettings);
-    }
-
     function showSettingConfirmation(settingKey, newValue, toggleElement) {
       const desc = SETTINGS_DESCRIPTIONS[settingKey];
       if (!desc) return;
@@ -2215,6 +2225,8 @@
         if (!data.success) throw new Error(data.error || 'Erreur');
 
         currentSettings = data.settings || fullSettings;
+        applySettingsToUI(currentSettings); // Mise à jour du cache également
+
         const desc = SETTINGS_DESCRIPTIONS[settingKey];
         showNotification((newValue ? 'Activé' : 'Désactivé') + ' : ' + desc.name, true);
       } catch (err) {
@@ -2230,7 +2242,6 @@
     async function loadApiKeyInfo() {
       try {
         const idToken = await currentUser.getIdToken();
-        // SOLUTION ANTI-CACHE : Utilisation des en-têtes HTTP stricts
         const response = await fetch(BACKEND_URL + '/api/user/api-key-info?nocache=' + Date.now(), {
           method: 'GET',
           headers: { 
@@ -2252,6 +2263,13 @@
           document.getElementById('apiKeyPrefixDisplay').textContent = data.prefix + '****...****';
           if (data.createdAt) {
             document.getElementById('apiKeyDate').textContent = 'Créée le ' + safeFormatDate(data.createdAt, true);
+          }
+          
+          // Récupération depuis le SessionStorage au cas où la page a été rafraîchie
+          const savedNewKey = sessionStorage.getItem(CACHE_KEY_API_NEW);
+          if (savedNewKey) {
+            document.getElementById('apiNewKeyDisplay').style.display = 'block';
+            document.getElementById('apiNewKeyValue').textContent = savedNewKey;
           }
         } else {
           document.getElementById('apiNoKey').style.display = 'block';
@@ -2282,8 +2300,13 @@
           document.getElementById('apiHasKey').style.display = 'block';
           document.getElementById('apiKeyPrefixDisplay').textContent = data.prefix + '****...****';
           document.getElementById('apiKeyDate').textContent = 'Créée le ' + safeFormatDate(data.createdAt || new Date().toISOString(), true);
+          
           document.getElementById('apiNewKeyDisplay').style.display = 'block';
           document.getElementById('apiNewKeyValue').textContent = data.apiKey;
+          
+          // Sauvegarde de la clé API temporaire pour qu'elle survive à un F5
+          sessionStorage.setItem(CACHE_KEY_API_NEW, data.apiKey);
+
           showNotification('Clé API générée avec succès !', true);
         } else {
           showNotification(data.error || 'Erreur lors de la génération', false);
@@ -2311,6 +2334,8 @@
           document.getElementById('apiNoKey').style.display = 'block';
           document.getElementById('apiHasKey').style.display = 'none';
           document.getElementById('apiNewKeyDisplay').style.display = 'none';
+          sessionStorage.removeItem(CACHE_KEY_API_NEW); // On nettoie le cache
+
           showNotification('Clé API révoquée avec succès', true);
         } else {
           showNotification(data.error || 'Erreur', false);
@@ -2354,29 +2379,36 @@
       setTimeout(() => {
         notification.style.animation = 'slideIn 0.5s reverse forwards';
         setTimeout(() => notification.remove(), 500);
-      }, 4000);
+      }, 3000);
     }
 
     function launchConfetti() {
-      const colors = ['#4DA6FF', '#6C63FF', '#FF6B6B', '#FFD700', '#9C27B0', '#FF9800'];
+      // Respect des paramètres utilisateurs avant de lancer l'animation
+      if (currentSettings && currentSettings.soundsAnimations === false) return;
+      
+      const colors = ['var(--sbh-accent-blue)', 'var(--sbh-accent-purple)', 'var(--sbh-gold)', 'var(--success-green)', 'var(--sbh-accent)'];
       for (let i = 0; i < 100; i++) {
-        setTimeout(() => {
-          const c = document.createElement('div');
-          c.className = 'confetti';
-          c.style.left = Math.random() * 100 + 'vw';
-          c.style.top = '-10px';
-          c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-          c.style.transform = 'rotate(' + (Math.random()*360) + 'deg)';
-          if (Math.random() > 0.5) c.style.borderRadius = '50%';
-          document.body.appendChild(c);
-          const dur = 3 + Math.random() * 2;
-          const drift = (Math.random() - 0.5) * 200;
-          c.animate([
-            { top: '-10px', transform: 'rotate(0deg) translateX(0)', opacity: 1 },
-            { top: '100vh', transform: 'rotate(' + (720+Math.random()*360) + 'deg) translateX(' + drift + 'px)', opacity: 0 }
-          ], { duration: dur * 1000, easing: 'cubic-bezier(.37,0,.63,1)' });
-          setTimeout(() => c.remove(), dur * 1000);
-        }, i * 20);
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.left = Math.random() * 100 + 'vw';
+        confetti.style.top = '-10px';
+        confetti.style.transform = 'rotate(' + (Math.random() * 360) + 'deg)';
+        document.body.appendChild(confetti);
+
+        const fallDuration = Math.random() * 3 + 2;
+        const drift = (Math.random() - 0.5) * 100;
+
+        confetti.animate([
+          { transform: 'translate3d(0,0,0) rotate(0deg)', opacity: 1 },
+          { transform: `translate3d(${drift}px, 100vh, 0) rotate(${Math.random() * 720}deg)`, opacity: 0 }
+        ], {
+          duration: fallDuration * 1000,
+          easing: 'cubic-bezier(.37,0,.63,1)',
+          fill: 'forwards'
+        });
+
+        setTimeout(() => confetti.remove(), fallDuration * 1000);
       }
     }
   </script>
