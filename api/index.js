@@ -255,6 +255,9 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
 
 app.get('/api/mtp/user-orders', checkAuth, async (req, res) => {
   try {
+    // [NOUVEAU] Anti-cache pour forcer l'affichage des dernières commandes sans cache navigateur
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    
     const uid = req.user.uid;
     const snapshot = await db.collection('autoOrders').where('userId', '==', uid).get();
     let orders = snapshot.docs.map(doc => {
@@ -692,6 +695,9 @@ app.post('/api/register', checkAuth, async (req, res) => {
 
 app.get('/api/user/profile', checkAuth, async (req, res) => {
   try {
+    // [NOUVEAU] Empêcher le navigateur de cacher l'ancien profil (Correction du problème d'actualisation)
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+
     const uid = req.user.uid;
     const userDoc = await db.collection('users').doc(uid).get();
 
@@ -736,6 +742,9 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
     const uid = req.user.uid;
     const { displayName, phone, country, settings, photoURL } = req.body;
     
+    // [NOUVEAU] Log pour afficher ce que le client envoie et vérifier que ce n'est pas vide
+    console.log(`[DEBUG] /api/update-profile - Données reçues pour ${uid}:`, req.body);
+    
     const updateData = {};
     if (displayName !== undefined) updateData.displayName = displayName;
     if (phone !== undefined) updateData.phone = phone;
@@ -757,28 +766,26 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
 app.post('/api/user/settings', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
-    const newSettings = req.body; // Exemple : { hideBalance: true, speedMode: false }
+    const newSettings = req.body; 
     
-    // On vérifie qu'on a bien reçu des données
+    // [NOUVEAU] Log pour s'assurer que les paramètres (ex: toggle switch) arrivent bien au serveur
+    console.log(`[DEBUG] /api/user/settings - Paramètres reçus pour ${uid}:`, newSettings);
+    
     if (!newSettings || typeof newSettings !== 'object' || Object.keys(newSettings).length === 0) {
       return res.status(400).json({ success: false, error: 'Aucun paramètre fourni.' });
     }
 
-    // On prépare un objet de mise à jour sécurisé en utilisant la "notation par points" (dot notation)
-    // Cela permet de modifier uniquement les paramètres envoyés sans écraser le reste de l'objet "settings"
     const updatePayload = {};
     for (const [key, value] of Object.entries(newSettings)) {
       updatePayload[`settings.${key}`] = value;
     }
     updatePayload.updatedAt = admin.firestore.FieldValue.serverTimestamp();
 
-    // On applique la mise à jour au document utilisateur
     await db.collection('users').doc(uid).update(updatePayload);
     
     res.json({ success: true, message: 'Paramètres mis à jour avec succès.' });
   } catch (error) {
-    // Si l'utilisateur n'existe pas encore (très rare à ce stade), on gère l'erreur
-    if (error.code === 5) { // 5 = NOT_FOUND dans Firestore
+    if (error.code === 5) { 
       await db.collection('users').doc(req.user.uid).set({
         settings: req.body,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -792,6 +799,9 @@ app.post('/api/user/settings', checkAuth, async (req, res) => {
 
 app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
   try {
+    // [NOUVEAU] Anti-cache pour cette route également
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+
     const uid = req.user.uid;
     const userDoc = await db.collection('users').doc(uid).get();
     
