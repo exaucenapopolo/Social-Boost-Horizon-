@@ -22,4 +22,5 @@ try {
   getAnalytics(app);
 } catch (e) {
   // Analytics peut échouer si le navigateur bloque certaines fonctions.
+  console.warn("Analytics bloqué par le navigateur", e);
 }
