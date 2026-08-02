@@ -1,14 +1,16 @@
 const CACHE_NAME = 'sbh-v2';
+const GITHUB_BASE = 'https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main';
+
 const APP_SHELL = [
-  '/',
-  '/index.html',
-  '/dashboard.html',
-  '/commander.html',
-  '/fonds.html',
-  '/paid.html',
-  '/manifest.json',
-  '/assets/logos/android-chrome-192x192.png',
-  '/assets/logos/android-chrome-512x512.png'
+  `${GITHUB_BASE}/`,
+  `${GITHUB_BASE}/index.html`,
+  `${GITHUB_BASE}/dashboard.html`,
+  `${GITHUB_BASE}/commander.html`,
+  `${GITHUB_BASE}/fonds.html`,
+  `${GITHUB_BASE}/paid.html`,
+  `${GITHUB_BASE}/manifest.json`,
+  `${GITHUB_BASE}/assets/logos/android-chrome-192x192.png`,
+  `${GITHUB_BASE}/assets/logos/android-chrome-512x512.png`
 ];
 
 // Installation : mise en cache des fichiers essentiels
@@ -38,18 +40,11 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch : stratégie hybride
-// - pages HTML : réseau d'abord, cache en secours
-// - fichiers statiques : cache d'abord, réseau en secours
+// Fetch : stratégie hybride adaptée aux liens distants
 self.addEventListener('fetch', (event) => {
   const request = event.request;
 
   if (request.method !== 'GET') return;
-
-  const url = new URL(request.url);
-
-  // On ne gère que les requêtes du même domaine
-  if (url.origin !== self.location.origin) return;
 
   // HTML : réseau d'abord
   if (request.headers.get('accept')?.includes('text/html')) {
@@ -62,7 +57,7 @@ self.addEventListener('fetch', (event) => {
           });
           return response;
         })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match('/index.html')))
+        .catch(() => caches.match(request).then((cached) => cached || caches.match(`${GITHUB_BASE}/index.html`)))
     );
     return;
   }
@@ -82,7 +77,7 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => caches.match('/index.html'));
+        .catch(() => caches.match(`${GITHUB_BASE}/index.html`));
     })
   );
 });
