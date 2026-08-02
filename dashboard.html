@@ -209,8 +209,7 @@
     
     /* PWA Install Button Styles */
     #pwaInstallContainer {
-      /* MODIFIÉ : Changement de "none" à "block" pour que le bouton soit toujours visible */
-      display: block;
+      display: none;
       margin: 15px 20px;
       text-align: center;
     }
@@ -812,8 +811,8 @@
     </div>
   </div>
 
-  <!-- MODIFIÉ : Retrait de "display: none;" pour que ce composant soit toujours affiché -->
-  <div id="notifications-card" style="margin: 0 20px 20px; background: rgba(77, 166, 255, 0.08); border: 1px solid rgba(77, 166, 255, 0.2); border-radius: 16px; padding: 16px 20px; text-align: center;" data-aos="fade-up">
+  <!-- NOUVEAU BOUTON NOTIFICATION SOUS LE SOLDE -->
+  <div id="notifications-card" style="display: none; margin: 0 20px 20px; background: rgba(77, 166, 255, 0.08); border: 1px solid rgba(77, 166, 255, 0.2); border-radius: 16px; padding: 16px 20px; text-align: center;" data-aos="fade-up">
     <h3 style="margin-bottom: 8px; font-size: 1.1rem;"><i class="fas fa-bell" style="color: var(--sbh-light-blue);"></i> Notifications</h3>
     <p style="margin-bottom: 12px; font-size: 0.9rem; color: rgba(255,255,255,0.8);">Autorisez les notifications pour rester informé de l'avancée de vos commandes en temps réel.</p>
     <button id="btn-enable-push" class="btn btn-outline" style="width: 100%; border-color: var(--sbh-light-blue); color: #fff;">
@@ -1418,6 +1417,7 @@
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
+      pwaInstallContainer.style.display = 'block';
     });
 
     pwaInstallBtn.addEventListener('click', async () => {
@@ -1426,11 +1426,7 @@
         const { outcome } = await deferredPrompt.userChoice;
         console.log(`Résultat de l'invite d'installation : ${outcome}`);
         deferredPrompt = null;
-        // On peut cacher le conteneur ici une fois installé si tu le souhaites
-        // pwaInstallContainer.style.display = 'none';
-      } else {
-        // MODIFIÉ : Ajout d'une alerte au cas où le navigateur bloque l'installation automatique
-        alert("L'installation automatique n'est pas disponible pour le moment (ou l'application est déjà installée). Vous pouvez installer l'application en allant dans les options de votre navigateur et en cliquant sur 'Ajouter à l'écran d'accueil'.");
+        pwaInstallContainer.style.display = 'none';
       }
     });
 
@@ -1457,6 +1453,7 @@
 
   <!-- ══════════════ SCRIPT DÉDIÉ AUX NOTIFICATIONS PUSH (CORRIGÉ) ══════════════ -->
   <script type="module">
+    // L'importation fonctionne maintenant car nous avons ajouté 'export' dans push.js
     import { enablePushNotifications } from "./push.js";
 
     firebase.auth().onAuthStateChanged(user => {
@@ -1464,16 +1461,18 @@
       const btn = document.getElementById("btn-enable-push");
       const statusEl = document.getElementById("push-status");
 
-      // MODIFIÉ : Retrait de la condition qui masquait la carte si l'utilisateur n'était pas connecté
-      // Ainsi, la carte est toujours visible, comme tu l'as demandé.
+      if (!user) {
+        if (card) card.style.display = "none";
+      } else {
+        if (card) card.style.display = "block";
 
-      if (user) {
         if (btn) {
           btn.addEventListener("click", async () => {
             try {
               statusEl.textContent = "Activation en cours...";
               statusEl.style.color = "white";
               
+              // On appelle la fonction sans VAPID_KEY car elle est gérée dans push.js
               const token = await enablePushNotifications(user.uid);
 
               if (token) {
