@@ -209,7 +209,7 @@
     
     /* PWA Install Button Styles */
     #pwaInstallContainer {
-      display: none; /* Hidden by default, shown by JS if PWA is installable */
+      display: none;
       margin: 15px 20px;
       text-align: center;
     }
@@ -822,14 +822,14 @@
     <i class="fas fa-download" style="font-size:1.2rem;"></i>
   </a>
 
-  <!-- SECTION D'INSTALLATION PWA AJOUTÉE ICI -->
+  <!-- SECTION D'INSTALLATION PWA -->
   <div id="pwaInstallContainer" data-aos="fade-up" data-aos-delay="50">
     <button id="pwaInstallBtn" class="btn-pwa">
       <i class="fas fa-download"></i> Installer l'application Web
     </button>
   </div>
   
-  <!-- SECTION NOTIFICATIONS PUSH AJOUTÉE ICI -->
+  <!-- SECTION NOTIFICATIONS PUSH -->
   <section id="notifications-card" style="display: none; background:rgba(20,30,50,.7); padding:18px; border-radius:18px; margin: 16px 20px; border:1px solid rgba(255,255,255,.08);" data-aos="fade-up">
     <h3 style="margin-bottom:8px;"><i class="fas fa-bell" style="color: var(--sbh-light-blue); margin-right: 8px;"></i>Notifications push</h3>
     <p style="margin-bottom:12px;">Active les notifications pour recevoir les alertes de ton compte.</p>
@@ -842,7 +842,6 @@
   </section>
 
   <div class="dashboard-main">
-
     <div class="dash-card accent-gold" data-aos="fade-up" data-aos-delay="0">
       <span class="badge-card">🔥 HOT</span>
       <div class="card-icon-wrap gold">
@@ -954,7 +953,6 @@
         <button class="btn" id="openSupportModalFromCard">Contacter</button>
       </div>
     </div>
-
   </div>
 
   <div class="actions-row" data-aos="fade-up">
@@ -1013,7 +1011,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   <script>
-    // ══════════════ CONFIGURATION FIREBASE (INCHANGÉE) ══════════════
+    // ══════════════ CONFIGURATION FIREBASE ══════════════
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -1418,32 +1416,22 @@
     const pwaInstallContainer = document.getElementById('pwaInstallContainer');
     const pwaInstallBtn = document.getElementById('pwaInstallBtn');
 
-    // Écoute de l'événement natif d'installation
     window.addEventListener('beforeinstallprompt', (e) => {
-      // Empêche la barre d'installation native automatique sur mobile
       e.preventDefault();
-      // On sauvegarde l'événement pour l'utiliser lors du clic
       deferredPrompt = e;
-      // On affiche notre bouton personnalisé
       pwaInstallContainer.style.display = 'block';
     });
 
-    // Action au clic sur notre bouton
     pwaInstallBtn.addEventListener('click', async () => {
       if (deferredPrompt) {
-        // Affiche la boîte de dialogue native du navigateur
         deferredPrompt.prompt();
-        // Attendre que l'utilisateur réponde à l'invite
         const { outcome } = await deferredPrompt.userChoice;
         console.log(`Résultat de l'invite d'installation : ${outcome}`);
-        // Une fois utilisé, l'événement ne peut plus être relancé
         deferredPrompt = null;
-        // On cache le bouton
         pwaInstallContainer.style.display = 'none';
       }
     });
 
-    // Si l'application a bien été installée, on s'assure de cacher l'UI
     window.addEventListener('appinstalled', () => {
       pwaInstallContainer.style.display = 'none';
       deferredPrompt = null;
@@ -1465,40 +1453,34 @@
     });
   </script>
 
-  <!-- ══════════════ SCRIPT DÉDIÉ AUX NOTIFICATIONS PUSH ══════════════ -->
+  <!-- ══════════════ SCRIPT DÉDIÉ AUX NOTIFICATIONS PUSH (CORRIGÉ) ══════════════ -->
   <script type="module">
+    // L'importation fonctionne maintenant car nous avons ajouté 'export' dans push.js
     import { enablePushNotifications } from "./push.js";
 
-    // On utilise ton système d'authentification Firebase déjà existant
     firebase.auth().onAuthStateChanged(user => {
       const card = document.getElementById("notifications-card");
       const btn = document.getElementById("btn-enable-push");
       const statusEl = document.getElementById("push-status");
 
-      // Si l'utilisateur n'est pas connecté, on cache la carte
       if (!user) {
         if (card) card.style.display = "none";
       } else {
-        // Si l'utilisateur est connecté, on l'affiche
         if (card) card.style.display = "block";
 
         if (btn) {
           btn.addEventListener("click", async () => {
             try {
               statusEl.textContent = "Activation en cours...";
+              statusEl.style.color = "white";
               
-              // Clé VAPID utilisée comme argument pour ta fonction enablePushNotifications
-              const VAPID_KEY = "BDJ9c5sqfWbd5CvqSO_2SwT61nt-tq6N7PNAXbrqY1LNN1GMxkPweAZ4Ixr6482ZE1P-R3rJEf0ddlD_EDWEGEU";
-              
-              const token = await enablePushNotifications(user.uid, VAPID_KEY);
+              // On appelle la fonction sans VAPID_KEY car elle est gérée dans push.js
+              const token = await enablePushNotifications(user.uid);
 
               if (token) {
                 statusEl.textContent = "Notifications activées avec succès.";
                 statusEl.style.color = "#4caf50";
-                btn.style.display = "none"; // On masque le bouton une fois réussi
-              } else {
-                statusEl.textContent = "Permission refusée.";
-                statusEl.style.color = "#f87171";
+                btn.style.display = "none"; 
               }
             } catch (error) {
               console.error("Erreur Push:", error);
