@@ -15,11 +15,14 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  const title = payload?.notification?.title || "Nouvelle notification";
+  console.log("Message reçu en arrière-plan ", payload);
+  const title = payload?.notification?.title || "Social Boost Horizon";
   const options = {
-    body: payload?.notification?.body || "",
-    data: payload?.data || {}
+    body: payload?.notification?.body || "Vous avez une nouvelle notification.",
+    data: payload?.data || {},
+    icon: "/icons/apple-touch-icon.png" // Ajoute l'icône de ton site ici
   };
 
   self.registration.showNotification(title, options);
 });
+                              
