@@ -828,6 +828,18 @@
       <i class="fas fa-download"></i> Installer l'application Web
     </button>
   </div>
+  
+  <!-- SECTION NOTIFICATIONS PUSH AJOUTÉE ICI -->
+  <section id="notifications-card" style="display: none; background:rgba(20,30,50,.7); padding:18px; border-radius:18px; margin: 16px 20px; border:1px solid rgba(255,255,255,.08);" data-aos="fade-up">
+    <h3 style="margin-bottom:8px;"><i class="fas fa-bell" style="color: var(--sbh-light-blue); margin-right: 8px;"></i>Notifications push</h3>
+    <p style="margin-bottom:12px;">Active les notifications pour recevoir les alertes de ton compte.</p>
+
+    <button id="btn-enable-push" class="btn btn-outline">
+      Activer les notifications
+    </button>
+
+    <p id="push-status" style="margin-top:10px; font-size:.9rem; opacity:.85;"></p>
+  </section>
 
   <div class="dashboard-main">
 
@@ -1450,6 +1462,52 @@
         s1.charset = 'UTF-8'; s1.setAttribute('crossorigin', '*');
         s0.parentNode.insertBefore(s1, s0);
       })();
+    });
+  </script>
+
+  <!-- ══════════════ SCRIPT DÉDIÉ AUX NOTIFICATIONS PUSH ══════════════ -->
+  <script type="module">
+    import { enablePushNotifications } from "./push.js";
+
+    // On utilise ton système d'authentification Firebase déjà existant
+    firebase.auth().onAuthStateChanged(user => {
+      const card = document.getElementById("notifications-card");
+      const btn = document.getElementById("btn-enable-push");
+      const statusEl = document.getElementById("push-status");
+
+      // Si l'utilisateur n'est pas connecté, on cache la carte
+      if (!user) {
+        if (card) card.style.display = "none";
+      } else {
+        // Si l'utilisateur est connecté, on l'affiche
+        if (card) card.style.display = "block";
+
+        if (btn) {
+          btn.addEventListener("click", async () => {
+            try {
+              statusEl.textContent = "Activation en cours...";
+              
+              // Clé VAPID utilisée comme argument pour ta fonction enablePushNotifications
+              const VAPID_KEY = "BDJ9c5sqfWbd5CvqSO_2SwT61nt-tq6N7PNAXbrqY1LNN1GMxkPweAZ4Ixr6482ZE1P-R3rJEf0ddlD_EDWEGEU";
+              
+              const token = await enablePushNotifications(user.uid, VAPID_KEY);
+
+              if (token) {
+                statusEl.textContent = "Notifications activées avec succès.";
+                statusEl.style.color = "#4caf50";
+                btn.style.display = "none"; // On masque le bouton une fois réussi
+              } else {
+                statusEl.textContent = "Permission refusée.";
+                statusEl.style.color = "#f87171";
+              }
+            } catch (error) {
+              console.error("Erreur Push:", error);
+              statusEl.textContent = error.message || "Erreur lors de l'activation.";
+              statusEl.style.color = "#f87171";
+            }
+          });
+        }
+      }
     });
   </script>
 </body>
