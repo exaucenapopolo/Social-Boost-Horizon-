@@ -980,7 +980,9 @@
       font-weight: 500;
       max-width: 400px;
       transform: translateX(120%);
+      transition: transform 0.5s ease, opacity 0.5s ease;
       animation: slideIn 0.5s forwards;
+      margin-bottom: 10px;
     }
     @keyframes slideIn {
       to { transform: translateX(0); }
@@ -1652,6 +1654,53 @@
       }
     }
 
+    // Fonction globale pour afficher les notifications
+    function showNotification(message, isSuccess) {
+      const container = document.getElementById('notificationContainer');
+      const notif = document.createElement('div');
+      notif.className = `notification ${isSuccess ? 'success' : 'error'}`;
+      notif.innerHTML = `
+        <div class="notification-icon">
+          <i class="fa-solid ${isSuccess ? 'fa-check-circle' : 'fa-circle-exclamation'}"></i>
+        </div>
+        <div class="notification-content">
+          <div style="font-size: 0.95rem;">${message}</div>
+        </div>
+      `;
+      container.appendChild(notif);
+      setTimeout(() => {
+        notif.style.transform = 'translateX(120%)';
+        notif.style.opacity = '0';
+        setTimeout(() => notif.remove(), 500);
+      }, 4000);
+    }
+
+    // Fonction globale pour lancer les confettis
+    function launchConfetti() {
+      if (!currentSettings.soundsAnimations) return;
+      for (let i = 0; i < 50; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.style.left = Math.random() * 100 + 'vw';
+        confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+        confetti.style.background = ['#4DA6FF', '#6C63FF', '#D4AF37', '#4CAF50', '#FF6B6B'][Math.floor(Math.random() * 5)];
+        document.body.appendChild(confetti);
+        
+        let top = -10;
+        let left = parseFloat(confetti.style.left);
+        const fall = setInterval(() => {
+            top += 5;
+            left += Math.sin(top / 50) * 2;
+            confetti.style.top = top + 'px';
+            confetti.style.left = left + 'vw';
+            if (top > window.innerHeight) {
+                clearInterval(fall);
+                confetti.remove();
+            }
+        }, 30);
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
       AOS.init({ duration: 800, once: true });
 
@@ -1714,8 +1763,20 @@
         }
         currentUser = user;
         await loadUserProfile(user);
-        loadApiKeyInfo();
         document.getElementById('loadingOverlay').style.display = 'none';
+      });
+
+      // --- ÉCOUTEURS POUR LA CLÉ API ---
+      document.getElementById('generateApiKeyBtn').addEventListener('click', () => manageApiKey('generate'));
+      document.getElementById('regenerateApiKeyBtn').addEventListener('click', () => manageApiKey('regenerate'));
+      document.getElementById('revokeApiKeyBtn').addEventListener('click', () => manageApiKey('revoke'));
+      document.getElementById('copyApiKeyBtn').addEventListener('click', () => {
+        const key = document.getElementById('apiNewKeyValue').textContent;
+        navigator.clipboard.writeText(key).then(() => {
+          showNotification('Clé copiée dans le presse-papier !', true);
+        }).catch(() => {
+          showNotification('Erreur lors de la copie', false);
+        });
       });
 
       document.getElementById('editBtn').addEventListener('click', enterEditMode);
@@ -1782,7 +1843,59 @@
       });
     });
 
-    // ---- Fonctions ----
+    // ---- Fonctions de profil et d'API ----
+    
+    async function manageApiKey(action) {
+      const btnId = action === 'revoke' ? 'revokeApiKeyBtn' : (action === 'generate' ? 'generateApiKeyBtn' : 'regenerateApiKeyBtn');
+      const btn = document.getElementById(btnId);
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Traitement...';
+      btn.disabled = true;
+
+      try {
+        const idToken = await currentUser.getIdToken();
+        const url = BACKEND_URL + '/api/user/api-key';
+        const method = action === 'revoke' ? 'DELETE' : 'POST';
+        
+        const response = await fetch(url, {
+          method: method,
+          headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          if (action === 'revoke') {
+            document.getElementById('apiHasKey').style.display = 'none';
+            document.getElementById('apiNoKey').style.display = 'block';
+            document.getElementById('apiNewKeyDisplay').style.display = 'none';
+            showNotification('Clé API révoquée avec succès', true);
+          } else {
+            document.getElementById('apiNoKey').style.display = 'none';
+            document.getElementById('apiHasKey').style.display = 'block';
+            document.getElementById('apiNewKeyDisplay').style.display = 'block';
+            
+            // Afficher la VRAIE clé une seule fois dans la case spéciale
+            document.getElementById('apiNewKeyValue').textContent = data.apiKey;
+            
+            // Mettre à jour la date
+            const dateStr = data.apiKeyCreatedAt || Date.now();
+            document.getElementById('apiKeyDate').textContent = 'Créée le : ' + safeFormatDate(dateStr);
+            
+            showNotification('Nouvelle clé générée. Copiez-la maintenant !', true);
+            launchConfetti();
+          }
+        } else {
+          showNotification(data.error || 'Erreur lors de l\'opération', false);
+        }
+      } catch (err) {
+        showNotification('Erreur réseau lors de la communication avec le serveur', false);
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+
     async function handleCustomPhoto(file) {
       if (file.size > 5 * 1024 * 1024) {
         showNotification('Le fichier est trop volumineux (max 5 Mo)', false);
@@ -1927,8 +2040,32 @@
           userCurrency = CURRENCY_CONFIG[userCountry] || CURRENCY_CONFIG['Cameroun'];
           userBalanceValue = data.balance || 0;
 
-          currentSettings = data.settings || {};
-          applySettingsToUI(currentSettings); // Ceci sauvegarde aussi dans le localStorage
+          // FIX: Extraction robuste des paramètres depuis le serveur
+          const dbSettings = data.settings || {};
+          currentSettings = {
+            emailNotifications: dbSettings.emailNotifications ?? data.emailNotifications ?? DEFAULT_SETTINGS.emailNotifications,
+            whatsappNotifications: dbSettings.whatsappNotifications ?? data.whatsappNotifications ?? DEFAULT_SETTINGS.whatsappNotifications,
+            promoNotifications: dbSettings.promoNotifications ?? data.promoNotifications ?? DEFAULT_SETTINGS.promoNotifications,
+            profileVisible: dbSettings.profileVisible ?? data.profileVisible ?? DEFAULT_SETTINGS.profileVisible,
+            hideBalance: dbSettings.hideBalance ?? data.hideBalance ?? DEFAULT_SETTINGS.hideBalance,
+            privateHistory: dbSettings.privateHistory ?? data.privateHistory ?? DEFAULT_SETTINGS.privateHistory,
+            defaultSpeed: dbSettings.defaultSpeed ?? data.defaultSpeed ?? DEFAULT_SETTINGS.defaultSpeed,
+            confirmOrder: dbSettings.confirmOrder ?? data.confirmOrder ?? DEFAULT_SETTINGS.confirmOrder,
+            soundsAnimations: dbSettings.soundsAnimations ?? data.soundsAnimations ?? DEFAULT_SETTINGS.soundsAnimations
+          };
+          
+          applySettingsToUI(currentSettings);
+
+          // FIX: Gestion immédiate de l'affichage de la clé API si elle existe en BDD
+          if (data.apiKeyCreatedAt) {
+            document.getElementById('apiNoKey').style.display = 'none';
+            document.getElementById('apiHasKey').style.display = 'block';
+            document.getElementById('apiNewKeyDisplay').style.display = 'none'; // Cacher la vue "nouvelle clé"
+            document.getElementById('apiKeyDate').textContent = 'Créée le : ' + safeFormatDate(data.apiKeyCreatedAt);
+          } else {
+            document.getElementById('apiNoKey').style.display = 'block';
+            document.getElementById('apiHasKey').style.display = 'none';
+          }
 
           document.getElementById('statJoined').textContent = safeFormatDate(data.createdAt, true);
           document.getElementById('statOrders').textContent = data.totalOrders || 0;
@@ -1952,7 +2089,7 @@
     }
 
     function applySettingsToUI(settings) {
-      localStorage.setItem(CACHE_KEY_SETTINGS, JSON.stringify(settings)); // Persistance du paramètre
+      localStorage.setItem(CACHE_KEY_SETTINGS, JSON.stringify(settings)); 
       Object.keys(SETTINGS_MAP).forEach(elementId => {
         const key = SETTINGS_MAP[elementId];
         const el = document.getElementById(elementId);
@@ -2194,6 +2331,7 @@
       const { settingKey, newValue } = pendingSettingChange;
       document.getElementById('settingConfirmModal').classList.remove('active');
 
+      // Mise à jour locale immédiate pour réactivité
       currentSettings[settingKey] = newValue;
       
       if (settingKey === 'hideBalance') {
@@ -2222,193 +2360,24 @@
           throw new Error(`Erreur ${response.status} : ${text.substring(0, 100)}`);
         }
         const data = await response.json();
-        if (!data.success) throw new Error(data.error || 'Erreur');
+        if (!data.success) throw new Error(data.error || 'Erreur backend');
 
-        currentSettings = data.settings || fullSettings;
+        // FIX de validation Finale (on relit le retour serveur)
+        const dbSettings = data.settings || {};
+        currentSettings = { ...fullSettings, ...dbSettings };
+        
         applySettingsToUI(currentSettings); // Mise à jour du cache également
 
         const desc = SETTINGS_DESCRIPTIONS[settingKey];
-        showNotification((newValue ? 'Activé' : 'Désactivé') + ' : ' + desc.name, true);
+        showNotification(`${desc.name} mis à jour avec succès !`, true);
       } catch (err) {
-        console.error('Erreur sauvegarde paramètre:', err);
-        showNotification('Erreur lors de la sauvegarde du paramètre', false);
-        currentSettings[settingKey] = !newValue;
-        applySettingsToUI(currentSettings);
-      }
-
-      pendingSettingChange = null;
-    }
-
-    async function loadApiKeyInfo() {
-      try {
-        const idToken = await currentUser.getIdToken();
-        const response = await fetch(BACKEND_URL + '/api/user/api-key-info?nocache=' + Date.now(), {
-          method: 'GET',
-          headers: { 
-            'Authorization': 'Bearer ' + idToken,
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          },
-          cache: 'no-store'
-        });
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`Erreur ${response.status} : ${text.substring(0, 100)}`);
-        }
-        const data = await response.json();
-        if (data.success && data.hasApiKey) {
-          document.getElementById('apiNoKey').style.display = 'none';
-          document.getElementById('apiHasKey').style.display = 'block';
-          document.getElementById('apiKeyPrefixDisplay').textContent = data.prefix + '****...****';
-          if (data.createdAt) {
-            document.getElementById('apiKeyDate').textContent = 'Créée le ' + safeFormatDate(data.createdAt, true);
-          }
-          
-          // Récupération depuis le SessionStorage au cas où la page a été rafraîchie
-          const savedNewKey = sessionStorage.getItem(CACHE_KEY_API_NEW);
-          if (savedNewKey) {
-            document.getElementById('apiNewKeyDisplay').style.display = 'block';
-            document.getElementById('apiNewKeyValue').textContent = savedNewKey;
-          }
-        } else {
-          document.getElementById('apiNoKey').style.display = 'block';
-          document.getElementById('apiHasKey').style.display = 'none';
-        }
-      } catch (e) {
-        console.error('Erreur chargement info API key:', e);
-      }
-    }
-
-    async function generateApiKey() {
-      if (document.getElementById('apiHasKey').style.display !== 'none') {
-        if (!confirm('Cela va remplacer votre clé API actuelle. Continuer ?')) return;
-      }
-      try {
-        const idToken = await currentUser.getIdToken();
-        const response = await fetch(BACKEND_URL + '/api/user/generate-api-key', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' }
-        });
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`Erreur ${response.status} : ${text.substring(0, 100)}`);
-        }
-        const data = await response.json();
-        if (data.success) {
-          document.getElementById('apiNoKey').style.display = 'none';
-          document.getElementById('apiHasKey').style.display = 'block';
-          document.getElementById('apiKeyPrefixDisplay').textContent = data.prefix + '****...****';
-          document.getElementById('apiKeyDate').textContent = 'Créée le ' + safeFormatDate(data.createdAt || new Date().toISOString(), true);
-          
-          document.getElementById('apiNewKeyDisplay').style.display = 'block';
-          document.getElementById('apiNewKeyValue').textContent = data.apiKey;
-          
-          // Sauvegarde de la clé API temporaire pour qu'elle survive à un F5
-          sessionStorage.setItem(CACHE_KEY_API_NEW, data.apiKey);
-
-          showNotification('Clé API générée avec succès !', true);
-        } else {
-          showNotification(data.error || 'Erreur lors de la génération', false);
-        }
-      } catch (e) {
-        console.error('Erreur génération API key:', e);
-        showNotification('Erreur de connexion: ' + e.message, false);
-      }
-    }
-
-    async function revokeApiKey() {
-      if (!confirm('Révoquer votre clé API ? Toutes les intégrations utilisant cette clé cesseront de fonctionner.')) return;
-      try {
-        const idToken = await currentUser.getIdToken();
-        const response = await fetch(BACKEND_URL + '/api/user/revoke-api-key', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' }
-        });
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`Erreur ${response.status} : ${text.substring(0, 100)}`);
-        }
-        const data = await response.json();
-        if (data.success) {
-          document.getElementById('apiNoKey').style.display = 'block';
-          document.getElementById('apiHasKey').style.display = 'none';
-          document.getElementById('apiNewKeyDisplay').style.display = 'none';
-          sessionStorage.removeItem(CACHE_KEY_API_NEW); // On nettoie le cache
-
-          showNotification('Clé API révoquée avec succès', true);
-        } else {
-          showNotification(data.error || 'Erreur', false);
-        }
-      } catch (e) {
-        showNotification('Erreur de connexion: ' + e.message, false);
-      }
-    }
-
-    function copyApiKey() {
-      const keyText = document.getElementById('apiNewKeyValue').textContent;
-      navigator.clipboard.writeText(keyText).then(() => {
-        showNotification('Clé API copiée !', true);
-        const btn = document.getElementById('copyApiKeyBtn');
-        btn.innerHTML = '<i class="fa-solid fa-check"></i> Copié !';
-        setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copier la clé'; }, 2000);
-      }).catch(() => {
-        const ta = document.createElement('textarea');
-        ta.value = keyText;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        ta.remove();
-        showNotification('Clé API copiée !', true);
-      });
-    }
-
-    document.getElementById('generateApiKeyBtn').addEventListener('click', generateApiKey);
-    document.getElementById('regenerateApiKeyBtn').addEventListener('click', generateApiKey);
-    document.getElementById('revokeApiKeyBtn').addEventListener('click', revokeApiKey);
-    document.getElementById('copyApiKeyBtn').addEventListener('click', copyApiKey);
-
-    function showNotification(message, isSuccess) {
-      const container = document.getElementById('notificationContainer');
-      const notification = document.createElement('div');
-      notification.className = 'notification ' + (isSuccess ? 'success' : 'error');
-      notification.innerHTML =
-        '<div class="notification-icon">' + (isSuccess ? '<i class="fa-solid fa-check-circle"></i>' : '<i class="fa-solid fa-times-circle"></i>') + '</div>' +
-        '<div class="notification-text">' + message + '</div>';
-      container.appendChild(notification);
-      setTimeout(() => {
-        notification.style.animation = 'slideIn 0.5s reverse forwards';
-        setTimeout(() => notification.remove(), 500);
-      }, 3000);
-    }
-
-    function launchConfetti() {
-      // Respect des paramètres utilisateurs avant de lancer l'animation
-      if (currentSettings && currentSettings.soundsAnimations === false) return;
-      
-      const colors = ['var(--sbh-accent-blue)', 'var(--sbh-accent-purple)', 'var(--sbh-gold)', 'var(--success-green)', 'var(--sbh-accent)'];
-      for (let i = 0; i < 100; i++) {
-        const confetti = document.createElement('div');
-        confetti.className = 'confetti';
-        confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
-        confetti.style.left = Math.random() * 100 + 'vw';
-        confetti.style.top = '-10px';
-        confetti.style.transform = 'rotate(' + (Math.random() * 360) + 'deg)';
-        document.body.appendChild(confetti);
-
-        const fallDuration = Math.random() * 3 + 2;
-        const drift = (Math.random() - 0.5) * 100;
-
-        confetti.animate([
-          { transform: 'translate3d(0,0,0) rotate(0deg)', opacity: 1 },
-          { transform: `translate3d(${drift}px, 100vh, 0) rotate(${Math.random() * 720}deg)`, opacity: 0 }
-        ], {
-          duration: fallDuration * 1000,
-          easing: 'cubic-bezier(.37,0,.63,1)',
-          fill: 'forwards'
-        });
-
-        setTimeout(() => confetti.remove(), fallDuration * 1000);
+        console.error('Erreur save settings:', err);
+        showNotification('Erreur lors de la sauvegarde: ' + err.message, false);
+        // Annulation en cas d'erreur serveur
+        pendingSettingChange.toggleElement.checked = !pendingSettingChange.newValue;
+        currentSettings[settingKey] = !pendingSettingChange.newValue;
+      } finally {
+        pendingSettingChange = null;
       }
     }
   </script>
