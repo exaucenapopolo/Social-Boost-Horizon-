@@ -28,7 +28,7 @@
   <link rel="apple-touch-startup-image" href="/icons/splash-1125x2436.png">
 
   <style>
-    /* ══════════════ VARIABLES ══════════════ */
+    /* ══════════════ VARIABLES (inspirées du dashboard, mais avec moins de jaune) ══════════════ */
     :root {
       --sbh-deep-blue: #080e1a;
       --sbh-dark-blue: #0A162B;
@@ -36,7 +36,7 @@
       --sbh-gradient-end: #6a0dad;
       --sbh-accent-blue: #4DA6FF;
       --sbh-accent-purple: #6C63FF;
-      --sbh-gold: #D4AF37;
+      --sbh-gold: #D4AF37;          /* utilisé très peu, pour le logo et le badge */
       --sbh-gold-deep: #B8860B;
       --glass-bg: rgba(15, 25, 45, 0.55);
       --glass-border: rgba(255, 255, 255, 0.08);
@@ -74,7 +74,7 @@
     }
     p { color: rgba(255,255,255,0.8); }
 
-    /* ══════════════ BACKGROUND ANIMATION ══════════════ */
+    /* ══════════════ BACKGROUND ANIMATION (identique) ══════════════ */
     .background-animation {
       position: fixed;
       top: 0; left: 0;
@@ -1632,41 +1632,6 @@
       soundsAnimations: { name: 'Sons et animations', icon: '<i class="fa-solid fa-wand-magic-sparkles" style="color: #E91E63;"></i>', onMessage: 'Les effets sonores et animations de confettis seront activés pour une expérience plus immersive.', offMessage: 'Les effets sonores et animations seront désactivés pour une expérience plus sobre et rapide.' }
     };
 
-    // --- FONCTIONS MANQUANTES DE BASE POUR LES ALERTES ---
-    function showNotification(message, isSuccess = true) {
-      const container = document.getElementById('notificationContainer');
-      const notif = document.createElement('div');
-      notif.className = 'notification ' + (isSuccess ? 'success' : 'error');
-      notif.innerHTML = '<i class="fa-solid ' + (isSuccess ? 'fa-check-circle' : 'fa-circle-exclamation') + ' notification-icon"></i>' +
-                        '<span>' + message + '</span>';
-      container.appendChild(notif);
-      setTimeout(() => {
-        notif.style.transform = 'translateX(120%)';
-        notif.style.opacity = '0';
-        setTimeout(() => notif.remove(), 500);
-      }, 4000);
-    }
-
-    function launchConfetti() {
-      for (let i = 0; i < 50; i++) {
-        const confetti = document.createElement('div');
-        confetti.className = 'confetti';
-        confetti.style.left = Math.random() * 100 + 'vw';
-        confetti.style.backgroundColor = ['#4DA6FF', '#6C63FF', '#D4AF37', '#4CAF50'][Math.floor(Math.random() * 4)];
-        confetti.style.top = '-10px';
-        document.body.appendChild(confetti);
-
-        const animation = confetti.animate([
-          { transform: `translate3d(0,0,0) rotate(0deg)`, opacity: 1 },
-          { transform: `translate3d(${Math.random()*200 - 100}px, 100vh, 0) rotate(${Math.random()*720}deg)`, opacity: 0 }
-        ], {
-          duration: Math.random() * 2000 + 1000,
-          easing: 'cubic-bezier(.37,0,.63,1)'
-        });
-        animation.onfinish = () => confetti.remove();
-      }
-    }
-
     function safeFormatDate(dateString, isMonthYearOnly = false) {
       if (!dateString) return 'Inconnue';
       const d = new Date(dateString);
@@ -1749,7 +1714,7 @@
         }
         currentUser = user;
         await loadUserProfile(user);
-        await loadApiKeyInfo();
+        loadApiKeyInfo();
         document.getElementById('loadingOverlay').style.display = 'none';
       });
 
@@ -1815,12 +1780,6 @@
       window.addEventListener('click', (e) => {
         if (e.target === document.getElementById('settingConfirmModal')) cancelSettingChange();
       });
-
-      // --- Écouteurs d'événements pour la clé API ---
-      document.getElementById('generateApiKeyBtn').addEventListener('click', generateApiKey);
-      document.getElementById('regenerateApiKeyBtn').addEventListener('click', generateApiKey);
-      document.getElementById('revokeApiKeyBtn').addEventListener('click', revokeApiKey);
-      document.getElementById('copyApiKeyBtn').addEventListener('click', copyApiKey);
     });
 
     // ---- Fonctions ----
@@ -1968,16 +1927,8 @@
           userCurrency = CURRENCY_CONFIG[userCountry] || CURRENCY_CONFIG['Cameroun'];
           userBalanceValue = data.balance || 0;
 
-          // CORRECTION DE LA GESTION DU CACHE POUR LES PARAMETRES
-          if (data.settings && Object.keys(data.settings).length > 0) {
-            // Si la base de données a des paramètres, on les utilise avec notre config par défaut
-            currentSettings = { ...DEFAULT_SETTINGS, ...data.settings };
-          } else {
-            // Sinon, on sécurise l'état existant dans le cache pour ne pas tout réinitialiser
-            const cached = JSON.parse(localStorage.getItem(CACHE_KEY_SETTINGS) || '{}');
-            currentSettings = { ...DEFAULT_SETTINGS, ...cached };
-          }
-          applySettingsToUI(currentSettings); // Application directe et sauvegarde du cache à jour
+          currentSettings = data.settings || {};
+          applySettingsToUI(currentSettings); // Ceci sauvegarde aussi dans le localStorage
 
           document.getElementById('statJoined').textContent = safeFormatDate(data.createdAt, true);
           document.getElementById('statOrders').textContent = data.totalOrders || 0;
@@ -2288,103 +2239,178 @@
       pendingSettingChange = null;
     }
 
-    // ======================================================
-    //  🔥 GESTION DE LA CLÉ API (Correction et Finalisation)
-    // ======================================================
-    
     async function loadApiKeyInfo() {
       try {
         const idToken = await currentUser.getIdToken();
-        // Utilisation du endpoint profile pour vérifier si apiKeyCreatedAt existe
-        const response = await fetch(BACKEND_URL + '/api/user/profile?nocache=' + Date.now(), {
+        const response = await fetch(BACKEND_URL + '/api/user/api-key-info?nocache=' + Date.now(), {
           method: 'GET',
-          headers: {
+          headers: { 
             'Authorization': 'Bearer ' + idToken,
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          }
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          },
+          cache: 'no-store'
         });
-        
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.profile) {
-            if (result.profile.apiKeyCreatedAt) {
-              document.getElementById('apiNoKey').style.display = 'none';
-              document.getElementById('apiHasKey').style.display = 'block';
-              document.getElementById('apiKeyDate').textContent = 'Créée le : ' + safeFormatDate(result.profile.apiKeyCreatedAt);
-            } else {
-              document.getElementById('apiNoKey').style.display = 'block';
-              document.getElementById('apiHasKey').style.display = 'none';
-            }
-          }
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`Erreur ${response.status} : ${text.substring(0, 100)}`);
         }
-      } catch (err) {
-        console.error("Erreur lors du chargement des informations de la clé API", err);
+        const data = await response.json();
+        if (data.success && data.hasApiKey) {
+          document.getElementById('apiNoKey').style.display = 'none';
+          document.getElementById('apiHasKey').style.display = 'block';
+          document.getElementById('apiKeyPrefixDisplay').textContent = data.prefix + '****...****';
+          if (data.createdAt) {
+            document.getElementById('apiKeyDate').textContent = 'Créée le ' + safeFormatDate(data.createdAt, true);
+          }
+          
+          // Récupération depuis le SessionStorage au cas où la page a été rafraîchie
+          const savedNewKey = sessionStorage.getItem(CACHE_KEY_API_NEW);
+          if (savedNewKey) {
+            document.getElementById('apiNewKeyDisplay').style.display = 'block';
+            document.getElementById('apiNewKeyValue').textContent = savedNewKey;
+          }
+        } else {
+          document.getElementById('apiNoKey').style.display = 'block';
+          document.getElementById('apiHasKey').style.display = 'none';
+        }
+      } catch (e) {
+        console.error('Erreur chargement info API key:', e);
       }
     }
 
     async function generateApiKey() {
-      if (!confirm("Voulez-vous générer une nouvelle clé API ? L'ancienne ne sera plus valide.")) return;
+      if (document.getElementById('apiHasKey').style.display !== 'none') {
+        if (!confirm('Cela va remplacer votre clé API actuelle. Continuer ?')) return;
+      }
       try {
         const idToken = await currentUser.getIdToken();
-        const response = await fetch(BACKEND_URL + '/api/user/apikey/generate', {
+        const response = await fetch(BACKEND_URL + '/api/user/generate-api-key', {
           method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + idToken }
+          headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' }
         });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`Erreur ${response.status} : ${text.substring(0, 100)}`);
+        }
         const data = await response.json();
-        
-        if (data.success && data.apiKey) {
-          // Masquer la zone "Aucune clé" et afficher la zone "Clé existante" avec la nouvelle date
+        if (data.success) {
           document.getElementById('apiNoKey').style.display = 'none';
           document.getElementById('apiHasKey').style.display = 'block';
-          document.getElementById('apiKeyDate').textContent = 'Créée à l\'instant';
+          document.getElementById('apiKeyPrefixDisplay').textContent = data.prefix + '****...****';
+          document.getElementById('apiKeyDate').textContent = 'Créée le ' + safeFormatDate(data.createdAt || new Date().toISOString(), true);
           
-          // Afficher la clé générée (C'est la seule fois où elle s'affiche !)
           document.getElementById('apiNewKeyDisplay').style.display = 'block';
           document.getElementById('apiNewKeyValue').textContent = data.apiKey;
           
-          showNotification('Nouvelle clé API générée avec succès', true);
+          // Sauvegarde de la clé API temporaire pour qu'elle survive à un F5
+          sessionStorage.setItem(CACHE_KEY_API_NEW, data.apiKey);
+
+          showNotification('Clé API générée avec succès !', true);
         } else {
-          showNotification('Erreur : Impossible de générer la clé', false);
+          showNotification(data.error || 'Erreur lors de la génération', false);
         }
-      } catch (err) {
-        showNotification('Erreur de communication avec le serveur', false);
-        console.error(err);
+      } catch (e) {
+        console.error('Erreur génération API key:', e);
+        showNotification('Erreur de connexion: ' + e.message, false);
       }
     }
 
     async function revokeApiKey() {
-      if (!confirm("Attention : Voulez-vous vraiment révoquer votre clé API ? Vos intégrations actuelles cesseront de fonctionner.")) return;
+      if (!confirm('Révoquer votre clé API ? Toutes les intégrations utilisant cette clé cesseront de fonctionner.')) return;
       try {
         const idToken = await currentUser.getIdToken();
-        const response = await fetch(BACKEND_URL + '/api/user/apikey/revoke', {
+        const response = await fetch(BACKEND_URL + '/api/user/revoke-api-key', {
           method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + idToken }
+          headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' }
         });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`Erreur ${response.status} : ${text.substring(0, 100)}`);
+        }
         const data = await response.json();
-        
         if (data.success) {
           document.getElementById('apiNoKey').style.display = 'block';
           document.getElementById('apiHasKey').style.display = 'none';
           document.getElementById('apiNewKeyDisplay').style.display = 'none';
+          sessionStorage.removeItem(CACHE_KEY_API_NEW); // On nettoie le cache
+
           showNotification('Clé API révoquée avec succès', true);
         } else {
-          showNotification('Erreur lors de la révocation', false);
+          showNotification(data.error || 'Erreur', false);
         }
-      } catch(err) {
-        showNotification('Erreur de serveur', false);
-        console.error(err);
+      } catch (e) {
+        showNotification('Erreur de connexion: ' + e.message, false);
       }
     }
 
     function copyApiKey() {
-      const key = document.getElementById('apiNewKeyValue').textContent;
-      navigator.clipboard.writeText(key).then(() => {
-        showNotification('Clé API copiée dans le presse-papier !', true);
-      }).catch(err => {
-        showNotification('Impossible de copier la clé', false);
+      const keyText = document.getElementById('apiNewKeyValue').textContent;
+      navigator.clipboard.writeText(keyText).then(() => {
+        showNotification('Clé API copiée !', true);
+        const btn = document.getElementById('copyApiKeyBtn');
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Copié !';
+        setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copier la clé'; }, 2000);
+      }).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = keyText;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        showNotification('Clé API copiée !', true);
       });
     }
 
+    document.getElementById('generateApiKeyBtn').addEventListener('click', generateApiKey);
+    document.getElementById('regenerateApiKeyBtn').addEventListener('click', generateApiKey);
+    document.getElementById('revokeApiKeyBtn').addEventListener('click', revokeApiKey);
+    document.getElementById('copyApiKeyBtn').addEventListener('click', copyApiKey);
+
+    function showNotification(message, isSuccess) {
+      const container = document.getElementById('notificationContainer');
+      const notification = document.createElement('div');
+      notification.className = 'notification ' + (isSuccess ? 'success' : 'error');
+      notification.innerHTML =
+        '<div class="notification-icon">' + (isSuccess ? '<i class="fa-solid fa-check-circle"></i>' : '<i class="fa-solid fa-times-circle"></i>') + '</div>' +
+        '<div class="notification-text">' + message + '</div>';
+      container.appendChild(notification);
+      setTimeout(() => {
+        notification.style.animation = 'slideIn 0.5s reverse forwards';
+        setTimeout(() => notification.remove(), 500);
+      }, 3000);
+    }
+
+    function launchConfetti() {
+      // Respect des paramètres utilisateurs avant de lancer l'animation
+      if (currentSettings && currentSettings.soundsAnimations === false) return;
+      
+      const colors = ['var(--sbh-accent-blue)', 'var(--sbh-accent-purple)', 'var(--sbh-gold)', 'var(--success-green)', 'var(--sbh-accent)'];
+      for (let i = 0; i < 100; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.left = Math.random() * 100 + 'vw';
+        confetti.style.top = '-10px';
+        confetti.style.transform = 'rotate(' + (Math.random() * 360) + 'deg)';
+        document.body.appendChild(confetti);
+
+        const fallDuration = Math.random() * 3 + 2;
+        const drift = (Math.random() - 0.5) * 100;
+
+        confetti.animate([
+          { transform: 'translate3d(0,0,0) rotate(0deg)', opacity: 1 },
+          { transform: `translate3d(${drift}px, 100vh, 0) rotate(${Math.random() * 720}deg)`, opacity: 0 }
+        ], {
+          duration: fallDuration * 1000,
+          easing: 'cubic-bezier(.37,0,.63,1)',
+          fill: 'forwards'
+        });
+
+        setTimeout(() => confetti.remove(), fallDuration * 1000);
+      }
+    }
   </script>
 </body>
 </html>
