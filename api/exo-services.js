@@ -70,11 +70,7 @@ export default async function handler(req, res) {
     };
 
     // Réglages financiers
-    // Si service.rate est déjà en FCFA, la détection automatique évite de le reconvertir.
     const EXCHANGE_RATE_USD_TO_XAF = Number(process.env.EXO_USD_TO_XAF) || 650;
-
-    // 2.51 = environ +151% de marge sur le coût fournisseur
-    // Exemple: 39 FCFA -> 98 FCFA
     const PROFIT_MULTIPLIER = Number(process.env.EXO_PROFIT_MULTIPLIER) || 1.51;
 
     function detectPlatformName(name = '', category = '') {
@@ -102,14 +98,9 @@ export default async function handler(req, res) {
 
     function getBaseCostXAF(rate) {
       const numericRate = Number(rate) || 0;
-
-      // Si le rate est petit, on suppose qu'il est en USD et on le convertit.
-      // Si le rate est déjà un prix crédible en FCFA (ex: 39, 56, 120), on le garde tel quel.
-      if (numericRate > 0 && numericRate < 10) {
-        return numericRate * EXCHANGE_RATE_USD_TO_XAF;
-      }
-
-      return numericRate;
+      // CORRECTION: L'API du fournisseur renvoie toujours en USD pour ton compte.
+      // On convertit toujours pour éviter que les services chers (ex: 91$) soient considérés comme des FCFA.
+      return numericRate * EXCHANGE_RATE_USD_TO_XAF;
     }
 
     // 4. Tri des services et conversion des prix
@@ -157,4 +148,4 @@ export default async function handler(req, res) {
       error: 'Erreur serveur lors du chargement des services'
     });
   }
-        }
+}
