@@ -896,7 +896,7 @@
       <a href="marketing.html"><i class="fas fa-money-bill-wave"></i> Gagner de l'argent en ligne</a>
       <a href="https://www.texerra.site/" target="_blank" rel="noopener noreferrer"><i class="fas fa-phone"></i> Avoir un numéro virtuel étranger</a>
       <a href="https://www.trixhub.store/?ref=EXA0001HJB" target="_blank" rel="noopener noreferrer"><i class="fas fa-link"></i> Marketing d'affiliation</a>
-      <a href="partenaires.html"><i class="fas fa-handshake"></i> Partenaire</a>
+      <a href="partenaire.html"><i class="fas fa-handshake"></i> Partenaire</a>
       <a href="new.html"><i class="fas fa-newspaper"></i> Nouveauté & astuces</a>
       <hr class="menu-divider">
 
@@ -1544,32 +1544,48 @@
     });
     // ════════════════════════════════════════════════════════
 
-    // ══════════════ PUBLICITÉ OPPORTUNITÉS (une seule fois) ══════════════
-    const OPPORTUNITIES_LS_KEY = 'opportunitiesPromoShown_v1';
-    const OPPORTUNITIES_DELAY_MS = 5000;
+    // ══════════════ PUBLICITÉ OPPORTUNITÉS — ROTATION TOUTES LES 3H ══════════════
+    // Fonctionnement :
+    //   • 1ère visite → affichage après 5 secondes
+    //   • Ensuite → affichage uniquement si 3 heures (ou plus) se sont écoulées
+    //     depuis le dernier affichage
+    //   • Le timestamp est enregistré dans localStorage dès que la pub est affichée
+    //     (donc même si l'utilisateur ferme l'onglet sans fermer la pub, le délai repart)
+    const OPPORTUNITIES_LAST_SHOWN_KEY = 'opportunitiesPromoLastShown_v2';
+    const OPPORTUNITIES_DELAY_MS = 5000;                    // 5 secondes avant 1er affichage
+    const OPPORTUNITIES_COOLDOWN_MS = 3 * 60 * 60 * 1000;   // 3 heures en millisecondes
 
     window.closeOpportunitiesModal = function () {
       const modal = document.getElementById('opportunitiesModal');
       if (modal) modal.classList.remove('active');
-      try { localStorage.setItem(OPPORTUNITIES_LS_KEY, 'true'); } catch (e) {}
+      // Le timestamp a déjà été enregistré à l'affichage — rien à faire ici.
     };
 
+    function shouldShowOpportunities() {
+      let last = 0;
+      try { last = parseInt(localStorage.getItem(OPPORTUNITIES_LAST_SHOWN_KEY) || '0', 10); } catch (e) {}
+      if (!last) return true; // jamais affiché
+      return (Date.now() - last) >= OPPORTUNITIES_COOLDOWN_MS;
+    }
+
+    function markOpportunitiesAsShown() {
+      try { localStorage.setItem(OPPORTUNITIES_LAST_SHOWN_KEY, Date.now().toString()); } catch (e) {}
+    }
+
     function scheduleOpportunitiesPromo() {
-      // Si déjà affichée une fois → jamais reproposée
-      try {
-        if (localStorage.getItem(OPPORTUNITIES_LS_KEY) === 'true') return;
-      } catch (e) { return; }
+      if (!shouldShowOpportunities()) return; // pas encore le moment
 
       setTimeout(() => {
-        try {
-          if (localStorage.getItem(OPPORTUNITIES_LS_KEY) === 'true') return;
-        } catch (e) { return; }
+        if (!shouldShowOpportunities()) return; // re-vérif au cas où plusieurs onglets
         const modal = document.getElementById('opportunitiesModal');
-        if (modal) modal.classList.add('active');
+        if (modal) {
+          modal.classList.add('active');
+          markOpportunitiesAsShown(); // on enregistre dès l'affichage → le compte des 3h démarre
+        }
       }, OPPORTUNITIES_DELAY_MS);
     }
 
-    // Clic sur le fond = fermeture + enregistrement définitif
+    // Clic sur le fond de la modale = fermeture
     document.getElementById('opportunitiesModal').addEventListener('click', function (e) {
       if (e.target === this) {
         window.closeOpportunitiesModal();
