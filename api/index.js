@@ -434,6 +434,127 @@ app.post('/api/exo/cancel', checkAuth, async (req, res) => {
     }
 });
 
+// NOUVELLE ROUTE: Demande de refill (remplissage) pour EXO
+app.post('/api/exo/refill', checkAuth, async (req, res) => {
+  const { orderId } = req.body;
+  const uid = req.user.uid;
+
+  if (!orderId) {
+    return res.status(400).json({ success: false, error: 'ID de commande (orderId) requis.' });
+  }
+
+  try {
+    // 1. Récupérer la commande depuis Firestore
+    const orderRef = db.collection('commandes').doc(orderId);
+    const orderDoc = await orderRef.get();
+
+    if (!orderDoc.exists) {
+      return res.status(404).json({ success: false, error: 'Commande introuvable.' });
+    }
+
+    const orderData = orderDoc.data();
+
+    // 2. Vérifier que la commande appartient bien à l'utilisateur
+    if (orderData.userId !== uid) {
+      return res.status(403).json({ success: false, error: 'Accès refusé. Cette commande ne vous appartient pas.' });
+    }
+
+    // 3. Vérifier que la commande possède un ID fournisseur (exoOrderId)
+    if (!orderData.exoOrderId) {
+      return res.status(400).json({ success: false, error: 'Impossible de traiter la demande : identifiant fournisseur manquant pour cette commande.' });
+    }
+
+    // 4. Appeler l'API Exo Supplier pour créer le refill
+    const exoResult = await callExo({
+      action: 'refill',
+      order: orderData.exoOrderId
+    });
+
+    // 5. Gérer la réponse du fournisseur (succès ou erreur)
+    if (exoResult.error) {
+      // Erreur retournée par Exo (ex: commande non éligible)
+      return res.status(400).json({
+        success: false,
+        error: `Erreur du fournisseur: ${exoResult.error}`
+      });
+    }
+
+    if (!exoResult.refill) {
+      return res.status(500).json({ success: false, error: 'Réponse inattendue du fournisseur (aucun ID de refill retourné).' });
+    }
+
+    // 6. Mettre à jour la commande dans Firestore avec l'ID de refill
+    await orderRef.update({
+      lastRefill: admin.firestore.FieldValue.serverTimestamp(),
+      refillId: exoResult.refill,
+      refillStatus: 'En attente', // Statut initial du refill
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // 7. Répondre au client
+    res.json({
+      success: true,
+      message: 'Demande de refill transmise avec succès au fournisseur.',
+      refillId: exoResult.refill
+    });
+
+  } catch (error) {
+    console.error("Erreur lors de la demande de refill EXO:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erreur technique lors de la demande de refill.'
+    });
+  }
+});
+
+// NOUVELLE ROUTE: Vérification du statut d'un refill EXO
+app.post('/api/exo/refill-status', checkAuth, async (req, res) => {
+  const { refillId, orderId } = req.body;
+  const uid = req.user.uid;
+
+  if (!refillId) {
+    return res.status(400).json({ success: false, error: 'ID de refill (refillId) requis.' });
+  }
+
+  try {
+    // Optionnel: Vérifier que le refill appartient bien à une commande de l'utilisateur
+    if (orderId) {
+      const orderRef = db.collection('commandes').doc(orderId);
+      const orderDoc = await orderRef.get();
+      if (orderDoc.exists && orderDoc.data().userId !== uid) {
+        return res.status(403).json({ success: false, error: 'Accès refusé.' });
+      }
+    }
+
+    const exoResult = await callExo({
+      action: 'refill_status',
+      refill: refillId
+    });
+
+    if (exoResult.error) {
+      return res.status(400).json({ success: false, error: `Erreur fournisseur: ${exoResult.error}` });
+    }
+
+    // Mettre à jour le statut du refill dans Firestore si on a l'orderId
+    if (orderId && exoResult.status) {
+      await db.collection('commandes').doc(orderId).update({
+        refillStatus: exoResult.status,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    res.json({
+      success: true,
+      status: exoResult.status,
+      refillId: refillId
+    });
+
+  } catch (error) {
+    console.error("Erreur lors de la vérification du statut de refill:", error);
+    res.status(500).json({ success: false, error: 'Erreur technique lors de la vérification du statut.' });
+  }
+});
+
 app.post('/api/exo-status', checkAuth, async (req, res) => {
     const { orderId } = req.body;
     const uid = req.user.uid;
