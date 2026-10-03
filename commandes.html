@@ -1082,23 +1082,27 @@
 
       window.requestExoRefill = async function(orderId) {
           if(!currentUid) return;
+          if(!confirm('Voulez-vous vraiment demander un refill (remplissage) pour cette commande ? Le fournisseur va traiter votre demande.')) return;
+          
           try {
               const idToken = await auth.currentUser.getIdToken();
-              showNotification('<i class="fas fa-spinner fa-spin"></i> Demande de recharge...', 'info');
-              // Assuming this route exists on backend
+              showNotification('<i class="fas fa-spinner fa-spin"></i> Envoi de la demande de refill...', 'info');
               const res = await fetch(`${BACKEND_URL}/api/exo/refill`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
                   body: JSON.stringify({ orderId })
               });
               const data = await res.json();
+              
               if(data.success) {
-                  showNotification('Recharge demandée avec succès !', 'success');
+                  showNotification(data.message || 'Demande de refill envoyée avec succès !', 'success');
+                  // Rafraîchir les commandes pour voir le nouveau statut/refillId
+                  fetchOrders();
               } else {
-                  showNotification(data.error || 'Erreur lors de la demande de recharge.', 'error');
+                  showNotification(data.error || 'Erreur lors de la demande de refill.', 'error');
               }
           } catch(e) {
-              showNotification('Erreur réseau.', 'error');
+              showNotification('Erreur de connexion avec le serveur.', 'error');
           }
       };
     });
