@@ -1833,11 +1833,39 @@ function convertToXAF(amount, currency) {
   return Math.round(Number(amount) * rate);
 }
 
-function generatePaymentReference() {
-  const now = new Date();
-  const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-  const randomPart = crypto.randomBytes(4).toString('hex').toUpperCase();
-  return `SBH-PAY-${datePart}-${randomPart}`;
+/**
+ * Génère une référence de paiement séquentielle et unique au format :
+ *   SBH-PAY-INT-0001
+ *   SBH-PAY-INT-0002
+ *   ...
+ *   SBH-PAY-INT-14367
+ *
+ * Utilise un compteur Firestore atomique (transaction) pour éviter
+ * toute collision, même en cas de requêtes simultanées.
+ *
+ * Le compteur est stocké dans : counters/paymentReferences.lastId
+ * (incrémenté à chaque appel, même si la transaction Firestore
+ *  échoue ensuite — cela crée un "trou" numérique, ce qui est normal
+ *  et préférable à un doublon de référence.)
+ */
+async function generatePaymentReference() {
+  const counterRef = db.collection('counters').doc('paymentReferences');
+  let nextId;
+
+  await db.runTransaction(async (t) => {
+    const doc = await t.get(counterRef);
+    const lastId = (doc.exists ? doc.data().lastId : 0) || 0;
+    nextId = lastId + 1;
+    t.set(counterRef, {
+      lastId: nextId,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  });
+
+  // Padding à 4 chiffres minimum — au-delà de 9999, on laisse la longueur naturelle
+  // (ex : SBH-PAY-INT-10000, SBH-PAY-INT-100000, etc.)
+  const padded = String(nextId).padStart(4, '0');
+  return `SBH-PAY-INT-${padded}`;
 }
 
 async function callNelsiusPay(endpoint, method = 'GET', body = null) {
@@ -1956,7 +1984,7 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
   if (req.body.customer_email) customerEmail = req.body.customer_email;
   if (req.body.customer_phone) customerPhone = req.body.customer_phone;
 
-  const reference = generatePaymentReference();
+  const reference = await generatePaymentReference();
 
   const host = req.headers['x-forwarded-host'] || req.headers.host || 'socialboosthorizon.com';
   const protocol = req.headers['x-forwarded-proto'] || 'https';
