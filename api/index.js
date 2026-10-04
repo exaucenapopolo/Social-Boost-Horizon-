@@ -1661,6 +1661,7 @@ const NELSIUSPAY_API_URL          = 'https://api.nelsiuspay.com/api/v1';
 const NELSIUSPAY_MIN_AMOUNT_XAF   = 1380;   // 2 € × 690 XAF
 const NELSIUSPAY_MAX_AMOUNT_XAF   = 10000000;
 const NELSIUSPAY_FEE_BEARER       = 'customer';
+const NELSIUSPAY_MIN_PROVIDER_AMT = 100;    // minimum imposé par NelsiusPay dans la devise envoyée
 
 /**
  * Table de taux de change — convention : 1 unité de devise = X XAF.
@@ -1760,6 +1761,64 @@ const SBH_CURRENCY_RATES = {
   'MWK': 0.3350,
   'ZWG': 22.10,
   'ZWL': 0.0020,
+  // ── Devises ajoutées pour la liste complète des pays ──
+  'ALL': 6.30,
+  'XCD': 215.80,
+  'AMD': 1.50,
+  'AZN': 347.00,
+  'BSD': 582.82,
+  'BBD': 291.41,
+  'BZD': 291.41,
+  'BTN': 6.06,
+  'BYN': 178.00,
+  'MMK': 0.28,
+  'BOB': 84.50,
+  'BAM': 352.80,
+  'BND': 432.10,
+  'KHR': 0.14,
+  'KPW': 0.65,
+  'CRC': 1.13,
+  'CUP': 24.28,
+  'ANG': 325.60,
+  'GIP': 771.60,
+  'GTQ': 75.10,
+  'GYD': 2.79,
+  'HTG': 4.42,
+  'HNL': 23.50,
+  'ISK': 4.20,
+  'JMD': 3.75,
+  'KZT': 1.20,
+  'KGS': 6.67,
+  'LAK': 0.027,
+  'MKD': 10.20,
+  'MDL': 32.80,
+  'MNT': 0.17,
+  'NIO': 16.00,
+  'XPF': 5.78,
+  'UZS': 0.046,
+  'PAB': 582.82,
+  'PGK': 155.00,
+  'PYG': 0.079,
+  'HKD': 74.60,
+  'RSD': 5.88,
+  'SRD': 16.50,
+  'TJS': 53.50,
+  'TWD': 18.30,
+  'TOP': 245.00,
+  'TTD': 86.00,
+  'TMT': 166.50,
+  'WST': 210.00,
+  'SBD': 71.00,
+  'MRU': 14.68,
+  'PEN': 155.00,
+  'CLP': 0.61,
+  'COP': 0.14,
+  'ARS': 1.40,
+  'UYU': 14.60,
+  'VES': 16.00,
+  'GEL': 216.00,
+  'FJD': 258.00,
+  'VUV': 4.90,
 };
 
 /**
@@ -1863,6 +1922,19 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
     return res.status(500).json({ success: false, error: 'Configuration de paiement incomplète. Contactez le support.' });
   }
 
+  // ── Détermination du montant/devise à envoyer à NelsiusPay ──
+  // Si le montant en devise locale est < 100 (minimum imposé par NelsiusPay
+  // dans la devise envoyée), on envoie plutôt l'équivalent en XAF.
+  // Comme notre minimum SBH est 1380 XAF, le montant XAF est toujours > 100.
+  let providerAmount   = requestedAmount;
+  let providerCurrency = requestedCurrency;
+
+  if (requestedAmount < NELSIUSPAY_MIN_PROVIDER_AMT) {
+    providerAmount   = creditedAmountXAF;
+    providerCurrency = 'XAF';
+    console.log(`[NelsiusPay] Montant local ${requestedAmount} ${requestedCurrency} < ${NELSIUSPAY_MIN_PROVIDER_AMT} → envoi en XAF : ${providerAmount} XAF`);
+  }
+
   // ── Récupérer les infos utilisateur depuis Firestore ──
   let customerEmail = req.user.email || '';
   let customerPhone = '';
@@ -1893,8 +1965,8 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
   const cancelUrl  = `${baseUrl}/paiement-carte.html?status=cancel&ref=${encodeURIComponent(reference)}`;
 
   const checkoutPayload = {
-    amount: requestedAmount,
-    currency: requestedCurrency,
+    amount: providerAmount,
+    currency: providerCurrency,
     customer_email: customerEmail || undefined,
     customer_phone: customerPhone || undefined,
     customer_name: customerName || undefined,
@@ -1907,6 +1979,8 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
       userId: uid,
       country: req.body.country || 'CM',
       creditedAmountXAF: String(creditedAmountXAF),
+      originalAmount: String(requestedAmount),
+      originalCurrency: requestedCurrency,
     },
   };
 
@@ -1916,7 +1990,7 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
 
   let nelsiusResponse;
   try {
-    console.log(`[NelsiusPay] Initiation checkout — ref=${reference} user=${uid} amount=${requestedAmount} ${requestedCurrency} → ${creditedAmountXAF} XAF`);
+    console.log(`[NelsiusPay] Initiation checkout — ref=${reference} user=${uid} amount=${providerAmount} ${providerCurrency} → ${creditedAmountXAF} XAF`);
     nelsiusResponse = await callNelsiusPay('/checkout/initiate', 'POST', checkoutPayload);
   } catch (callErr) {
     console.error('[NelsiusPay] Erreur appel checkout:', callErr.message);
@@ -1950,8 +2024,8 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
       provider: 'nelsiuspay',
       requestedAmount,
       requestedCurrency,
-      providerAmount: requestedAmount,
-      providerCurrency: requestedCurrency,
+      providerAmount,
+      providerCurrency,
       creditedAmountXAF,
       conversionRate: SBH_CURRENCY_RATES[requestedCurrency],
       status: 'PENDING',
