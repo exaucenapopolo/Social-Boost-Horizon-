@@ -7,7 +7,6 @@ const { sendWelcomeEmail } = require('./email-service.js');
 
 const app = express();
 
-// Autorisation explicite du header personnalisé pour l'admin
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -20,7 +19,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Helper pour convertir un timestamp/date Firestore ou JS de manière sécurisée en millisecondes
 function getTimestampMs(val) {
   if (!val) return 0;
   if (typeof val.toDate === 'function') return val.toDate().getTime();
@@ -81,19 +79,16 @@ app.get('/api/health', (req, res) => {
 // CONFIGURATIONS FOURNISSEURS GLOBALES (MTP, EXO, AFB, SMMGen)
 // ═══════════════════════════════════════════════════════════════
 const MTP_API_URL    = 'https://morethanpanel.com/api/v2';
-const MTP_USD_TO_XAF = 650;   
-const MTP_MULTIPLIER = 2.5;     
+const MTP_USD_TO_XAF = 650;
+const MTP_MULTIPLIER = 2.5;
 
 const EXO_API_URL    = 'https://exosupplier.com/api/v2';
 const EXO_USD_TO_XAF = 650;
 const EXO_MULTIPLIER = 1.51;
 
 const AFRIQUEBOOST_API_URL = 'https://afriqueboost.com/api/v2';
-const AFB_MULTIPLIER       = 2.5;   
+const AFB_MULTIPLIER       = 2.5;
 
-// ═══════════════════════════════════════════════════════════════
-// CONFIGURATION SMMGen
-// ═══════════════════════════════════════════════════════════════
 const SMMGEN_API_URL      = 'https://my.smmgen.com/api/v2';
 const SMMGEN_USD_TO_XAF   = 650;
 const SMMGEN_MULTIPLIER   = 2.5;
@@ -212,7 +207,7 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     const allServices = _mtpServicesCache || (await callMTP({ action: 'services' }));
     const service = allServices.find(s => parseInt(s.service || s.id) === parseInt(serviceId));
     if (!service) return res.status(400).json({ success: false, error: 'Service introuvable ou expiré.' });
-    
+
     const rate = parseFloat(service.rate) || 0;
     const priceXAF = Math.round(rate * MTP_USD_TO_XAF * MTP_MULTIPLIER);
     const qty = parseInt(quantity);
@@ -221,7 +216,7 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
 
     const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
-    
+
     const currentBalance = userDoc.data().balance || 0;
     if (currentBalance < cost) {
       return res.status(400).json({
@@ -240,7 +235,7 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     await db.runTransaction(async (transaction) => {
       const counterRef = db.collection('counters').doc('autoOrders');
       const freshUserRef = db.collection('users').doc(uid);
-      
+
       const counterDoc = await transaction.get(counterRef);
       const freshUserDoc = await transaction.get(freshUserRef);
 
@@ -329,8 +324,8 @@ app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
       if (refundAmount > 0) {
         await db.runTransaction(async (t) => {
           const freshOrder = await t.get(orderDoc.ref);
-          if (freshOrder.data().refunded) return; 
-          
+          if (freshOrder.data().refunded) return;
+
           const userRef = db.collection('users').doc(uid);
           const userDoc = await t.get(userRef);
           const bal = userDoc.exists ? (userDoc.data().balance || 0) : 0;
@@ -397,12 +392,12 @@ app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
         return res.status(400).json({ success: false, error: 'Cette commande ne peut plus être annulée, son statut ne le permet pas.' });
     }
 
-    try { await callMTP({ action: 'cancel', orders: orderData.providerOrderId }); } 
+    try { await callMTP({ action: 'cancel', orders: orderData.providerOrderId }); }
     catch (mtpErr) { console.error("MTP Cancel Error:", mtpErr); }
 
-    res.json({ 
-        success: true, 
-        message: "Demande d'annulation transmise au fournisseur. Le remboursement sera effectué automatiquement dès que le fournisseur confirmera l'annulation." 
+    res.json({
+        success: true,
+        message: "Demande d'annulation transmise au fournisseur. Le remboursement sera effectué automatiquement dès que le fournisseur confirmera l'annulation."
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -416,7 +411,7 @@ app.post('/api/exo/cancel', checkAuth, async (req, res) => {
     try {
         const uid = req.user.uid;
         const { orderId } = req.body;
-        
+
         if (!orderId) return res.status(400).json({ success: false, error: 'ID de commande manquant.' });
 
         const orderRef = db.collection('commandes').doc(orderId);
@@ -439,8 +434,8 @@ app.post('/api/exo/cancel', checkAuth, async (req, res) => {
             return res.status(400).json({ success: false, error: "Le fournisseur n'autorise pas l'annulation de cette commande en cours." });
         }
 
-        return res.status(200).json({ 
-            success: true, 
+        return res.status(200).json({
+            success: true,
             message: "La demande d'annulation a bien été transmise au fournisseur."
         });
     } catch (error) {
@@ -564,9 +559,9 @@ app.post('/api/exo-status', checkAuth, async (req, res) => {
     try {
         const orderRef = db.collection('commandes').doc(orderId);
         const orderDoc = await orderRef.get();
-        
+
         if (!orderDoc.exists || orderDoc.data().userId !== uid) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
-        
+
         const orderData = orderDoc.data();
         if (!orderData.exoOrderId) return res.status(400).json({ success: false, error: 'Pas de numéro de suivi fournisseur.' });
 
@@ -593,7 +588,7 @@ app.post('/api/exo-status', checkAuth, async (req, res) => {
                 await db.runTransaction(async (t) => {
                     const freshOrder = await t.get(orderRef);
                     if (freshOrder.data().isRefunded) return;
-                    
+
                     const userRef = db.collection('users').doc(uid);
                     const userDoc = await t.get(userRef);
                     const bal = userDoc.exists ? (userDoc.data().balance || 0) : 0;
@@ -616,7 +611,7 @@ app.post('/api/exo-status', checkAuth, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// AfriqueBoost API 
+// AfriqueBoost API
 // ═══════════════════════════════════════════════════════════════
 let _afbServicesCache     = null;
 let _afbServicesCacheTime = 0;
@@ -629,19 +624,19 @@ app.get('/api/afriqueboost/services', async (req, res) => {
     }
     const rawServices = await callAfriqueBoost({ action: 'services' });
     if (!Array.isArray(rawServices)) return res.status(500).json({ success: false, error: 'Réponse AfriqueBoost invalide' });
-    
+
     const services = rawServices.map(s => {
       const rateXAF  = parseFloat(s.rate) || 0;
-      const priceXAF = Math.round(rateXAF * AFB_MULTIPLIER); 
+      const priceXAF = Math.round(rateXAF * AFB_MULTIPLIER);
       return {
         id: parseInt(s.service), name: s.name, category: s.category || '', type: s.type || '',
         min: parseInt(s.min), max: parseInt(s.max), rate: rateXAF, priceXAF,
         refill: s.refill === true || s.refill === 'true' || s.refill === 1,
         cancel: s.cancel === true || s.cancel === 'true' || s.cancel === 1,
-        desc: s.description || null, provider: 'afriqueboost' 
+        desc: s.description || null, provider: 'afriqueboost'
       };
     });
-    
+
     _afbServicesCache = services; _afbServicesCacheTime = now;
     res.json({ success: true, services });
   } catch (error) {
@@ -657,7 +652,7 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
     const allServices = _afbServicesCache || (await callAfriqueBoost({ action: 'services' }));
     const service = allServices.find(s => parseInt(s.service || s.id) === parseInt(serviceId));
     if (!service) return res.status(400).json({ success: false, error: 'Service AfriqueBoost introuvable.' });
-    
+
     const rateXAF = parseFloat(service.rate) || 0;
     const priceXAF = Math.round(rateXAF * AFB_MULTIPLIER);
     const qty = parseInt(quantity);
@@ -666,7 +661,7 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
 
     const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
-    
+
     const currentBalance = userDoc.data().balance || 0;
     if (currentBalance < cost) {
       return res.status(400).json({
@@ -685,7 +680,7 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
     await db.runTransaction(async (transaction) => {
       const counterRef = db.collection('counters').doc('autoOrders');
       const freshUserRef = db.collection('users').doc(uid);
-      
+
       const counterDoc = await transaction.get(counterRef);
       const freshUserDoc = await transaction.get(freshUserRef);
 
@@ -750,8 +745,8 @@ app.get('/api/afriqueboost/status/:orderId', checkAuth, async (req, res) => {
       if (refundAmount > 0) {
         await db.runTransaction(async (t) => {
           const freshOrder = await t.get(orderDoc.ref);
-          if (freshOrder.data().refunded) return; 
-          
+          if (freshOrder.data().refunded) return;
+
           const userRef = db.collection('users').doc(uid);
           const userDoc = await t.get(userRef);
           const bal = userDoc.exists ? (userDoc.data().balance || 0) : 0;
@@ -784,7 +779,7 @@ app.post('/api/afriqueboost/refill', checkAuth, async (req, res) => {
     const orderDoc = snapshot.docs[0];
     const orderData = orderDoc.data();
     if (orderData.userId !== uid) return res.status(403).json({ success: false, error: 'Accès refusé.' });
-    
+
     const result = await callAfriqueBoost({ action: 'refill', order: orderData.providerOrderId });
     if (result.error) return res.status(400).json({ success: false, error: 'Erreur AfriqueBoost: ' + result.error });
 
@@ -903,13 +898,13 @@ app.get('/api/smmgen/services', async (req, res) => {
     }
     const rawServices = await callSmmGen({ action: 'services' });
     if (!Array.isArray(rawServices)) return res.status(500).json({ success: false, error: 'Réponse SMMGen invalide' });
-    
+
     const services = rawServices.map(s => {
       const rate = parseFloat(s.rate) || 0;
       const priceXAF = Math.round(rate * SMMGEN_USD_TO_XAF * SMMGEN_MULTIPLIER);
       const type = s.type || 'Default';
       const pricingMode = getSmmGenPricingMode(type);
-      
+
       return {
         id: parseInt(s.service),
         provider: 'smmgen',
@@ -927,7 +922,7 @@ app.get('/api/smmgen/services', async (req, res) => {
         desc: s.description || null,
       };
     });
-    
+
     _smmgenServicesCache = services;
     _smmgenServicesCacheTime = now;
     res.json({ success: true, services });
@@ -939,7 +934,7 @@ app.get('/api/smmgen/services', async (req, res) => {
 app.post('/api/smmgen/order', checkAuth, async (req, res) => {
   const uid = req.user.uid;
   const { serviceId, link } = req.body;
-  
+
   if (!serviceId || !link) {
     return res.status(400).json({ success: false, error: 'serviceId et link sont requis.' });
   }
@@ -951,7 +946,7 @@ app.post('/api/smmgen/order', checkAuth, async (req, res) => {
     } else {
       allServices = await callSmmGen({ action: 'services' });
     }
-    
+
     const service = allServices.find(s => parseInt(s.service || s.id) === parseInt(serviceId));
     if (!service) {
       return res.status(400).json({ success: false, error: 'Service SMMGen introuvable.' });
@@ -963,7 +958,7 @@ app.post('/api/smmgen/order', checkAuth, async (req, res) => {
 
     const type = service.type || 'Default';
     const pricingMode = getSmmGenPricingMode(type);
-    
+
     let qty = 0;
     if (pricingMode === 'package') {
       qty = 1;
@@ -988,7 +983,7 @@ app.post('/api/smmgen/order', checkAuth, async (req, res) => {
     if (!userDoc.exists) {
       return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
     }
-    
+
     const currentBalance = userDoc.data().balance || 0;
     if (currentBalance < cost) {
       return res.status(400).json({
@@ -999,7 +994,7 @@ app.post('/api/smmgen/order', checkAuth, async (req, res) => {
 
     const orderParams = buildSmmGenOrderParams(service, req.body);
     const orderResult = await callSmmGen(orderParams);
-    
+
     if (orderResult.error) {
       return res.status(400).json({ success: false, error: 'Erreur fournisseur : ' + orderResult.error });
     }
@@ -1013,7 +1008,7 @@ app.post('/api/smmgen/order', checkAuth, async (req, res) => {
     await db.runTransaction(async (transaction) => {
       const counterRef = db.collection('counters').doc('autoOrders');
       const freshUserRef = db.collection('users').doc(uid);
-      
+
       const counterDoc = await transaction.get(counterRef);
       const freshUserDoc = await transaction.get(freshUserRef);
 
@@ -1068,7 +1063,7 @@ app.post('/api/smmgen/order', checkAuth, async (req, res) => {
 app.get('/api/smmgen/order-status/:orderId', checkAuth, async (req, res) => {
   const { orderId } = req.params;
   const uid = req.user.uid;
-  
+
   try {
     const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).limit(1).get();
     if (snapshot.empty) {
@@ -1077,11 +1072,11 @@ app.get('/api/smmgen/order-status/:orderId', checkAuth, async (req, res) => {
 
     const orderDoc = snapshot.docs[0];
     const orderData = orderDoc.data();
-    
+
     if (orderData.userId !== uid) {
       return res.status(403).json({ success: false, error: 'Accès refusé.' });
     }
-    
+
     if (orderData.provider !== 'smmgen') {
       return res.status(400).json({ success: false, error: 'Cette commande n\'est pas une commande SMMGen.' });
     }
@@ -1102,7 +1097,7 @@ app.get('/api/smmgen/order-status/:orderId', checkAuth, async (req, res) => {
 
     if (!isRefunded && (newStatus === 'Annulé' || newStatus === 'Canceled' || newStatus === 'Partiel' || newStatus === 'Partial')) {
       let totalCost = orderData.priceXAF || 0;
-      
+
       if (newStatus === 'Partiel' || newStatus === 'Partial') {
         const qty = orderData.quantity || 1;
         const rem = remains !== undefined ? remains : qty;
@@ -1114,8 +1109,8 @@ app.get('/api/smmgen/order-status/:orderId', checkAuth, async (req, res) => {
       if (refundAmount > 0) {
         await db.runTransaction(async (t) => {
           const freshOrder = await t.get(orderDoc.ref);
-          if (freshOrder.data().refunded) return; 
-          
+          if (freshOrder.data().refunded) return;
+
           const userRef = db.collection('users').doc(uid);
           const userDoc = await t.get(userRef);
           const bal = userDoc.exists ? (userDoc.data().balance || 0) : 0;
@@ -1163,11 +1158,11 @@ app.get('/api/smmgen/order-status/:orderId', checkAuth, async (req, res) => {
 app.post('/api/smmgen/refill', checkAuth, async (req, res) => {
   const { orderId } = req.body;
   const uid = req.user.uid;
-  
+
   if (!orderId) {
     return res.status(400).json({ success: false, error: 'orderId requis.' });
   }
-  
+
   try {
     const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).limit(1).get();
     if (snapshot.empty) {
@@ -1176,11 +1171,11 @@ app.post('/api/smmgen/refill', checkAuth, async (req, res) => {
 
     const orderDoc = snapshot.docs[0];
     const orderData = orderDoc.data();
-    
+
     if (orderData.userId !== uid) {
       return res.status(403).json({ success: false, error: 'Accès refusé.' });
     }
-    
+
     if (orderData.provider !== 'smmgen') {
       return res.status(400).json({ success: false, error: 'Cette commande n\'est pas une commande SMMGen.' });
     }
@@ -1192,13 +1187,13 @@ app.post('/api/smmgen/refill', checkAuth, async (req, res) => {
         serviceSupportsRefill = false;
       }
     }
-    
+
     if (!serviceSupportsRefill) {
       return res.status(400).json({ success: false, error: 'Ce service ne supporte pas le refill.' });
     }
 
     const result = await callSmmGen({ action: 'refill', order: orderData.providerOrderId });
-    
+
     if (result.error) {
       return res.status(400).json({ success: false, error: 'Erreur SMMGen: ' + result.error });
     }
@@ -1220,11 +1215,11 @@ app.post('/api/smmgen/refill', checkAuth, async (req, res) => {
 app.post('/api/smmgen/refill-status', checkAuth, async (req, res) => {
   const { refillId, orderId } = req.body;
   const uid = req.user.uid;
-  
+
   if (!refillId) {
     return res.status(400).json({ success: false, error: 'refillId requis.' });
   }
-  
+
   try {
     if (orderId) {
       const orderRef = db.collection('autoOrders').doc(orderId);
@@ -1235,7 +1230,7 @@ app.post('/api/smmgen/refill-status', checkAuth, async (req, res) => {
     }
 
     const result = await callSmmGen({ action: 'refill_status', refill: refillId });
-    
+
     if (result.error) {
       return res.status(400).json({ success: false, error: 'Erreur SMMGen: ' + result.error });
     }
@@ -1258,11 +1253,11 @@ app.post('/api/smmgen/refill-status', checkAuth, async (req, res) => {
 app.post('/api/smmgen/cancel', checkAuth, async (req, res) => {
   const { orderId } = req.body;
   const uid = req.user.uid;
-  
+
   if (!orderId) {
     return res.status(400).json({ success: false, error: 'orderId requis.' });
   }
-  
+
   try {
     const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).limit(1).get();
     if (snapshot.empty) {
@@ -1271,15 +1266,15 @@ app.post('/api/smmgen/cancel', checkAuth, async (req, res) => {
 
     const orderDoc = snapshot.docs[0];
     const orderData = orderDoc.data();
-    
+
     if (orderData.userId !== uid) {
       return res.status(403).json({ success: false, error: 'Accès refusé.' });
     }
-    
+
     if (orderData.provider !== 'smmgen') {
       return res.status(400).json({ success: false, error: 'Cette commande n\'est pas une commande SMMGen.' });
     }
-    
+
     if (orderData.refunded) {
       return res.status(400).json({ success: false, error: 'Cette commande a déjà été remboursée.' });
     }
@@ -1345,15 +1340,15 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
       });
     }
     const data = userDoc.data();
-    
+
     const createdAtMs = data.createdAt ? getTimestampMs(data.createdAt) : Date.now();
     const diffMonths = Math.floor((Date.now() - createdAtMs) / (1000 * 60 * 60 * 24 * 30.44));
-    
+
     let memberBadge = "Nouveau membre";
     if (diffMonths > 0) {
       memberBadge = `Membre depuis ${diffMonths} mois`;
     }
-    
+
     res.json({
       success: true,
       profile: {
@@ -1373,20 +1368,18 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
     const { displayName, phone, country, settings, photoURL } = req.body;
-    
-    console.log(`[DEBUG] /api/update-profile - Données reçues pour ${uid}:`, req.body);
-    
+
     const updateData = {};
     if (displayName !== undefined) updateData.displayName = displayName;
     if (phone !== undefined) updateData.phone = phone;
     if (country !== undefined) updateData.country = country;
     if (settings !== undefined) updateData.settings = settings;
     if (photoURL !== undefined) updateData.photoURL = photoURL;
-    
+
     updateData.updatedAt = admin.firestore.FieldValue.serverTimestamp();
 
     await db.collection('users').doc(uid).set(updateData, { merge: true });
-    
+
     res.json({ success: true, message: 'Profil mis à jour avec succès.' });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Erreur lors de la mise à jour du profil.' });
@@ -1396,10 +1389,8 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
 app.post('/api/user/settings', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
-    const newSettings = req.body; 
-    
-    console.log(`[DEBUG] /api/user/settings - Paramètres reçus pour ${uid}:`, newSettings);
-    
+    const newSettings = req.body;
+
     if (!newSettings || typeof newSettings !== 'object' || Object.keys(newSettings).length === 0) {
       return res.status(400).json({ success: false, error: 'Aucun paramètre fourni.' });
     }
@@ -1411,10 +1402,10 @@ app.post('/api/user/settings', checkAuth, async (req, res) => {
     updatePayload.updatedAt = admin.firestore.FieldValue.serverTimestamp();
 
     await db.collection('users').doc(uid).update(updatePayload);
-    
+
     res.json({ success: true, message: 'Paramètres mis à jour avec succès.' });
   } catch (error) {
-    if (error.code === 5) { 
+    if (error.code === 5) {
       await db.collection('users').doc(req.user.uid).set({
         settings: req.body,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -1431,9 +1422,9 @@ app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     const uid = req.user.uid;
     const userDoc = await db.collection('users').doc(uid).get();
-    
+
     if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
-    
+
     const data = userDoc.data();
     if (data.apiKey) {
       res.json({ success: true, hasKey: true, createdAt: data.apiKeyCreatedAt });
@@ -1448,14 +1439,14 @@ app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
 app.post('/api/user/generate-api-key', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
-    
+
     const newApiKey = 'sbh_live_' + crypto.randomBytes(24).toString('hex');
-    
+
     await db.collection('users').doc(uid).set({
       apiKey: newApiKey,
       apiKeyCreatedAt: admin.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
-    
+
     res.json({ success: true, apiKey: newApiKey });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Erreur lors de la génération de la clé API.' });
@@ -1463,7 +1454,7 @@ app.post('/api/user/generate-api-key', checkAuth, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// Fapshi – Paiement Mobile Money
+// Fapshi – Paiement Mobile Money (INCHANGÉ)
 // ═══════════════════════════════════════════════════════════════
 app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
   const uid = req.user.uid;
@@ -1535,7 +1526,7 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
 app.post('/api/fapshi-webhook', async (req, res) => {
   const { status, amount, transId } = req.body;
   if (status !== 'SUCCESSFUL') return res.status(200).json({ message: 'Statut ignoré.' });
-  
+
   const amountNum = Number(amount);
   const transRef = db.collection('fapshiTransactions').doc(transId);
 
@@ -1666,40 +1657,39 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 // NelsiusPay – Paiement par carte bancaire Visa/Mastercard
 // ═══════════════════════════════════════════════════════════════
-
-// ── Constantes NelsiusPay ──────────────────────────────────────
 const NELSIUSPAY_API_URL          = 'https://api.nelsiuspay.com/api/v1';
-const SBH_USD_TO_XAF              = 590;
-const SBH_EUR_TO_XAF              = 655;
 const NELSIUSPAY_MIN_AMOUNT_XAF   = 1000;
 const NELSIUSPAY_MAX_AMOUNT_XAF   = 10000000;
-
-// Politique de frais SBH : le client supporte les frais (fee_bearer = 'customer')
-// pour que le montant crédité corresponde exactement au montant de recharge demandé.
 const NELSIUSPAY_FEE_BEARER       = 'customer';
 
 /**
- * Convertit un montant depuis une devise supportée vers XAF.
- * Le backend est la seule source de vérité pour les conversions.
+ * Table de conversion identique à celle du frontend (paid.html / paiement-carte.html).
+ * XAF = amountLocal / rate
  */
+const SBH_CURRENCY_RATES = {
+  'XAF': 1,
+  'XOF': 1,
+  'CDF': 4.27,
+  'GHS': 0.024,
+  'NGN': 2.44,
+  'KES': 0.20,
+  'UGX': 5.64,
+  'TZS': 3.81,
+  'RWF': 1.98,
+  'ZMW': 0.041,
+  'MWK': 2.67,
+  'USD': 1 / 590,
+  'EUR': 1 / 655,
+};
+
 function convertToXAF(amount, currency) {
   const cur = (currency || '').toUpperCase();
-  switch (cur) {
-    case 'XAF':
-    case 'XOF':
-      return Math.round(Number(amount));
-    case 'USD':
-      return Math.round(Number(amount) * SBH_USD_TO_XAF);
-    case 'EUR':
-      return Math.round(Number(amount) * SBH_EUR_TO_XAF);
-    default:
-      throw new Error(`Devise non supportée pour la conversion : ${currency}`);
-  }
+  const rate = SBH_CURRENCY_RATES[cur];
+  if (rate === undefined) throw new Error(`Devise non supportée : ${currency}`);
+  if (rate <= 0) throw new Error(`Taux invalide pour ${currency}`);
+  return Math.round(Number(amount) / rate);
 }
 
-/**
- * Génère une référence unique SBH pour une transaction de paiement.
- */
 function generatePaymentReference() {
   const now = new Date();
   const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
@@ -1707,9 +1697,6 @@ function generatePaymentReference() {
   return `SBH-PAY-${datePart}-${randomPart}`;
 }
 
-/**
- * Appel HTTP générique vers l'API NelsiusPay.
- */
 async function callNelsiusPay(endpoint, method = 'GET', body = null) {
   const apiKey = process.env.NELSIUSPAY_API_KEY;
   if (!apiKey) {
@@ -1745,9 +1732,6 @@ async function callNelsiusPay(endpoint, method = 'GET', body = null) {
   }
 }
 
-/**
- * Normalise le statut NelsiusPay vers nos statuts internes.
- */
 function normalizeNelsiusStatus(providerStatus) {
   const s = (providerStatus || '').toLowerCase();
   switch (s) {
@@ -1763,7 +1747,6 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
   const uid = req.user.uid;
   const { amount, currency } = req.body;
 
-  // ── 1. Validation stricte des entrées ──
   const requestedAmount = Number(amount);
   if (!amount || isNaN(requestedAmount) || requestedAmount <= 0) {
     return res.status(400).json({ success: false, error: 'Montant invalide. Veuillez fournir un montant positif.' });
@@ -1773,12 +1756,10 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
   }
 
   const requestedCurrency = (currency || 'XAF').toUpperCase();
-  const supportedCurrencies = ['XAF', 'XOF', 'USD', 'EUR'];
-  if (!supportedCurrencies.includes(requestedCurrency)) {
-    return res.status(400).json({ success: false, error: `Devise non supportée : ${requestedCurrency}. Devises acceptées : ${supportedCurrencies.join(', ')}` });
+  if (!SBH_CURRENCY_RATES[requestedCurrency]) {
+    return res.status(400).json({ success: false, error: `Devise non supportée : ${requestedCurrency}` });
   }
 
-  // Pour XAF/XOF, vérifier le min/max directement
   let creditedAmountXAF;
   try {
     creditedAmountXAF = convertToXAF(requestedAmount, requestedCurrency);
@@ -1793,13 +1774,11 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
     return res.status(400).json({ success: false, error: `Le montant maximum de recharge est de ${NELSIUSPAY_MAX_AMOUNT_XAF.toLocaleString('fr-FR')} FCFA.` });
   }
 
-  // ── 2. Vérifier que NELSIUSPAY_API_KEY est configurée ──
   if (!process.env.NELSIUSPAY_API_KEY) {
     console.error('[NelsiusPay] NELSIUSPAY_API_KEY non définie.');
     return res.status(500).json({ success: false, error: 'Configuration de paiement incomplète. Contactez le support.' });
   }
 
-  // ── 3. Récupérer les infos utilisateur ──
   let customerEmail = req.user.email || '';
   let customerPhone = '';
   try {
@@ -1813,17 +1792,14 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
     console.warn('[NelsiusPay] Impossible de récupérer le profil utilisateur:', e.message);
   }
 
-  // ── 4. Générer la référence unique SBH ──
   const reference = generatePaymentReference();
 
-  // ── 5. Déterminer l'URL de base pour les redirections ──
   const host = req.headers['x-forwarded-host'] || req.headers.host || 'socialboosthorizon.com';
   const protocol = req.headers['x-forwarded-proto'] || 'https';
   const baseUrl = `${protocol}://${host}`;
   const returnUrl  = `${baseUrl}/paiement-carte.html?status=return&ref=${encodeURIComponent(reference)}`;
   const cancelUrl  = `${baseUrl}/paiement-carte.html?status=cancel&ref=${encodeURIComponent(reference)}`;
 
-  // ── 6. Construire le payload NelsiusPay ──
   const checkoutPayload = {
     amount: requestedAmount,
     currency: requestedCurrency,
@@ -1840,12 +1816,10 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
     },
   };
 
-  // Nettoyer les champs undefined
   Object.keys(checkoutPayload).forEach(k => {
     if (checkoutPayload[k] === undefined) delete checkoutPayload[k];
   });
 
-  // ── 7. Appeler NelsiusPay /checkout/initiate ──
   let nelsiusResponse;
   try {
     console.log(`[NelsiusPay] Initiation checkout — ref=${reference} user=${uid} amount=${requestedAmount} ${requestedCurrency} → ${creditedAmountXAF} XAF`);
@@ -1861,7 +1835,6 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
     return res.status(nelsiusResponse.status >= 500 ? 502 : 400).json({ success: false, error: errMsg });
   }
 
-  // ── 8. Extraire l'URL de checkout ──
   const respData = nelsiusResponse.data;
   const checkoutUrl = respData?.data?.checkout_url
     || respData?.checkout_url
@@ -1876,7 +1849,6 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
 
   const transactionCode = respData?.data?.transaction_code || respData?.transaction_code || null;
 
-  // ── 9. Enregistrer la transaction dans Firestore AVANT redirection ──
   try {
     await db.collection('paymentTransactions').doc(reference).set({
       reference,
@@ -1887,9 +1859,7 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
       providerAmount: requestedAmount,
       providerCurrency: requestedCurrency,
       creditedAmountXAF,
-      conversionRate: requestedCurrency === 'USD' ? SBH_USD_TO_XAF
-                     : requestedCurrency === 'EUR' ? SBH_EUR_TO_XAF
-                     : 1,
+      conversionRate: SBH_CURRENCY_RATES[requestedCurrency],
       status: 'PENDING',
       checkoutUrl,
       transactionCode,
@@ -1901,11 +1871,8 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
     console.log(`[NelsiusPay] Transaction Firestore créée: ${reference}`);
   } catch (dbErr) {
     console.error('[NelsiusPay] Erreur écriture Firestore:', dbErr.message);
-    // On continue quand même : la redirection vers NelsiusPay est plus importante.
-    // Le webhook / status recréera la transaction si besoin.
   }
 
-  // ── 10. Retourner l'URL de checkout au frontend ──
   return res.json({
     success: true,
     checkoutUrl,
@@ -1916,8 +1883,8 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
   });
 });
 
-// ── GET/POST /api/nelsiuspay/status ───────────────────────────
-app.all('/api/nelsiuspay/status', checkAuth, async (req, res) => {
+// ── POST /api/nelsiuspay/status ───────────────────────────────
+app.post('/api/nelsiuspay/status', checkAuth, async (req, res) => {
   const uid = req.user.uid;
   const reference = req.body?.reference || req.query?.reference;
 
@@ -1926,7 +1893,6 @@ app.all('/api/nelsiuspay/status', checkAuth, async (req, res) => {
   }
 
   try {
-    // ── 1. Récupérer la transaction Firestore ──
     const transRef = db.collection('paymentTransactions').doc(reference);
     const transDoc = await transRef.get();
 
@@ -1936,12 +1902,10 @@ app.all('/api/nelsiuspay/status', checkAuth, async (req, res) => {
 
     const transData = transDoc.data();
 
-    // ── 2. Vérifier l'appartenance ──
     if (transData.userId !== uid) {
       return res.status(403).json({ success: false, error: 'Accès refusé.' });
     }
 
-    // ── 3. Si déjà CONFIRMED, retourner directement ──
     if (transData.status === 'CONFIRMED') {
       const userDoc = await db.collection('users').doc(uid).get();
       const currentBalance = userDoc.exists ? (userDoc.data().balance || 0) : 0;
@@ -1954,12 +1918,10 @@ app.all('/api/nelsiuspay/status', checkAuth, async (req, res) => {
       });
     }
 
-    // ── 4. Vérifier que NELSIUSPAY_API_KEY est configurée ──
     if (!process.env.NELSIUSPAY_API_KEY) {
       return res.status(500).json({ success: false, error: 'Configuration de paiement incomplète.' });
     }
 
-    // ── 5. Appeler GET /payments/{reference} ──
     let nelsiusStatusResp;
     try {
       nelsiusStatusResp = await callNelsiusPay(`/payments/${encodeURIComponent(reference)}`, 'GET');
@@ -1985,7 +1947,6 @@ app.all('/api/nelsiuspay/status', checkAuth, async (req, res) => {
     const providerCurrency = (nelsiusData?.currency || transData.providerCurrency || 'XAF').toUpperCase();
     const transactionCode = nelsiusData?.transaction_code || transData.transactionCode || null;
 
-    // ── 6. Mettre à jour la transaction si le statut a changé ──
     if (internalStatus !== transData.status || transactionCode !== transData.transactionCode) {
       await transRef.update({
         status: internalStatus,
@@ -1996,7 +1957,6 @@ app.all('/api/nelsiuspay/status', checkAuth, async (req, res) => {
       });
     }
 
-    // ── 7. Si CONFIRMED et pas encore crédité → créditer ──
     if (internalStatus === 'CONFIRMED') {
       await creditUserIfNeeded(reference, uid, transData);
       const userDoc = await db.collection('users').doc(uid).get();
@@ -2010,7 +1970,6 @@ app.all('/api/nelsiuspay/status', checkAuth, async (req, res) => {
       });
     }
 
-    // ── 8. Retourner le statut courant ──
     return res.json({
       success: true,
       status: internalStatus,
@@ -2032,12 +1991,10 @@ app.post('/api/nelsiuspay/webhook', async (req, res) => {
 
   console.log(`[NelsiusPay Webhook] Événement reçu: ${event}`);
 
-  // Toujours répondre 200 rapidement pour éviter les retries inutiles
   if (!event || !data) {
     return res.status(200).json({ received: true });
   }
 
-  // On ne traite que les événements connus
   if (event !== 'payment.success' && event !== 'payment.failed') {
     return res.status(200).json({ received: true, ignored: true });
   }
@@ -2049,7 +2006,6 @@ app.post('/api/nelsiuspay/webhook', async (req, res) => {
   }
 
   try {
-    // ── 1. Retrouver la transaction Firestore ──
     const transRef = db.collection('paymentTransactions').doc(reference);
     const transDoc = await transRef.get();
 
@@ -2060,13 +2016,11 @@ app.post('/api/nelsiuspay/webhook', async (req, res) => {
 
     const transData = transDoc.data();
 
-    // ── 2. Si déjà CONFIRMED, ne rien faire (idempotence) ──
     if (transData.status === 'CONFIRMED') {
       console.log(`[NelsiusPay Webhook] Transaction déjà confirmée, ignorée: ${reference}`);
       return res.status(200).json({ received: true, alreadyConfirmed: true });
     }
 
-    // ── 3. Vérification serveur croisée (recommandée) ──
     let providerVerifiedStatus = null;
     if (process.env.NELSIUSPAY_API_KEY) {
       try {
@@ -2080,10 +2034,8 @@ app.post('/api/nelsiuspay/webhook', async (req, res) => {
       }
     }
 
-    // ── 4. Déterminer le statut final ──
     let finalStatus;
     if (event === 'payment.success') {
-      // Si la vérification serveur dit "pending", on ne crédite pas encore par sécurité
       if (providerVerifiedStatus && providerVerifiedStatus !== 'completed') {
         console.log(`[NelsiusPay Webhook] Vérification serveur contradictoire (${providerVerifiedStatus}), on attend.`);
         return res.status(200).json({ received: true, deferred: true });
@@ -2095,7 +2047,6 @@ app.post('/api/nelsiuspay/webhook', async (req, res) => {
       return res.status(200).json({ received: true });
     }
 
-    // ── 5. Valider le montant et la devise ──
     const webhookAmount = Number(data.amount);
     const webhookCurrency = (data.currency || '').toUpperCase();
     const storedAmount = Number(transData.providerAmount);
@@ -2110,7 +2061,6 @@ app.post('/api/nelsiuspay/webhook', async (req, res) => {
       return res.status(200).json({ received: true, error: 'currency_mismatch' });
     }
 
-    // ── 6. Mettre à jour la transaction ──
     await transRef.update({
       status: finalStatus,
       transactionCode: data.transaction_code || transData.transactionCode || null,
@@ -2120,7 +2070,6 @@ app.post('/api/nelsiuspay/webhook', async (req, res) => {
       lastChecked: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // ── 7. Si CONFIRMED → créditer le portefeuille ──
     if (finalStatus === 'CONFIRMED') {
       await creditUserIfNeeded(reference, transData.userId, transData);
     }
@@ -2130,21 +2079,15 @@ app.post('/api/nelsiuspay/webhook', async (req, res) => {
 
   } catch (error) {
     console.error('[NelsiusPay Webhook] Erreur traitement:', error);
-    // On renvoie 200 pour éviter les retries infinis sur une erreur côté serveur
     return res.status(200).json({ received: true });
   }
 });
 
-/**
- * Crédite le portefeuille utilisateur si la transaction n'a pas encore été créditée.
- * Utilise une transaction Firestore pour garantir l'atomicité et l'idempotence.
- */
 async function creditUserIfNeeded(reference, userId, transData) {
   const transRef = db.collection('paymentTransactions').doc(reference);
   const userRef = db.collection('users').doc(userId);
 
   await db.runTransaction(async (t) => {
-    // Relire la transaction dans la transaction Firestore pour vérifier l'état le plus récent
     const freshTrans = await t.get(transRef);
     if (!freshTrans.exists) {
       throw new Error(`Transaction ${reference} introuvable dans la transaction Firestore.`);
@@ -2152,7 +2095,6 @@ async function creditUserIfNeeded(reference, userId, transData) {
 
     const freshData = freshTrans.data();
     if (freshData.status === 'CONFIRMED' && freshData.creditedAt) {
-      // Déjà créditée
       return;
     }
 
@@ -2165,14 +2107,12 @@ async function creditUserIfNeeded(reference, userId, transData) {
     const currentBalance = freshUser.exists ? (freshUser.data().balance || 0) : 0;
     const newBalance = currentBalance + amountToCredit;
 
-    // Mettre à jour le solde
     if (freshUser.exists) {
       t.update(userRef, { balance: newBalance });
     } else {
       t.set(userRef, { balance: newBalance }, { merge: true });
     }
 
-    // Marquer la transaction comme créditée
     t.update(transRef, {
       status: 'CONFIRMED',
       creditedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -2186,7 +2126,6 @@ async function creditUserIfNeeded(reference, userId, transData) {
 // ═══════════════════════════════════════════════════════════════
 // ADMIN API (ZÉRO LECTURE FIRESTORE)
 // ═══════════════════════════════════════════════════════════════
-
 const ADMIN_PASSWORD = '209644209644';
 function checkAdminPassword(req, res, next) {
   const pass = req.headers['x-admin-password'];
@@ -2196,7 +2135,7 @@ function checkAdminPassword(req, res, next) {
   next();
 }
 
-const ADMIN_CACHE_TTL = 30 * 60 * 1000; 
+const ADMIN_CACHE_TTL = 30 * 60 * 1000;
 let adminCache = { services: null, lastFetch: { services: 0 } };
 
 function isAdminCacheValid(key) {
@@ -2284,12 +2223,12 @@ const adminRouter = express.Router();
 adminRouter.use(checkAdminPassword);
 
 adminRouter.get('/ping', (req, res) => res.json({ success: true, message: 'Admin API accessible' }));
-adminRouter.get('/services', async (req, res) => { 
-  try { 
-    res.json({ success: true, data: await getServicesData() }); 
-  } catch (error) { 
-    res.status(500).json({ success: false, error: error.message }); 
-  } 
+adminRouter.get('/services', async (req, res) => {
+  try {
+    res.json({ success: true, data: await getServicesData() });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 app.use('/api/admin', adminRouter);
