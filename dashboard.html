@@ -685,6 +685,104 @@
       border-radius: 10px; overflow: hidden; height: 130px;
     }
     .newsletter-iframe-container iframe { width: 100%; height: 130px; border: 0; }
+
+    /* ══════════════ MÉTHODES DE PAIEMENT ══════════════ */
+    .payment-method {
+      display: flex; align-items: flex-start; gap: 12px;
+      background: rgba(15,25,45,0.7);
+      border: 1px solid rgba(212,175,55,0.2);
+      border-radius: 16px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: left;
+      position: relative;
+      overflow: hidden;
+    }
+    .payment-method::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+      background: rgba(212,175,55,0.5);
+      transition: all 0.3s ease;
+    }
+    .payment-method:hover {
+      background: rgba(212,175,55,0.1);
+      border-color: rgba(212,175,55,0.6);
+      transform: translateX(3px);
+    }
+    .payment-method:hover::before { background: var(--sbh-gold); }
+    .payment-method .pm-icon {
+      flex-shrink: 0;
+      width: 42px; height: 42px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.15rem;
+      background: rgba(212,175,55,0.15);
+      color: var(--sbh-gold);
+      border: 1px solid rgba(212,175,55,0.3);
+    }
+    .payment-method.pm-blue .pm-icon {
+      background: rgba(77,166,255,0.15);
+      color: var(--sbh-light-blue);
+      border-color: rgba(77,166,255,0.3);
+    }
+    .payment-method.pm-green .pm-icon {
+      background: rgba(34,197,94,0.15);
+      color: #22c55e;
+      border-color: rgba(34,197,94,0.3);
+    }
+    .payment-method .pm-body { flex: 1; min-width: 0; }
+    .payment-method .pm-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 3px;
+      line-height: 1.3;
+    }
+    .payment-method .pm-desc {
+      font-size: 0.76rem;
+      color: rgba(255,255,255,0.55);
+      line-height: 1.4;
+      margin: 0;
+    }
+    .payment-method .pm-arrow {
+      color: rgba(255,255,255,0.35);
+      font-size: 0.85rem;
+      align-self: center;
+      transition: 0.3s;
+    }
+    .payment-method:hover .pm-arrow {
+      color: var(--sbh-gold);
+      transform: translateX(3px);
+    }
+
+    /* ══════════════ MODAL COMMUNAUTÉ — ITEMS ══════════════ */
+    .community-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      color: #fff;
+      text-align: left;
+    }
+    .community-item:hover {
+      background: rgba(212,175,55,0.12);
+      border-color: rgba(212,175,55,0.4);
+      transform: translateX(4px);
+    }
+    .community-item .ci-icon {
+      width: 40px; height: 40px; border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.05rem; flex-shrink: 0;
+    }
+    .community-item .ci-icon.wa { background: rgba(37,211,102,0.15); color: #25D366; }
+    .community-item .ci-icon.gr { background: rgba(212,175,55,0.15); color: var(--sbh-gold); }
+    .community-item .ci-icon.bl { background: rgba(77,166,255,0.15); color: var(--sbh-light-blue); }
+    .community-item .ci-body { flex: 1; min-width: 0; }
+    .community-item .ci-body strong { display: block; font-size: 0.9rem; margin-bottom: 2px; }
+    .community-item .ci-body small { font-size: 0.72rem; color: rgba(255,255,255,0.55); display: block; }
   </style>
 </head>
 <body>
@@ -806,12 +904,43 @@
     </div>
   </div>
 
+  <!-- ══════════════ MODAL DÉPÔT (MIS À JOUR) ══════════════ -->
   <div id="depositModal" class="modal">
     <div class="modal-box">
-      <h3>💳 Mode de paiement</h3>
+      <h3 style="margin-bottom:6px;">💳 Mode de paiement</h3>
+      <p style="font-size:0.82rem;color:rgba(255,255,255,0.6);margin-bottom:16px;">Choisissez la méthode qui vous convient</p>
       <div style="display:flex;flex-direction:column;gap:12px;margin:15px 0;">
-        <div id="depositCameroon" class="action-pill" style="justify-content:center;cursor:pointer;"><i class="fas fa-mobile-alt"></i> Paiement Cameroun</div>
-        <div id="depositInternational" class="action-pill" style="justify-content:center;cursor:pointer;"><i class="fas fa-globe-africa"></i> Autres pays africains</div>
+
+        <!-- NOUVEAU : Paiement international / Visa / PayPal -->
+        <div id="depositCardInternational" class="payment-method pm-blue" role="button" tabindex="0">
+          <div class="pm-icon"><i class="fas fa-globe"></i></div>
+          <div class="pm-body">
+            <div class="pm-title">Paiement international / Visa / PayPal</div>
+            <p class="pm-desc">Disponible dans tous les pays du monde. Payez en toute sécurité par carte bancaire (Visa / Mastercard) ou PayPal.</p>
+          </div>
+          <i class="fas fa-chevron-right pm-arrow"></i>
+        </div>
+
+        <!-- Paiement Cameroun -->
+        <div id="depositCameroon" class="payment-method" role="button" tabindex="0">
+          <div class="pm-icon"><i class="fas fa-mobile-alt"></i></div>
+          <div class="pm-body">
+            <div class="pm-title">Paiement Cameroun</div>
+            <p class="pm-desc">Exclusivement réservé aux utilisateurs au Cameroun. Paiement rapide par Mobile Money (MTN MoMo / Orange Money).</p>
+          </div>
+          <i class="fas fa-chevron-right pm-arrow"></i>
+        </div>
+
+        <!-- Paiement autres pays africains -->
+        <div id="depositInternational" class="payment-method pm-green" role="button" tabindex="0">
+          <div class="pm-icon"><i class="fas fa-globe-africa"></i></div>
+          <div class="pm-body">
+            <div class="pm-title">Autres pays africains</div>
+            <p class="pm-desc">Disponible dans 18 pays africains. Paiement par Mobile Money local (Orange, MTN, Moov, Wave, etc.).</p>
+          </div>
+          <i class="fas fa-chevron-right pm-arrow"></i>
+        </div>
+
       </div>
       <button id="closeDepositModal" class="btn btn-outline">Annuler</button>
     </div>
@@ -848,13 +977,41 @@
     </div>
   </div>
 
+  <!-- ══════════════ MODAL COMMUNAUTÉ (MIS À JOUR — 3 ITEMS) ══════════════ -->
   <div id="communityModal" class="modal">
     <div class="modal-box">
-      <h3><i class="fas fa-users"></i> Communauté</h3>
-      <p>Rejoignez-nous et restez informé</p>
-      <div style="display:flex;flex-direction:column;gap:12px;margin:15px 0;">
-        <a href="https://wa.me/channel/0029Vb7A88V5q08c9iIrnP32" target="_blank" rel="noopener noreferrer" class="action-pill" style="justify-content:center;text-decoration:none;"><i class="fab fa-whatsapp" style="color:#25D366;"></i> Canal WhatsApp</a>
-        <a href="https://chat.whatsapp.com/HRgWJFxTgkiEkEC0Ou2028" target="_blank" rel="noopener noreferrer" class="action-pill" style="justify-content:center;text-decoration:none;"><i class="fas fa-user-group"></i> Groupe Communauté</a>
+      <h3 style="margin-bottom:6px;"><i class="fas fa-users"></i> Communauté</h3>
+      <p style="font-size:0.85rem;color:rgba(255,255,255,0.65);margin-bottom:16px;">Rejoignez-nous et restez informé</p>
+      <div style="display:flex;flex-direction:column;gap:10px;margin:15px 0;">
+
+        <a href="https://wa.me/channel/0029Vb7A88V5q08c9iIrnP32" target="_blank" rel="noopener noreferrer" class="community-item">
+          <div class="ci-icon wa"><i class="fab fa-whatsapp"></i></div>
+          <div class="ci-body">
+            <strong>Canal WhatsApp</strong>
+            <small>Offres & actualités en avant-première</small>
+          </div>
+          <i class="fas fa-arrow-right" style="color:rgba(255,255,255,0.3);"></i>
+        </a>
+
+        <a href="https://chat.whatsapp.com/HRgWJFxTgkiEkEC0Ou2028" target="_blank" rel="noopener noreferrer" class="community-item">
+          <div class="ci-icon gr"><i class="fas fa-user-group"></i></div>
+          <div class="ci-body">
+            <strong>Groupe Communauté</strong>
+            <small>Échanges, entraide & support entre membres</small>
+          </div>
+          <i class="fas fa-arrow-right" style="color:rgba(255,255,255,0.3);"></i>
+        </a>
+
+        <!-- NOUVEAU : 3ᵉ communauté → communaute.html -->
+        <a href="communaute.html" class="community-item">
+          <div class="ci-icon bl"><i class="fas fa-comments"></i></div>
+          <div class="ci-body">
+            <strong>Communauté Social Boost Horizon</strong>
+            <small>Espace d'entraide, astuces et networking</small>
+          </div>
+          <i class="fas fa-arrow-right" style="color:rgba(255,255,255,0.3);"></i>
+        </a>
+
       </div>
       <button id="closeCommunityModal" class="btn btn-outline">Fermer</button>
     </div>
@@ -1129,7 +1286,7 @@
     const db = firebase.firestore();
     const auth = firebase.auth();
 
-    const BACKEND_URL = 'https://socialboosthorizon.com/';
+    const BACKEND_URL = 'https://socialboosthorizon.com';
 
     // ══════════════ DEVISES ══════════════
     const CURRENCY_CONFIG = {
@@ -1255,8 +1412,11 @@
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await r.json();
-        return data.eligible !== false;
-      } catch { return true; }
+        return data.eligible === true;
+      } catch (err) {
+        console.warn('checkGiftEligibility échoué :', err);
+        return false;
+      }
     }
 
     function showWelcomeModal() {
@@ -1451,8 +1611,24 @@
 
     document.getElementById('quickDeposit').addEventListener('click', () => toggleModal('depositModal', true));
     document.getElementById('closeDepositModal').addEventListener('click', () => toggleModal('depositModal', false));
-    document.getElementById('depositCameroon').addEventListener('click', () => { toggleModal('depositModal', false); window.location.href = 'fonds.html'; });
-    document.getElementById('depositInternational').addEventListener('click', () => { toggleModal('depositModal', false); window.location.href = 'paid.html'; });
+
+    // ══════════════ NOUVEAU : Paiement international / Visa / PayPal ══════════════
+    document.getElementById('depositCardInternational').addEventListener('click', () => {
+      toggleModal('depositModal', false);
+      window.location.href = 'paiement-carte.html';
+    });
+
+    // Paiement Cameroun → fonds.html
+    document.getElementById('depositCameroon').addEventListener('click', () => {
+      toggleModal('depositModal', false);
+      window.location.href = 'fonds.html';
+    });
+
+    // Autres pays africains → paid.html
+    document.getElementById('depositInternational').addEventListener('click', () => {
+      toggleModal('depositModal', false);
+      window.location.href = 'paid.html';
+    });
 
     document.getElementById('openHistoryModal').addEventListener('click', () => toggleModal('historyModal', true));
     document.getElementById('closeHistoryModal').addEventListener('click', () => toggleModal('historyModal', false));
@@ -1545,12 +1721,6 @@
     // ════════════════════════════════════════════════════════
 
     // ══════════════ PUBLICITÉ OPPORTUNITÉS — ROTATION TOUTES LES 3H ══════════════
-    // Fonctionnement :
-    //   • 1ère visite → affichage après 5 secondes
-    //   • Ensuite → affichage uniquement si 3 heures (ou plus) se sont écoulées
-    //     depuis le dernier affichage
-    //   • Le timestamp est enregistré dans localStorage dès que la pub est affichée
-    //     (donc même si l'utilisateur ferme l'onglet sans fermer la pub, le délai repart)
     const OPPORTUNITIES_LAST_SHOWN_KEY = 'opportunitiesPromoLastShown_v2';
     const OPPORTUNITIES_DELAY_MS = 5000;                    // 5 secondes avant 1er affichage
     const OPPORTUNITIES_COOLDOWN_MS = 3 * 60 * 60 * 1000;   // 3 heures en millisecondes
@@ -1558,13 +1728,12 @@
     window.closeOpportunitiesModal = function () {
       const modal = document.getElementById('opportunitiesModal');
       if (modal) modal.classList.remove('active');
-      // Le timestamp a déjà été enregistré à l'affichage — rien à faire ici.
     };
 
     function shouldShowOpportunities() {
       let last = 0;
       try { last = parseInt(localStorage.getItem(OPPORTUNITIES_LAST_SHOWN_KEY) || '0', 10); } catch (e) {}
-      if (!last) return true; // jamais affiché
+      if (!last) return true;
       return (Date.now() - last) >= OPPORTUNITIES_COOLDOWN_MS;
     }
 
@@ -1573,19 +1742,18 @@
     }
 
     function scheduleOpportunitiesPromo() {
-      if (!shouldShowOpportunities()) return; // pas encore le moment
+      if (!shouldShowOpportunities()) return;
 
       setTimeout(() => {
-        if (!shouldShowOpportunities()) return; // re-vérif au cas où plusieurs onglets
+        if (!shouldShowOpportunities()) return;
         const modal = document.getElementById('opportunitiesModal');
         if (modal) {
           modal.classList.add('active');
-          markOpportunitiesAsShown(); // on enregistre dès l'affichage → le compte des 3h démarre
+          markOpportunitiesAsShown();
         }
       }, OPPORTUNITIES_DELAY_MS);
     }
 
-    // Clic sur le fond de la modale = fermeture
     document.getElementById('opportunitiesModal').addEventListener('click', function (e) {
       if (e.target === this) {
         window.closeOpportunitiesModal();
@@ -1609,9 +1777,8 @@
     });
   </script>
 
-  <!-- ══════════════ SCRIPT DÉDIÉ AUX NOTIFICATIONS PUSH (CORRIGÉ) ══════════════ -->
+  <!-- ══════════════ SCRIPT DÉDIÉ AUX NOTIFICATIONS PUSH ══════════════ -->
   <script type="module">
-    // L'importation fonctionne maintenant car nous avons ajouté 'export' dans push.js
     import { enablePushNotifications } from "./push.js";
 
     firebase.auth().onAuthStateChanged(user => {
@@ -1630,7 +1797,6 @@
               statusEl.textContent = "Activation en cours...";
               statusEl.style.color = "white";
               
-              // On appelle la fonction sans VAPID_KEY car elle est gérée dans push.js
               const token = await enablePushNotifications(user.uid);
 
               if (token) {
