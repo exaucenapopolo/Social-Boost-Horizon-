@@ -96,7 +96,7 @@ const AFB_MULTIPLIER       = 2.5;
 // ═══════════════════════════════════════════════════════════════
 const SMMGEN_API_URL      = 'https://my.smmgen.com/api/v2';
 const SMMGEN_USD_TO_XAF   = 650;
-const SMMGEN_MULTIPLIER   = 3.5;
+const SMMGEN_MULTIPLIER   = 2.5;
 
 function detectPlatformName(serviceName, link) {
   const n = ((serviceName || '') + ' ' + (link || '')).toLowerCase();
@@ -802,11 +802,6 @@ let _smmgenServicesCache     = null;
 let _smmgenServicesCacheTime = 0;
 const SMMGEN_CACHE_TTL = 10 * 60 * 1000;
 
-/**
- * Détermine le mode de tarification d'un service SMMGen
- * @param {string} type - Type de service SMMGen
- * @returns {string} - 'per_1000', 'per_unit', ou 'package'
- */
 function getSmmGenPricingMode(type) {
   const t = (type || 'Default').toLowerCase();
   if (t === 'package') return 'package';
@@ -820,15 +815,9 @@ function getSmmGenPricingMode(type) {
   if (t === 'groups') return 'per_unit';
   if (t === 'runs/interval') return 'per_1000';
   if (t === 'traffic') return 'per_1000';
-  return 'per_1000'; // Default
+  return 'per_1000';
 }
 
-/**
- * Construit les paramètres de commande SMMGen en fonction du type de service
- * @param {object} service - Service SMMGen
- * @param {object} body - Corps de la requête du frontend
- * @returns {object} - Paramètres pour l'API SMMGen
- */
 function buildSmmGenOrderParams(service, body) {
   const type = (service.type || 'Default').toLowerCase();
   const params = {
@@ -842,7 +831,6 @@ function buildSmmGenOrderParams(service, body) {
       params.quantity = parseInt(body.quantity) || 0;
       break;
     case 'package':
-      // Pour les packages, ne pas envoyer de quantité
       break;
     case 'custom comments':
       params.comments = body.comments || '';
@@ -894,13 +882,6 @@ function buildSmmGenOrderParams(service, body) {
   return params;
 }
 
-/**
- * Calcule le coût d'une commande SMMGen
- * @param {object} service - Service SMMGen
- * @param {number} qty - Quantité
- * @param {string} pricingMode - Mode de tarification
- * @returns {number} - Coût en FCFA
- */
 function computeSmmGenCost(service, qty, pricingMode) {
   const rate = parseFloat(service.rate) || 0;
   const priceXAF = Math.round(rate * SMMGEN_USD_TO_XAF * SMMGEN_MULTIPLIER);
@@ -910,7 +891,6 @@ function computeSmmGenCost(service, qty, pricingMode) {
   } else if (pricingMode === 'per_unit') {
     return Math.round(priceXAF * qty);
   } else {
-    // per_1000
     return Math.round((priceXAF / 1000) * qty);
   }
 }
@@ -965,7 +945,6 @@ app.post('/api/smmgen/order', checkAuth, async (req, res) => {
   }
 
   try {
-    // 1. Récupérer les services SMMGen (depuis le cache ou l'API)
     let allServices;
     if (_smmgenServicesCache) {
       allServices = _smmgenServicesCache;
@@ -973,32 +952,27 @@ app.post('/api/smmgen/order', checkAuth, async (req, res) => {
       allServices = await callSmmGen({ action: 'services' });
     }
     
-    // 2. Trouver le service
     const service = allServices.find(s => parseInt(s.service || s.id) === parseInt(serviceId));
     if (!service) {
       return res.status(400).json({ success: false, error: 'Service SMMGen introuvable.' });
     }
 
-    // 3. Vérifier que le service appartient bien à SMMGen (sécurité)
     if (service.provider && service.provider !== 'smmgen') {
       return res.status(400).json({ success: false, error: 'Ce service n\'appartient pas à SMMGen.' });
     }
 
-    // 4. Déterminer le mode de tarification
     const type = service.type || 'Default';
     const pricingMode = getSmmGenPricingMode(type);
     
-    // 5. Calculer la quantité
     let qty = 0;
     if (pricingMode === 'package') {
-      qty = 1; // Quantité symbolique pour les packages
+      qty = 1;
     } else if (type.toLowerCase() === 'custom comments') {
       qty = (req.body.comments || '').split('\n').filter(l => l.trim()).length;
     } else {
       qty = parseInt(req.body.quantity) || 0;
     }
 
-    // 6. Vérifier min/max
     if (pricingMode !== 'package') {
       if (qty < (service.min || 0)) {
         return res.status(400).json({ success: false, error: `Quantité minimale : ${service.min}` });
@@ -1008,10 +982,8 @@ app.post('/api/smmgen/order', checkAuth, async (req, res) => {
       }
     }
 
-    // 7. Calculer le coût (BACKEND SOURCE DE VÉRITÉ)
     const cost = computeSmmGenCost(service, qty, pricingMode);
 
-    // 8. Vérifier le solde utilisateur
     const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) {
       return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
@@ -1025,10 +997,7 @@ app.post('/api/smmgen/order', checkAuth, async (req, res) => {
       });
     }
 
-    // 9. Construire les paramètres de commande
     const orderParams = buildSmmGenOrderParams(service, req.body);
-
-    // 10. Envoyer la commande à SMMGen
     const orderResult = await callSmmGen(orderParams);
     
     if (orderResult.error) {
@@ -1038,10 +1007,8 @@ app.post('/api/smmgen/order', checkAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Commande non confirmée.' });
     }
 
-    // 11. Récupérer l'ID SMMGen
     const providerOrderId = orderResult.order;
 
-    // 12. Transaction Firestore (débit + enregistrement)
     let finalOrderId, newBalance;
     await db.runTransaction(async (transaction) => {
       const counterRef = db.collection('counters').doc('autoOrders');
@@ -1050,7 +1017,6 @@ app.post('/api/smmgen/order', checkAuth, async (req, res) => {
       const counterDoc = await transaction.get(counterRef);
       const freshUserDoc = await transaction.get(freshUserRef);
 
-      // Deuxième vérification du solde
       const freshBalance = freshUserDoc.data().balance || 0;
       if (freshBalance < cost) {
         throw new Error('Solde insuffisant (vérifié pendant le traitement).');
@@ -1084,7 +1050,6 @@ app.post('/api/smmgen/order', checkAuth, async (req, res) => {
         providerRemains: qty,
         refunded: false,
         refundedAmount: 0,
-        // Stocker les paramètres spéciaux pour référence
         orderParams: JSON.stringify(orderParams),
       });
     });
@@ -1105,7 +1070,6 @@ app.get('/api/smmgen/order-status/:orderId', checkAuth, async (req, res) => {
   const uid = req.user.uid;
   
   try {
-    // 1. Récupérer la commande
     const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).limit(1).get();
     if (snapshot.empty) {
       return res.status(404).json({ success: false, error: 'Commande introuvable.' });
@@ -1114,30 +1078,25 @@ app.get('/api/smmgen/order-status/:orderId', checkAuth, async (req, res) => {
     const orderDoc = snapshot.docs[0];
     const orderData = orderDoc.data();
     
-    // 2. Vérifier l'utilisateur
     if (orderData.userId !== uid) {
       return res.status(403).json({ success: false, error: 'Accès refusé.' });
     }
     
-    // 3. Vérifier que c'est bien une commande SMMGen
     if (orderData.provider !== 'smmgen') {
       return res.status(400).json({ success: false, error: 'Cette commande n\'est pas une commande SMMGen.' });
     }
 
-    // 4. Appeler SMMGen avec providerOrderId
     const statusResult = await callSmmGen({ action: 'status', order: orderData.providerOrderId });
 
     if (statusResult.error) {
       return res.status(400).json({ success: false, error: 'Erreur SMMGen: ' + statusResult.error });
     }
 
-    // 5. Normaliser le statut
     const newStatus = MTP_STATUS_MAP[statusResult.status] || statusResult.status || 'En attente';
     const startCount = parseInt(statusResult.start_count) || 0;
     const remains = parseInt(statusResult.remains) || 0;
     const charge = parseFloat(statusResult.charge) || 0;
 
-    // 6. Gérer le remboursement (comme MTP)
     let refundAmount = 0;
     let isRefunded = orderData.refunded || false;
 
@@ -1226,8 +1185,6 @@ app.post('/api/smmgen/refill', checkAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Cette commande n\'est pas une commande SMMGen.' });
     }
 
-    // Vérifier la capacité de refill du service
-    // On peut vérifier dans le cache des services
     let serviceSupportsRefill = true;
     if (_smmgenServicesCache) {
       const svc = _smmgenServicesCache.find(s => s.id === orderData.providerServiceId);
@@ -1269,7 +1226,6 @@ app.post('/api/smmgen/refill-status', checkAuth, async (req, res) => {
   }
   
   try {
-    // Vérifier que le refill appartient bien à une commande de l'utilisateur
     if (orderId) {
       const orderRef = db.collection('autoOrders').doc(orderId);
       const orderDoc = await orderRef.get();
@@ -1284,7 +1240,6 @@ app.post('/api/smmgen/refill-status', checkAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Erreur SMMGen: ' + result.error });
     }
 
-    // Mettre à jour le statut dans Firestore si on a l'orderId
     if (orderId && result.status) {
       await db.collection('autoOrders').doc(orderId).update({
         refillStatus: result.status,
@@ -1334,15 +1289,11 @@ app.post('/api/smmgen/cancel', checkAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Cette commande ne peut plus être annulée, son statut ne le permet pas.' });
     }
 
-    // Appeler SMMGen pour l'annulation
     try {
       await callSmmGen({ action: 'cancel', orders: orderData.providerOrderId });
     } catch (smmgenErr) {
       console.error('SMMGen cancel error:', smmgenErr);
     }
-
-    // Note: Ne pas confirmer l'annulation immédiatement. Le remboursement sera déclenché lors de la prochaine vérification du statut
-    // qui confirmera l'annulation côté fournisseur.
 
     res.json({
       success: true,
@@ -1713,6 +1664,526 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// NelsiusPay – Paiement par carte bancaire Visa/Mastercard
+// ═══════════════════════════════════════════════════════════════
+
+// ── Constantes NelsiusPay ──────────────────────────────────────
+const NELSIUSPAY_API_URL          = 'https://api.nelsiuspay.com/api/v1';
+const SBH_USD_TO_XAF              = 590;
+const SBH_EUR_TO_XAF              = 655;
+const NELSIUSPAY_MIN_AMOUNT_XAF   = 1000;
+const NELSIUSPAY_MAX_AMOUNT_XAF   = 10000000;
+
+// Politique de frais SBH : le client supporte les frais (fee_bearer = 'customer')
+// pour que le montant crédité corresponde exactement au montant de recharge demandé.
+const NELSIUSPAY_FEE_BEARER       = 'customer';
+
+/**
+ * Convertit un montant depuis une devise supportée vers XAF.
+ * Le backend est la seule source de vérité pour les conversions.
+ */
+function convertToXAF(amount, currency) {
+  const cur = (currency || '').toUpperCase();
+  switch (cur) {
+    case 'XAF':
+    case 'XOF':
+      return Math.round(Number(amount));
+    case 'USD':
+      return Math.round(Number(amount) * SBH_USD_TO_XAF);
+    case 'EUR':
+      return Math.round(Number(amount) * SBH_EUR_TO_XAF);
+    default:
+      throw new Error(`Devise non supportée pour la conversion : ${currency}`);
+  }
+}
+
+/**
+ * Génère une référence unique SBH pour une transaction de paiement.
+ */
+function generatePaymentReference() {
+  const now = new Date();
+  const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  const randomPart = crypto.randomBytes(4).toString('hex').toUpperCase();
+  return `SBH-PAY-${datePart}-${randomPart}`;
+}
+
+/**
+ * Appel HTTP générique vers l'API NelsiusPay.
+ */
+async function callNelsiusPay(endpoint, method = 'GET', body = null) {
+  const apiKey = process.env.NELSIUSPAY_API_KEY;
+  if (!apiKey) {
+    throw new Error('NELSIUSPAY_API_KEY non définie. Configurez la variable d\'environnement.');
+  }
+
+  const url = `${NELSIUSPAY_API_URL}${endpoint}`;
+  const headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'X-Api-Key': apiKey,
+  };
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const options = { method, headers, signal: controller.signal };
+    if (body) options.body = JSON.stringify(body);
+
+    const response = await fetch(url, options);
+    clearTimeout(timer);
+
+    const rawText = await response.text();
+    let data;
+    try { data = JSON.parse(rawText); } catch { data = { raw: rawText }; }
+
+    return { status: response.status, ok: response.ok, data };
+  } catch (err) {
+    clearTimeout(timer);
+    if (err.name === 'AbortError') throw new Error('Timeout de la requête NelsiusPay.');
+    throw err;
+  }
+}
+
+/**
+ * Normalise le statut NelsiusPay vers nos statuts internes.
+ */
+function normalizeNelsiusStatus(providerStatus) {
+  const s = (providerStatus || '').toLowerCase();
+  switch (s) {
+    case 'completed': return 'CONFIRMED';
+    case 'pending':   return 'PENDING';
+    case 'failed':    return 'FAILED';
+    default:          return 'PENDING';
+  }
+}
+
+// ── POST /api/nelsiuspay/checkout ─────────────────────────────
+app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
+  const uid = req.user.uid;
+  const { amount, currency } = req.body;
+
+  // ── 1. Validation stricte des entrées ──
+  const requestedAmount = Number(amount);
+  if (!amount || isNaN(requestedAmount) || requestedAmount <= 0) {
+    return res.status(400).json({ success: false, error: 'Montant invalide. Veuillez fournir un montant positif.' });
+  }
+  if (!Number.isInteger(requestedAmount)) {
+    return res.status(400).json({ success: false, error: 'Le montant doit être un entier.' });
+  }
+
+  const requestedCurrency = (currency || 'XAF').toUpperCase();
+  const supportedCurrencies = ['XAF', 'XOF', 'USD', 'EUR'];
+  if (!supportedCurrencies.includes(requestedCurrency)) {
+    return res.status(400).json({ success: false, error: `Devise non supportée : ${requestedCurrency}. Devises acceptées : ${supportedCurrencies.join(', ')}` });
+  }
+
+  // Pour XAF/XOF, vérifier le min/max directement
+  let creditedAmountXAF;
+  try {
+    creditedAmountXAF = convertToXAF(requestedAmount, requestedCurrency);
+  } catch (convErr) {
+    return res.status(400).json({ success: false, error: convErr.message });
+  }
+
+  if (creditedAmountXAF < NELSIUSPAY_MIN_AMOUNT_XAF) {
+    return res.status(400).json({ success: false, error: `Le montant minimum de recharge est de ${NELSIUSPAY_MIN_AMOUNT_XAF.toLocaleString('fr-FR')} FCFA.` });
+  }
+  if (creditedAmountXAF > NELSIUSPAY_MAX_AMOUNT_XAF) {
+    return res.status(400).json({ success: false, error: `Le montant maximum de recharge est de ${NELSIUSPAY_MAX_AMOUNT_XAF.toLocaleString('fr-FR')} FCFA.` });
+  }
+
+  // ── 2. Vérifier que NELSIUSPAY_API_KEY est configurée ──
+  if (!process.env.NELSIUSPAY_API_KEY) {
+    console.error('[NelsiusPay] NELSIUSPAY_API_KEY non définie.');
+    return res.status(500).json({ success: false, error: 'Configuration de paiement incomplète. Contactez le support.' });
+  }
+
+  // ── 3. Récupérer les infos utilisateur ──
+  let customerEmail = req.user.email || '';
+  let customerPhone = '';
+  try {
+    const userDoc = await db.collection('users').doc(uid).get();
+    if (userDoc.exists) {
+      const uData = userDoc.data();
+      customerEmail = uData.email || customerEmail;
+      customerPhone = uData.phone || '';
+    }
+  } catch (e) {
+    console.warn('[NelsiusPay] Impossible de récupérer le profil utilisateur:', e.message);
+  }
+
+  // ── 4. Générer la référence unique SBH ──
+  const reference = generatePaymentReference();
+
+  // ── 5. Déterminer l'URL de base pour les redirections ──
+  const host = req.headers['x-forwarded-host'] || req.headers.host || 'socialboosthorizon.com';
+  const protocol = req.headers['x-forwarded-proto'] || 'https';
+  const baseUrl = `${protocol}://${host}`;
+  const returnUrl  = `${baseUrl}/paiement-carte.html?status=return&ref=${encodeURIComponent(reference)}`;
+  const cancelUrl  = `${baseUrl}/paiement-carte.html?status=cancel&ref=${encodeURIComponent(reference)}`;
+
+  // ── 6. Construire le payload NelsiusPay ──
+  const checkoutPayload = {
+    amount: requestedAmount,
+    currency: requestedCurrency,
+    customer_email: customerEmail || undefined,
+    customer_phone: customerPhone || undefined,
+    reference: reference,
+    return_url: returnUrl,
+    cancel_url: cancelUrl,
+    fee_bearer: NELSIUSPAY_FEE_BEARER,
+    metadata: {
+      product_name: 'Recharge Social Boost Horizon',
+      userId: uid,
+      creditedAmountXAF: String(creditedAmountXAF),
+    },
+  };
+
+  // Nettoyer les champs undefined
+  Object.keys(checkoutPayload).forEach(k => {
+    if (checkoutPayload[k] === undefined) delete checkoutPayload[k];
+  });
+
+  // ── 7. Appeler NelsiusPay /checkout/initiate ──
+  let nelsiusResponse;
+  try {
+    console.log(`[NelsiusPay] Initiation checkout — ref=${reference} user=${uid} amount=${requestedAmount} ${requestedCurrency} → ${creditedAmountXAF} XAF`);
+    nelsiusResponse = await callNelsiusPay('/checkout/initiate', 'POST', checkoutPayload);
+  } catch (callErr) {
+    console.error('[NelsiusPay] Erreur appel checkout:', callErr.message);
+    return res.status(502).json({ success: false, error: 'Impossible de contacter le service de paiement. Veuillez réessayer.' });
+  }
+
+  if (!nelsiusResponse.ok) {
+    const errMsg = nelsiusResponse.data?.message || nelsiusResponse.data?.error || `Erreur NelsiusPay (HTTP ${nelsiusResponse.status})`;
+    console.error('[NelsiusPay] Réponse erreur checkout:', nelsiusResponse.status, errMsg);
+    return res.status(nelsiusResponse.status >= 500 ? 502 : 400).json({ success: false, error: errMsg });
+  }
+
+  // ── 8. Extraire l'URL de checkout ──
+  const respData = nelsiusResponse.data;
+  const checkoutUrl = respData?.data?.checkout_url
+    || respData?.checkout_url
+    || respData?.url
+    || respData?.data?.url
+    || null;
+
+  if (!checkoutUrl) {
+    console.error('[NelsiusPay] URL de checkout manquante dans la réponse:', JSON.stringify(respData));
+    return res.status(502).json({ success: false, error: 'URL de paiement manquante dans la réponse du fournisseur.' });
+  }
+
+  const transactionCode = respData?.data?.transaction_code || respData?.transaction_code || null;
+
+  // ── 9. Enregistrer la transaction dans Firestore AVANT redirection ──
+  try {
+    await db.collection('paymentTransactions').doc(reference).set({
+      reference,
+      userId: uid,
+      provider: 'nelsiuspay',
+      requestedAmount,
+      requestedCurrency,
+      providerAmount: requestedAmount,
+      providerCurrency: requestedCurrency,
+      creditedAmountXAF,
+      conversionRate: requestedCurrency === 'USD' ? SBH_USD_TO_XAF
+                     : requestedCurrency === 'EUR' ? SBH_EUR_TO_XAF
+                     : 1,
+      status: 'PENDING',
+      checkoutUrl,
+      transactionCode,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      completedAt: null,
+      failureReason: null,
+      providerResponse: JSON.stringify(respData).substring(0, 2000),
+    });
+    console.log(`[NelsiusPay] Transaction Firestore créée: ${reference}`);
+  } catch (dbErr) {
+    console.error('[NelsiusPay] Erreur écriture Firestore:', dbErr.message);
+    // On continue quand même : la redirection vers NelsiusPay est plus importante.
+    // Le webhook / status recréera la transaction si besoin.
+  }
+
+  // ── 10. Retourner l'URL de checkout au frontend ──
+  return res.json({
+    success: true,
+    checkoutUrl,
+    reference,
+    creditedAmountXAF,
+    requestedAmount,
+    requestedCurrency,
+  });
+});
+
+// ── GET/POST /api/nelsiuspay/status ───────────────────────────
+app.all('/api/nelsiuspay/status', checkAuth, async (req, res) => {
+  const uid = req.user.uid;
+  const reference = req.body?.reference || req.query?.reference;
+
+  if (!reference) {
+    return res.status(400).json({ success: false, error: 'Référence de transaction requise.' });
+  }
+
+  try {
+    // ── 1. Récupérer la transaction Firestore ──
+    const transRef = db.collection('paymentTransactions').doc(reference);
+    const transDoc = await transRef.get();
+
+    if (!transDoc.exists) {
+      return res.status(404).json({ success: false, error: 'Transaction introuvable.' });
+    }
+
+    const transData = transDoc.data();
+
+    // ── 2. Vérifier l'appartenance ──
+    if (transData.userId !== uid) {
+      return res.status(403).json({ success: false, error: 'Accès refusé.' });
+    }
+
+    // ── 3. Si déjà CONFIRMED, retourner directement ──
+    if (transData.status === 'CONFIRMED') {
+      const userDoc = await db.collection('users').doc(uid).get();
+      const currentBalance = userDoc.exists ? (userDoc.data().balance || 0) : 0;
+      return res.json({
+        success: true,
+        status: 'CONFIRMED',
+        creditedAmountXAF: transData.creditedAmountXAF || 0,
+        newBalance: currentBalance,
+        reference,
+      });
+    }
+
+    // ── 4. Vérifier que NELSIUSPAY_API_KEY est configurée ──
+    if (!process.env.NELSIUSPAY_API_KEY) {
+      return res.status(500).json({ success: false, error: 'Configuration de paiement incomplète.' });
+    }
+
+    // ── 5. Appeler GET /payments/{reference} ──
+    let nelsiusStatusResp;
+    try {
+      nelsiusStatusResp = await callNelsiusPay(`/payments/${encodeURIComponent(reference)}`, 'GET');
+    } catch (callErr) {
+      console.error('[NelsiusPay] Erreur appel status:', callErr.message);
+      return res.status(502).json({ success: false, error: 'Impossible de vérifier le statut. Veuillez réessayer.' });
+    }
+
+    if (!nelsiusStatusResp.ok) {
+      if (nelsiusStatusResp.status === 404) {
+        return res.status(404).json({ success: false, error: 'Transaction non trouvée chez le fournisseur.' });
+      }
+      return res.status(400).json({
+        success: false,
+        error: nelsiusStatusResp.data?.message || `Erreur de vérification (HTTP ${nelsiusStatusResp.status})`,
+      });
+    }
+
+    const nelsiusData = nelsiusStatusResp.data?.data || nelsiusStatusResp.data;
+    const providerStatus = nelsiusData?.status || 'pending';
+    const internalStatus = normalizeNelsiusStatus(providerStatus);
+    const providerAmount = Number(nelsiusData?.amount) || transData.providerAmount;
+    const providerCurrency = (nelsiusData?.currency || transData.providerCurrency || 'XAF').toUpperCase();
+    const transactionCode = nelsiusData?.transaction_code || transData.transactionCode || null;
+
+    // ── 6. Mettre à jour la transaction si le statut a changé ──
+    if (internalStatus !== transData.status || transactionCode !== transData.transactionCode) {
+      await transRef.update({
+        status: internalStatus,
+        transactionCode,
+        providerAmount,
+        providerCurrency,
+        lastChecked: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    // ── 7. Si CONFIRMED et pas encore crédité → créditer ──
+    if (internalStatus === 'CONFIRMED') {
+      await creditUserIfNeeded(reference, uid, transData);
+      const userDoc = await db.collection('users').doc(uid).get();
+      const newBalance = userDoc.exists ? (userDoc.data().balance || 0) : 0;
+      return res.json({
+        success: true,
+        status: 'CONFIRMED',
+        creditedAmountXAF: transData.creditedAmountXAF || 0,
+        newBalance,
+        reference,
+      });
+    }
+
+    // ── 8. Retourner le statut courant ──
+    return res.json({
+      success: true,
+      status: internalStatus,
+      providerStatus,
+      creditedAmountXAF: transData.creditedAmountXAF || 0,
+      reference,
+    });
+
+  } catch (error) {
+    console.error('[NelsiusPay] Erreur /status:', error);
+    return res.status(500).json({ success: false, error: 'Erreur technique lors de la vérification.' });
+  }
+});
+
+// ── POST /api/nelsiuspay/webhook ──────────────────────────────
+app.post('/api/nelsiuspay/webhook', async (req, res) => {
+  const event = req.body?.event;
+  const data  = req.body?.data;
+
+  console.log(`[NelsiusPay Webhook] Événement reçu: ${event}`);
+
+  // Toujours répondre 200 rapidement pour éviter les retries inutiles
+  if (!event || !data) {
+    return res.status(200).json({ received: true });
+  }
+
+  // On ne traite que les événements connus
+  if (event !== 'payment.success' && event !== 'payment.failed') {
+    return res.status(200).json({ received: true, ignored: true });
+  }
+
+  const reference = data.reference;
+  if (!reference) {
+    console.warn('[NelsiusPay Webhook] Référence manquante dans le payload.');
+    return res.status(200).json({ received: true });
+  }
+
+  try {
+    // ── 1. Retrouver la transaction Firestore ──
+    const transRef = db.collection('paymentTransactions').doc(reference);
+    const transDoc = await transRef.get();
+
+    if (!transDoc.exists) {
+      console.warn(`[NelsiusPay Webhook] Transaction introuvable: ${reference}`);
+      return res.status(200).json({ received: true });
+    }
+
+    const transData = transDoc.data();
+
+    // ── 2. Si déjà CONFIRMED, ne rien faire (idempotence) ──
+    if (transData.status === 'CONFIRMED') {
+      console.log(`[NelsiusPay Webhook] Transaction déjà confirmée, ignorée: ${reference}`);
+      return res.status(200).json({ received: true, alreadyConfirmed: true });
+    }
+
+    // ── 3. Vérification serveur croisée (recommandée) ──
+    let providerVerifiedStatus = null;
+    if (process.env.NELSIUSPAY_API_KEY) {
+      try {
+        const verifyResp = await callNelsiusPay(`/payments/${encodeURIComponent(reference)}`, 'GET');
+        if (verifyResp.ok) {
+          const vData = verifyResp.data?.data || verifyResp.data;
+          providerVerifiedStatus = (vData?.status || '').toLowerCase();
+        }
+      } catch (vErr) {
+        console.warn('[NelsiusPay Webhook] Vérification serveur impossible, on utilise le payload webhook:', vErr.message);
+      }
+    }
+
+    // ── 4. Déterminer le statut final ──
+    let finalStatus;
+    if (event === 'payment.success') {
+      // Si la vérification serveur dit "pending", on ne crédite pas encore par sécurité
+      if (providerVerifiedStatus && providerVerifiedStatus !== 'completed') {
+        console.log(`[NelsiusPay Webhook] Vérification serveur contradictoire (${providerVerifiedStatus}), on attend.`);
+        return res.status(200).json({ received: true, deferred: true });
+      }
+      finalStatus = 'CONFIRMED';
+    } else if (event === 'payment.failed') {
+      finalStatus = 'FAILED';
+    } else {
+      return res.status(200).json({ received: true });
+    }
+
+    // ── 5. Valider le montant et la devise ──
+    const webhookAmount = Number(data.amount);
+    const webhookCurrency = (data.currency || '').toUpperCase();
+    const storedAmount = Number(transData.providerAmount);
+    const storedCurrency = (transData.providerCurrency || '').toUpperCase();
+
+    if (webhookAmount && storedAmount && webhookAmount !== storedAmount) {
+      console.error(`[NelsiusPay Webhook] Incohérence de montant: webhook=${webhookAmount} stocké=${storedAmount}`);
+      return res.status(200).json({ received: true, error: 'amount_mismatch' });
+    }
+    if (webhookCurrency && storedCurrency && webhookCurrency !== storedCurrency) {
+      console.error(`[NelsiusPay Webhook] Incohérence de devise: webhook=${webhookCurrency} stocké=${storedCurrency}`);
+      return res.status(200).json({ received: true, error: 'currency_mismatch' });
+    }
+
+    // ── 6. Mettre à jour la transaction ──
+    await transRef.update({
+      status: finalStatus,
+      transactionCode: data.transaction_code || transData.transactionCode || null,
+      completedAt: finalStatus === 'CONFIRMED' ? admin.firestore.FieldValue.serverTimestamp() : null,
+      failureReason: finalStatus === 'FAILED' ? (data.reason || 'Paiement refusé') : null,
+      providerResponse: JSON.stringify(data).substring(0, 2000),
+      lastChecked: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // ── 7. Si CONFIRMED → créditer le portefeuille ──
+    if (finalStatus === 'CONFIRMED') {
+      await creditUserIfNeeded(reference, transData.userId, transData);
+    }
+
+    console.log(`[NelsiusPay Webhook] Traité: ${reference} → ${finalStatus}`);
+    return res.status(200).json({ received: true, status: finalStatus });
+
+  } catch (error) {
+    console.error('[NelsiusPay Webhook] Erreur traitement:', error);
+    // On renvoie 200 pour éviter les retries infinis sur une erreur côté serveur
+    return res.status(200).json({ received: true });
+  }
+});
+
+/**
+ * Crédite le portefeuille utilisateur si la transaction n'a pas encore été créditée.
+ * Utilise une transaction Firestore pour garantir l'atomicité et l'idempotence.
+ */
+async function creditUserIfNeeded(reference, userId, transData) {
+  const transRef = db.collection('paymentTransactions').doc(reference);
+  const userRef = db.collection('users').doc(userId);
+
+  await db.runTransaction(async (t) => {
+    // Relire la transaction dans la transaction Firestore pour vérifier l'état le plus récent
+    const freshTrans = await t.get(transRef);
+    if (!freshTrans.exists) {
+      throw new Error(`Transaction ${reference} introuvable dans la transaction Firestore.`);
+    }
+
+    const freshData = freshTrans.data();
+    if (freshData.status === 'CONFIRMED' && freshData.creditedAt) {
+      // Déjà créditée
+      return;
+    }
+
+    const amountToCredit = freshData.creditedAmountXAF || 0;
+    if (amountToCredit <= 0) {
+      throw new Error(`Montant à créditer invalide pour ${reference}: ${amountToCredit}`);
+    }
+
+    const freshUser = await t.get(userRef);
+    const currentBalance = freshUser.exists ? (freshUser.data().balance || 0) : 0;
+    const newBalance = currentBalance + amountToCredit;
+
+    // Mettre à jour le solde
+    if (freshUser.exists) {
+      t.update(userRef, { balance: newBalance });
+    } else {
+      t.set(userRef, { balance: newBalance }, { merge: true });
+    }
+
+    // Marquer la transaction comme créditée
+    t.update(transRef, {
+      status: 'CONFIRMED',
+      creditedAt: admin.firestore.FieldValue.serverTimestamp(),
+      newBalanceAfterCredit: newBalance,
+    });
+
+    console.log(`[NelsiusPay] Crédit effectué: +${amountToCredit} XAF → ${userId} (solde: ${currentBalance} → ${newBalance})`);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
 // ADMIN API (ZÉRO LECTURE FIRESTORE)
 // ═══════════════════════════════════════════════════════════════
 
@@ -1775,7 +2246,6 @@ async function getServicesData() {
     } catch (e) { console.warn('Erreur AFB:', e.message); }
   }
 
-  // Ajout de SMMGen dans les stats admin (optionnel)
   if (process.env.SMMGEN_API_KEY) {
     try {
       const smmgenData = await callSmmGen({ action: 'services' });
