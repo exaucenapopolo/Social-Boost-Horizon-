@@ -78,7 +78,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// CONFIGURATIONS FOURNISSEURS GLOBALES (MTP, EXO, AFB)
+// CONFIGURATIONS FOURNISSEURS GLOBALES (MTP, EXO, AFB, SMMGen)
 // ═══════════════════════════════════════════════════════════════
 const MTP_API_URL    = 'https://morethanpanel.com/api/v2';
 const MTP_USD_TO_XAF = 650;   
@@ -90,6 +90,13 @@ const EXO_MULTIPLIER = 1.51;
 
 const AFRIQUEBOOST_API_URL = 'https://afriqueboost.com/api/v2';
 const AFB_MULTIPLIER       = 2.5;   
+
+// ═══════════════════════════════════════════════════════════════
+// CONFIGURATION SMMGen
+// ═══════════════════════════════════════════════════════════════
+const SMMGEN_API_URL      = 'https://my.smmgen.com/api/v2';
+const SMMGEN_USD_TO_XAF   = 650;
+const SMMGEN_MULTIPLIER   = 2.5;
 
 function detectPlatformName(serviceName, link) {
   const n = ((serviceName || '') + ' ' + (link || '')).toLowerCase();
@@ -152,6 +159,16 @@ async function callAfriqueBoost(params) {
     method: 'POST', body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   });
   if (!res.ok) throw new Error(`AfriqueBoost HTTP ${res.status}`);
+  return res.json();
+}
+
+async function callSmmGen(params) {
+  if (!process.env.SMMGEN_API_KEY) throw new Error('SMMGEN_API_KEY non définie.');
+  const body = new URLSearchParams({ key: process.env.SMMGEN_API_KEY, ...params });
+  const res  = await fetch(SMMGEN_API_URL, {
+    method: 'POST', body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
+  if (!res.ok) throw new Error(`SMMGen HTTP ${res.status}`);
   return res.json();
 }
 
@@ -255,9 +272,7 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
 
 app.get('/api/mtp/user-orders', checkAuth, async (req, res) => {
   try {
-    // [NOUVEAU] Anti-cache pour forcer l'affichage des dernières commandes sans cache navigateur
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    
     const uid = req.user.uid;
     const snapshot = await db.collection('autoOrders').where('userId', '==', uid).get();
     let orders = snapshot.docs.map(doc => {
@@ -434,7 +449,6 @@ app.post('/api/exo/cancel', checkAuth, async (req, res) => {
     }
 });
 
-// NOUVELLE ROUTE: Demande de refill (remplissage) pour EXO
 app.post('/api/exo/refill', checkAuth, async (req, res) => {
   const { orderId } = req.body;
   const uid = req.user.uid;
@@ -444,7 +458,6 @@ app.post('/api/exo/refill', checkAuth, async (req, res) => {
   }
 
   try {
-    // 1. Récupérer la commande depuis Firestore
     const orderRef = db.collection('commandes').doc(orderId);
     const orderDoc = await orderRef.get();
 
@@ -454,25 +467,20 @@ app.post('/api/exo/refill', checkAuth, async (req, res) => {
 
     const orderData = orderDoc.data();
 
-    // 2. Vérifier que la commande appartient bien à l'utilisateur
     if (orderData.userId !== uid) {
       return res.status(403).json({ success: false, error: 'Accès refusé. Cette commande ne vous appartient pas.' });
     }
 
-    // 3. Vérifier que la commande possède un ID fournisseur (exoOrderId)
     if (!orderData.exoOrderId) {
       return res.status(400).json({ success: false, error: 'Impossible de traiter la demande : identifiant fournisseur manquant pour cette commande.' });
     }
 
-    // 4. Appeler l'API Exo Supplier pour créer le refill
     const exoResult = await callExo({
       action: 'refill',
       order: orderData.exoOrderId
     });
 
-    // 5. Gérer la réponse du fournisseur (succès ou erreur)
     if (exoResult.error) {
-      // Erreur retournée par Exo (ex: commande non éligible)
       return res.status(400).json({
         success: false,
         error: `Erreur du fournisseur: ${exoResult.error}`
@@ -483,15 +491,13 @@ app.post('/api/exo/refill', checkAuth, async (req, res) => {
       return res.status(500).json({ success: false, error: 'Réponse inattendue du fournisseur (aucun ID de refill retourné).' });
     }
 
-    // 6. Mettre à jour la commande dans Firestore avec l'ID de refill
     await orderRef.update({
       lastRefill: admin.firestore.FieldValue.serverTimestamp(),
       refillId: exoResult.refill,
-      refillStatus: 'En attente', // Statut initial du refill
+      refillStatus: 'En attente',
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
-    // 7. Répondre au client
     res.json({
       success: true,
       message: 'Demande de refill transmise avec succès au fournisseur.',
@@ -507,7 +513,6 @@ app.post('/api/exo/refill', checkAuth, async (req, res) => {
   }
 });
 
-// NOUVELLE ROUTE: Vérification du statut d'un refill EXO
 app.post('/api/exo/refill-status', checkAuth, async (req, res) => {
   const { refillId, orderId } = req.body;
   const uid = req.user.uid;
@@ -517,7 +522,6 @@ app.post('/api/exo/refill-status', checkAuth, async (req, res) => {
   }
 
   try {
-    // Optionnel: Vérifier que le refill appartient bien à une commande de l'utilisateur
     if (orderId) {
       const orderRef = db.collection('commandes').doc(orderId);
       const orderDoc = await orderRef.get();
@@ -535,7 +539,6 @@ app.post('/api/exo/refill-status', checkAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: `Erreur fournisseur: ${exoResult.error}` });
     }
 
-    // Mettre à jour le statut du refill dans Firestore si on a l'orderId
     if (orderId && exoResult.status) {
       await db.collection('commandes').doc(orderId).update({
         refillStatus: exoResult.status,
@@ -793,6 +796,566 @@ app.post('/api/afriqueboost/refill', checkAuth, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// SMMGen API
+// ═══════════════════════════════════════════════════════════════
+let _smmgenServicesCache     = null;
+let _smmgenServicesCacheTime = 0;
+const SMMGEN_CACHE_TTL = 10 * 60 * 1000;
+
+/**
+ * Détermine le mode de tarification d'un service SMMGen
+ * @param {string} type - Type de service SMMGen
+ * @returns {string} - 'per_1000', 'per_unit', ou 'package'
+ */
+function getSmmGenPricingMode(type) {
+  const t = (type || 'Default').toLowerCase();
+  if (t === 'package') return 'package';
+  if (t === 'custom comments') return 'per_unit';
+  if (t === 'usernames') return 'per_unit';
+  if (t === 'usernames + hashtags') return 'per_unit';
+  if (t === 'hashtag scraper') return 'per_unit';
+  if (t === 'username scraper') return 'per_unit';
+  if (t === 'media / likers') return 'per_unit';
+  if (t === 'poll') return 'per_unit';
+  if (t === 'groups') return 'per_unit';
+  if (t === 'runs/interval') return 'per_1000';
+  if (t === 'traffic') return 'per_1000';
+  return 'per_1000'; // Default
+}
+
+/**
+ * Construit les paramètres de commande SMMGen en fonction du type de service
+ * @param {object} service - Service SMMGen
+ * @param {object} body - Corps de la requête du frontend
+ * @returns {object} - Paramètres pour l'API SMMGen
+ */
+function buildSmmGenOrderParams(service, body) {
+  const type = (service.type || 'Default').toLowerCase();
+  const params = {
+    action: 'add',
+    service: service.service || service.id,
+    link: body.link,
+  };
+
+  switch (type) {
+    case 'default':
+      params.quantity = parseInt(body.quantity) || 0;
+      break;
+    case 'package':
+      // Pour les packages, ne pas envoyer de quantité
+      break;
+    case 'custom comments':
+      params.comments = body.comments || '';
+      break;
+    case 'usernames':
+      params.usernames = body.usernames || '';
+      break;
+    case 'usernames + hashtags':
+      params.usernames = body.usernames || '';
+      params.hashtags = body.hashtags || '';
+      break;
+    case 'hashtag scraper':
+      params.hashtag = body.hashtag || '';
+      params.quantity = parseInt(body.quantity) || 0;
+      break;
+    case 'username scraper':
+      params.username = body.username || '';
+      params.quantity = parseInt(body.quantity) || 0;
+      break;
+    case 'media / likers':
+      params.media = body.media || '';
+      params.quantity = parseInt(body.quantity) || 0;
+      break;
+    case 'poll':
+      params.answer_number = body.answer_number || '';
+      params.quantity = parseInt(body.quantity) || 0;
+      break;
+    case 'groups':
+      params.groups = body.groups || '';
+      params.quantity = parseInt(body.quantity) || 0;
+      break;
+    case 'runs/interval':
+      params.runs = body.runs || '';
+      params.interval = body.interval || '';
+      params.quantity = parseInt(body.quantity) || 0;
+      break;
+    case 'traffic':
+      params.country = body.country || '';
+      params.device = body.device || '';
+      params.type_of_traffic = body.type_of_traffic || '';
+      if (body.google_keyword) params.google_keyword = body.google_keyword;
+      if (body.referring_url) params.referring_url = body.referring_url;
+      params.quantity = parseInt(body.quantity) || 0;
+      break;
+    default:
+      params.quantity = parseInt(body.quantity) || 0;
+  }
+
+  return params;
+}
+
+/**
+ * Calcule le coût d'une commande SMMGen
+ * @param {object} service - Service SMMGen
+ * @param {number} qty - Quantité
+ * @param {string} pricingMode - Mode de tarification
+ * @returns {number} - Coût en FCFA
+ */
+function computeSmmGenCost(service, qty, pricingMode) {
+  const rate = parseFloat(service.rate) || 0;
+  const priceXAF = Math.round(rate * SMMGEN_USD_TO_XAF * SMMGEN_MULTIPLIER);
+
+  if (pricingMode === 'package') {
+    return priceXAF;
+  } else if (pricingMode === 'per_unit') {
+    return Math.round(priceXAF * qty);
+  } else {
+    // per_1000
+    return Math.round((priceXAF / 1000) * qty);
+  }
+}
+
+app.get('/api/smmgen/services', async (req, res) => {
+  try {
+    const now = Date.now();
+    if (_smmgenServicesCache && (now - _smmgenServicesCacheTime) < SMMGEN_CACHE_TTL) {
+      return res.json({ success: true, services: _smmgenServicesCache, cached: true });
+    }
+    const rawServices = await callSmmGen({ action: 'services' });
+    if (!Array.isArray(rawServices)) return res.status(500).json({ success: false, error: 'Réponse SMMGen invalide' });
+    
+    const services = rawServices.map(s => {
+      const rate = parseFloat(s.rate) || 0;
+      const priceXAF = Math.round(rate * SMMGEN_USD_TO_XAF * SMMGEN_MULTIPLIER);
+      const type = s.type || 'Default';
+      const pricingMode = getSmmGenPricingMode(type);
+      
+      return {
+        id: parseInt(s.service),
+        provider: 'smmgen',
+        providerServiceId: parseInt(s.service),
+        name: s.name,
+        category: s.category || '',
+        type: type,
+        rate: rate,
+        min: parseInt(s.min) || 0,
+        max: parseInt(s.max) || 0,
+        refill: s.refill === true || s.refill === 'true',
+        cancel: s.cancel === true || s.cancel === 'true',
+        priceXAF: priceXAF,
+        pricingMode: pricingMode,
+        desc: s.description || null,
+      };
+    });
+    
+    _smmgenServicesCache = services;
+    _smmgenServicesCacheTime = now;
+    res.json({ success: true, services });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/smmgen/order', checkAuth, async (req, res) => {
+  const uid = req.user.uid;
+  const { serviceId, link } = req.body;
+  
+  if (!serviceId || !link) {
+    return res.status(400).json({ success: false, error: 'serviceId et link sont requis.' });
+  }
+
+  try {
+    // 1. Récupérer les services SMMGen (depuis le cache ou l'API)
+    let allServices;
+    if (_smmgenServicesCache) {
+      allServices = _smmgenServicesCache;
+    } else {
+      allServices = await callSmmGen({ action: 'services' });
+    }
+    
+    // 2. Trouver le service
+    const service = allServices.find(s => parseInt(s.service || s.id) === parseInt(serviceId));
+    if (!service) {
+      return res.status(400).json({ success: false, error: 'Service SMMGen introuvable.' });
+    }
+
+    // 3. Vérifier que le service appartient bien à SMMGen (sécurité)
+    if (service.provider && service.provider !== 'smmgen') {
+      return res.status(400).json({ success: false, error: 'Ce service n\'appartient pas à SMMGen.' });
+    }
+
+    // 4. Déterminer le mode de tarification
+    const type = service.type || 'Default';
+    const pricingMode = getSmmGenPricingMode(type);
+    
+    // 5. Calculer la quantité
+    let qty = 0;
+    if (pricingMode === 'package') {
+      qty = 1; // Quantité symbolique pour les packages
+    } else if (type.toLowerCase() === 'custom comments') {
+      qty = (req.body.comments || '').split('\n').filter(l => l.trim()).length;
+    } else {
+      qty = parseInt(req.body.quantity) || 0;
+    }
+
+    // 6. Vérifier min/max
+    if (pricingMode !== 'package') {
+      if (qty < (service.min || 0)) {
+        return res.status(400).json({ success: false, error: `Quantité minimale : ${service.min}` });
+      }
+      if (qty > (service.max || 0)) {
+        return res.status(400).json({ success: false, error: `Quantité maximale : ${service.max}` });
+      }
+    }
+
+    // 7. Calculer le coût (BACKEND SOURCE DE VÉRITÉ)
+    const cost = computeSmmGenCost(service, qty, pricingMode);
+
+    // 8. Vérifier le solde utilisateur
+    const userDoc = await db.collection('users').doc(uid).get();
+    if (!userDoc.exists) {
+      return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
+    }
+    
+    const currentBalance = userDoc.data().balance || 0;
+    if (currentBalance < cost) {
+      return res.status(400).json({
+        success: false,
+        error: `Solde insuffisant. Requis : ${cost.toLocaleString('fr-FR')} FCFA — Disponible : ${currentBalance.toLocaleString('fr-FR')} FCFA`,
+      });
+    }
+
+    // 9. Construire les paramètres de commande
+    const orderParams = buildSmmGenOrderParams(service, req.body);
+
+    // 10. Envoyer la commande à SMMGen
+    const orderResult = await callSmmGen(orderParams);
+    
+    if (orderResult.error) {
+      return res.status(400).json({ success: false, error: 'Erreur fournisseur : ' + orderResult.error });
+    }
+    if (!orderResult.order) {
+      return res.status(400).json({ success: false, error: 'Commande non confirmée.' });
+    }
+
+    // 11. Récupérer l'ID SMMGen
+    const providerOrderId = orderResult.order;
+
+    // 12. Transaction Firestore (débit + enregistrement)
+    let finalOrderId, newBalance;
+    await db.runTransaction(async (transaction) => {
+      const counterRef = db.collection('counters').doc('autoOrders');
+      const freshUserRef = db.collection('users').doc(uid);
+      
+      const counterDoc = await transaction.get(counterRef);
+      const freshUserDoc = await transaction.get(freshUserRef);
+
+      // Deuxième vérification du solde
+      const freshBalance = freshUserDoc.data().balance || 0;
+      if (freshBalance < cost) {
+        throw new Error('Solde insuffisant (vérifié pendant le traitement).');
+      }
+
+      const nextId = ((counterDoc.exists ? counterDoc.data().lastId : 0) || 0) + 1;
+      finalOrderId = `SBH-AUTO-${nextId}`;
+      newBalance = freshBalance - cost;
+      const platform = detectPlatformName(service.name || '', link);
+
+      transaction.set(counterRef, { lastId: nextId }, { merge: true });
+      transaction.update(freshUserRef, { balance: newBalance });
+
+      const orderRef = db.collection('autoOrders').doc();
+      transaction.set(orderRef, {
+        orderId: finalOrderId,
+        userId: uid,
+        provider: 'smmgen',
+        providerOrderId: providerOrderId,
+        providerServiceId: parseInt(serviceId),
+        serviceId: parseInt(serviceId),
+        serviceName: service.name,
+        serviceType: type,
+        platform: platform,
+        link: link,
+        quantity: qty,
+        priceXAF: cost,
+        status: 'En attente',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        providerStartCount: 0,
+        providerRemains: qty,
+        refunded: false,
+        refundedAmount: 0,
+        // Stocker les paramètres spéciaux pour référence
+        orderParams: JSON.stringify(orderParams),
+      });
+    });
+
+    res.json({ success: true, orderId: finalOrderId, newBalance });
+
+  } catch (error) {
+    console.error('SMMGen order error:', error);
+    if (error.message.toLowerCase().includes('insuffisant')) {
+      return res.status(400).json({ success: false, error: error.message });
+    }
+    res.status(500).json({ success: false, error: 'Erreur technique. Veuillez réessayer.' });
+  }
+});
+
+app.get('/api/smmgen/order-status/:orderId', checkAuth, async (req, res) => {
+  const { orderId } = req.params;
+  const uid = req.user.uid;
+  
+  try {
+    // 1. Récupérer la commande
+    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).limit(1).get();
+    if (snapshot.empty) {
+      return res.status(404).json({ success: false, error: 'Commande introuvable.' });
+    }
+
+    const orderDoc = snapshot.docs[0];
+    const orderData = orderDoc.data();
+    
+    // 2. Vérifier l'utilisateur
+    if (orderData.userId !== uid) {
+      return res.status(403).json({ success: false, error: 'Accès refusé.' });
+    }
+    
+    // 3. Vérifier que c'est bien une commande SMMGen
+    if (orderData.provider !== 'smmgen') {
+      return res.status(400).json({ success: false, error: 'Cette commande n\'est pas une commande SMMGen.' });
+    }
+
+    // 4. Appeler SMMGen avec providerOrderId
+    const statusResult = await callSmmGen({ action: 'status', order: orderData.providerOrderId });
+
+    if (statusResult.error) {
+      return res.status(400).json({ success: false, error: 'Erreur SMMGen: ' + statusResult.error });
+    }
+
+    // 5. Normaliser le statut
+    const newStatus = MTP_STATUS_MAP[statusResult.status] || statusResult.status || 'En attente';
+    const startCount = parseInt(statusResult.start_count) || 0;
+    const remains = parseInt(statusResult.remains) || 0;
+    const charge = parseFloat(statusResult.charge) || 0;
+
+    // 6. Gérer le remboursement (comme MTP)
+    let refundAmount = 0;
+    let isRefunded = orderData.refunded || false;
+
+    if (!isRefunded && (newStatus === 'Annulé' || newStatus === 'Canceled' || newStatus === 'Partiel' || newStatus === 'Partial')) {
+      let totalCost = orderData.priceXAF || 0;
+      
+      if (newStatus === 'Partiel' || newStatus === 'Partial') {
+        const qty = orderData.quantity || 1;
+        const rem = remains !== undefined ? remains : qty;
+        refundAmount = Math.round((rem / qty) * totalCost);
+      } else {
+        refundAmount = totalCost;
+      }
+
+      if (refundAmount > 0) {
+        await db.runTransaction(async (t) => {
+          const freshOrder = await t.get(orderDoc.ref);
+          if (freshOrder.data().refunded) return; 
+          
+          const userRef = db.collection('users').doc(uid);
+          const userDoc = await t.get(userRef);
+          const bal = userDoc.exists ? (userDoc.data().balance || 0) : 0;
+
+          t.update(userRef, { balance: bal + refundAmount });
+          t.update(orderDoc.ref, {
+            status: newStatus,
+            providerStartCount: startCount,
+            providerRemains: remains,
+            providerCharge: charge,
+            refunded: true,
+            refundedAmount: refundAmount,
+            lastChecked: admin.firestore.FieldValue.serverTimestamp()
+          });
+        });
+        isRefunded = true;
+      }
+    } else {
+      await orderDoc.ref.update({
+        status: newStatus,
+        providerStartCount: startCount,
+        providerRemains: remains,
+        providerCharge: charge,
+        lastChecked: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    res.json({
+      success: true,
+      status: newStatus,
+      providerStatus: statusResult.status,
+      startCount: startCount,
+      remains: remains,
+      charge: charge,
+      refunded: isRefunded,
+      refundAmount: refundAmount
+    });
+
+  } catch (error) {
+    console.error('SMMGen status error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/smmgen/refill', checkAuth, async (req, res) => {
+  const { orderId } = req.body;
+  const uid = req.user.uid;
+  
+  if (!orderId) {
+    return res.status(400).json({ success: false, error: 'orderId requis.' });
+  }
+  
+  try {
+    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).limit(1).get();
+    if (snapshot.empty) {
+      return res.status(404).json({ success: false, error: 'Commande introuvable.' });
+    }
+
+    const orderDoc = snapshot.docs[0];
+    const orderData = orderDoc.data();
+    
+    if (orderData.userId !== uid) {
+      return res.status(403).json({ success: false, error: 'Accès refusé.' });
+    }
+    
+    if (orderData.provider !== 'smmgen') {
+      return res.status(400).json({ success: false, error: 'Cette commande n\'est pas une commande SMMGen.' });
+    }
+
+    // Vérifier la capacité de refill du service
+    // On peut vérifier dans le cache des services
+    let serviceSupportsRefill = true;
+    if (_smmgenServicesCache) {
+      const svc = _smmgenServicesCache.find(s => s.id === orderData.providerServiceId);
+      if (svc && svc.refill === false) {
+        serviceSupportsRefill = false;
+      }
+    }
+    
+    if (!serviceSupportsRefill) {
+      return res.status(400).json({ success: false, error: 'Ce service ne supporte pas le refill.' });
+    }
+
+    const result = await callSmmGen({ action: 'refill', order: orderData.providerOrderId });
+    
+    if (result.error) {
+      return res.status(400).json({ success: false, error: 'Erreur SMMGen: ' + result.error });
+    }
+
+    await orderDoc.ref.update({
+      lastRefill: admin.firestore.FieldValue.serverTimestamp(),
+      refillId: result.refill || null,
+      refillStatus: 'En attente',
+    });
+
+    res.json({ success: true, refillId: result.refill });
+
+  } catch (error) {
+    console.error('SMMGen refill error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/smmgen/refill-status', checkAuth, async (req, res) => {
+  const { refillId, orderId } = req.body;
+  const uid = req.user.uid;
+  
+  if (!refillId) {
+    return res.status(400).json({ success: false, error: 'refillId requis.' });
+  }
+  
+  try {
+    // Vérifier que le refill appartient bien à une commande de l'utilisateur
+    if (orderId) {
+      const orderRef = db.collection('autoOrders').doc(orderId);
+      const orderDoc = await orderRef.get();
+      if (orderDoc.exists && orderDoc.data().userId !== uid) {
+        return res.status(403).json({ success: false, error: 'Accès refusé.' });
+      }
+    }
+
+    const result = await callSmmGen({ action: 'refill_status', refill: refillId });
+    
+    if (result.error) {
+      return res.status(400).json({ success: false, error: 'Erreur SMMGen: ' + result.error });
+    }
+
+    // Mettre à jour le statut dans Firestore si on a l'orderId
+    if (orderId && result.status) {
+      await db.collection('autoOrders').doc(orderId).update({
+        refillStatus: result.status,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    res.json({ success: true, status: result.status, refillId: refillId });
+
+  } catch (error) {
+    console.error('SMMGen refill status error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/smmgen/cancel', checkAuth, async (req, res) => {
+  const { orderId } = req.body;
+  const uid = req.user.uid;
+  
+  if (!orderId) {
+    return res.status(400).json({ success: false, error: 'orderId requis.' });
+  }
+  
+  try {
+    const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).limit(1).get();
+    if (snapshot.empty) {
+      return res.status(404).json({ success: false, error: 'Commande introuvable.' });
+    }
+
+    const orderDoc = snapshot.docs[0];
+    const orderData = orderDoc.data();
+    
+    if (orderData.userId !== uid) {
+      return res.status(403).json({ success: false, error: 'Accès refusé.' });
+    }
+    
+    if (orderData.provider !== 'smmgen') {
+      return res.status(400).json({ success: false, error: 'Cette commande n\'est pas une commande SMMGen.' });
+    }
+    
+    if (orderData.refunded) {
+      return res.status(400).json({ success: false, error: 'Cette commande a déjà été remboursée.' });
+    }
+
+    const currentStatus = (orderData.status || '').toLowerCase();
+    if (!['en attente', 'pending', 'en cours', 'in progress', 'processing'].includes(currentStatus)) {
+      return res.status(400).json({ success: false, error: 'Cette commande ne peut plus être annulée, son statut ne le permet pas.' });
+    }
+
+    // Appeler SMMGen pour l'annulation
+    try {
+      await callSmmGen({ action: 'cancel', orders: orderData.providerOrderId });
+    } catch (smmgenErr) {
+      console.error('SMMGen cancel error:', smmgenErr);
+    }
+
+    // Note: Ne pas confirmer l'annulation immédiatement. Le remboursement sera déclenché lors de la prochaine vérification du statut
+    // qui confirmera l'annulation côté fournisseur.
+
+    res.json({
+      success: true,
+      message: "Demande d'annulation transmise au fournisseur. Le remboursement sera effectué automatiquement dès que le fournisseur confirmera l'annulation."
+    });
+
+  } catch (error) {
+    console.error('SMMGen cancel error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
 // Routes utilisateur
 // ═══════════════════════════════════════════════════════════════
 app.post('/api/register', checkAuth, async (req, res) => {
@@ -816,9 +1379,7 @@ app.post('/api/register', checkAuth, async (req, res) => {
 
 app.get('/api/user/profile', checkAuth, async (req, res) => {
   try {
-    // [NOUVEAU] Empêcher le navigateur de cacher l'ancien profil (Correction du problème d'actualisation)
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-
     const uid = req.user.uid;
     const userDoc = await db.collection('users').doc(uid).get();
 
@@ -857,13 +1418,11 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
   }
 });
 
-// Route pour mettre à jour les informations classiques du profil
 app.post('/api/update-profile', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
     const { displayName, phone, country, settings, photoURL } = req.body;
     
-    // [NOUVEAU] Log pour afficher ce que le client envoie et vérifier que ce n'est pas vide
     console.log(`[DEBUG] /api/update-profile - Données reçues pour ${uid}:`, req.body);
     
     const updateData = {};
@@ -883,13 +1442,11 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
   }
 });
 
-// --- NOUVEAUTÉ : Route pour mettre à jour spécifiquement les paramètres (settings) ---
 app.post('/api/user/settings', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
     const newSettings = req.body; 
     
-    // [NOUVEAU] Log pour s'assurer que les paramètres (ex: toggle switch) arrivent bien au serveur
     console.log(`[DEBUG] /api/user/settings - Paramètres reçus pour ${uid}:`, newSettings);
     
     if (!newSettings || typeof newSettings !== 'object' || Object.keys(newSettings).length === 0) {
@@ -920,9 +1477,7 @@ app.post('/api/user/settings', checkAuth, async (req, res) => {
 
 app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
   try {
-    // [NOUVEAU] Anti-cache pour cette route également
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-
     const uid = req.user.uid;
     const userDoc = await db.collection('users').doc(uid).get();
     
@@ -1218,6 +1773,20 @@ async function getServicesData() {
         });
       }
     } catch (e) { console.warn('Erreur AFB:', e.message); }
+  }
+
+  // Ajout de SMMGen dans les stats admin (optionnel)
+  if (process.env.SMMGEN_API_KEY) {
+    try {
+      const smmgenData = await callSmmGen({ action: 'services' });
+      if (Array.isArray(smmgenData)) {
+        smmgenData.forEach(s => {
+          const rate = parseFloat(s.rate) || 0; const providerCost = Math.round(rate * SMMGEN_USD_TO_XAF);
+          const finalPrice = Math.round(providerCost * SMMGEN_MULTIPLIER); const profit = finalPrice - providerCost;
+          allServices.push({ id: s.service, provider: 'SMMGen', name: s.name, category: s.category || '', providerCost, finalPrice, profit, profitMargin: Math.round((profit / finalPrice) * 100) || 0, min: parseInt(s.min) || 0, max: parseInt(s.max) || 0 });
+        });
+      }
+    } catch (e) { console.warn('Erreur SMMGen:', e.message); }
   }
 
   const prices = allServices.map(s => s.finalPrice);
