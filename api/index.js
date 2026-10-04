@@ -1761,7 +1761,6 @@ const SBH_CURRENCY_RATES = {
   'MWK': 0.3350,
   'ZWG': 22.10,
   'ZWL': 0.0020,
-  // ── Devises ajoutées pour la liste complète des pays ──
   'ALL': 6.30,
   'XCD': 215.80,
   'AMD': 1.50,
@@ -1821,10 +1820,6 @@ const SBH_CURRENCY_RATES = {
   'VUV': 4.90,
 };
 
-/**
- * Convertit un montant depuis une devise supportée vers XAF.
- * Convention : montantLocal × rateToXAF = montantXAF
- */
 function convertToXAF(amount, currency) {
   const cur = (currency || '').toUpperCase();
   const rate = SBH_CURRENCY_RATES[cur];
@@ -1833,21 +1828,6 @@ function convertToXAF(amount, currency) {
   return Math.round(Number(amount) * rate);
 }
 
-/**
- * Génère une référence de paiement séquentielle et unique au format :
- *   SBH-PAY-INT-0001
- *   SBH-PAY-INT-0002
- *   ...
- *   SBH-PAY-INT-14367
- *
- * Utilise un compteur Firestore atomique (transaction) pour éviter
- * toute collision, même en cas de requêtes simultanées.
- *
- * Le compteur est stocké dans : counters/paymentReferences.lastId
- * (incrémenté à chaque appel, même si la transaction Firestore
- *  échoue ensuite — cela crée un "trou" numérique, ce qui est normal
- *  et préférable à un doublon de référence.)
- */
 async function generatePaymentReference() {
   const counterRef = db.collection('counters').doc('paymentReferences');
   let nextId;
@@ -1862,8 +1842,6 @@ async function generatePaymentReference() {
     }, { merge: true });
   });
 
-  // Padding à 4 chiffres minimum — au-delà de 9999, on laisse la longueur naturelle
-  // (ex : SBH-PAY-INT-10000, SBH-PAY-INT-100000, etc.)
   const padded = String(nextId).padStart(4, '0');
   return `SBH-PAY-INT-${padded}`;
 }
@@ -1950,10 +1928,6 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
     return res.status(500).json({ success: false, error: 'Configuration de paiement incomplète. Contactez le support.' });
   }
 
-  // ── Détermination du montant/devise à envoyer à NelsiusPay ──
-  // Si le montant en devise locale est < 100 (minimum imposé par NelsiusPay
-  // dans la devise envoyée), on envoie plutôt l'équivalent en XAF.
-  // Comme notre minimum SBH est 1380 XAF, le montant XAF est toujours > 100.
   let providerAmount   = requestedAmount;
   let providerCurrency = requestedCurrency;
 
@@ -1963,7 +1937,6 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
     console.log(`[NelsiusPay] Montant local ${requestedAmount} ${requestedCurrency} < ${NELSIUSPAY_MIN_PROVIDER_AMT} → envoi en XAF : ${providerAmount} XAF`);
   }
 
-  // ── Récupérer les infos utilisateur depuis Firestore ──
   let customerEmail = req.user.email || '';
   let customerPhone = '';
   let customerName = '';
@@ -1979,7 +1952,6 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
     console.warn('[NelsiusPay] Impossible de récupérer le profil utilisateur:', e.message);
   }
 
-  // Priorité aux valeurs envoyées par le frontend (préremplissage checkout)
   if (req.body.customer_name) customerName = req.body.customer_name;
   if (req.body.customer_email) customerEmail = req.body.customer_email;
   if (req.body.customer_phone) customerPhone = req.body.customer_phone;
@@ -2318,6 +2290,262 @@ async function creditUserIfNeeded(reference, userId, transData) {
     console.log(`[NelsiusPay] Crédit effectué: +${amountToCredit} XAF → ${userId} (solde: ${currentBalance} → ${newBalance})`);
   });
 }
+
+// ═══════════════════════════════════════════════════════════════
+// NOUVEAU — Suivi des visites dashboard + Gestion des cadeaux
+// de bienvenue sécurisée (IP + téléphone + email + compte)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Récupère l'IP client de la manière la plus fiable possible,
+ * même derrière un proxy (Render, Vercel, Cloudflare, etc.).
+ */
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.length) {
+    // x-forwarded-for peut contenir plusieurs IP séparées par des virgules
+    // (client, proxy1, proxy2...). La première est l'IP réelle du client.
+    return forwarded.split(',')[0].trim();
+  }
+  return (req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown').toString();
+}
+
+/**
+ * Hash stable d'une chaîne (IP / numéro) — 32 caractères hex.
+ * On ne stocke JAMAIS l'IP en clair dans Firestore (RGPD-friendly).
+ */
+function sha256Short(str) {
+  return crypto.createHash('sha256').update(String(str)).digest('hex').slice(0, 32);
+}
+
+/**
+ * Normalise un numéro WhatsApp : on enlève tout sauf les chiffres
+ * et le premier "+" éventuel, pour éviter les doublons du type
+ * "+237699853665" vs "00237699853665" vs "237 699 85 36 65".
+ */
+function normalizeWhatsappNumber(input) {
+  if (!input) return '';
+  let digits = String(input).replace(/[^0-9]/g, '');
+  // Retire les zéros de tête "00" (format international composé)
+  digits = digits.replace(/^00+/, '');
+  return digits;
+}
+
+// ── POST /api/track-dashboard-visit ───────────────────────────
+app.post('/api/track-dashboard-visit', async (req, res) => {
+  try {
+    const { userId } = req.body || {};
+    if (!userId) return res.json({ success: true, shouldShowPromo: false });
+
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+
+    const visitCount = userDoc.exists ? (userDoc.data().dashboardVisitCount || 0) : 0;
+    const lastPromoSeen = userDoc.exists ? userDoc.data().lastPromoSeen : null;
+    const lastPromoMs = getTimestampMs(lastPromoSeen);
+
+    // Décision d'affichage de la promo :
+    //  - Jamais vue → afficher
+    //  - Vue il y a plus de 24h → afficher
+    const shouldShowPromo = !lastPromoMs || (Date.now() - lastPromoMs) > 24 * 60 * 60 * 1000;
+
+    await userRef.set({
+      dashboardVisitCount: visitCount + 1,
+      lastDashboardVisit: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return res.json({ success: true, shouldShowPromo });
+  } catch (error) {
+    console.error('Erreur /api/track-dashboard-visit:', error);
+    return res.json({ success: false, shouldShowPromo: false });
+  }
+});
+
+// ── POST /api/mark-promo-seen ─────────────────────────────────
+app.post('/api/mark-promo-seen', async (req, res) => {
+  try {
+    const { userId } = req.body || {};
+    if (!userId) return res.json({ success: false });
+    await db.collection('users').doc(userId).set({
+      lastPromoSeen: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Erreur /api/mark-promo-seen:', error);
+    return res.json({ success: false });
+  }
+});
+
+// ── GET /api/check-gift-eligibility ───────────────────────────
+// Utilisé par le dashboard au chargement : { eligible: true/false, reason? }
+app.get('/api/check-gift-eligibility', checkAuth, async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    const ip  = getClientIp(req);
+    const ipHash = sha256Short('ip:' + ip);
+
+    // 1) L'utilisateur a-t-il déjà réclamé ?
+    const userDoc = await db.collection('users').doc(uid).get();
+    if (userDoc.exists && userDoc.data().welcomeGiftClaimed === true) {
+      return res.json({ eligible: false, reason: 'already_claimed' });
+    }
+
+    // 2) L'IP a-t-elle déjà servi à réclamer ?
+    const ipDoc = await db.collection('welcomeGiftIps').doc(ipHash).get();
+    if (ipDoc.exists) {
+      return res.json({ eligible: false, reason: 'ip_already_claimed' });
+    }
+
+    // 3) Compte trop ancien (> 7 jours) → plus éligible
+    if (userDoc.exists) {
+      const createdMs = getTimestampMs(userDoc.data().createdAt);
+      if (createdMs && (Date.now() - createdMs) > 7 * 24 * 60 * 60 * 1000) {
+        return res.json({ eligible: false, reason: 'account_too_old' });
+      }
+    }
+
+    return res.json({ eligible: true });
+  } catch (error) {
+    console.error('Erreur /api/check-gift-eligibility:', error);
+    // En cas d'erreur, on refuse par défaut (sécurité)
+    return res.json({ eligible: false, reason: 'error' });
+  }
+});
+
+// ── POST /api/claim-welcome-gift ──────────────────────────────
+app.post('/api/claim-welcome-gift', checkAuth, async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    const { giftType, whatsapp, platform, link } = req.body || {};
+
+    // ── Validations d'entrée ──
+    if (!giftType || !['money', 'likes', 'tiktok'].includes(giftType)) {
+      return res.status(400).json({ success: false, error: 'Type de cadeau invalide.' });
+    }
+
+    const whatsappClean = normalizeWhatsappNumber(whatsapp);
+    if (!whatsappClean || whatsappClean.length < 8) {
+      return res.status(400).json({ success: false, error: 'Numéro WhatsApp invalide.' });
+    }
+    if (giftType === 'likes') {
+      if (!platform || !link) {
+        return res.status(400).json({ success: false, error: 'Plateforme et lien requis.' });
+      }
+    }
+    if (giftType === 'tiktok') {
+      if (!link) {
+        return res.status(400).json({ success: false, error: 'Lien TikTok requis.' });
+      }
+    }
+
+    const ip = getClientIp(req);
+    const ipHash      = sha256Short('ip:' + ip);
+    const phoneHash   = sha256Short('phone:' + whatsappClean);
+    const emailHash   = req.user.email ? sha256Short('email:' + req.user.email.toLowerCase()) : null;
+
+    const userRef  = db.collection('users').doc(uid);
+    const ipRef    = db.collection('welcomeGiftIps').doc(ipHash);
+    const phoneRef = db.collection('welcomeGiftPhones').doc(phoneHash);
+    const emailRef = emailHash ? db.collection('welcomeGiftEmails').doc(emailHash) : null;
+
+    // ── Transaction atomique : tout ou rien ──
+    await db.runTransaction(async (t) => {
+      const userDoc  = await t.get(userRef);
+      const ipDoc    = await t.get(ipRef);
+      const phoneDoc = await t.get(phoneRef);
+      const emailDoc = emailRef ? await t.get(emailRef) : null;
+
+      // a) Déjà réclamé par cet utilisateur ?
+      if (userDoc.exists && userDoc.data().welcomeGiftClaimed === true) {
+        throw new Error('ALREADY_CLAIMED');
+      }
+
+      // b) Déjà réclamé depuis cette IP ?
+      if (ipDoc.exists) {
+        throw new Error('IP_ALREADY_CLAIMED');
+      }
+
+      // c) Déjà réclamé avec ce numéro WhatsApp ?
+      if (phoneDoc.exists) {
+        throw new Error('PHONE_ALREADY_CLAIMED');
+      }
+
+      // d) Déjà réclamé avec cet email ?
+      if (emailDoc && emailDoc.exists) {
+        throw new Error('EMAIL_ALREADY_CLAIMED');
+      }
+
+      // e) Compte trop ancien ?
+      if (userDoc.exists) {
+        const createdMs = getTimestampMs(userDoc.data().createdAt);
+        if (createdMs && (Date.now() - createdMs) > 7 * 24 * 60 * 60 * 1000) {
+          throw new Error('ACCOUNT_TOO_OLD');
+        }
+      }
+
+      // ── Création des enregistrements ──
+      const claimRef = db.collection('welcomeGiftClaims').doc();
+      t.set(claimRef, {
+        userId: uid,
+        email: req.user.email || null,
+        giftType,
+        whatsapp: whatsappClean,
+        platform: platform || null,
+        link: link || null,
+        ipHash,
+        status: 'pending',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      t.set(ipRef, {
+        userId: uid,
+        giftType,
+        claimedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      t.set(phoneRef, {
+        userId: uid,
+        giftType,
+        claimedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      if (emailRef) {
+        t.set(emailRef, {
+          userId: uid,
+          giftType,
+          claimedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+
+      t.set(userRef, {
+        welcomeGiftClaimed: true,
+        welcomeGiftType: giftType,
+        welcomeGiftClaimedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+    });
+
+    return res.json({ success: true });
+  } catch (error) {
+    const msg = error.message || '';
+    if (msg === 'ALREADY_CLAIMED') {
+      return res.status(400).json({ success: false, error: 'Vous avez déjà réclamé votre cadeau de bienvenue.' });
+    }
+    if (msg === 'IP_ALREADY_CLAIMED') {
+      return res.status(400).json({ success: false, error: 'Un cadeau de bienvenue a déjà été réclamé depuis cet appareil.' });
+    }
+    if (msg === 'PHONE_ALREADY_CLAIMED') {
+      return res.status(400).json({ success: false, error: 'Ce numéro WhatsApp a déjà été utilisé pour un cadeau de bienvenue.' });
+    }
+    if (msg === 'EMAIL_ALREADY_CLAIMED') {
+      return res.status(400).json({ success: false, error: 'Un cadeau a déjà été réclamé avec cette adresse e-mail.' });
+    }
+    if (msg === 'ACCOUNT_TOO_OLD') {
+      return res.status(400).json({ success: false, error: 'Votre compte est trop ancien pour bénéficier du cadeau de bienvenue.' });
+    }
+    console.error('Erreur /api/claim-welcome-gift:', error);
+    return res.status(500).json({ success: false, error: 'Erreur lors de la réclamation du cadeau.' });
+  }
+});
 
 // ═══════════════════════════════════════════════════════════════
 // ADMIN API (ZÉRO LECTURE FIRESTORE)
