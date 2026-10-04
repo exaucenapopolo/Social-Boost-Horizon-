@@ -96,7 +96,7 @@ const AFB_MULTIPLIER       = 2.5;
 // ═══════════════════════════════════════════════════════════════
 const SMMGEN_API_URL      = 'https://my.smmgen.com/api/v2';
 const SMMGEN_USD_TO_XAF   = 650;
-const SMMGEN_MULTIPLIER   = 2.5;
+const SMMGEN_MULTIPLIER   = 3.5;
 
 function detectPlatformName(serviceName, link) {
   const n = ((serviceName || '') + ' ' + (link || '')).toLowerCase();
