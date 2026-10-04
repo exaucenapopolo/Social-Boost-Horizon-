@@ -1658,36 +1658,120 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
 // NelsiusPay – Paiement par carte bancaire Visa/Mastercard
 // ═══════════════════════════════════════════════════════════════
 const NELSIUSPAY_API_URL          = 'https://api.nelsiuspay.com/api/v1';
-const NELSIUSPAY_MIN_AMOUNT_XAF   = 1000;
+const NELSIUSPAY_MIN_AMOUNT_XAF   = 1380;   // 2 € × 690 XAF
 const NELSIUSPAY_MAX_AMOUNT_XAF   = 10000000;
 const NELSIUSPAY_FEE_BEARER       = 'customer';
 
 /**
- * Table de conversion identique à celle du frontend (paid.html / paiement-carte.html).
- * XAF = amountLocal / rate
+ * Table de taux de change — convention : 1 unité de devise = X XAF.
+ * Synchronisée avec CURRENCIES du frontend (paiement-carte.html).
+ * Taux EUR fixé par SBH à 690 XAF.
  */
 const SBH_CURRENCY_RATES = {
   'XAF': 1,
   'XOF': 1,
-  'CDF': 4.27,
-  'GHS': 0.024,
-  'NGN': 2.44,
-  'KES': 0.20,
-  'UGX': 5.64,
-  'TZS': 3.81,
-  'RWF': 1.98,
-  'ZMW': 0.041,
-  'MWK': 2.67,
-  'USD': 1 / 590,
-  'EUR': 1 / 655,
+  'USD': 590,
+  'EUR': 690,
+  'GBP': 771.60,
+  'CAD': 408.95,
+  'CHF': 703.08,
+  'JPY': 3.6921,
+  'CNY': 86.92,
+  'INR': 6.0616,
+  'AED': 158.68,
+  'SAR': 155.20,
+  'TRY': 11.86,
+  'RUB': 6.9466,
+  'ZAR': 35.01,
+  'MAD': 58.68,
+  'GHS': 49.67,
+  'NGN': 0.4346,
+  'KES': 4.4919,
+  'UGX': 0.1577,
+  'TZS': 0.2260,
+  'RWF': 0.4200,
+  'ZMW': 24.39,
+  'CDF': 0.2344,
+  'AOA': 0.6400,
+  'MZN': 9.1200,
+  'BRL': 103.50,
+  'MXN': 29.60,
+  'AUD': 375.40,
+  'NZD': 340.20,
+  'KRW': 0.4233,
+  'SGD': 432.10,
+  'THB': 16.90,
+  'MYR': 130.20,
+  'IDR': 0.0373,
+  'PHP': 10.35,
+  'VND': 0.0230,
+  'PLN': 147.80,
+  'SEK': 54.20,
+  'NOK': 52.80,
+  'DKK': 92.60,
+  'CZK': 25.10,
+  'HUF': 1.5900,
+  'RON': 138.70,
+  'BGN': 352.80,
+  'HRK': 91.50,
+  'UAH': 14.05,
+  'ILS': 158.30,
+  'EGP': 11.90,
+  'TND': 187.60,
+  'DZD': 4.3500,
+  'LYD': 120.50,
+  'QAR': 159.80,
+  'KWD': 1898.00,
+  'BHD': 1545.00,
+  'OMR': 1514.00,
+  'JOD': 822.00,
+  'LBP': 0.0065,
+  'PKR': 2.0800,
+  'BDT': 4.8300,
+  'LKR': 1.9800,
+  'NPR': 3.7800,
+  'MUR': 12.60,
+  'SCR': 42.30,
+  'MGA': 0.1300,
+  'MVR': 37.80,
+  'AFN': 7.8000,
+  'IRR': 0.0138,
+  'IQD': 0.4450,
+  'SYP': 0.0440,
+  'YER': 2.3800,
+  'ETB': 4.1500,
+  'GMD': 8.2000,
+  'GNF': 0.0670,
+  'LRD': 3.0200,
+  'SLL': 0.0270,
+  'SOS': 1.0100,
+  'SDG': 0.9700,
+  'SSP': 0.4500,
+  'DJF': 3.2800,
+  'KMF': 1.3800,
+  'CVE': 6.3100,
+  'STN': 28.20,
+  'BIF': 0.2000,
+  'ERN': 38.80,
+  'LSL': 35.10,
+  'SZL': 35.10,
+  'NAD': 35.10,
+  'BWP': 44.50,
+  'MWK': 0.3350,
+  'ZWG': 22.10,
+  'ZWL': 0.0020,
 };
 
+/**
+ * Convertit un montant depuis une devise supportée vers XAF.
+ * Convention : montantLocal × rateToXAF = montantXAF
+ */
 function convertToXAF(amount, currency) {
   const cur = (currency || '').toUpperCase();
   const rate = SBH_CURRENCY_RATES[cur];
   if (rate === undefined) throw new Error(`Devise non supportée : ${currency}`);
   if (rate <= 0) throw new Error(`Taux invalide pour ${currency}`);
-  return Math.round(Number(amount) / rate);
+  return Math.round(Number(amount) * rate);
 }
 
 function generatePaymentReference() {
@@ -1768,7 +1852,7 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
   }
 
   if (creditedAmountXAF < NELSIUSPAY_MIN_AMOUNT_XAF) {
-    return res.status(400).json({ success: false, error: `Le montant minimum de recharge est de ${NELSIUSPAY_MIN_AMOUNT_XAF.toLocaleString('fr-FR')} FCFA.` });
+    return res.status(400).json({ success: false, error: `Le montant minimum de recharge est de ${NELSIUSPAY_MIN_AMOUNT_XAF.toLocaleString('fr-FR')} FCFA (≈ 2 €).` });
   }
   if (creditedAmountXAF > NELSIUSPAY_MAX_AMOUNT_XAF) {
     return res.status(400).json({ success: false, error: `Le montant maximum de recharge est de ${NELSIUSPAY_MAX_AMOUNT_XAF.toLocaleString('fr-FR')} FCFA.` });
@@ -1779,18 +1863,26 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
     return res.status(500).json({ success: false, error: 'Configuration de paiement incomplète. Contactez le support.' });
   }
 
+  // ── Récupérer les infos utilisateur depuis Firestore ──
   let customerEmail = req.user.email || '';
   let customerPhone = '';
+  let customerName = '';
   try {
     const userDoc = await db.collection('users').doc(uid).get();
     if (userDoc.exists) {
       const uData = userDoc.data();
       customerEmail = uData.email || customerEmail;
       customerPhone = uData.phone || '';
+      customerName = uData.displayName || uData.username || '';
     }
   } catch (e) {
     console.warn('[NelsiusPay] Impossible de récupérer le profil utilisateur:', e.message);
   }
+
+  // Priorité aux valeurs envoyées par le frontend (préremplissage checkout)
+  if (req.body.customer_name) customerName = req.body.customer_name;
+  if (req.body.customer_email) customerEmail = req.body.customer_email;
+  if (req.body.customer_phone) customerPhone = req.body.customer_phone;
 
   const reference = generatePaymentReference();
 
@@ -1805,6 +1897,7 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
     currency: requestedCurrency,
     customer_email: customerEmail || undefined,
     customer_phone: customerPhone || undefined,
+    customer_name: customerName || undefined,
     reference: reference,
     return_url: returnUrl,
     cancel_url: cancelUrl,
@@ -1812,6 +1905,7 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
     metadata: {
       product_name: 'Recharge Social Boost Horizon',
       userId: uid,
+      country: req.body.country || 'CM',
       creditedAmountXAF: String(creditedAmountXAF),
     },
   };
@@ -1830,7 +1924,7 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
   }
 
   if (!nelsiusResponse.ok) {
-    const errMsg = nelsiusResponse.data?.message || nelsiusResponse.data?.error || `Erreur NelsiusPay (HTTP ${nelsiusResponse.status})`;
+    const errMsg = nelsiusResponse.data?.message || nelsiusResponse.data?.error || `Erreur de paiement (HTTP ${nelsiusResponse.status})`;
     console.error('[NelsiusPay] Réponse erreur checkout:', nelsiusResponse.status, errMsg);
     return res.status(nelsiusResponse.status >= 500 ? 502 : 400).json({ success: false, error: errMsg });
   }
