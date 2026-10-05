@@ -1454,7 +1454,7 @@ app.post('/api/user/generate-api-key', checkAuth, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// Fapshi – Paiement Mobile Money (INCHANGÉ)
+// Fapshi – Paiement Mobile Money
 // ═══════════════════════════════════════════════════════════════
 app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
   const uid = req.user.uid;
@@ -1658,166 +1658,37 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
 // NelsiusPay – Paiement par carte bancaire Visa/Mastercard
 // ═══════════════════════════════════════════════════════════════
 const NELSIUSPAY_API_URL          = 'https://api.nelsiuspay.com/api/v1';
-const NELSIUSPAY_MIN_AMOUNT_XAF   = 1380;   // 2 € × 690 XAF
+const NELSIUSPAY_MIN_AMOUNT_XAF   = 1380;
 const NELSIUSPAY_MAX_AMOUNT_XAF   = 10000000;
 const NELSIUSPAY_FEE_BEARER       = 'customer';
-const NELSIUSPAY_MIN_PROVIDER_AMT = 100;    // minimum imposé par NelsiusPay dans la devise envoyée
+const NELSIUSPAY_MIN_PROVIDER_AMT = 100;
 
-/**
- * Table de taux de change — convention : 1 unité de devise = X XAF.
- * Synchronisée avec CURRENCIES du frontend (paiement-carte.html).
- * Taux EUR fixé par SBH à 690 XAF.
- */
 const SBH_CURRENCY_RATES = {
-  'XAF': 1,
-  'XOF': 1,
-  'USD': 590,
-  'EUR': 690,
-  'GBP': 771.60,
-  'CAD': 408.95,
-  'CHF': 703.08,
-  'JPY': 3.6921,
-  'CNY': 86.92,
-  'INR': 6.0616,
-  'AED': 158.68,
-  'SAR': 155.20,
-  'TRY': 11.86,
-  'RUB': 6.9466,
-  'ZAR': 35.01,
-  'MAD': 58.68,
-  'GHS': 49.67,
-  'NGN': 0.4346,
-  'KES': 4.4919,
-  'UGX': 0.1577,
-  'TZS': 0.2260,
-  'RWF': 0.4200,
-  'ZMW': 24.39,
-  'CDF': 0.2344,
-  'AOA': 0.6400,
-  'MZN': 9.1200,
-  'BRL': 103.50,
-  'MXN': 29.60,
-  'AUD': 375.40,
-  'NZD': 340.20,
-  'KRW': 0.4233,
-  'SGD': 432.10,
-  'THB': 16.90,
-  'MYR': 130.20,
-  'IDR': 0.0373,
-  'PHP': 10.35,
-  'VND': 0.0230,
-  'PLN': 147.80,
-  'SEK': 54.20,
-  'NOK': 52.80,
-  'DKK': 92.60,
-  'CZK': 25.10,
-  'HUF': 1.5900,
-  'RON': 138.70,
-  'BGN': 352.80,
-  'HRK': 91.50,
-  'UAH': 14.05,
-  'ILS': 158.30,
-  'EGP': 11.90,
-  'TND': 187.60,
-  'DZD': 4.3500,
-  'LYD': 120.50,
-  'QAR': 159.80,
-  'KWD': 1898.00,
-  'BHD': 1545.00,
-  'OMR': 1514.00,
-  'JOD': 822.00,
-  'LBP': 0.0065,
-  'PKR': 2.0800,
-  'BDT': 4.8300,
-  'LKR': 1.9800,
-  'NPR': 3.7800,
-  'MUR': 12.60,
-  'SCR': 42.30,
-  'MGA': 0.1300,
-  'MVR': 37.80,
-  'AFN': 7.8000,
-  'IRR': 0.0138,
-  'IQD': 0.4450,
-  'SYP': 0.0440,
-  'YER': 2.3800,
-  'ETB': 4.1500,
-  'GMD': 8.2000,
-  'GNF': 0.0670,
-  'LRD': 3.0200,
-  'SLL': 0.0270,
-  'SOS': 1.0100,
-  'SDG': 0.9700,
-  'SSP': 0.4500,
-  'DJF': 3.2800,
-  'KMF': 1.3800,
-  'CVE': 6.3100,
-  'STN': 28.20,
-  'BIF': 0.2000,
-  'ERN': 38.80,
-  'LSL': 35.10,
-  'SZL': 35.10,
-  'NAD': 35.10,
-  'BWP': 44.50,
-  'MWK': 0.3350,
-  'ZWG': 22.10,
-  'ZWL': 0.0020,
-  'ALL': 6.30,
-  'XCD': 215.80,
-  'AMD': 1.50,
-  'AZN': 347.00,
-  'BSD': 582.82,
-  'BBD': 291.41,
-  'BZD': 291.41,
-  'BTN': 6.06,
-  'BYN': 178.00,
-  'MMK': 0.28,
-  'BOB': 84.50,
-  'BAM': 352.80,
-  'BND': 432.10,
-  'KHR': 0.14,
-  'KPW': 0.65,
-  'CRC': 1.13,
-  'CUP': 24.28,
-  'ANG': 325.60,
-  'GIP': 771.60,
-  'GTQ': 75.10,
-  'GYD': 2.79,
-  'HTG': 4.42,
-  'HNL': 23.50,
-  'ISK': 4.20,
-  'JMD': 3.75,
-  'KZT': 1.20,
-  'KGS': 6.67,
-  'LAK': 0.027,
-  'MKD': 10.20,
-  'MDL': 32.80,
-  'MNT': 0.17,
-  'NIO': 16.00,
-  'XPF': 5.78,
-  'UZS': 0.046,
-  'PAB': 582.82,
-  'PGK': 155.00,
-  'PYG': 0.079,
-  'HKD': 74.60,
-  'RSD': 5.88,
-  'SRD': 16.50,
-  'TJS': 53.50,
-  'TWD': 18.30,
-  'TOP': 245.00,
-  'TTD': 86.00,
-  'TMT': 166.50,
-  'WST': 210.00,
-  'SBD': 71.00,
-  'MRU': 14.68,
-  'PEN': 155.00,
-  'CLP': 0.61,
-  'COP': 0.14,
-  'ARS': 1.40,
-  'UYU': 14.60,
-  'VES': 16.00,
-  'GEL': 216.00,
-  'FJD': 258.00,
-  'VUV': 4.90,
+  'XAF': 1, 'XOF': 1, 'USD': 590, 'EUR': 690, 'GBP': 771.60, 'CAD': 408.95, 'CHF': 703.08,
+  'JPY': 3.6921, 'CNY': 86.92, 'INR': 6.0616, 'AED': 158.68, 'SAR': 155.20, 'TRY': 11.86,
+  'RUB': 6.9466, 'ZAR': 35.01, 'MAD': 58.68, 'GHS': 49.67, 'NGN': 0.4346, 'KES': 4.4919,
+  'UGX': 0.1577, 'TZS': 0.2260, 'RWF': 0.4200, 'ZMW': 24.39, 'CDF': 0.2344, 'AOA': 0.6400,
+  'MZN': 9.1200, 'BRL': 103.50, 'MXN': 29.60, 'AUD': 375.40, 'NZD': 340.20, 'KRW': 0.4233,
+  'SGD': 432.10, 'THB': 16.90, 'MYR': 130.20, 'IDR': 0.0373, 'PHP': 10.35, 'VND': 0.0230,
+  'PLN': 147.80, 'SEK': 54.20, 'NOK': 52.80, 'DKK': 92.60, 'CZK': 25.10, 'HUF': 1.5900,
+  'RON': 138.70, 'BGN': 352.80, 'HRK': 91.50, 'UAH': 14.05, 'ILS': 158.30, 'EGP': 11.90,
+  'TND': 187.60, 'DZD': 4.3500, 'LYD': 120.50, 'QAR': 159.80, 'KWD': 1898.00, 'BHD': 1545.00,
+  'OMR': 1514.00, 'JOD': 822.00, 'LBP': 0.0065, 'PKR': 2.0800, 'BDT': 4.8300, 'LKR': 1.9800,
+  'NPR': 3.7800, 'MUR': 12.60, 'SCR': 42.30, 'MGA': 0.1300, 'MVR': 37.80, 'AFN': 7.8000,
+  'IRR': 0.0138, 'IQD': 0.4450, 'SYP': 0.0440, 'YER': 2.3800, 'ETB': 4.1500, 'GMD': 8.2000,
+  'GNF': 0.0670, 'LRD': 3.0200, 'SLL': 0.0270, 'SOS': 1.0100, 'SDG': 0.9700, 'SSP': 0.4500,
+  'DJF': 3.2800, 'KMF': 1.3800, 'CVE': 6.3100, 'STN': 28.20, 'BIF': 0.2000, 'ERN': 38.80,
+  'LSL': 35.10, 'SZL': 35.10, 'NAD': 35.10, 'BWP': 44.50, 'MWK': 0.3350, 'ZWG': 22.10,
+  'ZWL': 0.0020, 'ALL': 6.30, 'XCD': 215.80, 'AMD': 1.50, 'AZN': 347.00, 'BSD': 582.82,
+  'BBD': 291.41, 'BZD': 291.41, 'BTN': 6.06, 'BYN': 178.00, 'MMK': 0.28, 'BOB': 84.50,
+  'BAM': 352.80, 'BND': 432.10, 'KHR': 0.14, 'KPW': 0.65, 'CRC': 1.13, 'CUP': 24.28,
+  'ANG': 325.60, 'GIP': 771.60, 'GTQ': 75.10, 'GYD': 2.79, 'HTG': 4.42, 'HNL': 23.50,
+  'ISK': 4.20, 'JMD': 3.75, 'KZT': 1.20, 'KGS': 6.67, 'LAK': 0.027, 'MKD': 10.20,
+  'MDL': 32.80, 'MNT': 0.17, 'NIO': 16.00, 'XPF': 5.78, 'UZS': 0.046, 'PAB': 582.82,
+  'PGK': 155.00, 'PYG': 0.079, 'HKD': 74.60, 'RSD': 5.88, 'SRD': 16.50, 'TJS': 53.50,
+  'TWD': 18.30, 'TOP': 245.00, 'TTD': 86.00, 'TMT': 166.50, 'WST': 210.00, 'SBD': 71.00,
+  'MRU': 14.68, 'PEN': 155.00, 'CLP': 0.61, 'COP': 0.14, 'ARS': 1.40, 'UYU': 14.60,
+  'VES': 16.00, 'GEL': 216.00, 'FJD': 258.00, 'VUV': 4.90,
 };
 
 function convertToXAF(amount, currency) {
@@ -1891,7 +1762,6 @@ function normalizeNelsiusStatus(providerStatus) {
   }
 }
 
-// ── POST /api/nelsiuspay/checkout ─────────────────────────────
 app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
   const uid = req.user.uid;
   const { amount, currency } = req.body;
@@ -2051,7 +1921,6 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
   });
 });
 
-// ── POST /api/nelsiuspay/status ───────────────────────────────
 app.post('/api/nelsiuspay/status', checkAuth, async (req, res) => {
   const uid = req.user.uid;
   const reference = req.body?.reference || req.query?.reference;
@@ -2152,7 +2021,6 @@ app.post('/api/nelsiuspay/status', checkAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/nelsiuspay/webhook ──────────────────────────────
 app.post('/api/nelsiuspay/webhook', async (req, res) => {
   const event = req.body?.event;
   const data  = req.body?.data;
@@ -2292,46 +2160,30 @@ async function creditUserIfNeeded(reference, userId, transData) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// NOUVEAU — Suivi des visites dashboard + Gestion des cadeaux
-// de bienvenue sécurisée (IP + téléphone + email + compte)
+// Suivi visites dashboard + Gestion sécurisée cadeaux de bienvenue
+// (Traitement MANUEL par l'admin — pas d'appel fournisseur automatique)
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * Récupère l'IP client de la manière la plus fiable possible,
- * même derrière un proxy (Render, Vercel, Cloudflare, etc.).
- */
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
   if (typeof forwarded === 'string' && forwarded.length) {
-    // x-forwarded-for peut contenir plusieurs IP séparées par des virgules
-    // (client, proxy1, proxy2...). La première est l'IP réelle du client.
     return forwarded.split(',')[0].trim();
   }
   return (req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown').toString();
 }
 
-/**
- * Hash stable d'une chaîne (IP / numéro) — 32 caractères hex.
- * On ne stocke JAMAIS l'IP en clair dans Firestore (RGPD-friendly).
- */
 function sha256Short(str) {
   return crypto.createHash('sha256').update(String(str)).digest('hex').slice(0, 32);
 }
 
-/**
- * Normalise un numéro WhatsApp : on enlève tout sauf les chiffres
- * et le premier "+" éventuel, pour éviter les doublons du type
- * "+237699853665" vs "00237699853665" vs "237 699 85 36 65".
- */
 function normalizeWhatsappNumber(input) {
   if (!input) return '';
   let digits = String(input).replace(/[^0-9]/g, '');
-  // Retire les zéros de tête "00" (format international composé)
   digits = digits.replace(/^00+/, '');
   return digits;
 }
 
-// ── POST /api/track-dashboard-visit ───────────────────────────
+// ── POST /api/track-dashboard-visit (cooldown promo = 4h) ──────
 app.post('/api/track-dashboard-visit', async (req, res) => {
   try {
     const { userId } = req.body || {};
@@ -2344,10 +2196,9 @@ app.post('/api/track-dashboard-visit', async (req, res) => {
     const lastPromoSeen = userDoc.exists ? userDoc.data().lastPromoSeen : null;
     const lastPromoMs = getTimestampMs(lastPromoSeen);
 
-    // Décision d'affichage de la promo :
-    //  - Jamais vue → afficher
-    //  - Vue il y a plus de 24h → afficher
-    const shouldShowPromo = !lastPromoMs || (Date.now() - lastPromoMs) > 24 * 60 * 60 * 1000;
+    // La modale « Canal WhatsApp + Telegram » s'affiche toutes les 4h max.
+    const PROMO_COOLDOWN_MS = 4 * 60 * 60 * 1000;
+    const shouldShowPromo = !lastPromoMs || (Date.now() - lastPromoMs) > PROMO_COOLDOWN_MS;
 
     await userRef.set({
       dashboardVisitCount: visitCount + 1,
@@ -2377,26 +2228,22 @@ app.post('/api/mark-promo-seen', async (req, res) => {
 });
 
 // ── GET /api/check-gift-eligibility ───────────────────────────
-// Utilisé par le dashboard au chargement : { eligible: true/false, reason? }
 app.get('/api/check-gift-eligibility', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
     const ip  = getClientIp(req);
     const ipHash = sha256Short('ip:' + ip);
 
-    // 1) L'utilisateur a-t-il déjà réclamé ?
     const userDoc = await db.collection('users').doc(uid).get();
     if (userDoc.exists && userDoc.data().welcomeGiftClaimed === true) {
       return res.json({ eligible: false, reason: 'already_claimed' });
     }
 
-    // 2) L'IP a-t-elle déjà servi à réclamer ?
     const ipDoc = await db.collection('welcomeGiftIps').doc(ipHash).get();
     if (ipDoc.exists) {
       return res.json({ eligible: false, reason: 'ip_already_claimed' });
     }
 
-    // 3) Compte trop ancien (> 7 jours) → plus éligible
     if (userDoc.exists) {
       const createdMs = getTimestampMs(userDoc.data().createdAt);
       if (createdMs && (Date.now() - createdMs) > 7 * 24 * 60 * 60 * 1000) {
@@ -2407,18 +2254,17 @@ app.get('/api/check-gift-eligibility', checkAuth, async (req, res) => {
     return res.json({ eligible: true });
   } catch (error) {
     console.error('Erreur /api/check-gift-eligibility:', error);
-    // En cas d'erreur, on refuse par défaut (sécurité)
     return res.json({ eligible: false, reason: 'error' });
   }
 });
 
 // ── POST /api/claim-welcome-gift ──────────────────────────────
+// Enregistre la demande en "pending". Traitement 100% manuel via /api/admin/gifts.
 app.post('/api/claim-welcome-gift', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
     const { giftType, whatsapp, platform, link } = req.body || {};
 
-    // ── Validations d'entrée ──
     if (!giftType || !['money', 'likes', 'tiktok'].includes(giftType)) {
       return res.status(400).json({ success: false, error: 'Type de cadeau invalide.' });
     }
@@ -2448,34 +2294,24 @@ app.post('/api/claim-welcome-gift', checkAuth, async (req, res) => {
     const phoneRef = db.collection('welcomeGiftPhones').doc(phoneHash);
     const emailRef = emailHash ? db.collection('welcomeGiftEmails').doc(emailHash) : null;
 
-    // ── Transaction atomique : tout ou rien ──
     await db.runTransaction(async (t) => {
       const userDoc  = await t.get(userRef);
       const ipDoc    = await t.get(ipRef);
       const phoneDoc = await t.get(phoneRef);
       const emailDoc = emailRef ? await t.get(emailRef) : null;
 
-      // a) Déjà réclamé par cet utilisateur ?
       if (userDoc.exists && userDoc.data().welcomeGiftClaimed === true) {
         throw new Error('ALREADY_CLAIMED');
       }
-
-      // b) Déjà réclamé depuis cette IP ?
       if (ipDoc.exists) {
         throw new Error('IP_ALREADY_CLAIMED');
       }
-
-      // c) Déjà réclamé avec ce numéro WhatsApp ?
       if (phoneDoc.exists) {
         throw new Error('PHONE_ALREADY_CLAIMED');
       }
-
-      // d) Déjà réclamé avec cet email ?
       if (emailDoc && emailDoc.exists) {
         throw new Error('EMAIL_ALREADY_CLAIMED');
       }
-
-      // e) Compte trop ancien ?
       if (userDoc.exists) {
         const createdMs = getTimestampMs(userDoc.data().createdAt);
         if (createdMs && (Date.now() - createdMs) > 7 * 24 * 60 * 60 * 1000) {
@@ -2483,7 +2319,6 @@ app.post('/api/claim-welcome-gift', checkAuth, async (req, res) => {
         }
       }
 
-      // ── Création des enregistrements ──
       const claimRef = db.collection('welcomeGiftClaims').doc();
       t.set(claimRef, {
         userId: uid,
@@ -2494,25 +2329,23 @@ app.post('/api/claim-welcome-gift', checkAuth, async (req, res) => {
         link: link || null,
         ipHash,
         status: 'pending',
+        provider: null,
+        providerOrderId: null,
+        adminNote: null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
       t.set(ipRef, {
-        userId: uid,
-        giftType,
+        userId: uid, giftType,
         claimedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-
       t.set(phoneRef, {
-        userId: uid,
-        giftType,
+        userId: uid, giftType,
         claimedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-
       if (emailRef) {
         t.set(emailRef, {
-          userId: uid,
-          giftType,
+          userId: uid, giftType,
           claimedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
       }
@@ -2548,7 +2381,7 @@ app.post('/api/claim-welcome-gift', checkAuth, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// ADMIN API (ZÉRO LECTURE FIRESTORE)
+// ADMIN API
 // ═══════════════════════════════════════════════════════════════
 const ADMIN_PASSWORD = '209644209644';
 function checkAdminPassword(req, res, next) {
@@ -2638,6 +2471,19 @@ async function getServicesData() {
         max: Math.max(...byProvider[p].map(s => s.finalPrice)), avg: Math.round(byProvider[p].reduce((sum, s) => sum + s.finalPrice, 0) / byProvider[p].length),
       })),
     },
+    // ✨ NOUVEAU : on expose les multiplicateurs et taux USD→XAF actuels
+    multipliers: {
+      MTP: MTP_MULTIPLIER,
+      EXO: EXO_MULTIPLIER,
+      AfriqueBoost: AFB_MULTIPLIER,
+      SMMGen: SMMGEN_MULTIPLIER,
+    },
+    rates: {
+      MTP_USD_TO_XAF,
+      EXO_USD_TO_XAF,
+      SMMGEN_USD_TO_XAF,
+    },
+    generatedAt: new Date().toISOString(),
   };
   adminCache.services = result; adminCache.lastFetch.services = Date.now();
   return result;
@@ -2647,10 +2493,105 @@ const adminRouter = express.Router();
 adminRouter.use(checkAdminPassword);
 
 adminRouter.get('/ping', (req, res) => res.json({ success: true, message: 'Admin API accessible' }));
+
 adminRouter.get('/services', async (req, res) => {
   try {
     res.json({ success: true, data: await getServicesData() });
   } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ── NOUVEAU : GET /api/admin/gifts — Liste des demandes de cadeaux ──
+adminRouter.get('/gifts', async (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+
+    const snapshot = await db.collection('welcomeGiftClaims')
+      .orderBy('createdAt', 'desc')
+      .limit(300)
+      .get();
+
+    // Récupérer les infos utilisateur en batch (pour les noms / pays / emails)
+    const claims = [];
+    const userIds = [...new Set(snapshot.docs.map(d => d.data().userId).filter(Boolean))];
+    const usersMap = {};
+
+    if (userIds.length > 0) {
+      // Firestore limite les "in" à 30 par requête → on découpe en batches
+      const batches = [];
+      for (let i = 0; i < userIds.length; i += 30) {
+        batches.push(userIds.slice(i, i + 30));
+      }
+      for (const batch of batches) {
+        try {
+          const uSnap = await db.collection('users')
+            .where(admin.firestore.FieldPath.documentId(), 'in', batch)
+            .get();
+          uSnap.forEach(d => { usersMap[d.id] = d.data(); });
+        } catch (e) {
+          console.warn('[Admin gifts] Erreur batch users:', e.message);
+        }
+      }
+    }
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const u = usersMap[data.userId] || {};
+      claims.push({
+        id: doc.id,
+        userId: data.userId || null,
+        userName: u.name || u.displayName || u.username || null,
+        email: u.email || data.email || null,
+        country: u.country || null,
+        phone: u.phone || null,
+        giftType: data.giftType || 'inconnu',
+        platform: data.platform || null,
+        link: data.link || null,
+        whatsapp: data.whatsapp || null,
+        status: data.status || 'pending',
+        adminNote: data.adminNote || null,
+        createdAt: data.createdAt || null,
+        claimedAt: data.claimedAt || null,
+      });
+    });
+
+    res.json({ success: true, claims });
+  } catch (error) {
+    console.error('Erreur /api/admin/gifts:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ── NOUVEAU : POST /api/admin/gifts/:id/status — Mettre à jour le statut ──
+adminRouter.post('/gifts/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, note } = req.body || {};
+
+    if (!['pending', 'delivered', 'rejected'].includes(status)) {
+      return res.status(400).json({ success: false, error: 'Statut invalide. Attendu : pending, delivered ou rejected.' });
+    }
+
+    const ref = db.collection('welcomeGiftClaims').doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      return res.status(404).json({ success: false, error: 'Demande de cadeau introuvable.' });
+    }
+
+    const update = {
+      status,
+      adminNote: note || null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedBy: 'admin',
+    };
+    if (status === 'delivered') update.deliveredAt = admin.firestore.FieldValue.serverTimestamp();
+
+    await ref.update(update);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Erreur /api/admin/gifts/:id/status:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
