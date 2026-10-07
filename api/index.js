@@ -248,7 +248,12 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
       const platform = detectPlatformName(service.name || '', link);
 
       transaction.set(counterRef, { lastId: nextId }, { merge: true });
-      transaction.update(freshUserRef, { balance: newBalance });
+      // ✨ PATCH : on incrémente totalOrders et totalSpent (champs dénormalisés pour stats admin)
+      transaction.update(freshUserRef, {
+        balance: newBalance,
+        totalOrders: admin.firestore.FieldValue.increment(1),
+        totalSpent: admin.firestore.FieldValue.increment(cost),
+      });
 
       const orderRef = db.collection('autoOrders').doc();
       transaction.set(orderRef, {
@@ -693,7 +698,12 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
       const platform = detectPlatformName(service.name || '', link);
 
       transaction.set(counterRef, { lastId: nextId }, { merge: true });
-      transaction.update(freshUserRef, { balance: newBalance });
+      // ✨ PATCH : champs dénormalisés
+      transaction.update(freshUserRef, {
+        balance: newBalance,
+        totalOrders: admin.firestore.FieldValue.increment(1),
+        totalSpent: admin.firestore.FieldValue.increment(cost),
+      });
 
       const orderRef = db.collection('autoOrders').doc();
       transaction.set(orderRef, {
@@ -1023,7 +1033,12 @@ app.post('/api/smmgen/order', checkAuth, async (req, res) => {
       const platform = detectPlatformName(service.name || '', link);
 
       transaction.set(counterRef, { lastId: nextId }, { merge: true });
-      transaction.update(freshUserRef, { balance: newBalance });
+      // ✨ PATCH : champs dénormalisés
+      transaction.update(freshUserRef, {
+        balance: newBalance,
+        totalOrders: admin.firestore.FieldValue.increment(1),
+        totalSpent: admin.firestore.FieldValue.increment(cost),
+      });
 
       const orderRef = db.collection('autoOrders').doc();
       transaction.set(orderRef, {
@@ -2161,9 +2176,7 @@ async function creditUserIfNeeded(reference, userId, transData) {
 
 // ═══════════════════════════════════════════════════════════════
 // Suivi visites dashboard + Gestion sécurisée cadeaux de bienvenue
-// (Traitement MANUEL par l'admin — pas d'appel fournisseur automatique)
 // ═══════════════════════════════════════════════════════════════
-
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
   if (typeof forwarded === 'string' && forwarded.length) {
@@ -2183,7 +2196,6 @@ function normalizeWhatsappNumber(input) {
   return digits;
 }
 
-// ── POST /api/track-dashboard-visit (cooldown promo = 4h) ──────
 app.post('/api/track-dashboard-visit', async (req, res) => {
   try {
     const { userId } = req.body || {};
@@ -2196,7 +2208,6 @@ app.post('/api/track-dashboard-visit', async (req, res) => {
     const lastPromoSeen = userDoc.exists ? userDoc.data().lastPromoSeen : null;
     const lastPromoMs = getTimestampMs(lastPromoSeen);
 
-    // La modale « Canal WhatsApp + Telegram » s'affiche toutes les 4h max.
     const PROMO_COOLDOWN_MS = 4 * 60 * 60 * 1000;
     const shouldShowPromo = !lastPromoMs || (Date.now() - lastPromoMs) > PROMO_COOLDOWN_MS;
 
@@ -2212,7 +2223,6 @@ app.post('/api/track-dashboard-visit', async (req, res) => {
   }
 });
 
-// ── POST /api/mark-promo-seen ─────────────────────────────────
 app.post('/api/mark-promo-seen', async (req, res) => {
   try {
     const { userId } = req.body || {};
@@ -2227,7 +2237,6 @@ app.post('/api/mark-promo-seen', async (req, res) => {
   }
 });
 
-// ── GET /api/check-gift-eligibility ───────────────────────────
 app.get('/api/check-gift-eligibility', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
@@ -2258,8 +2267,7 @@ app.get('/api/check-gift-eligibility', checkAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/claim-welcome-gift ──────────────────────────────
-// Enregistre la demande en "pending". Traitement 100% manuel via /api/admin/gifts.
+// ✨ MODIFIÉ : dénormalisation userName/email/country dans la claim
 app.post('/api/claim-welcome-gift', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
@@ -2319,10 +2327,18 @@ app.post('/api/claim-welcome-gift', checkAuth, async (req, res) => {
         }
       }
 
+      // ✨ Dénormalisation : infos user copiées dans la claim (0 lecture supplémentaire plus tard)
+      const uData = userDoc.exists ? userDoc.data() : {};
+      const denormUserName = uData.displayName || uData.username || uData.name || req.user.name || null;
+      const denormEmail    = uData.email || req.user.email || null;
+      const denormCountry  = uData.country || null;
+
       const claimRef = db.collection('welcomeGiftClaims').doc();
       t.set(claimRef, {
         userId: uid,
-        email: req.user.email || null,
+        email: denormEmail,
+        userName: denormUserName,
+        country: denormCountry,
         giftType,
         whatsapp: whatsappClean,
         platform: platform || null,
@@ -2471,7 +2487,6 @@ async function getServicesData() {
         max: Math.max(...byProvider[p].map(s => s.finalPrice)), avg: Math.round(byProvider[p].reduce((sum, s) => sum + s.finalPrice, 0) / byProvider[p].length),
       })),
     },
-    // ✨ NOUVEAU : on expose les multiplicateurs et taux USD→XAF actuels
     multipliers: {
       MTP: MTP_MULTIPLIER,
       EXO: EXO_MULTIPLIER,
@@ -2489,6 +2504,25 @@ async function getServicesData() {
   return result;
 }
 
+// ✨ CACHE MÉMOIRE ADMIN (protection quota Firestore)
+const adminMemoryCache = {
+  overview:   { data: null, expires: 0 },
+  topUsers:   { data: null, expires: 0 },
+  usersStats: { data: null, expires: 0 },
+  giftsMap:   new Map(),
+};
+
+function memCacheGet(entry) {
+  if (entry && entry.data && Date.now() < entry.expires) return entry.data;
+  return null;
+}
+function memCacheSet(entry, data, ttlMs) {
+  entry.data = data;
+  entry.expires = Date.now() + ttlMs;
+  return data;
+}
+function clearGiftsCache() { adminMemoryCache.giftsMap.clear(); }
+
 const adminRouter = express.Router();
 adminRouter.use(checkAdminPassword);
 
@@ -2502,49 +2536,34 @@ adminRouter.get('/services', async (req, res) => {
   }
 });
 
-// ── NOUVEAU : GET /api/admin/gifts — Liste des demandes de cadeaux ──
+// ✨ OPTIMISÉ : filtre serveur + cache 5 min + 0 batch fetch (dénormalisé)
 adminRouter.get('/gifts', async (req, res) => {
   try {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 
-    const snapshot = await db.collection('welcomeGiftClaims')
-      .orderBy('createdAt', 'desc')
-      .limit(300)
-      .get();
+    const status = (req.query.status || 'pending').toLowerCase();
+    const limit  = Math.min(Math.max(parseInt(req.query.limit) || 50, 10), 100);
+    const validStatuses = ['pending', 'delivered', 'rejected', 'all'];
+    const useStatus = validStatuses.includes(status) ? status : 'pending';
 
-    // Récupérer les infos utilisateur en batch (pour les noms / pays / emails)
-    const claims = [];
-    const userIds = [...new Set(snapshot.docs.map(d => d.data().userId).filter(Boolean))];
-    const usersMap = {};
-
-    if (userIds.length > 0) {
-      // Firestore limite les "in" à 30 par requête → on découpe en batches
-      const batches = [];
-      for (let i = 0; i < userIds.length; i += 30) {
-        batches.push(userIds.slice(i, i + 30));
-      }
-      for (const batch of batches) {
-        try {
-          const uSnap = await db.collection('users')
-            .where(admin.firestore.FieldPath.documentId(), 'in', batch)
-            .get();
-          uSnap.forEach(d => { usersMap[d.id] = d.data(); });
-        } catch (e) {
-          console.warn('[Admin gifts] Erreur batch users:', e.message);
-        }
-      }
+    const cacheKey = `${useStatus}:${limit}`;
+    const cached = adminMemoryCache.giftsMap.get(cacheKey);
+    if (cached && Date.now() < cached.expires) {
+      return res.json({ success: true, claims: cached.data, cached: true, ttl: Math.round((cached.expires - Date.now()) / 1000) });
     }
 
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      const u = usersMap[data.userId] || {};
-      claims.push({
-        id: doc.id,
+    let query = db.collection('welcomeGiftClaims').orderBy('createdAt', 'desc');
+    if (useStatus !== 'all') query = query.where('status', '==', useStatus);
+    const snapshot = await query.limit(limit).get();
+
+    const claims = snapshot.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
         userId: data.userId || null,
-        userName: u.name || u.displayName || u.username || null,
-        email: u.email || data.email || null,
-        country: u.country || null,
-        phone: u.phone || null,
+        userName: data.userName || null,
+        email: data.email || null,
+        country: data.country || null,
         giftType: data.giftType || 'inconnu',
         platform: data.platform || null,
         link: data.link || null,
@@ -2552,18 +2571,20 @@ adminRouter.get('/gifts', async (req, res) => {
         status: data.status || 'pending',
         adminNote: data.adminNote || null,
         createdAt: data.createdAt || null,
-        claimedAt: data.claimedAt || null,
-      });
+      };
     });
 
-    res.json({ success: true, claims });
+    const expires = Date.now() + 5 * 60 * 1000;
+    adminMemoryCache.giftsMap.set(cacheKey, { data: claims, expires });
+
+    res.json({ success: true, claims, cached: false, reads: claims.length + 1 });
   } catch (error) {
     console.error('Erreur /api/admin/gifts:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ── NOUVEAU : POST /api/admin/gifts/:id/status — Mettre à jour le statut ──
+// ✨ MODIFIÉ : invalide le cache après changement de statut
 adminRouter.post('/gifts/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
@@ -2589,11 +2610,142 @@ adminRouter.post('/gifts/:id/status', async (req, res) => {
 
     await ref.update(update);
 
+    clearGiftsCache(); // ✨ Invalide tout le cache cadeaux
+
     res.json({ success: true });
   } catch (error) {
     console.error('Erreur /api/admin/gifts/:id/status:', error);
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+// ✨ NOUVELLE ROUTE : /api/admin/overview — 7 lectures, cache 15 min
+adminRouter.get('/overview', async (req, res) => {
+  try {
+    const cached = memCacheGet(adminMemoryCache.overview);
+    if (cached) return res.json({ success: true, data: cached, cached: true });
+
+    const [
+      usersCount, ordersCount, pendingOrdersCount, giftsPendingCount,
+      revenueAgg, newUsersAgg, giftsLateAgg
+    ] = await Promise.all([
+      db.collection('users').count().get(),
+      db.collection('autoOrders').count().get(),
+      db.collection('autoOrders').where('status', '==', 'En attente').count().get(),
+      db.collection('welcomeGiftClaims').where('status', '==', 'pending').count().get(),
+      db.collection('autoOrders').aggregate({ total: admin.firestore.AggregateField.sum('priceXAF') }).get(),
+      db.collection('users').where('createdAt', '>=', admin.firestore.Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))).count().get(),
+      db.collection('welcomeGiftClaims').where('status', '==', 'pending').where('createdAt', '<', admin.firestore.Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000))).count().get(),
+    ]);
+
+    const data = {
+      totalUsers:    usersCount.data().count,
+      newUsers7d:    newUsersAgg.data().count,
+      totalOrders:   ordersCount.data().count,
+      pendingOrders: pendingOrdersCount.data().count,
+      totalRevenue:  revenueAgg.data().total || 0,
+      giftsPending:  giftsPendingCount.data().count,
+      giftsLate:     giftsLateAgg.data().count,
+      multipliers: {
+        MTP: MTP_MULTIPLIER, EXO: EXO_MULTIPLIER,
+        AfriqueBoost: AFB_MULTIPLIER, SMMGen: SMMGEN_MULTIPLIER,
+      },
+      generatedAt: new Date().toISOString(),
+    };
+
+    memCacheSet(adminMemoryCache.overview, data, 15 * 60 * 1000);
+    res.json({ success: true, data, cached: false, reads: 7 });
+  } catch (error) {
+    console.error('Erreur /overview:', error);
+    res.json({
+      success: true,
+      data: {
+        totalUsers: 0, newUsers7d: 0, totalOrders: 0, pendingOrders: 0,
+        totalRevenue: 0, giftsPending: 0, giftsLate: 0,
+        multipliers: { MTP: MTP_MULTIPLIER, EXO: EXO_MULTIPLIER, AfriqueBoost: AFB_MULTIPLIER, SMMGen: SMMGEN_MULTIPLIER },
+      },
+      cached: false,
+    });
+  }
+});
+
+// ✨ NOUVELLE ROUTE : /api/admin/top-users — 20 lectures max, cache 60 min
+adminRouter.get('/top-users', async (req, res) => {
+  try {
+    const cached = memCacheGet(adminMemoryCache.topUsers);
+    if (cached) return res.json({ success: true, users: cached, cached: true });
+
+    let usersSnap;
+    try {
+      usersSnap = await db.collection('users').orderBy('totalOrders', 'desc').limit(20).get();
+    } catch {
+      usersSnap = await db.collection('users').orderBy('createdAt', 'desc').limit(20).get();
+    }
+
+    const users = usersSnap.docs.map(d => {
+      const u = d.data();
+      return {
+        id: d.id,
+        name: u.displayName || u.username || u.name || 'Anonyme',
+        email: u.email || null,
+        balance: u.balance || 0,
+        country: u.country || null,
+        createdAt: u.createdAt || null,
+        orderCount: u.totalOrders || 0,
+        totalSpent: u.totalSpent || 0,
+      };
+    });
+
+    users.sort((a, b) => (b.orderCount - a.orderCount) || (b.totalSpent - a.totalSpent));
+
+    memCacheSet(adminMemoryCache.topUsers, users, 60 * 60 * 1000);
+    res.json({ success: true, users, cached: false, reads: usersSnap.size });
+  } catch (error) {
+    console.error('Erreur /top-users:', error);
+    res.json({ success: true, users: [] });
+  }
+});
+
+// ✨ NOUVELLE ROUTE : /api/admin/users-stats — 3 lectures, cache 60 min
+adminRouter.get('/users-stats', async (req, res) => {
+  try {
+    const cached = memCacheGet(adminMemoryCache.usersStats);
+    if (cached) return res.json({ success: true, ...cached, cached: true });
+
+    const [totalRes, newRes, balanceAgg] = await Promise.all([
+      db.collection('users').count().get(),
+      db.collection('users').where('createdAt', '>=', admin.firestore.Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))).count().get(),
+      db.collection('users').aggregate({ total: admin.firestore.AggregateField.sum('balance') }).get(),
+    ]);
+
+    const totalUsers = totalRes.data().count;
+    const totalBalance = balanceAgg.data().total || 0;
+    const avgBalance = totalUsers > 0 ? Math.round(totalBalance / totalUsers) : 0;
+
+    const payload = {
+      stats: {
+        totalUsers,
+        newUsers7d: newRes.data().count,
+        totalBalance,
+        avgBalance,
+      },
+    };
+
+    memCacheSet(adminMemoryCache.usersStats, payload, 60 * 60 * 1000);
+    res.json({ success: true, ...payload, cached: false, reads: 3 });
+  } catch (error) {
+    console.error('Erreur /users-stats:', error);
+    res.json({ success: true, stats: { totalUsers: 0, newUsers7d: 0, totalBalance: 0, avgBalance: 0 } });
+  }
+});
+
+// ✨ NOUVELLE ROUTE : /api/admin/cache/clear — bouton "Forcer le rechargement"
+adminRouter.post('/cache/clear', (req, res) => {
+  adminMemoryCache.overview.data = null;   adminMemoryCache.overview.expires = 0;
+  adminMemoryCache.topUsers.data = null;   adminMemoryCache.topUsers.expires = 0;
+  adminMemoryCache.usersStats.data = null; adminMemoryCache.usersStats.expires = 0;
+  adminMemoryCache.giftsMap.clear();
+  res.json({ success: true, message: 'Cache vidé.' });
 });
 
 app.use('/api/admin', adminRouter);
