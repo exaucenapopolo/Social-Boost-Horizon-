@@ -19,6 +19,7 @@
             --purple: #a78bfa;
             --text-light: #e2e8f0;
             --border: rgba(255, 255, 255, 0.08);
+            --wa: #25D366;
         }
         * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
         body { margin: 0; background: var(--bg-main); color: var(--text-light); }
@@ -50,6 +51,11 @@
         .btn-success { border-color: var(--green); color: var(--green); background: rgba(34, 197, 94, 0.1); }
         .btn-success:hover { background: var(--green); color: white; }
         .btn-small { padding: 5px 10px; font-size: 0.78rem; border-radius: 6px; }
+
+        /* Bouton WhatsApp */
+        .btn-wa { border-color: var(--wa); color: var(--wa); background: rgba(37, 211, 102, 0.1); }
+        .btn-wa:hover { background: var(--wa); color: white; }
+        .btn-wa:disabled { opacity: 0.35; cursor: not-allowed; filter: grayscale(0.5); }
 
         /* Bandeau des multiplicateurs */
         .multipliers-bar {
@@ -100,6 +106,173 @@
         .link-cell { max-width: 280px; word-break: break-all; font-size: 0.78rem; color: var(--blue); text-decoration: none; }
         .link-cell:hover { text-decoration: underline; }
         .actions-cell { display: flex; gap: 6px; flex-wrap: wrap; }
+
+        /* Badge d'âge / retard */
+        .age-badge {
+            display: inline-flex; align-items: center; gap: 3px;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            margin-left: 5px;
+            background: rgba(148, 163, 184, 0.15);
+            color: #94a3b8;
+        }
+        .age-badge.old { background: rgba(255, 71, 87, 0.2); color: var(--red); animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.55; }
+        }
+
+        /* ═══════════ MODAL WHATSAPP ═══════════ */
+        .wa-modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            display: none; align-items: center; justify-content: center;
+            z-index: 2000; padding: 20px;
+            backdrop-filter: blur(6px);
+        }
+        .wa-modal-overlay.active { display: flex; }
+        .wa-modal {
+            background: linear-gradient(135deg, rgba(20, 30, 50, 0.98), rgba(15, 25, 45, 0.98));
+            border: 1px solid rgba(37, 211, 102, 0.4);
+            border-radius: 16px;
+            max-width: 680px;
+            width: 100%;
+            max-height: 92vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+            animation: waSlideIn 0.25s ease-out;
+        }
+        @keyframes waSlideIn {
+            from { transform: translateY(20px) scale(0.97); opacity: 0; }
+            to   { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        .wa-modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 18px 22px;
+            border-bottom: 1px solid var(--border);
+            position: sticky; top: 0;
+            background: rgba(15, 25, 45, 0.98);
+            z-index: 2;
+        }
+        .wa-modal-header h3 {
+            margin: 0; color: var(--wa); font-size: 1.1rem;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .wa-modal-close {
+            background: transparent; border: none; color: #94a3b8;
+            font-size: 1.8rem; cursor: pointer; line-height: 1;
+            padding: 0 8px; transition: 0.2s;
+        }
+        .wa-modal-close:hover { color: var(--red); transform: scale(1.15); }
+        .wa-modal-body { padding: 20px 22px; }
+        .wa-recipient-info {
+            background: rgba(37, 211, 102, 0.06);
+            border: 1px solid rgba(37, 211, 102, 0.25);
+            padding: 14px 16px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            line-height: 1.7;
+        }
+        .wa-recipient-info .name { color: var(--wa); font-weight: 700; font-size: 1.02rem; }
+        .wa-delay-warning {
+            background: rgba(255, 200, 60, 0.1);
+            border: 1px solid rgba(255, 200, 60, 0.4);
+            color: #fbbf24;
+            padding: 11px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.85rem;
+            display: none;
+            line-height: 1.5;
+        }
+        .wa-types { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
+        .wa-type-option {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 12px 15px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .wa-type-option:hover { border-color: var(--wa); background: rgba(37, 211, 102, 0.05); }
+        .wa-type-option.selected {
+            border-color: var(--wa);
+            background: rgba(37, 211, 102, 0.1);
+            box-shadow: 0 0 0 1px var(--wa);
+        }
+        .wa-type-option input[type="radio"] {
+            margin-top: 3px;
+            accent-color: var(--wa);
+            transform: scale(1.3);
+            cursor: pointer;
+        }
+        .wa-type-option > div { flex: 1; }
+        .wa-type-option strong { color: var(--text-light); display: block; margin-bottom: 3px; font-size: 0.9rem; }
+        .wa-type-option small { color: #94a3b8; font-size: 0.78rem; line-height: 1.4; display: block; }
+        .wa-preview-label {
+            font-size: 0.75rem;
+            color: var(--gold);
+            margin-bottom: 7px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        #waPreview, #waCustomText {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid var(--border);
+            color: #a0e0b0;
+            padding: 13px;
+            border-radius: 8px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.83rem;
+            line-height: 1.55;
+            resize: vertical;
+            min-height: 200px;
+            outline: none;
+            white-space: pre-wrap;
+        }
+        #waCustomText { color: var(--text-light); display: none; }
+        #waCustomText:focus { border-color: var(--wa); }
+        .wa-modal-footer {
+            display: flex; justify-content: flex-end; gap: 10px;
+            padding: 16px 22px;
+            border-top: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.25);
+            position: sticky; bottom: 0;
+            flex-wrap: wrap;
+        }
+        .btn-wa-primary {
+            background: linear-gradient(135deg, #128C7E, #25D366);
+            color: white; border: none;
+            padding: 11px 24px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: inline-flex; align-items: center; gap: 9px;
+            transition: 0.2s;
+            box-shadow: 0 4px 12px rgba(37, 211, 102, 0.25);
+        }
+        .btn-wa-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(37, 211, 102, 0.45); }
+        .btn-wa-primary:active { transform: translateY(0); }
+        .btn-cancel {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: #94a3b8;
+            padding: 11px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: 0.2s;
+        }
+        .btn-cancel:hover { border-color: var(--red); color: var(--red); }
     </style>
 </head>
 <body>
@@ -109,7 +282,7 @@
         <i class="fas fa-shield-halved" style="font-size: 3rem; color: var(--gold); margin-bottom: 15px;"></i>
         <h2>Accès Direction</h2>
         <p style="color:#94a3b8;">Veuillez entrer la clé de sécurité.</p>
-        <input type="password" id="adminPass" placeholder="Mot de passe">
+        <input type="password" id="adminPass" placeholder="Mot de passe" onkeydown="if(event.key==='Enter') unlock()">
         <button class="btn-primary" onclick="unlock()">Déverrouiller</button>
         <div id="loginError" class="error-msg">Clé incorrecte.</div>
     </div>
@@ -175,7 +348,7 @@
         </div>
     </div>
 
-    <!-- ═══════════════ NOUVELLE SECTION : Demandes de cadeaux de bienvenue ═══════════════ -->
+    <!-- ═══════════════ SECTION : Demandes de cadeaux de bienvenue ═══════════════ -->
     <div class="section">
         <div class="section-title">
             🎁 Demandes de cadeaux de bienvenue
@@ -228,12 +401,71 @@
     </div>
 </div>
 
+<!-- ══════════════ MODAL WHATSAPP ══════════════ -->
+<div id="waModal" class="wa-modal-overlay" onclick="if(event.target===this) closeWaModal()">
+    <div class="wa-modal">
+        <div class="wa-modal-header">
+            <h3><i class="fab fa-whatsapp"></i> Assistance WhatsApp</h3>
+            <button class="wa-modal-close" onclick="closeWaModal()" title="Fermer">&times;</button>
+        </div>
+        <div class="wa-modal-body">
+            <div class="wa-recipient-info" id="waRecipientInfo"></div>
+            <div class="wa-delay-warning" id="waDelayWarning"></div>
+
+            <div class="wa-types">
+                <label class="wa-type-option" data-type="confirmation">
+                    <input type="radio" name="waType" value="confirmation" onchange="updateWaPreview()">
+                    <div>
+                        <strong>🔍 Demander confirmation du lien</strong>
+                        <small>Vérifier avec l'utilisateur que le lien fourni est bien celui à créditer. S'il ne confirme pas, il renvoie le bon lien.</small>
+                    </div>
+                </label>
+                <label class="wa-type-option" data-type="launched">
+                    <input type="radio" name="waType" value="launched" onchange="updateWaPreview()">
+                    <div>
+                        <strong>🚀 Cadeau déjà lancé / en cours</strong>
+                        <small>Informer l'utilisateur que sa commande a été prise en charge et qu'elle est en cours de traitement.</small>
+                    </div>
+                </label>
+                <label class="wa-type-option" data-type="delay">
+                    <input type="radio" name="waType" value="delay" onchange="updateWaPreview()">
+                    <div>
+                        <strong>🙏 Excuses pour le retard</strong>
+                        <small>Message automatique recommandé lorsque la demande a plus d'une journée sans traitement.</small>
+                    </div>
+                </label>
+                <label class="wa-type-option" data-type="custom">
+                    <input type="radio" name="waType" value="custom" onchange="updateWaPreview()">
+                    <div>
+                        <strong>✏️ Message personnalisé</strong>
+                        <small>Rédigez vous-même votre message ci-dessous.</small>
+                    </div>
+                </label>
+            </div>
+
+            <div class="wa-preview-label">
+                <i class="fas fa-eye"></i> Aperçu du message
+                <span id="waCharCount" style="margin-left:auto;color:#94a3b8;font-weight:400;text-transform:none;letter-spacing:0;"></span>
+            </div>
+            <textarea id="waPreview" readonly></textarea>
+            <textarea id="waCustomText" placeholder="Écrivez votre message personnalisé ici..." oninput="updateWaPreview(true)"></textarea>
+        </div>
+        <div class="wa-modal-footer">
+            <button class="btn-cancel" onclick="closeWaModal()">Annuler</button>
+            <button class="btn-wa-primary" onclick="sendWhatsApp()">
+                <i class="fab fa-whatsapp"></i> Ouvrir WhatsApp
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
     const ADMIN_PASS = '209644209644';
     let token = sessionStorage.getItem('sbh_admin_token');
     let allServices = [];
     let allGifts = [];
     let currentMultipliers = null;
+    let currentWaGift = null;
 
     if (token) {
         document.getElementById('authOverlay').style.display = 'none';
@@ -313,7 +545,6 @@
             document.getElementById('serviceStats').textContent =
                 `Total: ${stats.total || 0} | Min: ${stats.minPrice || 0} FCFA | Max: ${stats.maxPrice || 0} FCFA | Moy: ${stats.avgPrice || 0} FCFA`;
 
-            // Affichage des multiplicateurs
             currentMultipliers = data.data.multipliers || null;
             const m = currentMultipliers || {};
             document.getElementById('multMTP').textContent = m.MTP ?? '–';
@@ -405,6 +636,27 @@
         return d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     }
 
+    // Calcule l'âge (en jours) d'une demande à partir de son timestamp — 100% côté client
+    function getGiftAgeDays(ts) {
+        if (!ts) return null;
+        let d;
+        if (typeof ts === 'object' && ts._seconds) d = new Date(ts._seconds * 1000);
+        else if (typeof ts === 'object' && ts.seconds) d = new Date(ts.seconds * 1000);
+        else d = new Date(ts);
+        if (isNaN(d.getTime())) return null;
+        const diffMs = Date.now() - d.getTime();
+        return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+    }
+
+    // Renvoie l'âge court affiché (ex: "auj.", "hier", "3j")
+    function shortAgeLabel(ts) {
+        const days = getGiftAgeDays(ts);
+        if (days === null) return '';
+        if (days === 0) return "auj.";
+        if (days === 1) return "hier";
+        return days + "j";
+    }
+
     function giftTypeLabel(g) {
         if (g.giftType === 'money') return `<span class="badge badge-money">💰 25 FCFA</span>`;
         if (g.giftType === 'likes') return `<span class="badge badge-likes">❤️ 25 Likes <br><small>${g.platform || ''}</small></span>`;
@@ -412,10 +664,33 @@
         return `<span class="badge">${g.giftType}</span>`;
     }
 
+    // Version texte simple (sans HTML) pour le message WhatsApp / PDF
+    function giftTypePlain(g) {
+        if (g.giftType === 'money') return '25 FCFA';
+        if (g.giftType === 'likes') return `25 Likes${g.platform ? ' (' + g.platform + ')' : ''}`;
+        if (g.giftType === 'tiktok') return '1000 Vues TikTok';
+        return g.giftType || 'Cadeau';
+    }
+
     function statusLabel(s) {
         if (s === 'delivered') return `<span class="badge badge-delivered">✅ Livré</span>`;
         if (s === 'rejected')  return `<span class="badge badge-rejected">❌ Rejeté</span>`;
         return `<span class="badge badge-pending">⏳ En attente</span>`;
+    }
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function escapeAttr(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
     }
 
     function renderGifts(gifts) {
@@ -427,29 +702,46 @@
         }
         gifts.forEach(g => {
             const userDisplay = g.userName
-                ? `${g.userName}${g.email ? '<br><small style="color:#94a3b8;">' + g.email + '</small>' : ''}`
-                : (g.email || g.userId || 'Inconnu');
+                ? `${escapeHtml(g.userName)}${g.email ? '<br><small style="color:#94a3b8;">' + escapeHtml(g.email) + '</small>' : ''}`
+                : escapeHtml(g.email || g.userId || 'Inconnu');
 
             const linkOrWa = [];
-            if (g.link) linkOrWa.push(`<a href="${g.link}" target="_blank" class="link-cell">${g.link}</a>`);
-            if (g.whatsapp) linkOrWa.push(`<div style="margin-top:4px;font-size:0.8rem;color:#94a3b8;">📱 +${g.whatsapp} <button class="btn-action btn-small" onclick="copyText('${g.whatsapp}')"><i class="fas fa-copy"></i></button></div>`);
+            if (g.link) linkOrWa.push(`<a href="${escapeAttr(g.link)}" target="_blank" rel="noopener" class="link-cell">${escapeHtml(g.link)}</a>`);
+            if (g.whatsapp) {
+                linkOrWa.push(`<div style="margin-top:4px;font-size:0.8rem;color:#94a3b8;">📱 +${escapeHtml(g.whatsapp)} <button class="btn-action btn-small" onclick="copyText('${escapeAttr(g.whatsapp)}')"><i class="fas fa-copy"></i></button></div>`);
+            }
+
+            // Badge d'âge / retard
+            const ageDays = getGiftAgeDays(g.createdAt);
+            const ageLabel = shortAgeLabel(g.createdAt);
+            const isOldPending = (g.status === 'pending' && ageDays !== null && ageDays >= 1);
+            const ageBadgeHtml = ageLabel
+                ? `<span class="age-badge ${isOldPending ? 'old' : ''}" title="${isOldPending ? 'Demande en retard de ' + ageDays + ' jour(s)' : 'Âge de la demande'}">${ageLabel}</span>`
+                : '';
+
+            const dateCell = `<td style="font-size:0.78rem;color:#94a3b8;white-space:nowrap;">${formatDate(g.createdAt)}${ageBadgeHtml}</td>`;
+
+            // Bouton WhatsApp (désactivé si pas de numéro)
+            const waDisabled = !g.whatsapp;
+            const waBtn = `<button class="btn-action btn-small btn-wa" ${waDisabled ? 'disabled title="Aucun numéro WhatsApp"' : ''} onclick="${waDisabled ? '' : "openWhatsAppModal('" + escapeAttr(g.id) + "')"}"><i class="fab fa-whatsapp"></i> WhatsApp</button>`;
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td style="font-size:0.78rem;color:#94a3b8;">${formatDate(g.createdAt)}</td>
+                ${dateCell}
                 <td style="font-size:0.85rem;">${userDisplay}</td>
-                <td>${g.country || '–'}</td>
+                <td>${escapeHtml(g.country || '–')}</td>
                 <td>${giftTypeLabel(g)}</td>
                 <td>${linkOrWa.length ? linkOrWa.join('') : '–'}</td>
                 <td>${statusLabel(g.status)}</td>
                 <td>
                     <div class="actions-cell">
-                        ${g.link ? `<button class="btn-action btn-small" onclick="copyText('${g.link.replace(/'/g,"\\'")}')"><i class="fas fa-copy"></i> Lien</button>` : ''}
+                        ${waBtn}
+                        ${g.link ? `<button class="btn-action btn-small" onclick="copyText('${escapeAttr(g.link)}')"><i class="fas fa-copy"></i> Lien</button>` : ''}
                         ${g.status === 'pending' ? `
-                            <button class="btn-action btn-small btn-success" onclick="setGiftStatus('${g.id}','delivered')"><i class="fas fa-check"></i> Livré</button>
-                            <button class="btn-action btn-small btn-danger" onclick="setGiftStatus('${g.id}','rejected')"><i class="fas fa-xmark"></i> Rejeter</button>
+                            <button class="btn-action btn-small btn-success" onclick="setGiftStatus('${escapeAttr(g.id)}','delivered')"><i class="fas fa-check"></i> Livré</button>
+                            <button class="btn-action btn-small btn-danger" onclick="setGiftStatus('${escapeAttr(g.id)}','rejected')"><i class="fas fa-xmark"></i> Rejeter</button>
                         ` : `
-                            <button class="btn-action btn-small" onclick="setGiftStatus('${g.id}','pending')"><i class="fas fa-rotate-left"></i> Réouvrir</button>
+                            <button class="btn-action btn-small" onclick="setGiftStatus('${escapeAttr(g.id)}','pending')"><i class="fas fa-rotate-left"></i> Réouvrir</button>
                         `}
                     </div>
                 </td>
@@ -461,8 +753,9 @@
         const pending = gifts.filter(g => g.status === 'pending').length;
         const delivered = gifts.filter(g => g.status === 'delivered').length;
         const rejected = gifts.filter(g => g.status === 'rejected').length;
+        const late = gifts.filter(g => g.status === 'pending' && (getGiftAgeDays(g.createdAt) || 0) >= 1).length;
         document.getElementById('giftStats').textContent =
-            `Total affiché : ${gifts.length} | ⏳ En attente : ${pending} | ✅ Livrés : ${delivered} | ❌ Rejetés : ${rejected}`;
+            `Total affiché : ${gifts.length} | ⏳ En attente : ${pending} | ✅ Livrés : ${delivered} | ❌ Rejetés : ${rejected}${late ? ' | 🔴 En retard : ' + late : ''}`;
     }
 
     function filterGifts() {
@@ -500,7 +793,6 @@
                 body: JSON.stringify({ status })
             });
             if (r.success) {
-                // Mise à jour locale pour éviter un reload complet
                 const g = allGifts.find(x => x.id === id);
                 if (g) g.status = status;
                 filterGifts();
@@ -514,13 +806,183 @@
 
     function copyText(txt) {
         navigator.clipboard.writeText(txt).then(() => {
-            // Petit feedback visuel
             const toast = document.createElement('div');
             toast.textContent = '✅ Copié !';
             toast.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#22c55e;color:white;padding:10px 20px;border-radius:8px;z-index:9999;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.4);';
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 1500);
         }).catch(() => alert('Copie impossible. Sélectionnez manuellement.'));
+    }
+
+    // ══════════════════ WHATSAPP SUPPORT ══════════════════
+    function cleanWhatsAppNumber(num) {
+        if (!num) return '';
+        return String(num).replace(/[^0-9]/g, '');
+    }
+
+    function openWhatsAppModal(giftId) {
+        const g = allGifts.find(x => x.id === giftId);
+        if (!g) return;
+        if (!g.whatsapp) {
+            alert("Aucun numéro WhatsApp enregistré pour cet utilisateur.");
+            return;
+        }
+        currentWaGift = g;
+
+        // Bloc destinataire
+        const infoEl = document.getElementById('waRecipientInfo');
+        infoEl.innerHTML = `
+            <div class="name"><i class="fas fa-user"></i> ${escapeHtml(g.userName || 'Utilisateur')}</div>
+            ${g.country ? `<div style="color:#94a3b8;font-size:0.85rem;">🌍 ${escapeHtml(g.country)}</div>` : ''}
+            <div style="color:#94a3b8;font-size:0.85rem;">📱 +${escapeHtml(g.whatsapp)}</div>
+            <div style="color:#94a3b8;font-size:0.85rem;">🎁 Cadeau : <strong style="color:var(--text-light);">${escapeHtml(giftTypePlain(g))}</strong></div>
+            <div style="color:#94a3b8;font-size:0.85rem;">📅 Demandé le : ${escapeHtml(formatDate(g.createdAt))}</div>
+            ${g.link ? `<div style="color:#94a3b8;font-size:0.85rem;">🔗 Lien : <span style="color:var(--blue);word-break:break-all;">${escapeHtml(g.link)}</span></div>` : ''}
+        `;
+
+        // Détection du retard (>= 1 jour)
+        const ageDays = getGiftAgeDays(g.createdAt) || 0;
+        const warnEl = document.getElementById('waDelayWarning');
+        if (g.status === 'pending' && ageDays >= 1) {
+            warnEl.style.display = 'block';
+            warnEl.innerHTML = `<i class="fas fa-triangle-exclamation"></i> Cette demande est en attente depuis <strong>${ageDays} jour${ageDays > 1 ? 's' : ''}</strong>. Il est fortement recommandé d'utiliser le message « Excuses pour le retard » pour rassurer l'utilisateur.`;
+        } else {
+            warnEl.style.display = 'none';
+        }
+
+        // Sélection recommandée
+        let recommended = 'launched';
+        if (g.status === 'pending' && ageDays >= 1) recommended = 'delay';
+        else if (g.status === 'pending') recommended = 'confirmation';
+
+        document.querySelectorAll('input[name="waType"]').forEach(r => {
+            r.checked = (r.value === recommended);
+        });
+        updateTypeHighlight();
+
+        // Reset custom
+        document.getElementById('waCustomText').value = '';
+        document.getElementById('waCustomText').style.display = 'none';
+
+        updateWaPreview();
+        document.getElementById('waModal').classList.add('active');
+    }
+
+    function closeWaModal() {
+        document.getElementById('waModal').classList.remove('active');
+        currentWaGift = null;
+    }
+
+    function updateTypeHighlight() {
+        document.querySelectorAll('.wa-type-option').forEach(el => {
+            const radio = el.querySelector('input[type="radio"]');
+            if (radio && radio.checked) el.classList.add('selected');
+            else el.classList.remove('selected');
+        });
+    }
+
+    function buildWaMessage(g, type) {
+        const name = g.userName || 'cher client';
+        const dateStr = formatDate(g.createdAt);
+        const gift = giftTypePlain(g);
+        const link = g.link || '(non fourni)';
+        const country = g.country ? `🌍 Pays : ${g.country}\n` : '';
+        const ageDays = getGiftAgeDays(g.createdAt) || 0;
+
+        if (type === 'confirmation') {
+            return `Bonjour ${name} 👋
+
+Nous sommes l'équipe *Social Boost Horizon*.
+
+Nous avons bien reçu votre demande de cadeau de bienvenue :
+🎁 Cadeau : ${gift}
+📅 Demandé le : ${dateStr}
+${country}
+Avant de lancer votre cadeau, merci de bien vouloir *CONFIRMER* que ce lien est bien celui à créditer :
+🔗 ${link}
+
+✅ Répondez *OUI* pour confirmer
+✏️ Ou envoyez-nous le bon lien si celui-ci n'est pas correct.
+
+Merci de votre confiance !
+— *Social Boost Horizon*`;
+        }
+
+        if (type === 'launched') {
+            return `Bonjour ${name} 👋
+
+Bonne nouvelle ! 🎉 Votre cadeau de bienvenue est *en cours de traitement*.
+
+🎁 Cadeau : ${gift}
+📅 Demandé le : ${dateStr}
+${country}${g.link ? `🔗 Lien crédité : ${g.link}\n` : ''}
+Notre équipe traite votre demande et vous recevrez votre cadeau très prochainement. ⏳
+
+Merci de votre patience !
+— *Social Boost Horizon*`;
+        }
+
+        if (type === 'delay') {
+            return `Bonjour ${name} 👋
+
+Nous vous prions de bien vouloir nous excuser pour le retard concernant votre cadeau de bienvenue. 🙏
+
+🎁 Cadeau : ${gift}
+📅 Demandé le : ${dateStr} (il y a ${ageDays} jour${ageDays > 1 ? 's' : ''})
+${country}${g.link ? `🔗 Lien : ${g.link}\n` : ''}
+Nous traitons votre demande en *PRIORITÉ* et vous recevrez votre cadeau très prochainement.
+
+Merci de votre compréhension et de votre confiance.
+— *Social Boost Horizon*`;
+        }
+
+        return '';
+    }
+
+    function updateWaPreview(fromCustom = false) {
+        if (!currentWaGift) return;
+        const selected = document.querySelector('input[name="waType"]:checked');
+        const type = selected ? selected.value : 'confirmation';
+        updateTypeHighlight();
+
+        const previewEl = document.getElementById('waPreview');
+        const customEl = document.getElementById('waCustomText');
+
+        if (type === 'custom') {
+            customEl.style.display = 'block';
+            previewEl.value = customEl.value || '(Saisissez votre message personnalisé ci-dessus)';
+        } else {
+            customEl.style.display = 'none';
+            previewEl.value = buildWaMessage(currentWaGift, type);
+        }
+
+        // Compteur de caractères
+        const len = (type === 'custom' ? customEl.value : previewEl.value).length;
+        document.getElementById('waCharCount').textContent = `${len} caractère${len > 1 ? 's' : ''}`;
+    }
+
+    function sendWhatsApp() {
+        if (!currentWaGift) return;
+        const selected = document.querySelector('input[name="waType"]:checked');
+        const type = selected ? selected.value : 'confirmation';
+
+        let msg;
+        if (type === 'custom') {
+            msg = document.getElementById('waCustomText').value.trim();
+            if (!msg) { alert('Veuillez saisir votre message personnalisé.'); return; }
+        } else {
+            msg = buildWaMessage(currentWaGift, type);
+        }
+
+        const num = cleanWhatsAppNumber(currentWaGift.whatsapp);
+        if (!num || num.length < 6) {
+            alert("Numéro WhatsApp invalide.");
+            return;
+        }
+
+        const url = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+        window.open(url, '_blank');
+        closeWaModal();
     }
 
     // ══════════════════ EXPORT PDF ══════════════════
@@ -540,7 +1002,6 @@
             doc.text("Rapport des Services - Social Boost Horizon", 14, 20);
             doc.setFontSize(10); doc.setTextColor(100);
 
-            // Bandeau multiplicateurs
             const m = currentMultipliers || {};
             doc.text(
                 `Multiplicateurs → MTP: ×${m.MTP ?? '?'} | EXO: ×${m.EXO ?? '?'} | AFB: ×${m.AfriqueBoost ?? '?'} | SMMGen: ×${m.SMMGen ?? '?'}`,
@@ -575,18 +1036,23 @@
             doc.setFontSize(10); doc.setTextColor(100);
             doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
 
-            const tableColumn = ["Date", "Utilisateur", "Email", "Pays", "Type", "Plateforme", "Lien", "WhatsApp", "Statut"];
-            const tableRows = allGifts.map(g => [
-                formatDate(g.createdAt),
-                g.userName || '–',
-                g.email || '–',
-                g.country || '–',
-                g.giftType,
-                g.platform || '–',
-                (g.link || '').substring(0, 50),
-                g.whatsapp ? '+' + g.whatsapp : '–',
-                g.status,
-            ]);
+            const tableColumn = ["Date", "Âge", "Utilisateur", "Email", "Pays", "Type", "Plateforme", "Lien", "WhatsApp", "Statut"];
+            const tableRows = allGifts.map(g => {
+                const age = getGiftAgeDays(g.createdAt);
+                const ageStr = age === null ? '–' : (age === 0 ? "Aujourd'hui" : (age === 1 ? 'Hier' : age + 'j'));
+                return [
+                    formatDate(g.createdAt),
+                    ageStr,
+                    g.userName || '–',
+                    g.email || '–',
+                    g.country || '–',
+                    giftTypePlain(g),
+                    g.platform || '–',
+                    (g.link || '').substring(0, 50),
+                    g.whatsapp ? '+' + g.whatsapp : '–',
+                    g.status,
+                ];
+            });
             doc.autoTable({
                 head: [tableColumn], body: tableRows, startY: 35, theme: 'striped',
                 headStyles: { fillColor: [212, 175, 55], textColor: [8, 14, 26] },
@@ -598,6 +1064,13 @@
             alert('Erreur export PDF Cadeaux : ' + e.message);
         }
     }
+
+    // Fermer la modal avec Échap
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && document.getElementById('waModal').classList.contains('active')) {
+            closeWaModal();
+        }
+    });
 </script>
 </body>
 </html>
