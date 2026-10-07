@@ -1,1076 +1,717 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SBH Admin Center</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <style>
-        :root {
-            --bg-main: #080e1a;
-            --bg-card: rgba(15, 25, 45, 0.85);
-            --gold: #D4AF37;
-            --blue: #4DA6FF;
-            --green: #22c55e;
-            --red: #ff4757;
-            --purple: #a78bfa;
-            --text-light: #e2e8f0;
-            --border: rgba(255, 255, 255, 0.08);
-            --wa: #25D366;
-        }
-        * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
-        body { margin: 0; background: var(--bg-main); color: var(--text-light); }
-        #authOverlay {
-            position: fixed; inset: 0; background: var(--bg-main); display: flex; align-items: center; justify-content: center; z-index: 1000;
-        }
-        .auth-box {
-            background: var(--bg-card); padding: 40px; border-radius: 16px; border: 1px solid var(--gold); text-align: center; box-shadow: 0 10px 40px rgba(212, 175, 55, 0.15); width: 100%; max-width: 400px;
-        }
-        .auth-box input {
-            width: 100%; padding: 15px; margin: 20px 0; background: rgba(0,0,0,0.5); border: 1px solid var(--border); color: white; border-radius: 8px; text-align: center; font-size: 1.2rem; outline: none;
-        }
-        .auth-box input:focus { border-color: var(--gold); }
-        .btn-primary {
-            background: linear-gradient(135deg, #B8860B, var(--gold)); color: var(--bg-main); border: none; padding: 12px 30px; border-radius: 30px; font-weight: 800; cursor: pointer; transition: 0.3s; width: 100%;
-        }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(212, 175, 55, 0.4); }
-        .error-msg { color: var(--red); margin-top: 15px; display: none; font-size: 0.9rem; }
-        #app { display: none; padding: 30px; max-width: 1600px; margin: 0 auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 30px; flex-wrap: wrap; gap: 15px; }
-        .brand { font-size: 1.8rem; font-weight: 800; color: var(--gold); display: flex; align-items: center; gap: 10px; }
-        .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-        .btn-action { background: rgba(77, 166, 255, 0.1); border: 1px solid var(--blue); color: var(--blue); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; }
-        .btn-action:hover { background: var(--blue); color: white; }
-        .btn-gold { border-color: var(--gold); color: var(--gold); background: rgba(212, 175, 55, 0.1); }
-        .btn-gold:hover { background: var(--gold); color: var(--bg-main); }
-        .btn-danger { border-color: var(--red); color: var(--red); background: rgba(255, 71, 87, 0.1); }
-        .btn-danger:hover { background: var(--red); color: white; }
-        .btn-success { border-color: var(--green); color: var(--green); background: rgba(34, 197, 94, 0.1); }
-        .btn-success:hover { background: var(--green); color: white; }
-        .btn-small { padding: 5px 10px; font-size: 0.78rem; border-radius: 6px; }
-
-        /* Bouton WhatsApp */
-        .btn-wa { border-color: var(--wa); color: var(--wa); background: rgba(37, 211, 102, 0.1); }
-        .btn-wa:hover { background: var(--wa); color: white; }
-        .btn-wa:disabled { opacity: 0.35; cursor: not-allowed; filter: grayscale(0.5); }
-
-        /* Bandeau des multiplicateurs */
-        .multipliers-bar {
-            background: linear-gradient(135deg, rgba(212,175,55,0.08), rgba(77,166,255,0.05));
-            border: 1px solid rgba(212,175,55,0.25);
-            border-radius: 12px;
-            padding: 14px 20px;
-            margin-bottom: 25px;
-            display: flex; flex-wrap: wrap; gap: 18px;
-            align-items: center;
-        }
-        .multipliers-bar .label { color: var(--gold); font-weight: 600; font-size: 0.88rem; display: flex; align-items: center; gap: 6px; }
-        .multipliers-bar .mult-item {
-            display: inline-flex; align-items: center; gap: 6px;
-            background: rgba(0,0,0,0.3);
-            padding: 6px 12px; border-radius: 20px;
-            font-size: 0.82rem;
-        }
-        .multipliers-bar .mult-item strong { color: var(--blue); }
-        .multipliers-bar .mult-item.afb strong { color: #ff6666; }
-        .multipliers-bar .mult-item.smg strong { color: var(--purple); }
-        .multipliers-bar .mult-item.exo strong { color: var(--gold); }
-
-        .section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 30px; }
-        .section-title { font-size: 1.2rem; font-weight: 600; border-left: 4px solid var(--gold); padding-left: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-        .table-wrap { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-        th, td { padding: 12px 15px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
-        th { background: rgba(0,0,0,0.3); color: var(--gold); font-weight: 600; }
-        tr:hover { background: rgba(255,255,255,0.02); }
-        .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; display: inline-block; }
-        .badge-mtp { background: rgba(77, 166, 255, 0.2); color: var(--blue); }
-        .badge-exo { background: rgba(212, 175, 55, 0.2); color: var(--gold); }
-        .badge-afb { background: rgba(255, 100, 100, 0.2); color: #ff6666; }
-        .badge-smg { background: rgba(167, 139, 250, 0.2); color: var(--purple); }
-        .badge-pending { background: rgba(255, 200, 60, 0.15); color: #fbbf24; }
-        .badge-delivered { background: rgba(34, 197, 94, 0.15); color: var(--green); }
-        .badge-rejected { background: rgba(255, 71, 87, 0.15); color: var(--red); }
-        .badge-money { background: rgba(34, 197, 94, 0.15); color: var(--green); }
-        .badge-likes { background: rgba(255, 71, 87, 0.15); color: #ff6b81; }
-        .badge-tiktok { background: rgba(0, 242, 234, 0.15); color: #00f2ea; }
-        .filter-bar { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
-        .filter-bar select, .filter-bar input { padding: 8px 12px; background: rgba(0,0,0,0.4); border: 1px solid var(--border); color: white; border-radius: 6px; font-size: 0.9rem; }
-        .filter-bar select:focus, .filter-bar input:focus { border-color: var(--gold); outline: none; }
-        .loading { text-align: center; padding: 40px; color: #94a3b8; }
-        .footer-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
-        .error-banner { background: rgba(255, 71, 87, 0.15); border: 1px solid var(--red); color: var(--red); padding: 10px 15px; border-radius: 8px; margin-bottom: 20px; display: none; }
-        .link-cell { max-width: 280px; word-break: break-all; font-size: 0.78rem; color: var(--blue); text-decoration: none; }
-        .link-cell:hover { text-decoration: underline; }
-        .actions-cell { display: flex; gap: 6px; flex-wrap: wrap; }
-
-        /* Badge d'âge / retard */
-        .age-badge {
-            display: inline-flex; align-items: center; gap: 3px;
-            padding: 2px 7px;
-            border-radius: 4px;
-            font-size: 0.68rem;
-            font-weight: 700;
-            margin-left: 5px;
-            background: rgba(148, 163, 184, 0.15);
-            color: #94a3b8;
-        }
-        .age-badge.old { background: rgba(255, 71, 87, 0.2); color: var(--red); animation: pulse 2s infinite; }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.55; }
-        }
-
-        /* ═══════════ MODAL WHATSAPP ═══════════ */
-        .wa-modal-overlay {
-            position: fixed; inset: 0;
-            background: rgba(0, 0, 0, 0.75);
-            display: none; align-items: center; justify-content: center;
-            z-index: 2000; padding: 20px;
-            backdrop-filter: blur(6px);
-        }
-        .wa-modal-overlay.active { display: flex; }
-        .wa-modal {
-            background: linear-gradient(135deg, rgba(20, 30, 50, 0.98), rgba(15, 25, 45, 0.98));
-            border: 1px solid rgba(37, 211, 102, 0.4);
-            border-radius: 16px;
-            max-width: 680px;
-            width: 100%;
-            max-height: 92vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
-            animation: waSlideIn 0.25s ease-out;
-        }
-        @keyframes waSlideIn {
-            from { transform: translateY(20px) scale(0.97); opacity: 0; }
-            to   { transform: translateY(0) scale(1); opacity: 1; }
-        }
-        .wa-modal-header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 18px 22px;
-            border-bottom: 1px solid var(--border);
-            position: sticky; top: 0;
-            background: rgba(15, 25, 45, 0.98);
-            z-index: 2;
-        }
-        .wa-modal-header h3 {
-            margin: 0; color: var(--wa); font-size: 1.1rem;
-            display: flex; align-items: center; gap: 10px;
-        }
-        .wa-modal-close {
-            background: transparent; border: none; color: #94a3b8;
-            font-size: 1.8rem; cursor: pointer; line-height: 1;
-            padding: 0 8px; transition: 0.2s;
-        }
-        .wa-modal-close:hover { color: var(--red); transform: scale(1.15); }
-        .wa-modal-body { padding: 20px 22px; }
-        .wa-recipient-info {
-            background: rgba(37, 211, 102, 0.06);
-            border: 1px solid rgba(37, 211, 102, 0.25);
-            padding: 14px 16px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            font-size: 0.9rem;
-            line-height: 1.7;
-        }
-        .wa-recipient-info .name { color: var(--wa); font-weight: 700; font-size: 1.02rem; }
-        .wa-delay-warning {
-            background: rgba(255, 200, 60, 0.1);
-            border: 1px solid rgba(255, 200, 60, 0.4);
-            color: #fbbf24;
-            padding: 11px 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            font-size: 0.85rem;
-            display: none;
-            line-height: 1.5;
-        }
-        .wa-types { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
-        .wa-type-option {
-            display: flex; align-items: flex-start; gap: 12px;
-            padding: 12px 15px;
-            background: rgba(0, 0, 0, 0.25);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .wa-type-option:hover { border-color: var(--wa); background: rgba(37, 211, 102, 0.05); }
-        .wa-type-option.selected {
-            border-color: var(--wa);
-            background: rgba(37, 211, 102, 0.1);
-            box-shadow: 0 0 0 1px var(--wa);
-        }
-        .wa-type-option input[type="radio"] {
-            margin-top: 3px;
-            accent-color: var(--wa);
-            transform: scale(1.3);
-            cursor: pointer;
-        }
-        .wa-type-option > div { flex: 1; }
-        .wa-type-option strong { color: var(--text-light); display: block; margin-bottom: 3px; font-size: 0.9rem; }
-        .wa-type-option small { color: #94a3b8; font-size: 0.78rem; line-height: 1.4; display: block; }
-        .wa-preview-label {
-            font-size: 0.75rem;
-            color: var(--gold);
-            margin-bottom: 7px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            display: flex; align-items: center; gap: 6px;
-        }
-        #waPreview, #waCustomText {
-            width: 100%;
-            background: rgba(0, 0, 0, 0.45);
-            border: 1px solid var(--border);
-            color: #a0e0b0;
-            padding: 13px;
-            border-radius: 8px;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            font-size: 0.83rem;
-            line-height: 1.55;
-            resize: vertical;
-            min-height: 200px;
-            outline: none;
-            white-space: pre-wrap;
-        }
-        #waCustomText { color: var(--text-light); display: none; }
-        #waCustomText:focus { border-color: var(--wa); }
-        .wa-modal-footer {
-            display: flex; justify-content: flex-end; gap: 10px;
-            padding: 16px 22px;
-            border-top: 1px solid var(--border);
-            background: rgba(0, 0, 0, 0.25);
-            position: sticky; bottom: 0;
-            flex-wrap: wrap;
-        }
-        .btn-wa-primary {
-            background: linear-gradient(135deg, #128C7E, #25D366);
-            color: white; border: none;
-            padding: 11px 24px;
-            border-radius: 8px;
-            font-weight: 700;
-            font-size: 0.9rem;
-            cursor: pointer;
-            display: inline-flex; align-items: center; gap: 9px;
-            transition: 0.2s;
-            box-shadow: 0 4px 12px rgba(37, 211, 102, 0.25);
-        }
-        .btn-wa-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(37, 211, 102, 0.45); }
-        .btn-wa-primary:active { transform: translateY(0); }
-        .btn-cancel {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: #94a3b8;
-            padding: 11px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.9rem;
-            transition: 0.2s;
-        }
-        .btn-cancel:hover { border-color: var(--red); color: var(--red); }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SBH Admin — Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{--bg:#0a0e17;--bg-sidebar:#0d1220;--bg-card:#111827;--bg-elevated:#1a2332;--border:rgba(255,255,255,.06);--border-hover:rgba(255,255,255,.12);--text:#e2e8f0;--text-muted:#8892a4;--text-dim:#5a6478;--gold:#D4AF37;--gold-dim:rgba(212,175,55,.12);--blue:#4DA6FF;--blue-dim:rgba(77,166,255,.12);--green:#22c55e;--green-dim:rgba(34,197,94,.12);--red:#ef4444;--red-dim:rgba(239,68,68,.12);--purple:#a78bfa;--purple-dim:rgba(167,139,250,.12);--wa:#25D366;--wa-dim:rgba(37,211,102,.12);--radius:12px;--radius-sm:8px;--shadow:0 4px 24px rgba(0,0,0,.4);--transition:.2s cubic-bezier(.4,0,.2,1)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+#authOverlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000}
+.auth-box{background:var(--bg-card);padding:48px 40px;border-radius:16px;border:1px solid var(--border);text-align:center;box-shadow:var(--shadow);width:100%;max-width:420px}
+.auth-box .logo-icon{width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,var(--gold),#b8860b);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:1.8rem;color:#0a0e17}
+.auth-box h2{font-size:1.4rem;font-weight:700;margin-bottom:8px}
+.auth-box p{color:var(--text-muted);font-size:.9rem;margin-bottom:28px}
+.auth-box input{width:100%;padding:14px 16px;margin-bottom:16px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);text-align:center;font-size:1.1rem;letter-spacing:2px;outline:none;transition:var(--transition)}
+.auth-box input:focus{border-color:var(--gold)}
+.btn-primary{background:var(--gold);color:#0a0e17;border:none;padding:14px 32px;border-radius:var(--radius-sm);font-weight:700;font-size:.95rem;cursor:pointer;width:100%;transition:var(--transition);font-family:inherit}
+.btn-primary:hover{background:#e6c44a;transform:translateY(-1px)}
+.error-msg{color:var(--red);margin-top:16px;font-size:.85rem;display:none}
+#app{display:none;min-height:100vh}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:var(--bg-sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;transition:var(--transition)}
+.sidebar-brand{padding:24px 24px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)}
+.sidebar-brand .icon{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--gold),#b8860b);display:flex;align-items:center;justify-content:center;color:#0a0e17;font-size:1.1rem}
+.sidebar-brand .title{font-weight:800;font-size:1rem;letter-spacing:-.3px}
+.sidebar-brand .sub{font-size:.7rem;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:1px}
+.sidebar-nav{flex:1;padding:16px 12px;overflow-y:auto}
+.nav-section{font-size:.65rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:1.2px;padding:16px 12px 8px}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:var(--radius-sm);color:var(--text-muted);font-size:.88rem;font-weight:500;cursor:pointer;transition:var(--transition);border:none;background:transparent;width:100%;text-align:left;font-family:inherit}
+.nav-item:hover{background:var(--bg-elevated);color:var(--text)}
+.nav-item.active{background:var(--gold-dim);color:var(--gold);font-weight:600}
+.nav-item i{width:20px;text-align:center;font-size:.95rem}
+.nav-item .badge-count{margin-left:auto;background:var(--red);color:white;font-size:.65rem;padding:2px 7px;border-radius:10px;font-weight:700}
+.sidebar-footer{padding:16px;border-top:1px solid var(--border);display:flex;gap:8px}
+.btn-logout{flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--red-dim);border:1px solid rgba(239,68,68,.3);color:var(--red);font-weight:600;font-size:.8rem;cursor:pointer;transition:var(--transition);display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit}
+.btn-logout:hover{background:var(--red);color:white}
+.main-content{margin-left:260px;padding:28px 32px;min-height:100vh;transition:var(--transition)}
+.top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;flex-wrap:wrap;gap:16px}
+.page-title{font-size:1.5rem;font-weight:800;letter-spacing:-.5px}
+.page-subtitle{font-size:.85rem;color:var(--text-muted);margin-top:2px}
+.top-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.cache-info{font-size:.72rem;color:var(--text-dim);display:flex;align-items:center;gap:5px;padding:6px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:20px}
+.cache-info i{color:var(--green)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:var(--radius-sm);font-weight:600;font-size:.84rem;cursor:pointer;transition:var(--transition);border:1px solid transparent;font-family:inherit;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn-outline{background:transparent;border-color:var(--border);color:var(--text-muted)}
+.btn-outline:hover{border-color:var(--border-hover);color:var(--text);background:var(--bg-elevated)}
+.btn-gold{background:var(--gold-dim);border-color:rgba(212,175,55,.3);color:var(--gold)}
+.btn-gold:hover{background:var(--gold);color:#0a0e17}
+.btn-green{background:var(--green-dim);border-color:rgba(34,197,94,.3);color:var(--green)}
+.btn-green:hover{background:var(--green);color:white}
+.btn-red{background:var(--red-dim);border-color:rgba(239,68,68,.3);color:var(--red)}
+.btn-red:hover{background:var(--red);color:white}
+.btn-wa{background:var(--wa-dim);border-color:rgba(37,211,102,.3);color:var(--wa)}
+.btn-wa:hover{background:var(--wa);color:white}
+.btn-wa:disabled{opacity:.35;cursor:not-allowed}
+.btn-sm{padding:6px 12px;font-size:.76rem;border-radius:6px}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:28px}
+.kpi-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;transition:var(--transition);position:relative;overflow:hidden}
+.kpi-card:hover{border-color:var(--border-hover);transform:translateY(-2px)}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent,var(--gold))}
+.kpi-card .kpi-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;margin-bottom:14px;background:var(--accent-dim,var(--gold-dim));color:var(--accent,var(--gold))}
+.kpi-card .kpi-label{font-size:.78rem;color:var(--text-muted);font-weight:500;margin-bottom:6px}
+.kpi-card .kpi-value{font-size:1.65rem;font-weight:800;letter-spacing:-1px;line-height:1}
+.kpi-card .kpi-sub{font-size:.75rem;color:var(--text-dim);margin-top:6px}
+.section{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:24px}
+.section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.section-title{font-size:1.05rem;font-weight:700;display:flex;align-items:center;gap:10px}
+.section-title i{color:var(--gold);font-size:.95rem}
+.filter-bar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:20px;padding:14px 16px;background:var(--bg);border-radius:var(--radius-sm);border:1px solid var(--border)}
+.filter-group{display:flex;align-items:center;gap:8px}
+.filter-group label{font-size:.72rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.filter-bar select,.filter-bar input{padding:9px 14px;background:var(--bg-card);border:1px solid var(--border);color:var(--text);border-radius:8px;font-size:.84rem;font-family:inherit;outline:none;transition:var(--transition);min-width:0}
+.filter-bar select:focus,.filter-bar input:focus{border-color:var(--gold)}
+.filter-bar select{cursor:pointer}
+.filter-divider{width:1px;height:28px;background:var(--border)}
+.table-wrap{overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:.84rem}
+th{padding:13px 16px;text-align:left;font-weight:600;font-size:.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.8px;background:var(--bg);border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:13px 16px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text)}
+tr:last-child td{border-bottom:none}
+tbody tr{transition:var(--transition)}
+tbody tr:hover{background:rgba(255,255,255,.02)}
+.badge{padding:4px 10px;border-radius:6px;font-size:.72rem;font-weight:600;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.badge-mtp{background:var(--blue-dim);color:var(--blue)}
+.badge-exo{background:var(--gold-dim);color:var(--gold)}
+.badge-afb{background:var(--red-dim);color:#ff8888}
+.badge-smg{background:var(--purple-dim);color:var(--purple)}
+.badge-pending{background:rgba(251,191,36,.12);color:#fbbf24}
+.badge-delivered{background:var(--green-dim);color:var(--green)}
+.badge-rejected{background:var(--red-dim);color:var(--red)}
+.badge-money{background:var(--green-dim);color:var(--green)}
+.badge-likes{background:var(--red-dim);color:#ff6b81}
+.badge-tiktok{background:rgba(0,242,234,.12);color:#00f2ea}
+.stats-bar{display:flex;gap:20px;flex-wrap:wrap;align-items:center;margin-top:16px;padding:12px 16px;background:var(--bg);border-radius:var(--radius-sm);border:1px solid var(--border)}
+.stat-item{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--text-muted)}
+.stat-item strong{color:var(--text);font-weight:700}
+.stat-sep{width:1px;height:20px;background:var(--border)}
+.loading{text-align:center;padding:48px;color:var(--text-dim);font-size:.9rem}
+.loading i{font-size:1.5rem;margin-bottom:12px;display:block;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-banner{background:var(--red-dim);border:1px solid rgba(239,68,68,.3);color:var(--red);padding:12px 18px;border-radius:var(--radius-sm);margin-bottom:20px;font-size:.85rem;display:none;align-items:center;gap:10px}
+.age-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:4px;font-size:.68rem;font-weight:700;margin-left:6px;background:rgba(148,163,184,.12);color:var(--text-dim)}
+.age-badge.old{background:var(--red-dim);color:var(--red);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.wa-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:2000;padding:20px;backdrop-filter:blur(8px)}
+.wa-modal-overlay.active{display:flex}
+.wa-modal{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:680px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow);animation:modalIn .25s ease-out}
+@keyframes modalIn{from{transform:translateY(16px) scale(.98);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+.wa-modal-header{display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg-card);z-index:2}
+.wa-modal-header h3{font-size:1.05rem;font-weight:700;display:flex;align-items:center;gap:10px}
+.wa-modal-header h3 i{color:var(--wa)}
+.wa-modal-close{background:transparent;border:none;color:var(--text-dim);font-size:1.6rem;cursor:pointer;line-height:1;padding:0 8px;transition:var(--transition);font-family:inherit}
+.wa-modal-close:hover{color:var(--red);transform:scale(1.1)}
+.wa-modal-body{padding:24px}
+.wa-recipient{background:var(--wa-dim);border:1px solid rgba(37,211,102,.2);padding:16px 18px;border-radius:var(--radius-sm);margin-bottom:18px;font-size:.85rem;line-height:1.8}
+.wa-recipient .name{color:var(--wa);font-weight:700;font-size:1rem}
+.wa-delay-warning{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);color:#fbbf24;padding:12px 16px;border-radius:var(--radius-sm);margin-bottom:18px;font-size:.84rem;display:none;line-height:1.5}
+.wa-types{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+.wa-type-opt{display:flex;align-items:flex-start;gap:14px;padding:14px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition)}
+.wa-type-opt:hover{border-color:var(--border-hover)}
+.wa-type-opt.selected{border-color:var(--wa);background:var(--wa-dim)}
+.wa-type-opt input[type="radio"]{margin-top:3px;accent-color:var(--wa);transform:scale(1.2);cursor:pointer}
+.wa-type-opt strong{display:block;font-size:.88rem;margin-bottom:3px}
+.wa-type-opt small{color:var(--text-muted);font-size:.78rem;line-height:1.4}
+.wa-preview-label{font-size:.72rem;color:var(--gold);margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:6px}
+#waPreview,#waCustomText{width:100%;background:var(--bg);border:1px solid var(--border);color:#a0e0b0;padding:14px;border-radius:var(--radius-sm);font-family:'Inter',sans-serif;font-size:.83rem;line-height:1.6;resize:vertical;min-height:200px;outline:none;white-space:pre-wrap}
+#waCustomText{color:var(--text);display:none}
+#waCustomText:focus{border-color:var(--wa)}
+.wa-modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:18px 24px;border-top:1px solid var(--border);background:var(--bg);position:sticky;bottom:0;flex-wrap:wrap}
+.btn-wa-primary{background:var(--wa);color:white;border:none;padding:12px 24px;border-radius:var(--radius-sm);font-weight:700;font-size:.88rem;cursor:pointer;display:inline-flex;align-items:center;gap:9px;transition:var(--transition);font-family:inherit}
+.btn-wa-primary:hover{background:#1eb856;transform:translateY(-1px)}
+.footer{text-align:center;padding:24px 0;color:var(--text-dim);font-size:.8rem;border-top:1px solid var(--border);margin-top:32px}
+.footer strong{color:var(--gold)}
+.mobile-toggle{display:none;position:fixed;top:16px;left:16px;z-index:200;width:42px;height:42px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border);color:var(--text);font-size:1.1rem;cursor:pointer;align-items:center;justify-content:center}
+@media(max-width:1024px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.main-content{margin-left:0;padding:20px}.mobile-toggle{display:flex}}
+@media(max-width:640px){.kpi-grid{grid-template-columns:1fr}.filter-bar{flex-direction:column;align-items:stretch}.filter-bar select,.filter-bar input{width:100%}.main-content{padding:16px}.top-bar{flex-direction:column;align-items:flex-start}}
+</style>
 </head>
 <body>
 
 <div id="authOverlay">
-    <div class="auth-box">
-        <i class="fas fa-shield-halved" style="font-size: 3rem; color: var(--gold); margin-bottom: 15px;"></i>
-        <h2>Accès Direction</h2>
-        <p style="color:#94a3b8;">Veuillez entrer la clé de sécurité.</p>
-        <input type="password" id="adminPass" placeholder="Mot de passe" onkeydown="if(event.key==='Enter') unlock()">
-        <button class="btn-primary" onclick="unlock()">Déverrouiller</button>
-        <div id="loginError" class="error-msg">Clé incorrecte.</div>
-    </div>
+  <div class="auth-box">
+    <div class="logo-icon"><i class="fas fa-bolt"></i></div>
+    <h2>SBH Command Center</h2>
+    <p>Accès réservé à la direction</p>
+    <input type="password" id="adminPass" placeholder="••••••••" onkeydown="if(event.key==='Enter') unlock()">
+    <button class="btn-primary" onclick="unlock()">Déverrouiller</button>
+    <div id="loginError" class="error-msg">Clé incorrecte.</div>
+  </div>
 </div>
+
+<button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')"><i class="fas fa-bars"></i></button>
 
 <div id="app">
-    <div class="header">
-        <div class="brand"><i class="fas fa-bolt"></i> SBH Command Center</div>
-        <div class="header-actions">
-            <button class="btn-action" onclick="refreshAll()"><i class="fas fa-sync-alt"></i> Actualiser</button>
-            <button class="btn-action btn-danger" onclick="logout()"><i class="fas fa-lock"></i> Verrouiller</button>
-        </div>
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="icon"><i class="fas fa-bolt"></i></div>
+      <div><div class="title">SBH Admin</div><div class="sub">Command Center</div></div>
     </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Tableau de bord</div>
+      <button class="nav-item active" data-view="overview" onclick="switchView('overview')"><i class="fas fa-chart-pie"></i> Vue d'ensemble</button>
+      <button class="nav-item" data-view="services" onclick="switchView('services')"><i class="fas fa-layer-group"></i> Services & Prix</button>
+      <div class="nav-section">Gestion</div>
+      <button class="nav-item" data-view="gifts" onclick="switchView('gifts')"><i class="fas fa-gift"></i> Cadeaux <span class="badge-count" id="navGiftCount" style="display:none;">0</span></button>
+      <button class="nav-item" data-view="users" onclick="switchView('users')"><i class="fas fa-users"></i> Statistiques utilisateurs</button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="logout()"><i class="fas fa-lock"></i> Verrouiller</button>
+    </div>
+  </aside>
 
+  <main class="main-content">
     <div id="errorBanner" class="error-banner"></div>
 
-    <!-- Bandeau multiplicateurs -->
-    <div class="multipliers-bar" id="multipliersBar">
-        <span class="label"><i class="fas fa-calculator"></i> Multiplicateurs actuels (définis dans index.js) :</span>
-        <span class="mult-item"><strong>MTP ×</strong> <span id="multMTP">–</span></span>
-        <span class="mult-item exo"><strong>EXO ×</strong> <span id="multEXO">–</span></span>
-        <span class="mult-item afb"><strong>AFB ×</strong> <span id="multAFB">–</span></span>
-        <span class="mult-item smg"><strong>SMMGen ×</strong> <span id="multSMMGen">–</span></span>
+    <!-- ═══ OVERVIEW ═══ -->
+    <div id="view-overview" class="view">
+      <div class="top-bar">
+        <div>
+          <div class="page-title">Vue d'ensemble</div>
+          <div class="page-subtitle">Métriques clés de votre activité</div>
+        </div>
+        <div class="top-actions">
+          <div class="cache-info" id="overviewCacheInfo" style="display:none;"><i class="fas fa-shield-halved"></i> <span id="overviewCacheText">—</span></div>
+          <button class="btn btn-outline" onclick="forceRefresh()"><i class="fas fa-sync-alt"></i> Forcer le rechargement</button>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card" style="--accent:var(--gold);--accent-dim:var(--gold-dim);">
+          <div class="kpi-icon"><i class="fas fa-users"></i></div>
+          <div class="kpi-label">Utilisateurs totaux</div>
+          <div class="kpi-value" id="kpiTotalUsers">—</div>
+          <div class="kpi-sub" id="kpiNewUsers">—</div>
+        </div>
+        <div class="kpi-card" style="--accent:var(--blue);--accent-dim:var(--blue-dim);">
+          <div class="kpi-icon"><i class="fas fa-box"></i></div>
+          <div class="kpi-label">Commandes totales</div>
+          <div class="kpi-value" id="kpiTotalOrders">—</div>
+          <div class="kpi-sub" id="kpiPendingOrders">—</div>
+        </div>
+        <div class="kpi-card" style="--accent:var(--green);--accent-dim:var(--green-dim);">
+          <div class="kpi-icon"><i class="fas fa-coins"></i></div>
+          <div class="kpi-label">Revenus totaux</div>
+          <div class="kpi-value" id="kpiRevenue">—</div>
+          <div class="kpi-sub" id="kpiRevenueSub">—</div>
+        </div>
+        <div class="kpi-card" style="--accent:var(--red);--accent-dim:var(--red-dim);">
+          <div class="kpi-icon"><i class="fas fa-gift"></i></div>
+          <div class="kpi-label">Cadeaux en attente</div>
+          <div class="kpi-value" id="kpiGiftsPending">—</div>
+          <div class="kpi-sub" id="kpiGiftsLate">—</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title"><i class="fas fa-trophy"></i> Top utilisateurs (sur demande)</div>
+          <button class="btn btn-outline btn-sm" onclick="loadTopUsers()"><i class="fas fa-sync-alt"></i> Charger</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Utilisateur</th><th>Commandes</th><th>Total dépensé</th><th>Solde actuel</th><th>Pays</th></tr></thead>
+            <tbody id="topUsersBody"><tr><td colspan="6" class="loading">Cliquez sur « Charger » pour voir le classement<br><small style="color:var(--text-dim);font-size:.75rem;">Lecture minimale — pas de chargement automatique</small></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header"><div class="section-title"><i class="fas fa-calculator"></i> Multiplicateurs fournisseurs</div></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;">
+          <div style="background:var(--bg);padding:16px;border-radius:10px;border:1px solid var(--border);text-align:center;"><div style="font-size:.72rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;margin-bottom:6px;">MTP</div><div style="font-size:1.4rem;font-weight:800;color:var(--blue);" id="multMTP">–</div></div>
+          <div style="background:var(--bg);padding:16px;border-radius:10px;border:1px solid var(--border);text-align:center;"><div style="font-size:.72rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;margin-bottom:6px;">EXO</div><div style="font-size:1.4rem;font-weight:800;color:var(--gold);" id="multEXO">–</div></div>
+          <div style="background:var(--bg);padding:16px;border-radius:10px;border:1px solid var(--border);text-align:center;"><div style="font-size:.72rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;margin-bottom:6px;">AfriqueBoost</div><div style="font-size:1.4rem;font-weight:800;color:#ff8888;" id="multAFB">–</div></div>
+          <div style="background:var(--bg);padding:16px;border-radius:10px;border:1px solid var(--border);text-align:center;"><div style="font-size:.72rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;margin-bottom:6px;">SMMGen</div><div style="font-size:1.4rem;font-weight:800;color:var(--purple);" id="multSMMGen">–</div></div>
+        </div>
+      </div>
     </div>
 
-    <!-- Services -->
-    <div class="section">
-        <div class="section-title">
-            Services & Analyse des prix (En direct des partenaires)
-            <div class="footer-actions">
-                <button class="btn-action btn-gold" onclick="exportServicesPDF()"><i class="fas fa-file-pdf"></i> Exporter PDF</button>
-            </div>
+    <!-- ═══ SERVICES ═══ -->
+    <div id="view-services" class="view" style="display:none;">
+      <div class="top-bar">
+        <div><div class="page-title">Services & Prix</div><div class="page-subtitle">Analyse des prix et marges par fournisseur</div></div>
+        <div class="top-actions">
+          <div class="cache-info" id="servicesCacheInfo" style="display:none;"><i class="fas fa-shield-halved"></i> <span id="servicesCacheText">—</span></div>
+          <button class="btn btn-gold" onclick="exportServicesPDF()"><i class="fas fa-file-pdf"></i> Exporter PDF</button>
         </div>
+      </div>
+
+      <div class="section">
         <div class="filter-bar">
+          <div class="filter-group"><label>Fournisseur</label>
             <select id="serviceFilter" onchange="filterServices()">
-                <option value="all">Tous les partenaires</option>
-                <option value="MTP">MTP</option>
-                <option value="EXO">EXO</option>
-                <option value="AfriqueBoost">AfriqueBoost</option>
-                <option value="SMMGen">SMMGen</option>
+              <option value="all">Tous</option><option value="MTP">MTP</option><option value="EXO">EXO</option>
+              <option value="AfriqueBoost">AfriqueBoost</option><option value="SMMGen">SMMGen</option>
             </select>
-            <input type="text" id="serviceSearch" placeholder="Rechercher (nom)" oninput="filterServices()">
-            <input type="text" id="serviceIdSearch" placeholder="Rechercher par ID" oninput="filterServices()">
+          </div>
+          <div class="filter-group"><label>Nom</label><input type="text" id="serviceSearch" placeholder="Rechercher…" oninput="filterServices()" style="min-width:180px;"></div>
+          <div class="filter-group"><label>ID</label><input type="text" id="serviceIdSearch" placeholder="ID…" oninput="filterServices()" style="width:100px;"></div>
+          <div class="filter-divider"></div>
+          <div class="filter-group"><label>Trier par</label>
+            <select id="serviceSort" onchange="filterServices()">
+              <option value="finalPrice-asc">Prix final ↑</option><option value="finalPrice-desc">Prix final ↓</option>
+              <option value="providerCost-asc">Coût ↑</option><option value="providerCost-desc">Coût ↓</option>
+              <option value="profit-desc">Bénéfice ↓</option><option value="profitMargin-desc">Marge ↓</option>
+              <option value="name-asc">Nom A→Z</option><option value="name-desc">Nom Z→A</option>
+            </select>
+          </div>
+          <div class="filter-group"><label>Afficher</label>
             <select id="serviceLimit" onchange="filterServices()">
-                <option value="10">10</option>
-                <option value="25" selected>25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-                <option value="all">Tous</option>
+              <option value="25">25</option><option value="50">50</option><option value="100">100</option><option value="all">Tous</option>
             </select>
-            <button class="btn-action" onclick="resetServiceFilters()">Réinitialiser</button>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="resetServiceFilters()" style="margin-left:auto;"><i class="fas fa-undo"></i></button>
         </div>
+
         <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr><th>ID</th><th>Partenaire</th><th>Nom</th><th>Coût</th><th>Prix final</th><th>Bénéfice</th><th>Marge</th></tr>
-                </thead>
-                <tbody id="servicesBody"><tr><td colspan="7" class="loading">Chargement...</td></tr></tbody>
-            </table>
+          <table>
+            <thead><tr><th>ID</th><th>Fournisseur</th><th>Nom</th>
+              <th onclick="sortServices('providerCost')" style="cursor:pointer;">Coût <i class="fas fa-sort" style="opacity:.4;font-size:.7rem;"></i></th>
+              <th onclick="sortServices('finalPrice')" style="cursor:pointer;">Prix final <i class="fas fa-sort" style="opacity:.4;font-size:.7rem;"></i></th>
+              <th onclick="sortServices('profit')" style="cursor:pointer;">Bénéfice <i class="fas fa-sort" style="opacity:.4;font-size:.7rem;"></i></th>
+              <th onclick="sortServices('profitMargin')" style="cursor:pointer;">Marge <i class="fas fa-sort" style="opacity:.4;font-size:.7rem;"></i></th>
+            </tr></thead>
+            <tbody id="servicesBody"><tr><td colspan="7" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr></tbody>
+          </table>
         </div>
-        <div class="footer-actions">
-            <span class="badge" id="serviceStats"></span>
-        </div>
+        <div class="stats-bar" id="serviceStatsBar"></div>
+      </div>
     </div>
 
-    <!-- ═══════════════ SECTION : Demandes de cadeaux de bienvenue ═══════════════ -->
-    <div class="section">
-        <div class="section-title">
-            🎁 Demandes de cadeaux de bienvenue
-            <div class="footer-actions">
-                <button class="btn-action" onclick="loadGifts()"><i class="fas fa-sync-alt"></i> Recharger</button>
-                <button class="btn-action btn-gold" onclick="exportGiftsPDF()"><i class="fas fa-file-pdf"></i> Exporter PDF</button>
-            </div>
+    <!-- ═══ GIFTS ═══ -->
+    <div id="view-gifts" class="view" style="display:none;">
+      <div class="top-bar">
+        <div><div class="page-title">🎁 Cadeaux de bienvenue</div><div class="page-subtitle">Traitement manuel des demandes</div></div>
+        <div class="top-actions">
+          <div class="cache-info" id="giftsCacheInfo" style="display:none;"><i class="fas fa-shield-halved"></i> <span id="giftsCacheText">—</span></div>
+          <button class="btn btn-gold" onclick="exportGiftsPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
         </div>
+      </div>
 
+      <div class="section">
         <div class="filter-bar">
-            <select id="giftStatusFilter" onchange="filterGifts()">
-                <option value="all">Tous les statuts</option>
-                <option value="pending" selected>En attente</option>
-                <option value="delivered">Livrés</option>
-                <option value="rejected">Rejetés</option>
+          <div class="filter-group"><label>Statut</label>
+            <select id="giftStatusFilter" onchange="loadGifts()">
+              <option value="pending" selected>En attente</option>
+              <option value="delivered">Livrés</option>
+              <option value="rejected">Rejetés</option>
+              <option value="all">Tous</option>
             </select>
+          </div>
+          <div class="filter-group"><label>Type</label>
             <select id="giftTypeFilter" onchange="filterGifts()">
-                <option value="all">Tous les types</option>
-                <option value="money">Argent (25 FCFA)</option>
-                <option value="likes">Likes (25)</option>
-                <option value="tiktok">Vues TikTok (1000)</option>
+              <option value="all">Tous</option><option value="money">💰 25 FCFA</option>
+              <option value="likes">❤️ 25 Likes</option><option value="tiktok">📱 1000 Vues TT</option>
             </select>
-            <input type="text" id="giftSearch" placeholder="Rechercher (nom, email, whatsapp)" oninput="filterGifts()">
-            <button class="btn-action" onclick="resetGiftFilters()">Réinitialiser</button>
+          </div>
+          <div class="filter-group"><label>Recherche</label><input type="text" id="giftSearch" placeholder="Nom, email, WhatsApp…" oninput="filterGifts()" style="min-width:200px;"></div>
+          <div class="filter-group"><label>Limite</label>
+            <select id="giftLimit" onchange="loadGifts()">
+              <option value="30">30</option><option value="50" selected>50</option><option value="100">100 (max)</option>
+            </select>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="resetGiftFilters()" style="margin-left:auto;"><i class="fas fa-undo"></i></button>
         </div>
 
         <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Utilisateur</th>
-                        <th>Pays</th>
-                        <th>Cadeau</th>
-                        <th>Lien / WhatsApp</th>
-                        <th>Statut</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="giftsBody"><tr><td colspan="7" class="loading">Chargement...</td></tr></tbody>
-            </table>
+          <table>
+            <thead><tr><th>Date</th><th>Utilisateur</th><th>Pays</th><th>Cadeau</th><th>Lien / WhatsApp</th><th>Statut</th><th>Actions</th></tr></thead>
+            <tbody id="giftsBody"><tr><td colspan="7" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr></tbody>
+          </table>
         </div>
-        <div class="footer-actions">
-            <span class="badge" id="giftStats"></span>
-        </div>
+        <div class="stats-bar" id="giftStatsBar"></div>
+      </div>
     </div>
 
-    <div style="text-align: center; padding: 20px 0; color: #94a3b8; border-top: 1px solid var(--border); font-size: 0.9rem;">
-        <i class="fas fa-crown" style="color: var(--gold);"></i> Fondateur : <strong style="color: var(--gold);">NAPOPOLO EXAUCE</strong> &nbsp;|&nbsp; Social Boost Horizon &copy; 2025
+    <!-- ═══ USERS ═══ -->
+    <div id="view-users" class="view" style="display:none;">
+      <div class="top-bar">
+        <div><div class="page-title">👥 Statistiques utilisateurs</div><div class="page-subtitle">Agrégats Firestore — lecture minimale</div></div>
+        <div class="top-actions">
+          <div class="cache-info" id="usersCacheInfo" style="display:none;"><i class="fas fa-shield-halved"></i> <span id="usersCacheText">—</span></div>
+          <button class="btn btn-outline" onclick="loadUsersStats()"><i class="fas fa-sync-alt"></i> Recharger</button>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card" style="--accent:var(--gold);--accent-dim:var(--gold-dim);"><div class="kpi-icon"><i class="fas fa-users"></i></div><div class="kpi-label">Total utilisateurs</div><div class="kpi-value" id="usersTotal">—</div></div>
+        <div class="kpi-card" style="--accent:var(--blue);--accent-dim:var(--blue-dim);"><div class="kpi-icon"><i class="fas fa-user-plus"></i></div><div class="kpi-label">Nouveaux (7 jours)</div><div class="kpi-value" id="usersNew7d">—</div></div>
+        <div class="kpi-card" style="--accent:var(--green);--accent-dim:var(--green-dim);"><div class="kpi-icon"><i class="fas fa-wallet"></i></div><div class="kpi-label">Solde total plateforme</div><div class="kpi-value" id="usersTotalBalance">—</div></div>
+        <div class="kpi-card" style="--accent:var(--purple);--accent-dim:var(--purple-dim);"><div class="kpi-icon"><i class="fas fa-chart-line"></i></div><div class="kpi-label">Solde moyen</div><div class="kpi-value" id="usersAvgBalance">—</div></div>
+      </div>
+
+      <div class="section">
+        <div class="section-header"><div class="section-title"><i class="fas fa-info-circle"></i> À propos de cette page</div></div>
+        <p style="color:var(--text-muted);font-size:.88rem;line-height:1.7;">
+          Ces statistiques utilisent <strong style="color:var(--green);">uniquement</strong> des agrégats Firestore
+          (<code style="background:var(--bg);padding:2px 8px;border-radius:4px;color:var(--gold);">count()</code> et
+          <code style="background:var(--bg);padding:2px 8px;border-radius:4px;color:var(--gold);">sum()</code>).
+          <br>Chaque appel consomme <strong>~3 lectures</strong>, quelle que soit la taille de votre base.
+          <br>Le résultat est <strong>mis en cache 60 minutes</strong> — les refresh répétés sont gratuits.
+        </p>
+      </div>
     </div>
+
+    <div class="footer"><i class="fas fa-crown" style="color:var(--gold);"></i> Fondateur : <strong>NAPOPOLO EXAUCE</strong> — Social Boost Horizon © 2025</div>
+  </main>
 </div>
 
-<!-- ══════════════ MODAL WHATSAPP ══════════════ -->
+<!-- WhatsApp Modal -->
 <div id="waModal" class="wa-modal-overlay" onclick="if(event.target===this) closeWaModal()">
-    <div class="wa-modal">
-        <div class="wa-modal-header">
-            <h3><i class="fab fa-whatsapp"></i> Assistance WhatsApp</h3>
-            <button class="wa-modal-close" onclick="closeWaModal()" title="Fermer">&times;</button>
-        </div>
-        <div class="wa-modal-body">
-            <div class="wa-recipient-info" id="waRecipientInfo"></div>
-            <div class="wa-delay-warning" id="waDelayWarning"></div>
-
-            <div class="wa-types">
-                <label class="wa-type-option" data-type="confirmation">
-                    <input type="radio" name="waType" value="confirmation" onchange="updateWaPreview()">
-                    <div>
-                        <strong>🔍 Demander confirmation du lien</strong>
-                        <small>Vérifier avec l'utilisateur que le lien fourni est bien celui à créditer. S'il ne confirme pas, il renvoie le bon lien.</small>
-                    </div>
-                </label>
-                <label class="wa-type-option" data-type="launched">
-                    <input type="radio" name="waType" value="launched" onchange="updateWaPreview()">
-                    <div>
-                        <strong>🚀 Cadeau déjà lancé / en cours</strong>
-                        <small>Informer l'utilisateur que sa commande a été prise en charge et qu'elle est en cours de traitement.</small>
-                    </div>
-                </label>
-                <label class="wa-type-option" data-type="delay">
-                    <input type="radio" name="waType" value="delay" onchange="updateWaPreview()">
-                    <div>
-                        <strong>🙏 Excuses pour le retard</strong>
-                        <small>Message automatique recommandé lorsque la demande a plus d'une journée sans traitement.</small>
-                    </div>
-                </label>
-                <label class="wa-type-option" data-type="custom">
-                    <input type="radio" name="waType" value="custom" onchange="updateWaPreview()">
-                    <div>
-                        <strong>✏️ Message personnalisé</strong>
-                        <small>Rédigez vous-même votre message ci-dessous.</small>
-                    </div>
-                </label>
-            </div>
-
-            <div class="wa-preview-label">
-                <i class="fas fa-eye"></i> Aperçu du message
-                <span id="waCharCount" style="margin-left:auto;color:#94a3b8;font-weight:400;text-transform:none;letter-spacing:0;"></span>
-            </div>
-            <textarea id="waPreview" readonly></textarea>
-            <textarea id="waCustomText" placeholder="Écrivez votre message personnalisé ici..." oninput="updateWaPreview(true)"></textarea>
-        </div>
-        <div class="wa-modal-footer">
-            <button class="btn-cancel" onclick="closeWaModal()">Annuler</button>
-            <button class="btn-wa-primary" onclick="sendWhatsApp()">
-                <i class="fab fa-whatsapp"></i> Ouvrir WhatsApp
-            </button>
-        </div>
+  <div class="wa-modal">
+    <div class="wa-modal-header"><h3><i class="fab fa-whatsapp"></i> Assistance WhatsApp</h3><button class="wa-modal-close" onclick="closeWaModal()">&times;</button></div>
+    <div class="wa-modal-body">
+      <div class="wa-recipient" id="waRecipientInfo"></div>
+      <div class="wa-delay-warning" id="waDelayWarning"></div>
+      <div class="wa-types">
+        <label class="wa-type-opt" data-type="confirmation"><input type="radio" name="waType" value="confirmation" onchange="updateWaPreview()"><div><strong>🔍 Confirmer le lien</strong><small>Vérifier que le lien fourni est bien celui à créditer.</small></div></label>
+        <label class="wa-type-opt" data-type="launched"><input type="radio" name="waType" value="launched" onchange="updateWaPreview()"><div><strong>🚀 Cadeau en cours</strong><small>Informer que la commande est prise en charge.</small></div></label>
+        <label class="wa-type-opt" data-type="delay"><input type="radio" name="waType" value="delay" onchange="updateWaPreview()"><div><strong>🙏 Excuses pour retard</strong><small>Recommandé si la demande date de plus d'un jour.</small></div></label>
+        <label class="wa-type-opt" data-type="custom"><input type="radio" name="waType" value="custom" onchange="updateWaPreview()"><div><strong>✏️ Personnalisé</strong><small>Rédigez votre propre message.</small></div></label>
+      </div>
+      <div class="wa-preview-label"><i class="fas fa-eye"></i> Aperçu <span id="waCharCount" style="margin-left:auto;color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0;"></span></div>
+      <textarea id="waPreview" readonly></textarea>
+      <textarea id="waCustomText" placeholder="Écrivez votre message…" oninput="updateWaPreview(true)"></textarea>
     </div>
+    <div class="wa-modal-footer">
+      <button class="btn btn-outline" onclick="closeWaModal()">Annuler</button>
+      <button class="btn-wa-primary" onclick="sendWhatsApp()"><i class="fab fa-whatsapp"></i> Ouvrir WhatsApp</button>
+    </div>
+  </div>
 </div>
 
 <script>
-    const ADMIN_PASS = '209644209644';
-    let token = sessionStorage.getItem('sbh_admin_token');
-    let allServices = [];
-    let allGifts = [];
-    let currentMultipliers = null;
-    let currentWaGift = null;
+const ADMIN_PASS='209644209644';
+let token=sessionStorage.getItem('sbh_admin_token');
+let allServices=[];
+let allGifts=[];
+let currentMultipliers=null;
+let currentWaGift=null;
+let giftsLoaded=false;
 
-    if (token) {
-        document.getElementById('authOverlay').style.display = 'none';
-        document.getElementById('app').style.display = 'block';
-        loadAll();
+if(token){document.getElementById('authOverlay').style.display='none';document.getElementById('app').style.display='block';loadOverview();}
+
+function unlock(){const p=document.getElementById('adminPass').value;if(p===ADMIN_PASS){sessionStorage.setItem('sbh_admin_token',p);token=p;document.getElementById('authOverlay').style.display='none';document.getElementById('app').style.display='block';loadOverview();}else document.getElementById('loginError').style.display='block';}
+function logout(){sessionStorage.removeItem('sbh_admin_token');location.reload();}
+function showError(m){const b=document.getElementById('errorBanner');b.innerHTML='<i class="fas fa-exclamation-circle"></i> '+m;b.style.display='flex';setTimeout(()=>b.style.display='none',8000);}
+
+async function fetchAdmin(ep,opts={}){
+  const res=await fetch(`/api/admin${ep}`,{...opts,headers:{'x-admin-password':token,'Content-Type':'application/json',...(opts.headers||{})}});
+  if(res.status===403){logout();throw new Error('Session expirée.');}
+  if(!res.ok)throw new Error(`Erreur ${res.status}`);
+  return res.json();
+}
+
+function switchView(view){
+  document.querySelectorAll('.view').forEach(v=>v.style.display='none');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('view-'+view).style.display='block';
+  document.querySelector(`.nav-item[data-view="${view}"]`).classList.add('active');
+  if(view==='services'&&allServices.length===0)loadServices();
+  if(view==='gifts'&&!giftsLoaded){giftsLoaded=true;loadGifts();}
+  if(view==='users')loadUsersStats();
+}
+
+async function forceRefresh(){
+  try{await fetchAdmin('/cache/clear',{method:'POST'});showToast('Cache vidé — rechargement…');}catch(e){}
+  loadOverview(true);
+}
+
+function showToast(msg){const t=document.createElement('div');t.textContent='✅ '+msg;t.style.cssText='position:fixed;bottom:24px;right:24px;background:var(--green);color:white;padding:12px 22px;border-radius:10px;z-index:9999;font-weight:600;font-size:.85rem;box-shadow:0 8px 24px rgba(0,0,0,.5);';document.body.appendChild(t);setTimeout(()=>t.remove(),2000);}
+
+// ═══ OVERVIEW ═══
+async function loadOverview(){
+  try{
+    const d=await fetchAdmin('/overview');
+    if(d.success){
+      const s=d.data;
+      document.getElementById('kpiTotalUsers').textContent=(s.totalUsers||0).toLocaleString();
+      document.getElementById('kpiNewUsers').textContent=`+${s.newUsers7d||0} cette semaine`;
+      document.getElementById('kpiTotalOrders').textContent=(s.totalOrders||0).toLocaleString();
+      document.getElementById('kpiPendingOrders').textContent=`${s.pendingOrders||0} en attente`;
+      document.getElementById('kpiRevenue').textContent=(s.totalRevenue||0).toLocaleString('fr-FR')+' FCFA';
+      document.getElementById('kpiRevenueSub').textContent=`${s.totalOrders||0} commandes`;
+      document.getElementById('kpiGiftsPending').textContent=s.giftsPending||0;
+      document.getElementById('kpiGiftsLate').textContent=s.giftsLate?`🔴 ${s.giftsLate} en retard`:'Aucun retard';
+      if(s.giftsPending>0){const b=document.getElementById('navGiftCount');b.textContent=s.giftsPending;b.style.display='inline-block';}
+      if(s.multipliers){
+        document.getElementById('multMTP').textContent='×'+(s.multipliers.MTP??'–');
+        document.getElementById('multEXO').textContent='×'+(s.multipliers.EXO??'–');
+        document.getElementById('multAFB').textContent='×'+(s.multipliers.AfriqueBoost??'–');
+        document.getElementById('multSMMGen').textContent='×'+(s.multipliers.SMMGen??'–');
+      }
+      const ci=document.getElementById('overviewCacheInfo'),ct=document.getElementById('overviewCacheText');
+      ci.style.display='flex';
+      ct.textContent=d.cached?'Données en cache (15 min)':'7 lectures — cache 15 min';
     }
+  }catch(e){console.warn('Overview:',e);}
+}
 
-    function unlock() {
-        const pass = document.getElementById('adminPass').value;
-        if (pass === ADMIN_PASS) {
-            sessionStorage.setItem('sbh_admin_token', pass);
-            token = pass;
-            document.getElementById('authOverlay').style.display = 'none';
-            document.getElementById('app').style.display = 'block';
-            loadAll();
-        } else {
-            document.getElementById('loginError').style.display = 'block';
-        }
+async function loadTopUsers(){
+  const tb=document.getElementById('topUsersBody');
+  tb.innerHTML='<tr><td colspan="6" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';
+  try{
+    const d=await fetchAdmin('/top-users');
+    if(d.success&&d.users){
+      tb.innerHTML='';
+      if(!d.users.length){tb.innerHTML='<tr><td colspan="6" class="loading">Aucune donnée</td></tr>';return;}
+      d.users.forEach((u,i)=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td style="color:var(--gold);font-weight:700;">${i+1}</td>
+          <td><strong>${esc(u.name||'Anonyme')}</strong><br><small style="color:var(--text-dim);">${esc(u.email||'')}</small></td>
+          <td><span class="badge badge-mtp">${u.orderCount||0}</span></td>
+          <td style="color:var(--green);font-weight:600;">${(u.totalSpent||0).toLocaleString('fr-FR')} FCFA</td>
+          <td>${(u.balance||0).toLocaleString('fr-FR')} FCFA</td>
+          <td style="color:var(--text-muted);font-size:.8rem;">${esc(u.country||'–')}</td>`;
+        tb.appendChild(tr);
+      });
+    }else tb.innerHTML='<tr><td colspan="6" class="loading">Erreur</td></tr>';
+  }catch(e){tb.innerHTML=`<tr><td colspan="6" class="loading">Erreur : ${e.message}</td></tr>`;}
+}
+
+// ═══ SERVICES ═══
+async function loadServices(){
+  const tb=document.getElementById('servicesBody');
+  tb.innerHTML='<tr><td colspan="7" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';
+  try{
+    const d=await fetchAdmin('/services');
+    if(d.success){
+      allServices=d.data.services||[];
+      currentMultipliers=d.data.multipliers;
+      const ci=document.getElementById('servicesCacheInfo'),ct=document.getElementById('servicesCacheText');
+      ci.style.display='flex';ct.textContent='Cache 30 min';
+      filterServices();
     }
+  }catch(e){tb.innerHTML=`<tr><td colspan="7" class="loading">Erreur : ${e.message}</td></tr>`;}
+}
 
-    function logout() {
-        sessionStorage.removeItem('sbh_admin_token');
-        location.reload();
+function filterServices(){
+  const prov=document.getElementById('serviceFilter').value;
+  const search=document.getElementById('serviceSearch').value.toLowerCase();
+  const idSearch=document.getElementById('serviceIdSearch').value.trim();
+  const sort=document.getElementById('serviceSort').value;
+  const limit=document.getElementById('serviceLimit').value;
+  let f=allServices;
+  if(prov!=='all')f=f.filter(s=>s.provider===prov);
+  if(search)f=f.filter(s=>s.name.toLowerCase().includes(search));
+  if(idSearch)f=f.filter(s=>String(s.id).includes(idSearch));
+  const [field,dir]=sort.split('-');
+  f.sort((a,b)=>{const va=a[field]??'',vb=b[field]??'';if(typeof va==='string')return dir==='asc'?va.localeCompare(vb):vb.localeCompare(va);return dir==='asc'?va-vb:vb-va;});
+  if(limit!=='all')f=f.slice(0,parseInt(limit));
+  renderServices(f);
+}
+
+function renderServices(list){
+  const tb=document.getElementById('servicesBody');tb.innerHTML='';
+  if(!list.length){tb.innerHTML='<tr><td colspan="7" class="loading">Aucun service</td></tr>';updateServiceStats([]);return;}
+  const bm={MTP:'badge-mtp',EXO:'badge-exo',AfriqueBoost:'badge-afb',SMMGen:'badge-smg'};
+  list.forEach(s=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="color:var(--text-dim);font-size:.78rem;">${s.id}</td>
+      <td><span class="badge ${bm[s.provider]||''}">${s.provider}</span></td>
+      <td title="${esc(s.name)}">${esc(s.name.substring(0,45))}${s.name.length>45?'…':''}</td>
+      <td>${(s.providerCost||0).toLocaleString()} FCFA</td>
+      <td style="font-weight:700;color:var(--blue);">${(s.finalPrice||0).toLocaleString()} FCFA</td>
+      <td style="color:var(--green);font-weight:600;">+${(s.profit||0).toLocaleString()}</td>
+      <td><span class="badge" style="background:${s.profitMargin>50?'var(--green-dim)':'var(--gold-dim)'};color:${s.profitMargin>50?'var(--green)':'var(--gold)'};">${s.profitMargin}%</span></td>`;
+    tb.appendChild(tr);
+  });
+  updateServiceStats(list);
+}
+
+function updateServiceStats(list){
+  if(!list.length){document.getElementById('serviceStatsBar').innerHTML='';return;}
+  const prices=list.map(s=>s.finalPrice);
+  const avg=Math.round(prices.reduce((a,b)=>a+b,0)/prices.length);
+  document.getElementById('serviceStatsBar').innerHTML=`
+    <div class="stat-item"><i class="fas fa-cube" style="color:var(--gold);"></i> Affichés : <strong>${list.length}</strong></div>
+    <div class="stat-sep"></div>
+    <div class="stat-item"><i class="fas fa-arrow-down" style="color:var(--green);"></i> Min : <strong>${Math.min(...prices).toLocaleString()} FCFA</strong></div>
+    <div class="stat-sep"></div>
+    <div class="stat-item"><i class="fas fa-arrow-up" style="color:var(--red);"></i> Max : <strong>${Math.max(...prices).toLocaleString()} FCFA</strong></div>
+    <div class="stat-sep"></div>
+    <div class="stat-item"><i class="fas fa-chart-bar" style="color:var(--blue);"></i> Moyenne : <strong>${avg.toLocaleString()} FCFA</strong></div>`;
+}
+
+function sortServices(field){const sel=document.getElementById('serviceSort');const cur=sel.value.split('-');const newDir=(cur[0]===field&&cur[1]==='asc')?'desc':'asc';sel.value=field+'-'+newDir;filterServices();}
+function resetServiceFilters(){document.getElementById('serviceFilter').value='all';document.getElementById('serviceSearch').value='';document.getElementById('serviceIdSearch').value='';document.getElementById('serviceSort').value='finalPrice-asc';document.getElementById('serviceLimit').value='25';filterServices();}
+
+// ═══ GIFTS ═══
+async function loadGifts(){
+  const tb=document.getElementById('giftsBody');
+  tb.innerHTML='<tr><td colspan="7" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';
+  const status=document.getElementById('giftStatusFilter').value;
+  const limit=document.getElementById('giftLimit').value;
+  try{
+    const d=await fetchAdmin(`/gifts?status=${status}&limit=${limit}`);
+    if(d.success){
+      allGifts=d.claims||[];
+      const ci=document.getElementById('giftsCacheInfo'),ct=document.getElementById('giftsCacheText');
+      ci.style.display='flex';
+      ct.textContent=d.cached?`Cache actif — ${d.ttl||0}s restant`:`${d.reads||0} lectures — cache 5 min`;
+      filterGifts();
     }
+  }catch(e){tb.innerHTML=`<tr><td colspan="7" class="loading">Erreur : ${e.message}</td></tr>`;}
+}
 
-    function showError(msg) {
-        const banner = document.getElementById('errorBanner');
-        banner.textContent = msg;
-        banner.style.display = 'block';
-        setTimeout(() => { banner.style.display = 'none'; }, 8000);
+function filterGifts(){
+  const tF=document.getElementById('giftTypeFilter').value;
+  const q=document.getElementById('giftSearch').value.toLowerCase().trim();
+  let f=allGifts;
+  if(tF!=='all')f=f.filter(g=>g.giftType===tF);
+  if(q)f=f.filter(g=>[g.userName,g.email,g.whatsapp,g.userId,g.link,g.country].filter(Boolean).join(' ').toLowerCase().includes(q));
+  renderGifts(f);
+}
+
+function renderGifts(list){
+  const tb=document.getElementById('giftsBody');tb.innerHTML='';
+  if(!list.length){tb.innerHTML='<tr><td colspan="7" class="loading">Aucune demande</td></tr>';updateGiftStats([]);return;}
+  list.forEach(g=>{
+    const age=getGiftAgeDays(g.createdAt);const ageL=shortAge(g.createdAt);
+    const isLate=g.status==='pending'&&age!==null&&age>=1;
+    const ageBadge=ageL?`<span class="age-badge ${isLate?'old':''}" title="${isLate?'En retard de '+age+'j':'Âge'}">${ageL}</span>`:'';
+    const user=g.userName?`<strong>${esc(g.userName)}</strong>${g.email?'<br><small style="color:var(--text-dim);">'+esc(g.email)+'</small>':''}`:esc(g.email||g.userId||'Inconnu');
+    const links=[];
+    if(g.link)links.push(`<a href="${escAttr(g.link)}" target="_blank" rel="noopener" style="color:var(--blue);word-break:break-all;font-size:.78rem;">${esc(g.link)}</a>`);
+    if(g.whatsapp)links.push(`<div style="margin-top:4px;font-size:.78rem;color:var(--text-dim);">📱 +${esc(g.whatsapp)} <button class="btn btn-outline btn-sm" style="padding:2px 6px;" onclick="copyText('${escAttr(g.whatsapp)}')"><i class="fas fa-copy"></i></button></div>`);
+    const waBtn=`<button class="btn btn-wa btn-sm" ${!g.whatsapp?'disabled title="Aucun WhatsApp"':''} onclick="${g.whatsapp?"openWaModal('"+escAttr(g.id)+"')":''}"><i class="fab fa-whatsapp"></i></button>`;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="font-size:.78rem;color:var(--text-dim);white-space:nowrap;">${formatDate(g.createdAt)}${ageBadge}</td>
+      <td style="font-size:.85rem;">${user}</td><td>${esc(g.country||'–')}</td><td>${giftTypeLabel(g)}</td>
+      <td>${links.length?links.join(''):'–'}</td><td>${statusLabel(g.status)}</td>
+      <td><div style="display:flex;gap:5px;flex-wrap:wrap;">${waBtn}
+      ${g.link?`<button class="btn btn-outline btn-sm" onclick="copyText('${escAttr(g.link)}')"><i class="fas fa-copy"></i></button>`:''}
+      ${g.status==='pending'?`<button class="btn btn-green btn-sm" onclick="setGiftStatus('${escAttr(g.id)}','delivered')"><i class="fas fa-check"></i></button>
+      <button class="btn btn-red btn-sm" onclick="setGiftStatus('${escAttr(g.id)}','rejected')"><i class="fas fa-xmark"></i></button>`:
+      `<button class="btn btn-outline btn-sm" onclick="setGiftStatus('${escAttr(g.id)}','pending')"><i class="fas fa-rotate-left"></i></button>`}
+      </div></td>`;
+    tb.appendChild(tr);
+  });
+  updateGiftStats(list);
+}
+
+function updateGiftStats(list){
+  const p=list.filter(g=>g.status==='pending').length,d=list.filter(g=>g.status==='delivered').length,r=list.filter(g=>g.status==='rejected').length;
+  const late=list.filter(g=>g.status==='pending'&&(getGiftAgeDays(g.createdAt)||0)>=1).length;
+  document.getElementById('giftStatsBar').innerHTML=`
+    <div class="stat-item"><i class="fas fa-list" style="color:var(--gold);"></i> Affichés : <strong>${list.length}</strong></div>
+    <div class="stat-sep"></div>
+    <div class="stat-item"><i class="fas fa-clock" style="color:#fbbf24;"></i> En attente : <strong>${p}</strong></div>
+    <div class="stat-sep"></div>
+    <div class="stat-item"><i class="fas fa-check-circle" style="color:var(--green);"></i> Livrés : <strong>${d}</strong></div>
+    <div class="stat-sep"></div>
+    <div class="stat-item"><i class="fas fa-xmark-circle" style="color:var(--red);"></i> Rejetés : <strong>${r}</strong></div>
+    ${late?`<div class="stat-sep"></div><div class="stat-item"><i class="fas fa-exclamation-triangle" style="color:var(--red);"></i> En retard : <strong>${late}</strong></div>`:''}`;
+}
+
+async function setGiftStatus(id,status){
+  const labels={delivered:'marquer comme LIVRÉ',rejected:'REJETER',pending:'réouvrir'};
+  if(!confirm(`Confirmer : ${labels[status]} ce cadeau ?`))return;
+  try{
+    const r=await fetchAdmin(`/gifts/${id}/status`,{method:'POST',body:JSON.stringify({status})});
+    if(r.success){const g=allGifts.find(x=>x.id===id);if(g)g.status=status;filterGifts();}
+    else alert('Erreur : '+(r.error||'Inconnue'));
+  }catch(e){alert('Erreur réseau : '+e.message);}
+}
+
+// ═══ USERS STATS ═══
+async function loadUsersStats(){
+  try{
+    const d=await fetchAdmin('/users-stats');
+    if(d.success&&d.stats){
+      document.getElementById('usersTotal').textContent=(d.stats.totalUsers||0).toLocaleString();
+      document.getElementById('usersNew7d').textContent=(d.stats.newUsers7d||0).toLocaleString();
+      document.getElementById('usersTotalBalance').textContent=(d.stats.totalBalance||0).toLocaleString('fr-FR')+' FCFA';
+      document.getElementById('usersAvgBalance').textContent=(d.stats.avgBalance||0).toLocaleString('fr-FR')+' FCFA';
+      const ci=document.getElementById('usersCacheInfo'),ct=document.getElementById('usersCacheText');
+      ci.style.display='flex';ct.textContent=d.cached?'Cache actif (60 min)':'3 lectures — cache 60 min';
     }
-
-    async function fetchAdmin(endpoint, options = {}) {
-        try {
-            const res = await fetch(`/api/admin${endpoint}`, {
-                ...options,
-                headers: {
-                    'x-admin-password': token,
-                    'Content-Type': 'application/json',
-                    ...(options.headers || {})
-                }
-            });
-            if (res.status === 403) {
-                logout();
-                throw new Error('Session expirée ou clé invalide.');
-            }
-            if (!res.ok) {
-                const text = await res.text();
-                throw new Error(`Erreur réseau (Code ${res.status}).`);
-            }
-            return await res.json();
-        } catch (e) {
-            console.error('Erreur fetchAdmin:', e);
-            throw e;
-        }
-    }
-
-    async function loadAll() {
-        try {
-            await Promise.all([loadServices(), loadGifts()]);
-        } catch (e) {
-            showError('Erreur lors du chargement des données : ' + e.message);
-        }
-    }
-
-    async function refreshAll() {
-        document.querySelectorAll('.loading').forEach(el => el.textContent = 'Chargement...');
-        await loadAll();
-    }
-
-    // ══════════════════ SERVICES ══════════════════
-    async function loadServices() {
-        const data = await fetchAdmin('/services');
-        if (data && data.success) {
-            allServices = data.data.services || [];
-            const stats = data.data.stats || {};
-            document.getElementById('serviceStats').textContent =
-                `Total: ${stats.total || 0} | Min: ${stats.minPrice || 0} FCFA | Max: ${stats.maxPrice || 0} FCFA | Moy: ${stats.avgPrice || 0} FCFA`;
-
-            currentMultipliers = data.data.multipliers || null;
-            const m = currentMultipliers || {};
-            document.getElementById('multMTP').textContent = m.MTP ?? '–';
-            document.getElementById('multEXO').textContent = m.EXO ?? '–';
-            document.getElementById('multAFB').textContent = m.AfriqueBoost ?? '–';
-            document.getElementById('multSMMGen').textContent = m.SMMGen ?? '–';
-
-            filterServices();
-        }
-    }
-
-    function renderServices(services) {
-        const tbody = document.getElementById('servicesBody');
-        tbody.innerHTML = '';
-        if (!services.length) {
-            tbody.innerHTML = '<tr><td colspan="7" class="loading">Aucun service trouvé</td></tr>';
-            return;
-        }
-        services.forEach(s => {
-            let badge = '';
-            if (s.provider === 'MTP') badge = 'badge-mtp';
-            if (s.provider === 'EXO') badge = 'badge-exo';
-            if (s.provider === 'AfriqueBoost') badge = 'badge-afb';
-            if (s.provider === 'SMMGen') badge = 'badge-smg';
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${s.id}</td>
-                <td><span class="badge ${badge}">${s.provider}</span></td>
-                <td title="${s.name}">${s.name.substring(0, 40)}</td>
-                <td>${s.providerCost.toLocaleString()} FCFA</td>
-                <td style="font-weight:bold;color:var(--blue);">${s.finalPrice.toLocaleString()} FCFA</td>
-                <td style="color:var(--green);">+${s.profit.toLocaleString()} FCFA</td>
-                <td>${s.profitMargin}%</td>
-            `;
-            tbody.appendChild(tr);
-        });
-    }
-
-    function filterServices() {
-        const filter = document.getElementById('serviceFilter').value;
-        const search = document.getElementById('serviceSearch').value.toLowerCase();
-        const idSearch = document.getElementById('serviceIdSearch').value.trim();
-        const limit = document.getElementById('serviceLimit').value;
-
-        let filtered = allServices;
-        if (filter !== 'all') filtered = filtered.filter(s => s.provider === filter);
-        if (search) filtered = filtered.filter(s => s.name.toLowerCase().includes(search));
-        if (idSearch) filtered = filtered.filter(s => String(s.id).includes(idSearch));
-        if (limit !== 'all') {
-            const num = parseInt(limit);
-            filtered = filtered.slice(0, num);
-        }
-        renderServices(filtered);
-    }
-
-    function resetServiceFilters() {
-        document.getElementById('serviceFilter').value = 'all';
-        document.getElementById('serviceSearch').value = '';
-        document.getElementById('serviceIdSearch').value = '';
-        document.getElementById('serviceLimit').value = '25';
-        filterServices();
-    }
-
-    // ══════════════════ CADEAUX DE BIENVENUE ══════════════════
-    async function loadGifts() {
-        const tbody = document.getElementById('giftsBody');
-        tbody.innerHTML = '<tr><td colspan="7" class="loading">Chargement...</td></tr>';
-        try {
-            const data = await fetchAdmin('/gifts');
-            if (data && data.success) {
-                allGifts = data.claims || [];
-                filterGifts();
-            } else {
-                tbody.innerHTML = '<tr><td colspan="7" class="loading">Erreur de chargement.</td></tr>';
-            }
-        } catch (e) {
-            tbody.innerHTML = '<tr><td colspan="7" class="loading">Erreur : ' + e.message + '</td></tr>';
-        }
-    }
-
-    function formatDate(ts) {
-        if (!ts) return '–';
-        let d;
-        if (typeof ts === 'object' && ts._seconds) d = new Date(ts._seconds * 1000);
-        else if (typeof ts === 'object' && ts.seconds) d = new Date(ts.seconds * 1000);
-        else d = new Date(ts);
-        if (isNaN(d.getTime())) return '–';
-        return d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    }
-
-    // Calcule l'âge (en jours) d'une demande à partir de son timestamp — 100% côté client
-    function getGiftAgeDays(ts) {
-        if (!ts) return null;
-        let d;
-        if (typeof ts === 'object' && ts._seconds) d = new Date(ts._seconds * 1000);
-        else if (typeof ts === 'object' && ts.seconds) d = new Date(ts.seconds * 1000);
-        else d = new Date(ts);
-        if (isNaN(d.getTime())) return null;
-        const diffMs = Date.now() - d.getTime();
-        return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-    }
-
-    // Renvoie l'âge court affiché (ex: "auj.", "hier", "3j")
-    function shortAgeLabel(ts) {
-        const days = getGiftAgeDays(ts);
-        if (days === null) return '';
-        if (days === 0) return "auj.";
-        if (days === 1) return "hier";
-        return days + "j";
-    }
-
-    function giftTypeLabel(g) {
-        if (g.giftType === 'money') return `<span class="badge badge-money">💰 25 FCFA</span>`;
-        if (g.giftType === 'likes') return `<span class="badge badge-likes">❤️ 25 Likes <br><small>${g.platform || ''}</small></span>`;
-        if (g.giftType === 'tiktok') return `<span class="badge badge-tiktok">📱 1000 Vues TT</span>`;
-        return `<span class="badge">${g.giftType}</span>`;
-    }
-
-    // Version texte simple (sans HTML) pour le message WhatsApp / PDF
-    function giftTypePlain(g) {
-        if (g.giftType === 'money') return '25 FCFA';
-        if (g.giftType === 'likes') return `25 Likes${g.platform ? ' (' + g.platform + ')' : ''}`;
-        if (g.giftType === 'tiktok') return '1000 Vues TikTok';
-        return g.giftType || 'Cadeau';
-    }
-
-    function statusLabel(s) {
-        if (s === 'delivered') return `<span class="badge badge-delivered">✅ Livré</span>`;
-        if (s === 'rejected')  return `<span class="badge badge-rejected">❌ Rejeté</span>`;
-        return `<span class="badge badge-pending">⏳ En attente</span>`;
-    }
-
-    function escapeHtml(str) {
-        if (str === null || str === undefined) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
-
-    function escapeAttr(str) {
-        if (str === null || str === undefined) return '';
-        return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    }
-
-    function renderGifts(gifts) {
-        const tbody = document.getElementById('giftsBody');
-        tbody.innerHTML = '';
-        if (!gifts.length) {
-            tbody.innerHTML = '<tr><td colspan="7" class="loading">Aucune demande trouvée</td></tr>';
-            return;
-        }
-        gifts.forEach(g => {
-            const userDisplay = g.userName
-                ? `${escapeHtml(g.userName)}${g.email ? '<br><small style="color:#94a3b8;">' + escapeHtml(g.email) + '</small>' : ''}`
-                : escapeHtml(g.email || g.userId || 'Inconnu');
-
-            const linkOrWa = [];
-            if (g.link) linkOrWa.push(`<a href="${escapeAttr(g.link)}" target="_blank" rel="noopener" class="link-cell">${escapeHtml(g.link)}</a>`);
-            if (g.whatsapp) {
-                linkOrWa.push(`<div style="margin-top:4px;font-size:0.8rem;color:#94a3b8;">📱 +${escapeHtml(g.whatsapp)} <button class="btn-action btn-small" onclick="copyText('${escapeAttr(g.whatsapp)}')"><i class="fas fa-copy"></i></button></div>`);
-            }
-
-            // Badge d'âge / retard
-            const ageDays = getGiftAgeDays(g.createdAt);
-            const ageLabel = shortAgeLabel(g.createdAt);
-            const isOldPending = (g.status === 'pending' && ageDays !== null && ageDays >= 1);
-            const ageBadgeHtml = ageLabel
-                ? `<span class="age-badge ${isOldPending ? 'old' : ''}" title="${isOldPending ? 'Demande en retard de ' + ageDays + ' jour(s)' : 'Âge de la demande'}">${ageLabel}</span>`
-                : '';
-
-            const dateCell = `<td style="font-size:0.78rem;color:#94a3b8;white-space:nowrap;">${formatDate(g.createdAt)}${ageBadgeHtml}</td>`;
-
-            // Bouton WhatsApp (désactivé si pas de numéro)
-            const waDisabled = !g.whatsapp;
-            const waBtn = `<button class="btn-action btn-small btn-wa" ${waDisabled ? 'disabled title="Aucun numéro WhatsApp"' : ''} onclick="${waDisabled ? '' : "openWhatsAppModal('" + escapeAttr(g.id) + "')"}"><i class="fab fa-whatsapp"></i> WhatsApp</button>`;
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                ${dateCell}
-                <td style="font-size:0.85rem;">${userDisplay}</td>
-                <td>${escapeHtml(g.country || '–')}</td>
-                <td>${giftTypeLabel(g)}</td>
-                <td>${linkOrWa.length ? linkOrWa.join('') : '–'}</td>
-                <td>${statusLabel(g.status)}</td>
-                <td>
-                    <div class="actions-cell">
-                        ${waBtn}
-                        ${g.link ? `<button class="btn-action btn-small" onclick="copyText('${escapeAttr(g.link)}')"><i class="fas fa-copy"></i> Lien</button>` : ''}
-                        ${g.status === 'pending' ? `
-                            <button class="btn-action btn-small btn-success" onclick="setGiftStatus('${escapeAttr(g.id)}','delivered')"><i class="fas fa-check"></i> Livré</button>
-                            <button class="btn-action btn-small btn-danger" onclick="setGiftStatus('${escapeAttr(g.id)}','rejected')"><i class="fas fa-xmark"></i> Rejeter</button>
-                        ` : `
-                            <button class="btn-action btn-small" onclick="setGiftStatus('${escapeAttr(g.id)}','pending')"><i class="fas fa-rotate-left"></i> Réouvrir</button>
-                        `}
-                    </div>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-
-        // Stats
-        const pending = gifts.filter(g => g.status === 'pending').length;
-        const delivered = gifts.filter(g => g.status === 'delivered').length;
-        const rejected = gifts.filter(g => g.status === 'rejected').length;
-        const late = gifts.filter(g => g.status === 'pending' && (getGiftAgeDays(g.createdAt) || 0) >= 1).length;
-        document.getElementById('giftStats').textContent =
-            `Total affiché : ${gifts.length} | ⏳ En attente : ${pending} | ✅ Livrés : ${delivered} | ❌ Rejetés : ${rejected}${late ? ' | 🔴 En retard : ' + late : ''}`;
-    }
-
-    function filterGifts() {
-        const statusF = document.getElementById('giftStatusFilter').value;
-        const typeF = document.getElementById('giftTypeFilter').value;
-        const search = document.getElementById('giftSearch').value.toLowerCase().trim();
-
-        let filtered = allGifts;
-        if (statusF !== 'all') filtered = filtered.filter(g => g.status === statusF);
-        if (typeF !== 'all') filtered = filtered.filter(g => g.giftType === typeF);
-        if (search) {
-            filtered = filtered.filter(g => {
-                const haystack = [
-                    g.userName, g.email, g.whatsapp, g.userId, g.link, g.country
-                ].filter(Boolean).join(' ').toLowerCase();
-                return haystack.includes(search);
-            });
-        }
-        renderGifts(filtered);
-    }
-
-    function resetGiftFilters() {
-        document.getElementById('giftStatusFilter').value = 'pending';
-        document.getElementById('giftTypeFilter').value = 'all';
-        document.getElementById('giftSearch').value = '';
-        filterGifts();
-    }
-
-    async function setGiftStatus(id, status) {
-        const labels = { delivered: 'marquer comme LIVRÉ', rejected: 'REJETER', pending: 'réouvrir' };
-        if (!confirm(`Confirmer : ${labels[status]} ce cadeau ?`)) return;
-        try {
-            const r = await fetchAdmin(`/gifts/${id}/status`, {
-                method: 'POST',
-                body: JSON.stringify({ status })
-            });
-            if (r.success) {
-                const g = allGifts.find(x => x.id === id);
-                if (g) g.status = status;
-                filterGifts();
-            } else {
-                alert('Erreur : ' + (r.error || 'Inconnue'));
-            }
-        } catch (e) {
-            alert('Erreur réseau : ' + e.message);
-        }
-    }
-
-    function copyText(txt) {
-        navigator.clipboard.writeText(txt).then(() => {
-            const toast = document.createElement('div');
-            toast.textContent = '✅ Copié !';
-            toast.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#22c55e;color:white;padding:10px 20px;border-radius:8px;z-index:9999;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.4);';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 1500);
-        }).catch(() => alert('Copie impossible. Sélectionnez manuellement.'));
-    }
-
-    // ══════════════════ WHATSAPP SUPPORT ══════════════════
-    function cleanWhatsAppNumber(num) {
-        if (!num) return '';
-        return String(num).replace(/[^0-9]/g, '');
-    }
-
-    function openWhatsAppModal(giftId) {
-        const g = allGifts.find(x => x.id === giftId);
-        if (!g) return;
-        if (!g.whatsapp) {
-            alert("Aucun numéro WhatsApp enregistré pour cet utilisateur.");
-            return;
-        }
-        currentWaGift = g;
-
-        // Bloc destinataire
-        const infoEl = document.getElementById('waRecipientInfo');
-        infoEl.innerHTML = `
-            <div class="name"><i class="fas fa-user"></i> ${escapeHtml(g.userName || 'Utilisateur')}</div>
-            ${g.country ? `<div style="color:#94a3b8;font-size:0.85rem;">🌍 ${escapeHtml(g.country)}</div>` : ''}
-            <div style="color:#94a3b8;font-size:0.85rem;">📱 +${escapeHtml(g.whatsapp)}</div>
-            <div style="color:#94a3b8;font-size:0.85rem;">🎁 Cadeau : <strong style="color:var(--text-light);">${escapeHtml(giftTypePlain(g))}</strong></div>
-            <div style="color:#94a3b8;font-size:0.85rem;">📅 Demandé le : ${escapeHtml(formatDate(g.createdAt))}</div>
-            ${g.link ? `<div style="color:#94a3b8;font-size:0.85rem;">🔗 Lien : <span style="color:var(--blue);word-break:break-all;">${escapeHtml(g.link)}</span></div>` : ''}
-        `;
-
-        // Détection du retard (>= 1 jour)
-        const ageDays = getGiftAgeDays(g.createdAt) || 0;
-        const warnEl = document.getElementById('waDelayWarning');
-        if (g.status === 'pending' && ageDays >= 1) {
-            warnEl.style.display = 'block';
-            warnEl.innerHTML = `<i class="fas fa-triangle-exclamation"></i> Cette demande est en attente depuis <strong>${ageDays} jour${ageDays > 1 ? 's' : ''}</strong>. Il est fortement recommandé d'utiliser le message « Excuses pour le retard » pour rassurer l'utilisateur.`;
-        } else {
-            warnEl.style.display = 'none';
-        }
-
-        // Sélection recommandée
-        let recommended = 'launched';
-        if (g.status === 'pending' && ageDays >= 1) recommended = 'delay';
-        else if (g.status === 'pending') recommended = 'confirmation';
-
-        document.querySelectorAll('input[name="waType"]').forEach(r => {
-            r.checked = (r.value === recommended);
-        });
-        updateTypeHighlight();
-
-        // Reset custom
-        document.getElementById('waCustomText').value = '';
-        document.getElementById('waCustomText').style.display = 'none';
-
-        updateWaPreview();
-        document.getElementById('waModal').classList.add('active');
-    }
-
-    function closeWaModal() {
-        document.getElementById('waModal').classList.remove('active');
-        currentWaGift = null;
-    }
-
-    function updateTypeHighlight() {
-        document.querySelectorAll('.wa-type-option').forEach(el => {
-            const radio = el.querySelector('input[type="radio"]');
-            if (radio && radio.checked) el.classList.add('selected');
-            else el.classList.remove('selected');
-        });
-    }
-
-    function buildWaMessage(g, type) {
-        const name = g.userName || 'cher client';
-        const dateStr = formatDate(g.createdAt);
-        const gift = giftTypePlain(g);
-        const link = g.link || '(non fourni)';
-        const country = g.country ? `🌍 Pays : ${g.country}\n` : '';
-        const ageDays = getGiftAgeDays(g.createdAt) || 0;
-
-        if (type === 'confirmation') {
-            return `Bonjour ${name} 👋
-
-Nous sommes l'équipe *Social Boost Horizon*.
-
-Nous avons bien reçu votre demande de cadeau de bienvenue :
-🎁 Cadeau : ${gift}
-📅 Demandé le : ${dateStr}
-${country}
-Avant de lancer votre cadeau, merci de bien vouloir *CONFIRMER* que ce lien est bien celui à créditer :
-🔗 ${link}
-
-✅ Répondez *OUI* pour confirmer
-✏️ Ou envoyez-nous le bon lien si celui-ci n'est pas correct.
-
-Merci de votre confiance !
-— *Social Boost Horizon*`;
-        }
-
-        if (type === 'launched') {
-            return `Bonjour ${name} 👋
-
-Bonne nouvelle ! 🎉 Votre cadeau de bienvenue est *en cours de traitement*.
-
-🎁 Cadeau : ${gift}
-📅 Demandé le : ${dateStr}
-${country}${g.link ? `🔗 Lien crédité : ${g.link}\n` : ''}
-Notre équipe traite votre demande et vous recevrez votre cadeau très prochainement. ⏳
-
-Merci de votre patience !
-— *Social Boost Horizon*`;
-        }
-
-        if (type === 'delay') {
-            return `Bonjour ${name} 👋
-
-Nous vous prions de bien vouloir nous excuser pour le retard concernant votre cadeau de bienvenue. 🙏
-
-🎁 Cadeau : ${gift}
-📅 Demandé le : ${dateStr} (il y a ${ageDays} jour${ageDays > 1 ? 's' : ''})
-${country}${g.link ? `🔗 Lien : ${g.link}\n` : ''}
-Nous traitons votre demande en *PRIORITÉ* et vous recevrez votre cadeau très prochainement.
-
-Merci de votre compréhension et de votre confiance.
-— *Social Boost Horizon*`;
-        }
-
-        return '';
-    }
-
-    function updateWaPreview(fromCustom = false) {
-        if (!currentWaGift) return;
-        const selected = document.querySelector('input[name="waType"]:checked');
-        const type = selected ? selected.value : 'confirmation';
-        updateTypeHighlight();
-
-        const previewEl = document.getElementById('waPreview');
-        const customEl = document.getElementById('waCustomText');
-
-        if (type === 'custom') {
-            customEl.style.display = 'block';
-            previewEl.value = customEl.value || '(Saisissez votre message personnalisé ci-dessus)';
-        } else {
-            customEl.style.display = 'none';
-            previewEl.value = buildWaMessage(currentWaGift, type);
-        }
-
-        // Compteur de caractères
-        const len = (type === 'custom' ? customEl.value : previewEl.value).length;
-        document.getElementById('waCharCount').textContent = `${len} caractère${len > 1 ? 's' : ''}`;
-    }
-
-    function sendWhatsApp() {
-        if (!currentWaGift) return;
-        const selected = document.querySelector('input[name="waType"]:checked');
-        const type = selected ? selected.value : 'confirmation';
-
-        let msg;
-        if (type === 'custom') {
-            msg = document.getElementById('waCustomText').value.trim();
-            if (!msg) { alert('Veuillez saisir votre message personnalisé.'); return; }
-        } else {
-            msg = buildWaMessage(currentWaGift, type);
-        }
-
-        const num = cleanWhatsAppNumber(currentWaGift.whatsapp);
-        if (!num || num.length < 6) {
-            alert("Numéro WhatsApp invalide.");
-            return;
-        }
-
-        const url = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
-        window.open(url, '_blank');
-        closeWaModal();
-    }
-
-    // ══════════════════ EXPORT PDF ══════════════════
-    function addFooter(doc) {
-        doc.setFontSize(10);
-        doc.setTextColor(136, 136, 136);
-        doc.text('Fondateur : NAPOPOLO EXAUCE', 14, doc.internal.pageSize.height - 10);
-        doc.text('Social Boost Horizon © 2025', 14, doc.internal.pageSize.height - 5);
-    }
-
-    function exportServicesPDF() {
-        if (!allServices || allServices.length === 0) return alert("Aucun service à exporter.");
-        try {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            doc.setFontSize(18); doc.setTextColor(212, 175, 55);
-            doc.text("Rapport des Services - Social Boost Horizon", 14, 20);
-            doc.setFontSize(10); doc.setTextColor(100);
-
-            const m = currentMultipliers || {};
-            doc.text(
-                `Multiplicateurs → MTP: ×${m.MTP ?? '?'} | EXO: ×${m.EXO ?? '?'} | AFB: ×${m.AfriqueBoost ?? '?'} | SMMGen: ×${m.SMMGen ?? '?'}`,
-                14, 28
-            );
-            doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 34);
-
-            const tableColumn = ["ID", "Partenaire", "Nom", "Cout", "Prix final", "Benefice", "Marge"];
-            const tableRows = allServices.slice(0, 200).map(s => [
-                s.id, s.provider, s.name.substring(0, 40),
-                `${s.providerCost} FCFA`, `${s.finalPrice} FCFA`, `+${s.profit} FCFA`, `${s.profitMargin}%`
-            ]);
-            doc.autoTable({
-                head: [tableColumn], body: tableRows, startY: 40, theme: 'striped',
-                headStyles: { fillColor: [212, 175, 55], textColor: [8, 14, 26] },
-                styles: { fontSize: 8 }
-            });
-            addFooter(doc);
-            doc.save('Services_SBH.pdf');
-        } catch (e) {
-            alert('Erreur export PDF Services : ' + e.message);
-        }
-    }
-
-    function exportGiftsPDF() {
-        if (!allGifts || allGifts.length === 0) return alert("Aucune demande de cadeau à exporter.");
-        try {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ orientation: 'landscape' });
-            doc.setFontSize(18); doc.setTextColor(212, 175, 55);
-            doc.text("Demandes de cadeaux de bienvenue - SBH", 14, 20);
-            doc.setFontSize(10); doc.setTextColor(100);
-            doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 28);
-
-            const tableColumn = ["Date", "Âge", "Utilisateur", "Email", "Pays", "Type", "Plateforme", "Lien", "WhatsApp", "Statut"];
-            const tableRows = allGifts.map(g => {
-                const age = getGiftAgeDays(g.createdAt);
-                const ageStr = age === null ? '–' : (age === 0 ? "Aujourd'hui" : (age === 1 ? 'Hier' : age + 'j'));
-                return [
-                    formatDate(g.createdAt),
-                    ageStr,
-                    g.userName || '–',
-                    g.email || '–',
-                    g.country || '–',
-                    giftTypePlain(g),
-                    g.platform || '–',
-                    (g.link || '').substring(0, 50),
-                    g.whatsapp ? '+' + g.whatsapp : '–',
-                    g.status,
-                ];
-            });
-            doc.autoTable({
-                head: [tableColumn], body: tableRows, startY: 35, theme: 'striped',
-                headStyles: { fillColor: [212, 175, 55], textColor: [8, 14, 26] },
-                styles: { fontSize: 8 }
-            });
-            addFooter(doc);
-            doc.save('Cadeaux_Bienvenue_SBH.pdf');
-        } catch (e) {
-            alert('Erreur export PDF Cadeaux : ' + e.message);
-        }
-    }
-
-    // Fermer la modal avec Échap
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && document.getElementById('waModal').classList.contains('active')) {
-            closeWaModal();
-        }
-    });
+  }catch(e){console.warn(e);}
+}
+
+// ═══ WHATSAPP ═══
+function openWaModal(giftId){
+  const g=allGifts.find(x=>x.id===giftId);if(!g||!g.whatsapp)return;
+  currentWaGift=g;
+  document.getElementById('waRecipientInfo').innerHTML=`
+    <div class="name"><i class="fas fa-user"></i> ${esc(g.userName||'Utilisateur')}</div>
+    ${g.country?`<div style="color:var(--text-dim);font-size:.82rem;">🌍 ${esc(g.country)}</div>`:''}
+    <div style="color:var(--text-dim);font-size:.82rem;">📱 +${esc(g.whatsapp)}</div>
+    <div style="color:var(--text-dim);font-size:.82rem;">🎁 <strong style="color:var(--text);">${esc(giftTypePlain(g))}</strong></div>
+    <div style="color:var(--text-dim);font-size:.82rem;">📅 ${esc(formatDate(g.createdAt))}</div>`;
+  const age=getGiftAgeDays(g.createdAt)||0;
+  const w=document.getElementById('waDelayWarning');
+  if(g.status==='pending'&&age>=1){w.style.display='block';w.innerHTML=`<i class="fas fa-triangle-exclamation"></i> En attente depuis <strong>${age} jour${age>1?'s':''}</strong>. Message « Excuses » recommandé.`;}else w.style.display='none';
+  let rec='launched';if(g.status==='pending'&&age>=1)rec='delay';else if(g.status==='pending')rec='confirmation';
+  document.querySelectorAll('input[name="waType"]').forEach(r=>r.checked=(r.value===rec));
+  updateTypeHighlight();document.getElementById('waCustomText').value='';document.getElementById('waCustomText').style.display='none';
+  updateWaPreview();document.getElementById('waModal').classList.add('active');
+}
+function closeWaModal(){document.getElementById('waModal').classList.remove('active');currentWaGift=null;}
+function updateTypeHighlight(){document.querySelectorAll('.wa-type-opt').forEach(el=>{const r=el.querySelector('input[type="radio"]');if(r&&r.checked)el.classList.add('selected');else el.classList.remove('selected');});}
+
+function buildWaMessage(g,type){
+  const n=g.userName||'cher client';const d=formatDate(g.createdAt);const gt=giftTypePlain(g);
+  const l=g.link||'(non fourni)';const c=g.country?`🌍 Pays : ${g.country}\n`:'';const age=getGiftAgeDays(g.createdAt)||0;
+  if(type==='confirmation')return `Bonjour ${n} 👋\n\nNous sommes l'équipe *Social Boost Horizon*.\n\nNous avons bien reçu votre demande de cadeau de bienvenue :\n🎁 Cadeau : ${gt}\n📅 Demandé le : ${d}\n${c}\nAvant de lancer votre cadeau, merci de *CONFIRMER* que ce lien est bien celui à créditer :\n🔗 ${l}\n\n✅ Répondez *OUI* pour confirmer\n✏️ Ou envoyez-nous le bon lien si nécessaire.\n\nMerci de votre confiance !\n— *Social Boost Horizon*`;
+  if(type==='launched')return `Bonjour ${n} 👋\n\nBonne nouvelle ! 🎉 Votre cadeau de bienvenue est *en cours de traitement*.\n\n🎁 Cadeau : ${gt}\n📅 Demandé le : ${d}\n${c}${g.link?`🔗 Lien crédité : ${g.link}\n`:''}\nNotre équipe traite votre demande et vous recevrez votre cadeau très prochainement. ⏳\n\nMerci de votre patience !\n— *Social Boost Horizon*`;
+  if(type==='delay')return `Bonjour ${n} 👋\n\nNous vous prions de bien vouloir nous excuser pour le retard concernant votre cadeau de bienvenue. 🙏\n\n🎁 Cadeau : ${gt}\n📅 Demandé le : ${d} (il y a ${age} jour${age>1?'s':''})\n${c}${g.link?`🔗 Lien : ${g.link}\n`:''}\nNous traitons votre demande en *PRIORITÉ*.\n\nMerci de votre compréhension.\n— *Social Boost Horizon*`;
+  return '';
+}
+
+function updateWaPreview(){
+  if(!currentWaGift)return;
+  const sel=document.querySelector('input[name="waType"]:checked');const t=sel?sel.value:'confirmation';
+  updateTypeHighlight();
+  const p=document.getElementById('waPreview'),c=document.getElementById('waCustomText');
+  if(t==='custom'){c.style.display='block';p.value=c.value||'(Saisissez votre message…)';}
+  else{c.style.display='none';p.value=buildWaMessage(currentWaGift,t);}
+  const len=(t==='custom'?c.value:p.value).length;
+  document.getElementById('waCharCount').textContent=`${len} caractère${len>1?'s':''}`;
+}
+
+function sendWhatsApp(){
+  if(!currentWaGift)return;
+  const sel=document.querySelector('input[name="waType"]:checked');const t=sel?sel.value:'confirmation';
+  let msg;if(t==='custom'){msg=document.getElementById('waCustomText').value.trim();if(!msg)return alert('Saisissez un message.');}else msg=buildWaMessage(currentWaGift,t);
+  const num=(currentWaGift.whatsapp||'').replace(/[^0-9]/g,'');
+  if(!num||num.length<6)return alert('Numéro invalide.');
+  window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`,'_blank');closeWaModal();
+}
+
+// ═══ UTILS ═══
+function formatDate(ts){if(!ts)return '–';let d;if(typeof ts==='object'&&ts._seconds)d=new Date(ts._seconds*1000);else if(typeof ts==='object'&&ts.seconds)d=new Date(ts.seconds*1000);else d=new Date(ts);if(isNaN(d.getTime()))return '–';return d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
+function getGiftAgeDays(ts){if(!ts)return null;let d;if(typeof ts==='object'&&ts._seconds)d=new Date(ts._seconds*1000);else if(typeof ts==='object'&&ts.seconds)d=new Date(ts.seconds*1000);else d=new Date(ts);if(isNaN(d.getTime()))return null;return Math.max(0,Math.floor((Date.now()-d.getTime())/(1000*60*60*24)));}
+function shortAge(ts){const a=getGiftAgeDays(ts);if(a===null)return '';if(a===0)return 'auj.';if(a===1)return 'hier';return a+'j';}
+function giftTypeLabel(g){if(g.giftType==='money')return '<span class="badge badge-money">💰 25 FCFA</span>';if(g.giftType==='likes')return `<span class="badge badge-likes">❤️ 25 Likes<br><small>${esc(g.platform||'')}</small></span>`;if(g.giftType==='tiktok')return '<span class="badge badge-tiktok">📱 1000 Vues TT</span>';return `<span class="badge">${esc(g.giftType)}</span>`;}
+function giftTypePlain(g){if(g.giftType==='money')return '25 FCFA';if(g.giftType==='likes')return `25 Likes${g.platform?' ('+g.platform+')':''}`;if(g.giftType==='tiktok')return '1000 Vues TikTok';return g.giftType||'Cadeau';}
+function statusLabel(s){if(s==='delivered')return '<span class="badge badge-delivered">✅ Livré</span>';if(s==='rejected')return '<span class="badge badge-rejected">❌ Rejeté</span>';return '<span class="badge badge-pending">⏳ En attente</span>';}
+function esc(s){if(s==null)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function escAttr(s){if(s==null)return '';return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');}
+function copyText(t){navigator.clipboard.writeText(t).then(()=>showToast('Copié !')).catch(()=>alert('Copie impossible.'));}
+
+// ═══ PDF ═══
+function addFooter(doc){doc.setFontSize(9);doc.setTextColor(136);doc.text('Fondateur : NAPOPOLO EXAUCE',14,doc.internal.pageSize.height-10);doc.text('Social Boost Horizon © 2025',14,doc.internal.pageSize.height-5);}
+function exportServicesPDF(){if(!allServices.length)return alert('Aucun service.');const{jsPDF}=window.jspdf;const doc=new jsPDF();doc.setFontSize(18);doc.setTextColor(212,175,55);doc.text('Rapport Services — SBH',14,20);doc.setFontSize(9);doc.setTextColor(100);const m=currentMultipliers||{};doc.text(`MTP ×${m.MTP??'?'} | EXO ×${m.EXO??'?'} | AFB ×${m.AfriqueBoost??'?'} | SMMGen ×${m.SMMGen??'?'}`,14,27);doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`,14,33);doc.autoTable({head:[['ID','Fournisseur','Nom','Coût','Prix final','Bénéfice','Marge']],body:allServices.slice(0,200).map(s=>[s.id,s.provider,s.name.substring(0,40),`${s.providerCost} FCFA`,`${s.finalPrice} FCFA`,`+${s.profit} FCFA`,`${s.profitMargin}%`]),startY:38,theme:'striped',headStyles:{fillColor:[212,175,55],textColor:[10,14,23]},styles:{fontSize:8}});addFooter(doc);doc.save('Services_SBH.pdf');}
+function exportGiftsPDF(){if(!allGifts.length)return alert('Aucune demande.');const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape'});doc.setFontSize(18);doc.setTextColor(212,175,55);doc.text('Demandes cadeaux de bienvenue — SBH',14,20);doc.setFontSize(9);doc.setTextColor(100);doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`,14,27);doc.autoTable({head:[['Date','Âge','Utilisateur','Email','Pays','Type','Plateforme','Lien','WhatsApp','Statut']],body:allGifts.map(g=>{const a=getGiftAgeDays(g.createdAt);return[formatDate(g.createdAt),a===null?'–':(a===0?'Auj.':a===1?'Hier':a+'j'),g.userName||'–',g.email||'–',g.country||'–',giftTypePlain(g),g.platform||'–',(g.link||'').substring(0,50),g.whatsapp?'+'+g.whatsapp:'–',g.status];}),startY:34,theme:'striped',headStyles:{fillColor:[212,175,55],textColor:[10,14,23]},styles:{fontSize:7.5}});addFooter(doc);doc.save('Cadeaux_SBH.pdf');}
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('waModal').classList.contains('active'))closeWaModal();});
 </script>
 </body>
 </html>
