@@ -348,7 +348,7 @@
             flex-shrink: 0;
         }
         .provider-badge.mtp { background: rgba(212, 175, 55, 0.2); color: var(--gold); border: 1px solid rgba(212, 175, 55, 0.4); }
-        .provider-badge.smmgen { background: rgba(139, 92, 246, 0.2); color: var(--purple-light); border: 1px solid rgba(139, 92, 246, 0.4); }
+        .provider-badge.smmwiz { background: rgba(139, 92, 246, 0.2); color: var(--purple-light); border: 1px solid rgba(139, 92, 246, 0.4); }
 
         .fav-btn {
             background: transparent; border: none; cursor: pointer;
@@ -958,7 +958,7 @@
                 <div class="input-hint">Nombre de commentaires : <strong id="commentsCountValue">0</strong></div>
             </div>
 
-            <!-- Champs SMMGen spéciaux (cachés par défaut) -->
+            <!-- Champs SMMWiz spéciaux (cachés par défaut) -->
             <div id="usernamesGroup" class="form-group" style="display:none;">
                 <label><i class="fas fa-users"></i> Usernames (un par ligne)</label>
                 <textarea id="usernamesInput" rows="3" placeholder="user1&#10;user2&#10;user3"></textarea>
@@ -1164,7 +1164,7 @@
     let selectedService = null;
     let userBalance = 0;
     let userId = null;
-    let currentSort = 'price-asc'; // Tri par défaut : prix croissant
+    let currentSort = 'price-asc';
     let isCustomComments = false;
     let favorites = new Set();
     let recentOrders = [];
@@ -1468,12 +1468,12 @@
             const raw = localStorage.getItem(RECENT_KEY);
             const arr = raw ? JSON.parse(raw) : [];
             if (Array.isArray(arr)) {
-                recentOrders = arr.filter(x => typeof x === 'number').slice(0, 8);
+                recentOrders = arr.filter(x => typeof x === 'string').slice(0, 8);
             }
         } catch(e) { recentOrders = []; }
     }
     function addRecentOrder(serviceId) {
-        if (typeof serviceId !== 'number') return;
+        if (typeof serviceId !== 'string') return;
         recentOrders = [serviceId, ...recentOrders.filter(id => id !== serviceId)].slice(0, 8);
         saveRecentOrders();
         renderRecentOrders();
@@ -1612,7 +1612,7 @@
     const grid = document.getElementById('servicesGrid');
     const servicesCount = document.getElementById('servicesCount');
 
-    // SMMGen form groups
+    // SMMWiz form groups
     const usernamesGroup = document.getElementById('usernamesGroup');
     const usernamesInput = document.getElementById('usernamesInput');
     const hashtagsGroup = document.getElementById('hashtagsGroup');
@@ -1643,7 +1643,7 @@
     const referringUrlInput = document.getElementById('referringUrlInput');
 
     // ===================================================================
-    // SERVICE LOADING (MTP + SMMGen fusionnés)
+    // SERVICE LOADING (MTP + SMMWiz fusionnés)
     // ===================================================================
     function renderSkeletons() {
         const n = 8;
@@ -1660,12 +1660,12 @@
     }
 
     /**
-     * Normalise un service SMMGen pour le format frontend
+     * Normalise un service SMMWiz pour le format frontend
      */
-    function normalizeSmmGenService(s) {
+    function normalizeSmmWizService(s) {
         const svc = {
-            id: 'smmgen:' + s.id,
-            provider: 'smmgen',
+            id: 'smmwiz:' + s.id,
+            provider: 'smmwiz',
             providerServiceId: s.id,
             name: s.name || '',
             category: s.category || '',
@@ -1724,14 +1724,14 @@
             servicesCount.textContent = 'Chargement des services...';
             renderSkeletons();
 
-            // Chargement parallèle MTP + SMMGen
-            const [mtpResult, smmgenResult] = await Promise.allSettled([
+            // Chargement parallèle MTP + SMMWiz
+            const [mtpResult, smmwizResult] = await Promise.allSettled([
                 fetch(BACKEND_URL + '/api/mtp/services').then(r => r.json()),
-                fetch(BACKEND_URL + '/api/smmgen/services').then(r => r.json())
+                fetch(BACKEND_URL + '/api/smmwiz/services').then(r => r.json())
             ]);
 
             let mtpServices = [];
-            let smmgenServices = [];
+            let smmwizServices = [];
 
             if (mtpResult.status === 'fulfilled' && mtpResult.value.success) {
                 mtpServices = (mtpResult.value.services || []).map(normalizeMtpService);
@@ -1739,19 +1739,19 @@
                 console.warn('MTP services unavailable:', mtpResult.reason || mtpResult.value?.error);
             }
 
-            if (smmgenResult.status === 'fulfilled' && smmgenResult.value.success) {
-                smmgenServices = (smmgenResult.value.services || []).map(normalizeSmmGenService);
+            if (smmwizResult.status === 'fulfilled' && smmwizResult.value.success) {
+                smmwizServices = (smmwizResult.value.services || []).map(normalizeSmmWizService);
             } else {
-                console.warn('SMMGen services unavailable:', smmgenResult.reason || smmgenResult.value?.error);
+                console.warn('SMMWiz services unavailable:', smmwizResult.reason || smmwizResult.value?.error);
             }
 
             // Si les deux échouent, afficher l'erreur
-            if (!mtpServices.length && !smmgenServices.length) {
+            if (!mtpServices.length && !smmwizServices.length) {
                 throw new Error('Aucun service disponible');
             }
 
-            // Fusion (MTP + SMMGen)
-            allServices = [...mtpServices, ...smmgenServices];
+            // Fusion (MTP + SMMWiz)
+            allServices = [...mtpServices, ...smmwizServices];
 
             // Tri initial par prix croissant (obligatoire)
             allServices.sort((a, b) => a.priceXAF - b.priceXAF);
@@ -1904,8 +1904,8 @@
         const isFav = favorites.has(s.id);
         const minFmt = Number(s.min).toLocaleString('fr-FR');
         const maxFmt = Number(s.max).toLocaleString('fr-FR');
-        const providerBadge = s.provider === 'smmgen' 
-            ? '<span class="provider-badge smmgen">S</span>' 
+        const providerBadge = s.provider === 'smmwiz' 
+            ? '<span class="provider-badge smmwiz">W</span>' 
             : '<span class="provider-badge mtp">M</span>';
         
         return '<div class="service-card" data-id="' + s.id + '">'
@@ -2061,8 +2061,8 @@
 
     function renderQuickItem(s, kind) {
         const priceBase = getPriceBase(s);
-        const providerBadge = s.provider === 'smmgen' 
-            ? '<span class="provider-badge smmgen" style="width:14px;height:14px;font-size:0.5rem;">S</span>' 
+        const providerBadge = s.provider === 'smmwiz' 
+            ? '<span class="provider-badge smmwiz" style="width:14px;height:14px;font-size:0.5rem;">W</span>' 
             : '<span class="provider-badge mtp" style="width:14px;height:14px;font-size:0.5rem;">M</span>';
         return '<div class="quick-item" data-quick-id="' + s.id + '" data-quick-kind="' + kind + '">'
             + '<span class="qi-icon">' + getPlatformLogoHTML(s.platform, 26) + '</span>'
@@ -2123,7 +2123,7 @@
     // ===================================================================
     // ORDER PANEL
     // ===================================================================
-    function hideAllSmmGenFields() {
+    function hideAllSmmWizFields() {
         usernamesGroup.style.display = 'none';
         hashtagsGroup.style.display = 'none';
         hashtagGroup.style.display = 'none';
@@ -2140,8 +2140,8 @@
         referringUrlGroup.style.display = 'none';
     }
 
-    function showSmmGenFields(type) {
-        hideAllSmmGenFields();
+    function showSmmWizFields(type) {
+        hideAllSmmWizFields();
         const t = (type || 'Default').toLowerCase();
         
         if (t === 'usernames') {
@@ -2175,11 +2175,11 @@
         if (!selectedService) return;
         const s = selectedService;
 
-        hideAllSmmGenFields();
+        hideAllSmmWizFields();
 
         // Header info
-        const providerBadge = s.provider === 'smmgen' 
-            ? '<span class="provider-badge smmgen">S</span>' 
+        const providerBadge = s.provider === 'smmwiz' 
+            ? '<span class="provider-badge smmwiz">W</span>' 
             : '<span class="provider-badge mtp">M</span>';
         panelServiceId.innerHTML = providerBadge + ' #' + s.providerServiceId;
         panelServiceName.textContent = s.translatedName || s.name;
@@ -2238,9 +2238,9 @@
             generateQuickQuantities(s);
         }
 
-        // SMMGen special fields
-        if (s.provider === 'smmgen') {
-            showSmmGenFields(s.type);
+        // SMMWiz special fields
+        if (s.provider === 'smmwiz') {
+            showSmmWizFields(s.type);
         }
 
         orderQuantity.min = s.min;
@@ -2403,7 +2403,7 @@
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Traitement...';
 
         const orderedService = selectedService;
-        const isSmmGen = orderedService.provider === 'smmgen';
+        const isSmmWiz = orderedService.provider === 'smmwiz';
 
         try {
             const token = await auth.currentUser.getIdToken();
@@ -2414,8 +2414,8 @@
             };
             if (comments) payload.comments = comments;
 
-            // Champs SMMGen spéciaux
-            if (isSmmGen) {
+            // Champs SMMWiz spéciaux
+            if (isSmmWiz) {
                 if (usernamesInput.value.trim()) payload.usernames = usernamesInput.value.trim();
                 if (hashtagsInput.value.trim()) payload.hashtags = hashtagsInput.value.trim();
                 if (hashtagInput.value.trim()) payload.hashtag = hashtagInput.value.trim();
@@ -2432,7 +2432,7 @@
                 if (referringUrlInput.value.trim()) payload.referring_url = referringUrlInput.value.trim();
             }
 
-            const endpoint = isSmmGen ? '/api/smmgen/order' : '/api/mtp/order';
+            const endpoint = isSmmWiz ? '/api/smmwiz/order' : '/api/mtp/order';
 
             const res = await fetch(BACKEND_URL + endpoint, {
                 method: 'POST',
@@ -2451,7 +2451,7 @@
 
             closeOrderPanel();
             orderForm.reset();
-            hideAllSmmGenFields();
+            hideAllSmmWizFields();
             showSuccessModal(data.orderId, orderedService, qty, total, data.newBalance);
             playSound('success');
         } catch (err) {
@@ -2512,8 +2512,8 @@
         const typeOrdered = (orderedService.serviceType || '').toLowerCase();
         sub.textContent = 'Vous avez commandé des ' + typeOrdered + ' sur ' + (PLATFORM_DISPLAY[orderedService.platform] || 'cette plateforme') + '. Voici des services qui peuvent compléter votre campagne :';
         list.innerHTML = recs.map(s => {
-            const providerBadge = s.provider === 'smmgen' 
-                ? '<span class="provider-badge smmgen" style="width:14px;height:14px;font-size:0.5rem;">S</span>' 
+            const providerBadge = s.provider === 'smmwiz' 
+                ? '<span class="provider-badge smmwiz" style="width:14px;height:14px;font-size:0.5rem;">W</span>' 
                 : '<span class="provider-badge mtp" style="width:14px;height:14px;font-size:0.5rem;">M</span>';
             return '<div class="recommendation-item" data-rec-id="' + s.id + '">'
                 + '<span class="rec-icon">' + getPlatformLogoHTML(s.platform, 24) + '</span>'
