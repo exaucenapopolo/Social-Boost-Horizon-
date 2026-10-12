@@ -1,218 +1,485 @@
+/**
+ * API Publique Social Boost Horizon — Routeur Express exportable
+ *
+ * Ce module exporte une FONCTION FACTORY qui crée et renvoie un express.Router
+ * destiné à être monté par api/index.js sur le préfixe /api/v1.
+ *
+ * ⚠️ Ce fichier ne doit JAMAIS appeler app.listen() ni utiliser de données mockées.
+ * Toutes les lectures/écritures passent par Firestore et les helpers fournisseurs
+ * injectés par index.js.
+ *
+ * Format des service_id publics : "<provider>_<idFournisseur>"
+ *   ex. "mtp_1234", "afb_5678", "smmwiz_910"
+ */
+
 const express = require('express');
-const cors = require('cors');
-const { v4: uuidv4 } = require('uuid'); // Pour générer des clés API uniques
 
-const app = express();
-const PORT = 3000;
+module.exports = function createPublicRouter(deps) {
+  const {
+    db,
+    admin,
+    callMTP,
+    callAfriqueBoost,
+    callSmmWiz,
+    detectPlatformName,
+    MTP_USD_TO_XAF,
+    MTP_MULTIPLIER,
+    AFB_MULTIPLIER,
+    SMMWIZ_USD_TO_XAF,
+    SMMWIZ_MULTIPLIER,
+  } = deps;
 
-// Middleware pour comprendre le JSON et autoriser les requêtes du navigateur
-app.use(express.json());
-app.use(cors());
+  if (!db || !admin) {
+    throw new Error('createPublicRouter: db et admin sont requis.');
+  }
+  if (typeof callMTP !== 'function' || typeof callAfriqueBoost !== 'function' || typeof callSmmWiz !== 'function') {
+    throw new Error('createPublicRouter: helpers fournisseurs manquants.');
+  }
 
-// ==========================================
-// 1. BASE DE DONNÉES SIMULÉE (Mock Database)
-// ==========================================
+  const router = express.Router();
 
-// Simule les comptes utilisateurs et leurs clés API
-let users = {
-    'votre_cle_api_ici': { id: 1, name: 'Admin', balance: 15000, currency: 'XAF' }
-};
+  // ─── Cache catalogue (5 min) ─────────────────────────────────
+  let _catalogCache = null;
+  let _catalogCacheTime = 0;
+  const CATALOG_TTL = 5 * 60 * 1000;
 
-// Simule le catalogue de services
-const services = [
-    { service_id: 1, name: "Instagram Followers", category: "Instagram", type: "default", price_per_1000: 5000, min: 100, max: 10000, refill: true, cancel: false, description: "Followers Instagram haute qualite", catalog: "standard" },
-    { service_id: 2, name: "Instagram Likes", category: "Instagram", type: "default", price_per_1000: 2000, min: 50, max: 5000, refill: false, cancel: true, description: "Likes rapides", catalog: "premium" }
-];
+  function getTimestampMs(val) {
+    if (!val) return 0;
+    if (typeof val.toDate === 'function') return val.toDate().getTime();
+    if (val instanceof Date) return val.getTime();
+    if (typeof val === 'number') return val;
+    const parsed = new Date(val).getTime();
+    return isNaN(parsed) ? 0 : parsed;
+  }
 
-// Simule l'historique des commandes
-let orders = [];
+  async function buildCatalog() {
+    const now = Date.now();
+    if (_catalogCache && (now - _catalogCacheTime) < CATALOG_TTL) {
+      return _catalogCache;
+    }
 
-// ==========================================
-// 2. MIDDLEWARE D'AUTHENTIFICATION
-// ==========================================
+    const services = [];
 
-// Cette fonction s'exécute avant chaque route de l'API pour vérifier la clé
-const authenticateApiKey = (req, res, next) => {
-    // On récupère la clé depuis le header X-Api-Key défini dans la documentation
-    const apiKey = req.header('X-Api-Key'); 
-    
-    // Si la clé est manquante ou invalide, on renvoie une erreur 401
-    if (!apiKey || !users[apiKey]) {
-        return res.status(401).json({ 
-            success: false, 
-            error: "Cle API manquante ou invalide" 
+    // MTP
+    try {
+      const raw = await callMTP({ action: 'services' });
+      if (Array.isArray(raw)) {
+        raw.forEach(s => {
+          const rate = parseFloat(s.rate) || 0;
+          const priceXAF = Math.round(rate * MTP_USD_TO_XAF * MTP_MULTIPLIER);
+          if (priceXAF > 0) {
+            services.push({
+              service_id: `mtp_${s.service}`,
+              provider: 'mtp',
+              name: s.name || '',
+              category: s.category || '',
+              type: s.type || 'default',
+              price_per_1000: priceXAF,
+              min: parseInt(s.min) || 0,
+              max: parseInt(s.max) || 0,
+              refill: s.refill === true || s.refill === 'true',
+              cancel: s.cancel === true || s.cancel === 'true',
+              description: s.description || null,
+            });
+          }
         });
+      }
+    } catch (e) {
+      console.error('[public/catalog] MTP:', e.message);
     }
-    
-    // On attache les données de l'utilisateur à la requête pour la suite
-    req.user = users[apiKey];
-    req.userKey = apiKey;
-    next();
-};
 
-// ==========================================
-// 3. ROUTES POUR LA GESTION DU PROFIL (Générer/Révoquer)
-// ==========================================
-// Ces routes seront appelées par ton fichier profil.html
+    // AfriqueBoost
+    try {
+      const raw = await callAfriqueBoost({ action: 'services' });
+      if (Array.isArray(raw)) {
+        raw.forEach(s => {
+          const rateXAF = parseFloat(s.rate) || 0;
+          const priceXAF = Math.round(rateXAF * AFB_MULTIPLIER);
+          if (priceXAF > 0) {
+            services.push({
+              service_id: `afb_${s.service}`,
+              provider: 'afriqueboost',
+              name: s.name || '',
+              category: s.category || '',
+              type: s.type || 'default',
+              price_per_1000: priceXAF,
+              min: parseInt(s.min) || 0,
+              max: parseInt(s.max) || 0,
+              refill: s.refill === true || s.refill === 'true' || s.refill === 1,
+              cancel: s.cancel === true || s.cancel === 'true' || s.cancel === 1,
+              description: s.description || null,
+            });
+          }
+        });
+      }
+    } catch (e) {
+      console.error('[public/catalog] AFB:', e.message);
+    }
 
-// Générer une nouvelle clé API
-app.post('/api/v1/profile/generate-key', (req, res) => {
-    // Note : Dans un vrai système, l'utilisateur serait authentifié par session/mot de passe ici
-    const newApiKey = `sbh_${uuidv4().replace(/-/g, '')}`; // Crée une clé sécurisée
-    
-    // On ajoute le nouvel utilisateur (simulation)
-    users[newApiKey] = { id: Date.now(), name: 'Nouvel Utilisateur', balance: 0, currency: 'XAF' };
-    
-    res.json({ success: true, api_key: newApiKey });
-});
+    // SMMWiz
+    try {
+      const raw = await callSmmWiz({ action: 'services' });
+      if (Array.isArray(raw)) {
+        raw.forEach(s => {
+          const rate = parseFloat(s.rate) || 0;
+          const priceXAF = Math.round(rate * SMMWIZ_USD_TO_XAF * SMMWIZ_MULTIPLIER);
+          if (priceXAF > 0) {
+            services.push({
+              service_id: `smmwiz_${s.service}`,
+              provider: 'smmwiz',
+              name: s.name || '',
+              category: s.category || '',
+              type: s.type || 'default',
+              price_per_1000: priceXAF,
+              min: parseInt(s.min) || 0,
+              max: parseInt(s.max) || 0,
+              refill: s.refill === true || s.refill === 'true',
+              cancel: s.cancel === true || s.cancel === 'true',
+              description: s.description || null,
+            });
+          }
+        });
+      }
+    } catch (e) {
+      console.error('[public/catalog] SMMWiz:', e.message);
+    }
 
-// ==========================================
-// 4. ENDPOINTS DE L'API PUBLIQUE
-// ==========================================
+    _catalogCache = services;
+    _catalogCacheTime = Date.now();
+    return services;
+  }
 
-// Toutes les routes sous /api/v1 nécessitent la validation de la clé API
-app.use('/api/v1', authenticateApiKey);
+  // ─── Middleware X-Api-Key ────────────────────────────────────
+  async function authenticateApiKey(req, res, next) {
+    const apiKey = req.header('X-Api-Key');
 
-// Endpoint : Vérifier le solde
-app.get('/api/v1/balance', (req, res) => {
-    res.status(200).json({
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.length < 10) {
+      return res.status(401).json({
+        success: false,
+        error: 'Clé API manquante ou invalide.'
+      });
+    }
+
+    try {
+      const snapshot = await db.collection('users')
+        .where('apiKey', '==', apiKey)
+        .limit(1)
+        .get();
+
+      if (snapshot.empty) {
+        return res.status(401).json({
+          success: false,
+          error: 'Clé API invalide ou révoquée.'
+        });
+      }
+
+      const userDoc = snapshot.docs[0];
+      req.apiUser = Object.assign({ uid: userDoc.id }, userDoc.data());
+      req.apiKey = apiKey;
+      next();
+    } catch (err) {
+      console.error('[public/auth]', err);
+      return res.status(500).json({ success: false, error: "Erreur d'authentification." });
+    }
+  }
+
+  router.use(authenticateApiKey);
+
+  // ─── GET /api/v1/balance ─────────────────────────────────────
+  router.get('/balance', async (req, res) => {
+    try {
+      const userDoc = await db.collection('users').doc(req.apiUser.uid).get();
+      if (!userDoc.exists) {
+        return res.status(404).json({ success: false, error: 'Compte introuvable.' });
+      }
+      const data = userDoc.data();
+      res.json({
         success: true,
-        balance: req.user.balance,
-        currency: req.user.currency
-    });
-});
-
-// Endpoint : Lister les services
-app.get('/api/v1/services', (req, res) => {
-    const { catalog } = req.query; // Récupère le paramètre optionnel 'catalog'
-    
-    let filteredServices = services;
-    if (catalog) {
-        filteredServices = services.filter(s => s.catalog === catalog);
+        balance: data.balance || 0,
+        currency: 'XAF'
+      });
+    } catch (err) {
+      console.error('[public/balance]', err);
+      res.status(500).json({ success: false, error: 'Erreur serveur.' });
     }
+  });
 
-    res.status(200).json({
+  // ─── GET /api/v1/services ────────────────────────────────────
+  router.get('/services', async (req, res) => {
+    try {
+      const services = await buildCatalog();
+      const catalog = (req.query.catalog || '').toString().toLowerCase();
+      let filtered = services;
+      if (catalog) {
+        filtered = services.filter(s =>
+          s.provider === catalog || (s.category || '').toLowerCase() === catalog
+        );
+      }
+      res.json({
         success: true,
-        services: filteredServices,
-        total: filteredServices.length,
-        catalogs: ["standard", "premium", "gold"]
-    });
-});
-
-// Endpoint : Passer une commande
-app.post('/api/v1/order', (req, res) => {
-    const { service_id, link, quantity, catalog = "standard" } = req.body;
-
-    // Vérification des champs requis pour éviter les bugs (Erreur 400)
-    if (!service_id || !link || !quantity) {
-        return res.status(400).json({ success: false, error: "Parametres manquants ou invalides" });
+        services: filtered,
+        total: filtered.length
+      });
+    } catch (err) {
+      console.error('[public/services]', err);
+      res.status(500).json({ success: false, error: 'Erreur serveur.' });
     }
+  });
 
-    // Vérifier si le service existe
-    const service = services.find(s => s.service_id === service_id);
-    if (!service) {
-        return res.status(400).json({ success: false, error: "Service introuvable" });
-    }
+  // ─── POST /api/v1/order ──────────────────────────────────────
+  router.post('/order', async (req, res) => {
+    try {
+      const body = req.body || {};
+      const serviceIdRaw = body.service_id;
+      const link = body.link;
+      const quantityRaw = body.quantity;
+      const comments = body.comments;
 
-    // Calcul du prix (Règle de 3 pour le prix pour 1000)
-    const price = (service.price_per_1000 / 1000) * quantity;
+      if (serviceIdRaw === undefined || serviceIdRaw === null || !link || quantityRaw === undefined) {
+        return res.status(400).json({ success: false, error: 'Paramètres requis : service_id, link, quantity.' });
+      }
+      if (typeof link !== 'string' || link.length < 4 || link.length > 800) {
+        return res.status(400).json({ success: false, error: 'Lien invalide.' });
+      }
+      const qty = parseInt(quantityRaw, 10);
+      if (!Number.isInteger(qty) || qty <= 0) {
+        return res.status(400).json({ success: false, error: 'Quantité invalide.' });
+      }
 
-    // Vérification du solde de l'utilisateur
-    if (req.user.balance < price) {
-        return res.status(400).json({ success: false, error: "Solde insuffisant" });
-    }
+      const serviceIdStr = String(serviceIdRaw);
+      const idx = serviceIdStr.indexOf('_');
+      if (idx < 1) {
+        return res.status(400).json({ success: false, error: 'Format service_id invalide (attendu : "provider_id").' });
+      }
+      const provider = serviceIdStr.substring(0, idx);
+      const providerServiceId = serviceIdStr.substring(idx + 1);
 
-    // Déduction du solde
-    req.user.balance -= price;
+      const services = await buildCatalog();
+      const service = services.find(s => s.service_id === serviceIdStr);
+      if (!service) {
+        return res.status(400).json({ success: false, error: 'Service introuvable dans le catalogue.' });
+      }
 
-    // Création de la commande
-    const newOrder = {
-        order_id: `ORD-${Date.now()}`,
-        user_key: req.userKey, // Pour lier la commande à l'utilisateur
-        catalog: catalog,
+      if (qty < service.min) {
+        return res.status(400).json({ success: false, error: `Quantité minimale : ${service.min}.` });
+      }
+      if (qty > service.max) {
+        return res.status(400).json({ success: false, error: `Quantité maximale : ${service.max}.` });
+      }
+
+      const isPackage = (service.type || '').toLowerCase().includes('package');
+      const cost = isPackage
+        ? service.price_per_1000
+        : Math.round((service.price_per_1000 / 1000) * qty);
+
+      if (cost <= 0) {
+        return res.status(400).json({ success: false, error: 'Coût de commande invalide.' });
+      }
+
+      // Pré-vérification du solde (économie d'appel fournisseur)
+      const userDoc = await db.collection('users').doc(req.apiUser.uid).get();
+      if (!userDoc.exists) {
+        return res.status(404).json({ success: false, error: 'Compte introuvable.' });
+      }
+      const currentBalance = userDoc.data().balance || 0;
+      if (currentBalance < cost) {
+        return res.status(400).json({
+          success: false,
+          error: `Solde insuffisant. Requis : ${cost} XAF, disponible : ${currentBalance} XAF.`
+        });
+      }
+
+      // Passage de la commande chez le fournisseur
+      let providerOrderId = null;
+      let providerName = '';
+
+      if (provider === 'mtp') {
+        const params = { action: 'add', service: providerServiceId, link, quantity: qty };
+        if (comments) params.comments = String(comments).substring(0, 500);
+        const result = await callMTP(params);
+        if (result.error) return res.status(400).json({ success: false, error: 'Erreur fournisseur : ' + result.error });
+        if (!result.order) return res.status(400).json({ success: false, error: 'Commande non confirmée par le fournisseur.' });
+        providerOrderId = result.order;
+        providerName = 'mtp';
+      } else if (provider === 'afb') {
+        const params = { action: 'add', service: providerServiceId, link, quantity: qty };
+        if (comments) params.comments = String(comments).substring(0, 500);
+        const result = await callAfriqueBoost(params);
+        if (result.error) return res.status(400).json({ success: false, error: 'Erreur fournisseur : ' + result.error });
+        if (!result.order) return res.status(400).json({ success: false, error: 'Commande non confirmée par le fournisseur.' });
+        providerOrderId = result.order;
+        providerName = 'afriqueboost';
+      } else if (provider === 'smmwiz') {
+        const type = (service.type || 'default').toLowerCase();
+        if (type !== 'default' && type !== 'package') {
+          return res.status(400).json({ success: false, error: "Ce type de service n'est pas encore supporté par l'API publique." });
+        }
+        const params = { action: 'add', service: providerServiceId, link };
+        if (type === 'default') params.quantity = qty;
+        const result = await callSmmWiz(params);
+        if (result.error) return res.status(400).json({ success: false, error: 'Erreur fournisseur : ' + result.error });
+        if (!result.order) return res.status(400).json({ success: false, error: 'Commande non confirmée par le fournisseur.' });
+        providerOrderId = result.order;
+        providerName = 'smmwiz';
+      } else {
+        return res.status(400).json({ success: false, error: "Fournisseur non supporté par l'API publique." });
+      }
+
+      // Transaction Firestore : débit + enregistrement
+      let finalOrderId;
+      let newBalance;
+      await db.runTransaction(async (transaction) => {
+        const counterRef = db.collection('counters').doc('autoOrders');
+        const freshUserRef = db.collection('users').doc(req.apiUser.uid);
+
+        const counterDoc = await transaction.get(counterRef);
+        const freshUserDoc = await transaction.get(freshUserRef);
+
+        if (!freshUserDoc.exists) throw new Error('USER_NOT_FOUND');
+        const freshBalance = freshUserDoc.data().balance || 0;
+        if (freshBalance < cost) throw new Error('INSUFFICIENT_BALANCE');
+
+        const nextId = ((counterDoc.exists ? counterDoc.data().lastId : 0) || 0) + 1;
+        finalOrderId = `SBH-AUTO-${nextId}`;
+        newBalance = freshBalance - cost;
+        const platform = detectPlatformName(service.name || '', link);
+
+        transaction.set(counterRef, { lastId: nextId }, { merge: true });
+        transaction.update(freshUserRef, {
+          balance: newBalance,
+          totalOrders: admin.firestore.FieldValue.increment(1),
+          totalSpent: admin.firestore.FieldValue.increment(cost),
+        });
+
+        const orderRef = db.collection('autoOrders').doc();
+        transaction.set(orderRef, {
+          orderId: finalOrderId,
+          userId: req.apiUser.uid,
+          provider: providerName,
+          providerOrderId,
+          serviceId: parseInt(providerServiceId, 10) || 0,
+          serviceName: service.name,
+          platform,
+          link,
+          quantity: qty,
+          priceXAF: cost,
+          status: 'En attente',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          providerStartCount: 0,
+          providerRemains: qty,
+          refunded: false,
+          source: 'public_api',
+        });
+      });
+
+      return res.json({
+        success: true,
+        order_id: finalOrderId,
         service: service.name,
-        link: link,
-        quantity: quantity,
-        price: price,
-        currency: req.user.currency,
-        status: "pending",
-        start_count: 0,
-        remains: quantity,
-        created_at: new Date().toISOString()
-    };
+        quantity: qty,
+        price: cost,
+        currency: 'XAF',
+        balance: newBalance,
+        status: 'pending'
+      });
 
-    orders.push(newOrder);
-
-    // Réponse de succès
-    res.status(200).json({
-        success: true,
-        order_id: newOrder.order_id,
-        catalog: newOrder.catalog,
-        service: newOrder.service,
-        quantity: newOrder.quantity,
-        price: newOrder.price,
-        currency: newOrder.currency,
-        balance: req.user.balance,
-        status: newOrder.status
-    });
-});
-
-// Endpoint : Statut d'une commande
-app.get('/api/v1/order/:orderId', (req, res) => {
-    const { orderId } = req.params;
-    
-    // On cherche la commande appartenant à cet utilisateur
-    const order = orders.find(o => o.order_id === orderId && o.user_key === req.userKey);
-
-    if (!order) {
-        return res.status(404).json({ success: false, error: "Commande non trouvee" });
+    } catch (err) {
+      if (err.message === 'INSUFFICIENT_BALANCE') {
+        return res.status(400).json({ success: false, error: 'Solde insuffisant (vérifié pendant le traitement).' });
+      }
+      if (err.message === 'USER_NOT_FOUND') {
+        return res.status(404).json({ success: false, error: 'Compte introuvable.' });
+      }
+      console.error('[public/order]', err);
+      return res.status(500).json({ success: false, error: 'Erreur technique. Veuillez réessayer.' });
     }
+  });
 
-    // On retire la clé utilisateur de la réponse pour la sécurité
-    const { user_key, ...orderData } = order; 
+  // ─── GET /api/v1/order/:orderId ──────────────────────────────
+  router.get('/order/:orderId', async (req, res) => {
+    try {
+      const { orderId } = req.params;
+      if (!orderId) {
+        return res.status(400).json({ success: false, error: 'orderId requis.' });
+      }
 
-    res.status(200).json({
+      const snapshot = await db.collection('autoOrders')
+        .where('orderId', '==', orderId)
+        .limit(1)
+        .get();
+
+      if (snapshot.empty) {
+        return res.status(404).json({ success: false, error: 'Commande introuvable.' });
+      }
+
+      const data = snapshot.docs[0].data();
+      if (data.userId !== req.apiUser.uid) {
+        // On renvoie 404 plutôt que 403 pour ne pas révéler l'existence de la commande
+        return res.status(404).json({ success: false, error: 'Commande introuvable.' });
+      }
+
+      res.json({
         success: true,
-        order: orderData
-    });
-});
+        order: {
+          order_id: data.orderId,
+          service: data.serviceName,
+          link: data.link,
+          quantity: data.quantity,
+          price: data.priceXAF,
+          currency: 'XAF',
+          status: data.status,
+          created_at: data.createdAt,
+        }
+      });
+    } catch (err) {
+      console.error('[public/order/:id]', err);
+      res.status(500).json({ success: false, error: 'Erreur serveur.' });
+    }
+  });
 
-// Endpoint : Historique des commandes
-app.get('/api/v1/orders', (req, res) => {
-    const limit = parseInt(req.query.limit) || 50;
-    
-    // Filtrer les commandes pour ne garder que celles de l'utilisateur
-    const userOrders = orders
-        .filter(o => o.user_key === req.userKey)
-        .slice(0, limit)
-        .map(o => {
-            // Formater la réponse pour correspondre à la documentation
-            return {
-                order_id: o.order_id,
-                service: o.service,
-                quantity: o.quantity,
-                price: o.price,
-                status: o.status,
-                created_at: o.created_at
-            };
-        });
+  // ─── GET /api/v1/orders ──────────────────────────────────────
+  router.get('/orders', async (req, res) => {
+    try {
+      const limitRaw = parseInt(req.query.limit, 10);
+      const limit = Math.min(Math.max(isNaN(limitRaw) ? 50 : limitRaw, 1), 200);
 
-    res.status(200).json({
+      const snapshot = await db.collection('autoOrders')
+        .where('userId', '==', req.apiUser.uid)
+        .get();
+
+      let orders = snapshot.docs.map(d => {
+        const data = d.data();
+        return {
+          order_id: data.orderId,
+          service: data.serviceName,
+          quantity: data.quantity,
+          price: data.priceXAF,
+          status: data.status,
+          created_at: data.createdAt,
+        };
+      });
+
+      orders.sort((a, b) => getTimestampMs(b.created_at) - getTimestampMs(a.created_at));
+      orders = orders.slice(0, limit);
+
+      res.json({
         success: true,
-        orders: userOrders,
-        total: userOrders.length
+        orders,
+        total: orders.length
+      });
+    } catch (err) {
+      console.error('[public/orders]', err);
+      res.status(500).json({ success: false, error: 'Erreur serveur.' });
+    }
+  });
+
+  // ─── Filet de sécurité 404 local au routeur public ───────────
+  router.use((req, res) => {
+    res.status(404).json({
+      success: false,
+      error: `Route publique non trouvée : ${req.method} ${req.originalUrl}`
     });
-});
+  });
 
-// ==========================================
-// 5. GESTION GLOBALE DES ERREURS SERVEUR
-// ==========================================
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ success: false, error: "Erreur serveur" });
-});
-
-// Lancement du serveur
-app.listen(PORT, () => {
-    console.log(`Le serveur API Social Boost Horizon est démarré sur http://localhost:${PORT}`);
-});
+  return router;
+};

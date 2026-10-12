@@ -10,7 +10,8 @@ const app = express();
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-password']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-password', 'X-Api-Key'],
+  exposedHeaders: ['X-Api-Key']
 }));
 app.use(express.json({ limit: '10mb' }));
 
@@ -1320,11 +1321,8 @@ app.post('/api/smmwiz/cancel', checkAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Cette commande ne peut plus être annulée, son statut ne le permet pas.' });
     }
 
-    // SMMWiz utilise le paramètre "orders" (pluriel) pour l'annulation
     const cancelResult = await callSmmWiz({ action: 'cancel', orders: orderData.providerOrderId });
 
-    // La réponse est un tableau d'objets avec des résultats individuels
-    // Vérifier si l'annulation a été acceptée pour cette commande
     if (Array.isArray(cancelResult)) {
       const entry = cancelResult.find(r => parseInt(r.order) === parseInt(orderData.providerOrderId));
       if (entry && entry.cancel && entry.cancel.error) {
@@ -1347,17 +1345,13 @@ app.post('/api/smmwiz/cancel', checkAuth, async (req, res) => {
 
 // ═══════════════════════════════════════════════════════════════
 // ROUTES DE COMPATIBILITÉ SMMGen → SMMWiz
-// Ces routes délèguent aux gestionnaires SMMWiz pour les nouvelles commandes.
-// Les commandes historiques (provider: 'smmgen') sont explicitement rejetées.
 // ═══════════════════════════════════════════════════════════════
 
 app.get('/api/smmgen/services', async (req, res) => {
-  // Rediriger vers le catalogue SMMWiz
   return res.redirect(307, '/api/smmwiz/services');
 });
 
 app.post('/api/smmgen/order', checkAuth, async (req, res) => {
-  // Déléguer la création de commande au handler SMMWiz
   return app._router.handle({ ...req, url: '/api/smmwiz/order', originalUrl: '/api/smmwiz/order' }, res, () => {});
 });
 
@@ -1378,7 +1372,6 @@ app.get('/api/smmgen/order-status/:orderId', checkAuth, async (req, res) => {
       return res.status(403).json({ success: false, error: 'Accès refusé.' });
     }
 
-    // Si la commande est une ancienne commande SMMGen, elle n'est plus vérifiable
     if (orderData.provider === 'smmgen') {
       return res.status(410).json({
         success: false,
@@ -1386,7 +1379,6 @@ app.get('/api/smmgen/order-status/:orderId', checkAuth, async (req, res) => {
       });
     }
 
-    // Pour les nouvelles commandes, déléguer au handler SMMWiz
     if (orderData.provider === 'smmwiz') {
       const statusResult = await callSmmWiz({ action: 'status', order: orderData.providerOrderId });
 
@@ -1485,7 +1477,6 @@ app.post('/api/smmgen/refill', checkAuth, async (req, res) => {
       return res.status(403).json({ success: false, error: 'Accès refusé.' });
     }
 
-    // Les commandes SMMGen historiques ne sont plus supportées
     if (orderData.provider === 'smmgen') {
       return res.status(410).json({
         success: false,
@@ -1493,7 +1484,6 @@ app.post('/api/smmgen/refill', checkAuth, async (req, res) => {
       });
     }
 
-    // Pour les nouvelles commandes, déléguer au handler SMMWiz
     if (orderData.provider === 'smmwiz') {
       const result = await callSmmWiz({ action: 'refill', order: orderData.providerOrderId });
 
@@ -1577,7 +1567,6 @@ app.post('/api/smmgen/cancel', checkAuth, async (req, res) => {
       return res.status(403).json({ success: false, error: 'Accès refusé.' });
     }
 
-    // Les commandes SMMGen historiques ne sont plus supportées
     if (orderData.provider === 'smmgen') {
       return res.status(410).json({
         success: false,
@@ -1585,7 +1574,6 @@ app.post('/api/smmgen/cancel', checkAuth, async (req, res) => {
       });
     }
 
-    // Pour les nouvelles commandes, déléguer au handler SMMWiz
     if (orderData.provider === 'smmwiz') {
       if (orderData.refunded) {
         return res.status(400).json({ success: false, error: 'Cette commande a déjà été remboursée.' });
@@ -1737,6 +1725,10 @@ app.post('/api/user/settings', checkAuth, async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// Clé API développeur — INFO, GÉNÉRATION, RÉVOCATION
+// ═══════════════════════════════════════════════════════════════
+
 app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
   try {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -1747,9 +1739,19 @@ app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
 
     const data = userDoc.data();
     if (data.apiKey) {
-      res.json({ success: true, hasKey: true, createdAt: data.apiKeyCreatedAt });
+      let prefix = data.apiKeyPrefix;
+      if (!prefix && typeof data.apiKey === 'string') {
+        prefix = data.apiKey.substring(0, 20);
+      }
+      res.json({
+        success: true,
+        hasApiKey: true,
+        hasKey: true,
+        prefix: prefix,
+        createdAt: data.apiKeyCreatedAt
+      });
     } else {
-      res.json({ success: true, hasKey: false });
+      res.json({ success: true, hasApiKey: false, hasKey: false });
     }
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1761,15 +1763,49 @@ app.post('/api/user/generate-api-key', checkAuth, async (req, res) => {
     const uid = req.user.uid;
 
     const newApiKey = 'sbh_live_' + crypto.randomBytes(24).toString('hex');
+    const prefix = newApiKey.substring(0, 20);
 
     await db.collection('users').doc(uid).set({
       apiKey: newApiKey,
+      apiKeyPrefix: prefix,
       apiKeyCreatedAt: admin.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
 
-    res.json({ success: true, apiKey: newApiKey });
+    const freshDoc = await db.collection('users').doc(uid).get();
+    const createdAt = freshDoc.exists ? freshDoc.data().apiKeyCreatedAt : null;
+
+    res.json({
+      success: true,
+      apiKey: newApiKey,
+      prefix: prefix,
+      createdAt: createdAt
+    });
   } catch (error) {
+    console.error('Erreur /api/user/generate-api-key:', error);
     res.status(500).json({ success: false, error: 'Erreur lors de la génération de la clé API.' });
+  }
+});
+
+app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    const userRef = db.collection('users').doc(uid);
+    const userDoc = await userRef.get();
+
+    if (!userDoc.exists) {
+      return res.json({ success: true, message: 'Aucune clé à révoquer.' });
+    }
+
+    await userRef.update({
+      apiKey: admin.firestore.FieldValue.delete(),
+      apiKeyPrefix: admin.firestore.FieldValue.delete(),
+      apiKeyCreatedAt: admin.firestore.FieldValue.delete(),
+    });
+
+    res.json({ success: true, message: 'Clé API révoquée avec succès.' });
+  } catch (error) {
+    console.error('Erreur /api/user/revoke-api-key:', error);
+    res.status(500).json({ success: false, error: 'Erreur lors de la révocation de la clé API.' });
   }
 });
 
@@ -3048,6 +3084,33 @@ adminRouter.post('/cache/clear', (req, res) => {
 });
 
 app.use('/api/admin', adminRouter);
+
+// ═══════════════════════════════════════════════════════════════
+// API PUBLIQUE DÉVELOPPEUR (/api/v1/*)
+// Routeur isolé, monté ici volontairement APRÈS toutes les routes
+// internes et AVANT le handler 404 global.
+// Les helpers sont injectés via factory — aucune duplication de code.
+// ═══════════════════════════════════════════════════════════════
+try {
+  const createPublicRouter = require('./server.js');
+  const publicRouter = createPublicRouter({
+    db,
+    admin,
+    callMTP,
+    callAfriqueBoost,
+    callSmmWiz,
+    detectPlatformName,
+    MTP_USD_TO_XAF,
+    MTP_MULTIPLIER,
+    AFB_MULTIPLIER,
+    SMMWIZ_USD_TO_XAF,
+    SMMWIZ_MULTIPLIER,
+  });
+  app.use('/api/v1', publicRouter);
+  console.log('✅ Routeur API publique monté sur /api/v1');
+} catch (err) {
+  console.error('❌ Erreur chargement routeur public :', err.message);
+}
 
 app.use((req, res) => res.status(404).json({ success: false, error: `Route non trouvée : ${req.method} ${req.path}` }));
 app.use((err, req, res, next) => {
