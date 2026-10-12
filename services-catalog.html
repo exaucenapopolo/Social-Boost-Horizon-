@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Catalogue des services — Social Boost Horizon API</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font-sans: 'Inter', -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --accent-soft: rgba(59, 130, 246, 0.12);
+      --success: #10b981;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --radius: 8px;
+      --radius-lg: 12px;
+      --header-h: 56px;
+    }
+    html[data-theme="dark"] {
+      --bg: #0a0e1a;
+      --bg-elev: #111827;
+      --bg-code: #0d1117;
+      --border: #1f2937;
+      --border-soft: #1a2332;
+      --text: #e5e7eb;
+      --text-soft: #9ca3af;
+      --text-dim: #6b7280;
+      --shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    html[data-theme="light"] {
+      --bg: #ffffff;
+      --bg-elev: #f9fafb;
+      --bg-code: #f6f8fa;
+      --border: #e5e7eb;
+      --border-soft: #f3f4f6;
+      --text: #111827;
+      --text-soft: #4b5563;
+      --text-dim: #9ca3af;
+      --shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ═══════════ HEADER ═══════════ */
+    header.top {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: var(--header-h);
+      background: var(--bg-elev);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      backdrop-filter: blur(12px);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 700;
+      font-size: 15px;
+    }
+    .brand-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .brand-sub {
+      color: var(--text-soft);
+      font-weight: 500;
+      font-size: 13px;
+      margin-left: 6px;
+      padding-left: 10px;
+      border-left: 1px solid var(--border);
+    }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      transition: all 0.15s;
+      font-family: inherit;
+      text-decoration: none;
+    }
+    .btn:hover { background: var(--bg); border-color: var(--text-dim); text-decoration: none; }
+    .btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+    .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .btn-icon { width: 34px; height: 34px; padding: 0; justify-content: center; }
+    .btn svg { width: 14px; height: 14px; }
+
+    /* ═══════════ CONTAINER ═══════════ */
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 32px 24px 80px;
+    }
+    h1 { font-size: 26px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.4px; }
+    .subtitle { color: var(--text-soft); font-size: 15px; margin-bottom: 28px; }
+
+    /* ═══════════ API KEY BAR ═══════════ */
+    .apikey-bar {
+      background: var(--bg-elev);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      margin-bottom: 24px;
+    }
+    .apikey-bar h3 { font-size: 14px; margin-bottom: 10px; font-weight: 600; }
+    .apikey-input-group {
+      display: flex;
+      gap: 10px;
+    }
+    .apikey-input-group input {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .apikey-input-group input:focus { border-color: var(--accent); }
+    .apikey-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12.5px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-top: 10px;
+    }
+    .apikey-status.ok { background: rgba(16,185,129,0.12); color: var(--success); }
+    .apikey-status.err { background: rgba(239,68,68,0.12); color: var(--danger); }
+    .apikey-status.wait { background: rgba(245,158,11,0.12); color: var(--warn); }
+
+    /* ═══════════ STATS ═══════════ */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .stat {
+      background: var(--bg-elev);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .stat-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      font-family: var(--font-mono);
+    }
+
+    /* ═══════════ FILTERS ═══════════ */
+    .filters {
+      background: var(--bg-elev);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .search-box {
+      flex: 1;
+      min-width: 240px;
+      position: relative;
+    }
+    .search-box input {
+      width: 100%;
+      padding: 10px 14px 10px 38px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .search-box input:focus { border-color: var(--accent); }
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      width: 16px;
+      height: 16px;
+    }
+    .filter-select {
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      outline: none;
+      min-width: 160px;
+    }
+    .filter-select:focus { border-color: var(--accent); }
+
+    /* ═══════════ SERVICES GRID ═══════════ */
+    .services-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .services-count { font-size: 13.5px; color: var(--text-soft); }
+    .services-count strong { color: var(--text); font-weight: 600; }
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .service-card {
+      background: var(--bg-elev);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      transition: all 0.15s;
+    }
+    .service-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+    .service-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .service-category {
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--accent);
+      background: var(--accent-soft);
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+    .service-name {
+      font-size: 14.5px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.35;
+      margin-bottom: 8px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .service-desc {
+      font-size: 12.5px;
+      color: var(--text-soft);
+      line-height: 1.5;
+      margin-bottom: 12px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .service-price-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      margin-bottom: 10px;
+    }
+    .service-price-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+    .service-price {
+      font-family: var(--font-mono);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--success);
+    }
+    .service-price small { font-size: 11px; color: var(--text-dim); font-weight: 400; }
+    .service-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .meta-tag {
+      font-size: 11px;
+      color: var(--text-soft);
+      background: var(--bg);
+      border: 1px solid var(--border-soft);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+    }
+    .service-id-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-soft);
+    }
+    .service-id {
+      flex: 1;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--text-dim);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .copy-id-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10.5px;
+      cursor: pointer;
+      font-family: var(--font-sans);
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .copy-id-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+    /* ═══════════ EMPTY / LOADING ═══════════ */
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-soft);
+    }
+    .empty svg { width: 48px; height: 48px; color: var(--text-dim); margin-bottom: 16px; }
+    .loader {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2.5px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ═══════════ PAGINATION ═══════════ */
+    .load-more-wrap {
+      text-align: center;
+      padding: 20px 0;
+    }
+    .load-more-btn {
+      padding: 10px 24px;
+      border-radius: var(--radius);
+      background: var(--accent);
+      color: white;
+      border: none;
+      font-weight: 600;
+      font-size: 13.5px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+    .load-more-btn:hover { background: var(--accent-hover); }
+    .load-more-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    @media (max-width: 700px) {
+      .container { padding: 20px 16px 60px; }
+      h1 { font-size: 22px; }
+      .brand-sub { display: none; }
+      .header-right .btn-text { display: none; }
+      .apikey-input-group { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="top">
+  <a href="api-docs.html" class="brand">
+    <div class="brand-mark">SBH</div>
+    <span>Social Boost Horizon</span>
+    <span class="brand-sub">Catalogue API</span>
+  </a>
+  <div class="header-right">
+    <a href="api-docs.html" class="btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      <span class="btn-text">Documentation</span>
+    </a>
+    <button class="btn btn-icon" onclick="toggleTheme()" aria-label="Thème">
+      <svg id="themeIcon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<div class="container">
+
+  <h1>Catalogue des services</h1>
+  <p class="subtitle">
+    Tous les services disponibles via l'API Social Boost Horizon, avec leurs tarifs en XAF.
+    Entrez votre clé API pour charger le catalogue en temps réel.
+  </p>
+
+  <!-- ═══════════ API KEY INPUT ═══════════ -->
+  <div class="apikey-bar" id="apiKeyBar">
+    <h3>Clé API</h3>
+    <div class="apikey-input-group">
+      <input type="password" id="apiKeyInput" placeholder="sbh_live_..." autocomplete="off" />
+      <button class="btn btn-primary" onclick="loadCatalog()" id="loadBtn">
+        Charger le catalogue
+      </button>
+      <button class="btn" onclick="clearKey()" title="Effacer la clé">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div id="apiKeyStatus"></div>
+  </div>
+
+  <!-- ═══════════ STATS ═══════════ -->
+  <div class="stats" id="stats" style="display:none;">
+    <div class="stat">
+      <div class="stat-label">Services</div>
+      <div class="stat-value" id="statTotal">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Catégories</div>
+      <div class="stat-value" id="statCategories">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Prix min / 1000</div>
+      <div class="stat-value" id="statMin">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Prix max / 1000</div>
+      <div class="stat-value" id="statMax">0</div>
+    </div>
+  </div>
+
+  <!-- ═══════════ FILTERS ═══════════ -->
+  <div class="filters" id="filters" style="display:none;">
+    <div class="search-box">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="7"/>
+        <path d="M20 20l-3.5-3.5"/>
+      </svg>
+      <input type="text" id="searchInput" placeholder="Rechercher un service, une catégorie, un mot-clé…" />
+    </div>
+    <select class="filter-select" id="categoryFilter">
+      <option value="">Toutes les catégories</option>
+    </select>
+    <select class="filter-select" id="sortFilter">
+      <option value="relevance">Tri par défaut</option>
+      <option value="price-asc">Prix croissant</option>
+      <option value="price-desc">Prix décroissant</option>
+      <option value="name-asc">Nom (A→Z)</option>
+    </select>
+  </div>
+
+  <!-- ═══════════ SERVICES GRID ═══════════ -->
+  <div id="servicesContainer">
+    <div class="empty" id="emptyState">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <path d="M3 9h18M9 21V9"/>
+      </svg>
+      <h3 style="margin-bottom:8px;color:var(--text);">Entrez votre clé API</h3>
+      <p>Le catalogue se chargera automatiquement une fois votre clé saisie.</p>
+      <p style="margin-top:12px;font-size:13px;">
+        Pas encore de clé ? <a href="profil.html">Générez-en une</a> depuis votre profil.
+      </p>
+    </div>
+  </div>
+
+  <div class="load-more-wrap" id="loadMoreWrap" style="display:none;">
+    <button class="load-more-btn" id="loadMoreBtn" onclick="loadMore()">Charger plus</button>
+  </div>
+
+</div>
+
+<script>
+  // ═══════════ THEME ═══════════
+  function toggleTheme() {
+    const html = document.documentElement;
+    const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('sbh-docs-theme', next);
+    updateThemeIcon();
+  }
+  function updateThemeIcon() {
+    const icon = document.getElementById('themeIcon');
+    if (!icon) return;
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    icon.innerHTML = isDark
+      ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>'
+      : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  }
+  (function() {
+    const saved = localStorage.getItem('sbh-docs-theme');
+    if (saved === 'light' || saved === 'dark') document.documentElement.setAttribute('data-theme', saved);
+    updateThemeIcon();
+  })();
+
+  // ═══════════ STATE ═══════════
+  const API_BASE = 'https://socialboosthorizon.com';
+  const STORAGE_KEY = 'sbh_catalog_api_key';
+  const PAGE_SIZE = 48;
+  const CACHE_TTL = 5 * 60 * 1000; // 5 min
+
+  let allServices = [];
+  let filteredServices = [];
+  let displayedCount = 0;
+  let searchDebounceTimer = null;
+
+  // ═══════════ API KEY MANAGEMENT ═══════════
+  function setStatus(type, message) {
+    const el = document.getElementById('apiKeyStatus');
+    if (!type) { el.innerHTML = ''; return; }
+    const icons = {
+      ok: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>',
+      err: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+      wait: '<div class="loader" style="width:12px;height:12px;border-width:2px;"></div>'
+    };
+    el.innerHTML = '<div class="apikey-status ' + type + '">' + icons[type] + ' ' + message + '</div>';
+  }
+
+  function clearKey() {
+    localStorage.removeItem(STORAGE_KEY);
+    document.getElementById('apiKeyInput').value = '';
+    allServices = [];
+    filteredServices = [];
+    document.getElementById('stats').style.display = 'none';
+    document.getElementById('filters').style.display = 'none';
+    document.getElementById('loadMoreWrap').style.display = 'none';
+    setStatus(null);
+    renderEmpty();
+  }
+
+  // ═══════════ LOAD CATALOG ═══════════
+  async function loadCatalog() {
+    const key = document.getElementById('apiKeyInput').value.trim();
+    if (!key || key.length < 20) {
+      setStatus('err', 'Veuillez entrer une clé API valide');
+      return;
+    }
+
+    setStatus('wait', 'Chargement du catalogue…');
+    document.getElementById('loadBtn').disabled = true;
+
+    try {
+      const res = await fetch(API_BASE + '/api/v1/services', {
+        headers: { 'X-Api-Key': key }
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setStatus('err', data.error || 'Clé API invalide ou révoquée');
+        document.getElementById('loadBtn').disabled = false;
+        return;
+      }
+
+      allServices = data.services || [];
+      filteredServices = allServices.slice();
+      displayedCount = 0;
+
+      localStorage.setItem(STORAGE_KEY, key);
+      setStatus('ok', allServices.length.toLocaleString('fr-FR') + ' services chargés avec succès');
+
+      computeStats();
+      populateCategories();
+      renderServices(true);
+
+      document.getElementById('stats').style.display = 'grid';
+      document.getElementById('filters').style.display = 'flex';
+    } catch (err) {
+      console.error(err);
+      setStatus('err', 'Erreur réseau. Vérifiez votre connexion.');
+    } finally {
+      document.getElementById('loadBtn').disabled = false;
+    }
+  }
+
+  // ═══════════ STATS ═══════════
+  function computeStats() {
+    const categories = new Set(allServices.map(s => s.category).filter(Boolean));
+    const prices = allServices.map(s => s.price_per_1000).filter(p => p > 0);
+
+    document.getElementById('statTotal').textContent = allServices.length.toLocaleString('fr-FR');
+    document.getElementById('statCategories').textContent = categories.size;
+    document.getElementById('statMin').textContent = prices.length ? Math.min(...prices).toLocaleString('fr-FR') + ' XAF' : '—';
+    document.getElementById('statMax').textContent = prices.length ? Math.max(...prices).toLocaleString('fr-FR') + ' XAF' : '—';
+  }
+
+  // ═══════════ CATEGORIES ═══════════
+  function populateCategories() {
+    const categories = [...new Set(allServices.map(s => s.category).filter(Boolean))].sort();
+    const select = document.getElementById('categoryFilter');
+    select.innerHTML = '<option value="">Toutes les catégories (' + categories.length + ')</option>';
+    categories.forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat;
+      opt.textContent = cat;
+      select.appendChild(opt);
+    });
+  }
+
+  // ═══════════ FILTERING & SEARCH ═══════════
+  function applyFilters() {
+    const q = document.getElementById('searchInput').value.toLowerCase().trim();
+    const cat = document.getElementById('categoryFilter').value;
+    const sort = document.getElementById('sortFilter').value;
+
+    filteredServices = allServices.filter(s => {
+      if (cat && s.category !== cat) return false;
+      if (q) {
+        const hay = (s.name + ' ' + (s.category || '') + ' ' + (s.description || '') + ' ' + s.service_id).toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+
+    if (sort === 'price-asc') filteredServices.sort((a, b) => a.price_per_1000 - b.price_per_1000);
+    else if (sort === 'price-desc') filteredServices.sort((a, b) => b.price_per_1000 - a.price_per_1000);
+    else if (sort === 'name-asc') filteredServices.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+    displayedCount = 0;
+    renderServices(true);
+  }
+
+  function renderServices(reset) {
+    const container = document.getElementById('servicesContainer');
+
+    if (filteredServices.length === 0) {
+      container.innerHTML = `
+        <div class="empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="11" cy="11" r="7"/>
+            <path d="M20 20l-3.5-3.5"/>
+          </svg>
+          <h3 style="margin-bottom:8px;color:var(--text);">Aucun service trouvé</h3>
+          <p>Essayez d'ajuster votre recherche ou vos filtres.</p>
+        </div>`;
+      document.getElementById('loadMoreWrap').style.display = 'none';
+      return;
+    }
+
+    if (reset) container.innerHTML = '';
+
+    const nextBatch = filteredServices.slice(displayedCount, displayedCount + PAGE_SIZE);
+    nextBatch.forEach(s => container.appendChild(buildServiceCard(s)));
+    displayedCount += nextBatch.length;
+
+    // Header count
+    if (reset) {
+      const header = document.createElement('div');
+      header.className = 'services-header';
+      header.innerHTML = `<div class="services-count"><strong>${filteredServices.length.toLocaleString('fr-FR')}</strong> service${filteredServices.length > 1 ? 's' : ''} affiché${filteredServices.length > 1 ? 's' : ''}</div>`;
+      container.insertBefore(header, container.firstChild);
+    }
+
+    // Load more
+    const hasMore = displayedCount < filteredServices.length;
+    document.getElementById('loadMoreWrap').style.display = hasMore ? 'block' : 'none';
+    document.getElementById('loadMoreBtn').textContent = 'Charger plus (' + (filteredServices.length - displayedCount).toLocaleString('fr-FR') + ' restants)';
+  }
+
+  function loadMore() {
+    renderServices(false);
+  }
+
+  function buildServiceCard(s) {
+    const card = document.createElement('div');
+    card.className = 'service-card';
+
+    const price = s.price_per_1000 ? s.price_per_1000.toLocaleString('fr-FR') : '—';
+    const minMax = s.min && s.max ? `${s.min.toLocaleString('fr-FR')} – ${s.max.toLocaleString('fr-FR')}` : '—';
+    const tags = [];
+    if (s.refill) tags.push('Refill');
+    if (s.cancel) tags.push('Annulation');
+    if (s.type && s.type !== 'default') tags.push(s.type);
+
+    card.innerHTML = `
+      <div class="service-header">
+        <div class="service-category">${escapeHtml(s.category || 'Autre')}</div>
+      </div>
+      <div class="service-name">${escapeHtml(s.name || 'Service sans nom')}</div>
+      ${s.description ? `<div class="service-desc">${escapeHtml(s.description)}</div>` : ''}
+      <div class="service-price-row">
+        <div>
+          <div class="service-price-label">Prix / 1000</div>
+          <div class="service-price">${price} <small>XAF</small></div>
+        </div>
+        <div style="text-align:right;">
+          <div class="service-price-label">Quantité</div>
+          <div class="meta-tag">${minMax}</div>
+        </div>
+      </div>
+      ${tags.length ? `<div class="service-meta">${tags.map(t => `<span class="meta-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+      <div class="service-id-row">
+        <div class="service-id" title="${escapeHtml(s.service_id)}">${escapeHtml(s.service_id)}</div>
+        <button class="copy-id-btn" data-id="${escapeHtml(s.service_id)}">Copier</button>
+      </div>
+    `;
+
+    card.querySelector('.copy-id-btn').addEventListener('click', (e) => {
+      const btn = e.currentTarget;
+      const id = btn.getAttribute('data-id');
+      navigator.clipboard.writeText(id).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = 'Copié';
+        btn.style.color = 'var(--success)';
+        btn.style.borderColor = 'var(--success)';
+        setTimeout(() => {
+          btn.textContent = orig;
+          btn.style.color = '';
+          btn.style.borderColor = '';
+        }, 1500);
+      });
+    });
+
+    return card;
+  }
+
+  function renderEmpty() {
+    const container = document.getElementById('servicesContainer');
+    container.innerHTML = `
+      <div class="empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <path d="M3 9h18M9 21V9"/>
+        </svg>
+        <h3 style="margin-bottom:8px;color:var(--text);">Entrez votre clé API</h3>
+        <p>Le catalogue se chargera automatiquement une fois votre clé saisie.</p>
+        <p style="margin-top:12px;font-size:13px;">
+          Pas encore de clé ? <a href="profil.html">Générez-en une</a> depuis votre profil.
+        </p>
+      </div>`;
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // ═══════════ EVENTS ═══════════
+  document.getElementById('searchInput').addEventListener('input', () => {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(applyFilters, 200);
+  });
+  document.getElementById('categoryFilter').addEventListener('change', applyFilters);
+  document.getElementById('sortFilter').addEventListener('change', applyFilters);
+  document.getElementById('apiKeyInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') loadCatalog();
+  });
+
+  // ═══════════ AUTO-LOAD ON START ═══════════
+  (function autoLoad() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      document.getElementById('apiKeyInput').value = saved;
+      loadCatalog();
+    }
+  })();
+</script>
+</body>
+</html>
