@@ -1697,29 +1697,51 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
 app.post('/api/user/settings', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
-    const newSettings = req.body;
+    // ✅ CORRECTION : le client envoie { settings: {...} }.
+    // On accepte aussi le format direct { key: value, ... } pour compatibilité.
+    const body = req.body || {};
+    const newSettings = (body.settings && typeof body.settings === 'object')
+      ? body.settings
+      : body;
 
     if (!newSettings || typeof newSettings !== 'object' || Object.keys(newSettings).length === 0) {
       return res.status(400).json({ success: false, error: 'Aucun paramètre fourni.' });
     }
 
+    // ✅ Filtrage : on n'accepte que les clés connues pour éviter la pollution
+    const ALLOWED_SETTINGS = [
+      'emailNotifications', 'whatsappNotifications', 'promoNotifications',
+      'profileVisible', 'hideBalance', 'privateHistory',
+      'defaultSpeed', 'confirmOrder', 'soundsAnimations'
+    ];
+
     const updatePayload = {};
     for (const [key, value] of Object.entries(newSettings)) {
-      updatePayload[`settings.${key}`] = value;
+      if (ALLOWED_SETTINGS.includes(key)) {
+        updatePayload[`settings.${key}`] = Boolean(value);
+      }
     }
+
+    if (Object.keys(updatePayload).length === 0) {
+      return res.status(400).json({ success: false, error: 'Aucun paramètre valide fourni.' });
+    }
+
     updatePayload.updatedAt = admin.firestore.FieldValue.serverTimestamp();
 
-    await db.collection('users').doc(uid).update(updatePayload);
+    const userRef = db.collection('users').doc(uid);
+    // ✅ On utilise .set(..., { merge: true }) pour créer le doc s'il n'existe pas
+    await userRef.set(updatePayload, { merge: true });
 
-    res.json({ success: true, message: 'Paramètres mis à jour avec succès.' });
+    // ✅ Relecture pour renvoyer l'état exact persisté au client
+    const freshDoc = await userRef.get();
+    const savedSettings = freshDoc.exists ? (freshDoc.data().settings || {}) : {};
+
+    res.json({
+      success: true,
+      settings: savedSettings,
+      message: 'Paramètres mis à jour avec succès.'
+    });
   } catch (error) {
-    if (error.code === 5) {
-      await db.collection('users').doc(req.user.uid).set({
-        settings: req.body,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-      return res.json({ success: true, message: 'Paramètres créés et mis à jour avec succès.' });
-    }
     console.error('Erreur /api/user/settings:', error);
     res.status(500).json({ success: false, error: 'Erreur lors de la mise à jour des paramètres.' });
   }
