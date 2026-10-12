@@ -1697,8 +1697,6 @@ app.post('/api/update-profile', checkAuth, async (req, res) => {
 app.post('/api/user/settings', checkAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
-    // ✅ CORRECTION : le client envoie { settings: {...} }.
-    // On accepte aussi le format direct { key: value, ... } pour compatibilité.
     const body = req.body || {};
     const newSettings = (body.settings && typeof body.settings === 'object')
       ? body.settings
@@ -1708,7 +1706,6 @@ app.post('/api/user/settings', checkAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Aucun paramètre fourni.' });
     }
 
-    // ✅ Filtrage : on n'accepte que les clés connues pour éviter la pollution
     const ALLOWED_SETTINGS = [
       'emailNotifications', 'whatsappNotifications', 'promoNotifications',
       'profileVisible', 'hideBalance', 'privateHistory',
@@ -1729,10 +1726,8 @@ app.post('/api/user/settings', checkAuth, async (req, res) => {
     updatePayload.updatedAt = admin.firestore.FieldValue.serverTimestamp();
 
     const userRef = db.collection('users').doc(uid);
-    // ✅ On utilise .set(..., { merge: true }) pour créer le doc s'il n'existe pas
     await userRef.set(updatePayload, { merge: true });
 
-    // ✅ Relecture pour renvoyer l'état exact persisté au client
     const freshDoc = await userRef.get();
     const savedSettings = freshDoc.exists ? (freshDoc.data().settings || {}) : {};
 
@@ -3119,17 +3114,20 @@ try {
     db,
     admin,
     callMTP,
+    callExo,
     callAfriqueBoost,
     callSmmWiz,
     detectPlatformName,
     MTP_USD_TO_XAF,
     MTP_MULTIPLIER,
+    EXO_USD_TO_XAF,
+    EXO_MULTIPLIER,
     AFB_MULTIPLIER,
     SMMWIZ_USD_TO_XAF,
     SMMWIZ_MULTIPLIER,
   });
   app.use('/api/v1', publicRouter);
-  console.log('✅ Routeur API publique monté sur /api/v1');
+  console.log('✅ Routeur API publique monté sur /api/v1 (codes opaques, sources multiples)');
 } catch (err) {
   console.error('❌ Erreur chargement routeur public :', err.message);
 }
