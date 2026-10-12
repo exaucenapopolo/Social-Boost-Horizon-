@@ -1,15 +1,11 @@
 /**
  * API Publique Social Boost Horizon — Routeur Express exportable
  *
- * Ce module exporte une FONCTION FACTORY qui crée et renvoie un express.Router
- * destiné à être monté par api/index.js sur le préfixe /api/v1.
- *
- * ⚠️ Ce fichier ne doit JAMAIS appeler app.listen() ni utiliser de données mockées.
- * Toutes les lectures/écritures passent par Firestore et les helpers fournisseurs
- * injectés par index.js.
- *
- * Format des service_id publics : "<provider>_<idFournisseur>"
- *   ex. "mtp_1234", "afb_5678", "smmwiz_910"
+ * ⚠️ CONFIDENTIEL : Ce fichier ne doit JAMAIS exposer les noms
+ * des fournisseurs partenaires (MTP, EXO, AfriqueBoost, SMMWiz).
+ * Tous les identifiants publics utilisent des CODES OPQUES définis
+ * dans PROVIDER_CODES. En cas de fuite, il suffit de changer ces
+ * codes et de redéployer.
  */
 
 const express = require('express');
@@ -19,11 +15,14 @@ module.exports = function createPublicRouter(deps) {
     db,
     admin,
     callMTP,
+    callExo,
     callAfriqueBoost,
     callSmmWiz,
     detectPlatformName,
     MTP_USD_TO_XAF,
     MTP_MULTIPLIER,
+    EXO_USD_TO_XAF,
+    EXO_MULTIPLIER,
     AFB_MULTIPLIER,
     SMMWIZ_USD_TO_XAF,
     SMMWIZ_MULTIPLIER,
@@ -35,6 +34,22 @@ module.exports = function createPublicRouter(deps) {
   if (typeof callMTP !== 'function' || typeof callAfriqueBoost !== 'function' || typeof callSmmWiz !== 'function') {
     throw new Error('createPublicRouter: helpers fournisseurs manquants.');
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // CODES OPQUES — NE JAMAIS MODIFIER SANS REDÉPLOIEMENT COMPLET
+  // Ces codes masquent les vrais fournisseurs. Un développeur tiers
+  // qui voit "sbh_a1x_1234" ne peut pas savoir qu'il s'agit de MTP.
+  // ═══════════════════════════════════════════════════════════════
+  const PROVIDER_CODES = {
+    'mtp':          'a1x',
+    'exo':          'b2y',
+    'afriqueboost': 'c3z',
+    'smmwiz':       'd4w',
+  };
+  const CODES_TO_PROVIDER = {};
+  Object.keys(PROVIDER_CODES).forEach(k => {
+    CODES_TO_PROVIDER[PROVIDER_CODES[k]] = k;
+  });
 
   const router = express.Router();
 
@@ -60,17 +75,17 @@ module.exports = function createPublicRouter(deps) {
 
     const services = [];
 
-    // MTP
+    // ── Source #1 (code a1x) ──
     try {
       const raw = await callMTP({ action: 'services' });
       if (Array.isArray(raw)) {
         raw.forEach(s => {
           const rate = parseFloat(s.rate) || 0;
           const priceXAF = Math.round(rate * MTP_USD_TO_XAF * MTP_MULTIPLIER);
-          if (priceXAF > 0) {
+          if (priceXAF > 0 && s.service) {
             services.push({
-              service_id: `mtp_${s.service}`,
-              provider: 'mtp',
+              service_id: `sbh_${PROVIDER_CODES['mtp']}_${s.service}`,
+              provider: 'sbh',
               name: s.name || '',
               category: s.category || '',
               type: s.type || 'default',
@@ -85,20 +100,50 @@ module.exports = function createPublicRouter(deps) {
         });
       }
     } catch (e) {
-      console.error('[public/catalog] MTP:', e.message);
+      console.error('[public/catalog] Source a1x indisponible:', e.message);
     }
 
-    // AfriqueBoost
+    // ── Source #2 (code b2y) — EXO ──
+    if (typeof callExo === 'function' && EXO_USD_TO_XAF && EXO_MULTIPLIER) {
+      try {
+        const raw = await callExo({ action: 'services' });
+        if (Array.isArray(raw)) {
+          raw.forEach(s => {
+            const rate = parseFloat(s.rate) || 0;
+            const priceXAF = Math.round(rate * EXO_USD_TO_XAF * EXO_MULTIPLIER);
+            if (priceXAF > 0 && s.service) {
+              services.push({
+                service_id: `sbh_${PROVIDER_CODES['exo']}_${s.service}`,
+                provider: 'sbh',
+                name: s.name || '',
+                category: s.category || '',
+                type: s.type || 'default',
+                price_per_1000: priceXAF,
+                min: parseInt(s.min) || 0,
+                max: parseInt(s.max) || 0,
+                refill: s.refill === true || s.refill === 'true',
+                cancel: s.cancel === true || s.cancel === 'true',
+                description: s.description || null,
+              });
+            }
+          });
+        }
+      } catch (e) {
+        console.error('[public/catalog] Source b2y indisponible:', e.message);
+      }
+    }
+
+    // ── Source #3 (code c3z) — AfriqueBoost ──
     try {
       const raw = await callAfriqueBoost({ action: 'services' });
       if (Array.isArray(raw)) {
         raw.forEach(s => {
           const rateXAF = parseFloat(s.rate) || 0;
           const priceXAF = Math.round(rateXAF * AFB_MULTIPLIER);
-          if (priceXAF > 0) {
+          if (priceXAF > 0 && s.service) {
             services.push({
-              service_id: `afb_${s.service}`,
-              provider: 'afriqueboost',
+              service_id: `sbh_${PROVIDER_CODES['afriqueboost']}_${s.service}`,
+              provider: 'sbh',
               name: s.name || '',
               category: s.category || '',
               type: s.type || 'default',
@@ -113,20 +158,20 @@ module.exports = function createPublicRouter(deps) {
         });
       }
     } catch (e) {
-      console.error('[public/catalog] AFB:', e.message);
+      console.error('[public/catalog] Source c3z indisponible:', e.message);
     }
 
-    // SMMWiz
+    // ── Source #4 (code d4w) — SMMWiz ──
     try {
       const raw = await callSmmWiz({ action: 'services' });
       if (Array.isArray(raw)) {
         raw.forEach(s => {
           const rate = parseFloat(s.rate) || 0;
           const priceXAF = Math.round(rate * SMMWIZ_USD_TO_XAF * SMMWIZ_MULTIPLIER);
-          if (priceXAF > 0) {
+          if (priceXAF > 0 && s.service) {
             services.push({
-              service_id: `smmwiz_${s.service}`,
-              provider: 'smmwiz',
+              service_id: `sbh_${PROVIDER_CODES['smmwiz']}_${s.service}`,
+              provider: 'sbh',
               name: s.name || '',
               category: s.category || '',
               type: s.type || 'default',
@@ -141,11 +186,12 @@ module.exports = function createPublicRouter(deps) {
         });
       }
     } catch (e) {
-      console.error('[public/catalog] SMMWiz:', e.message);
+      console.error('[public/catalog] Source d4w indisponible:', e.message);
     }
 
     _catalogCache = services;
     _catalogCacheTime = Date.now();
+    console.log(`[public/catalog] ${services.length} services exposés (sources multiples, codes opaques)`);
     return services;
   }
 
@@ -195,7 +241,7 @@ module.exports = function createPublicRouter(deps) {
       const data = userDoc.data();
       res.json({
         success: true,
-        balance: data.balance || 0,
+        balance: Math.round(data.balance || 0),
         currency: 'XAF'
       });
     } catch (err) {
@@ -212,7 +258,7 @@ module.exports = function createPublicRouter(deps) {
       let filtered = services;
       if (catalog) {
         filtered = services.filter(s =>
-          s.provider === catalog || (s.category || '').toLowerCase() === catalog
+          (s.category || '').toLowerCase().includes(catalog)
         );
       }
       res.json({
@@ -246,13 +292,18 @@ module.exports = function createPublicRouter(deps) {
         return res.status(400).json({ success: false, error: 'Quantité invalide.' });
       }
 
+      // ─── Décodage du service_id : "sbh_a1x_1234" → provider + id ───
       const serviceIdStr = String(serviceIdRaw);
-      const idx = serviceIdStr.indexOf('_');
-      if (idx < 1) {
-        return res.status(400).json({ success: false, error: 'Format service_id invalide (attendu : "provider_id").' });
+      const parts = serviceIdStr.split('_');
+      if (parts.length !== 3 || parts[0] !== 'sbh') {
+        return res.status(400).json({ success: false, error: 'Format service_id invalide.' });
       }
-      const provider = serviceIdStr.substring(0, idx);
-      const providerServiceId = serviceIdStr.substring(idx + 1);
+      const providerCode = parts[1];
+      const providerServiceId = parts[2];
+      const provider = CODES_TO_PROVIDER[providerCode];
+      if (!provider) {
+        return res.status(400).json({ success: false, error: 'Service introuvable dans le catalogue.' });
+      }
 
       const services = await buildCatalog();
       const service = services.find(s => s.service_id === serviceIdStr);
@@ -268,15 +319,15 @@ module.exports = function createPublicRouter(deps) {
       }
 
       const isPackage = (service.type || '').toLowerCase().includes('package');
-      const cost = isPackage
+      const costRaw = isPackage
         ? service.price_per_1000
-        : Math.round((service.price_per_1000 / 1000) * qty);
+        : (service.price_per_1000 / 1000) * qty;
+      const cost = Math.max(1, Math.round(costRaw));
 
-      if (cost <= 0) {
+      if (!Number.isFinite(cost) || cost <= 0) {
         return res.status(400).json({ success: false, error: 'Coût de commande invalide.' });
       }
 
-      // Pré-vérification du solde (économie d'appel fournisseur)
       const userDoc = await db.collection('users').doc(req.apiUser.uid).get();
       if (!userDoc.exists) {
         return res.status(404).json({ success: false, error: 'Compte introuvable.' });
@@ -285,13 +336,12 @@ module.exports = function createPublicRouter(deps) {
       if (currentBalance < cost) {
         return res.status(400).json({
           success: false,
-          error: `Solde insuffisant. Requis : ${cost} XAF, disponible : ${currentBalance} XAF.`
+          error: `Solde insuffisant. Requis : ${cost} XAF, disponible : ${Math.round(currentBalance)} XAF.`
         });
       }
 
-      // Passage de la commande chez le fournisseur
+      // ─── Appel fournisseur interne (jamais révélé au client) ───
       let providerOrderId = null;
-      let providerName = '';
 
       if (provider === 'mtp') {
         const params = { action: 'add', service: providerServiceId, link, quantity: qty };
@@ -300,15 +350,20 @@ module.exports = function createPublicRouter(deps) {
         if (result.error) return res.status(400).json({ success: false, error: 'Erreur fournisseur : ' + result.error });
         if (!result.order) return res.status(400).json({ success: false, error: 'Commande non confirmée par le fournisseur.' });
         providerOrderId = result.order;
-        providerName = 'mtp';
-      } else if (provider === 'afb') {
+      } else if (provider === 'exo' && typeof callExo === 'function') {
+        const params = { action: 'add', service: providerServiceId, link, quantity: qty };
+        if (comments) params.comments = String(comments).substring(0, 500);
+        const result = await callExo(params);
+        if (result.error) return res.status(400).json({ success: false, error: 'Erreur fournisseur : ' + result.error });
+        if (!result.order) return res.status(400).json({ success: false, error: 'Commande non confirmée par le fournisseur.' });
+        providerOrderId = result.order;
+      } else if (provider === 'afriqueboost') {
         const params = { action: 'add', service: providerServiceId, link, quantity: qty };
         if (comments) params.comments = String(comments).substring(0, 500);
         const result = await callAfriqueBoost(params);
         if (result.error) return res.status(400).json({ success: false, error: 'Erreur fournisseur : ' + result.error });
         if (!result.order) return res.status(400).json({ success: false, error: 'Commande non confirmée par le fournisseur.' });
         providerOrderId = result.order;
-        providerName = 'afriqueboost';
       } else if (provider === 'smmwiz') {
         const type = (service.type || 'default').toLowerCase();
         if (type !== 'default' && type !== 'package') {
@@ -320,12 +375,11 @@ module.exports = function createPublicRouter(deps) {
         if (result.error) return res.status(400).json({ success: false, error: 'Erreur fournisseur : ' + result.error });
         if (!result.order) return res.status(400).json({ success: false, error: 'Commande non confirmée par le fournisseur.' });
         providerOrderId = result.order;
-        providerName = 'smmwiz';
       } else {
-        return res.status(400).json({ success: false, error: "Fournisseur non supporté par l'API publique." });
+        return res.status(400).json({ success: false, error: "Service temporairement indisponible." });
       }
 
-      // Transaction Firestore : débit + enregistrement
+      // ─── Transaction Firestore ───
       let finalOrderId;
       let newBalance;
       await db.runTransaction(async (transaction) => {
@@ -355,7 +409,9 @@ module.exports = function createPublicRouter(deps) {
         transaction.set(orderRef, {
           orderId: finalOrderId,
           userId: req.apiUser.uid,
-          provider: providerName,
+          // ⚠️ Le vrai nom du fournisseur est stocké ici pour usage interne
+          //    mais n'est JAMAIS renvoyé au client via l'API publique.
+          provider: provider,
           providerOrderId,
           serviceId: parseInt(providerServiceId, 10) || 0,
           serviceName: service.name,
@@ -379,7 +435,7 @@ module.exports = function createPublicRouter(deps) {
         quantity: qty,
         price: cost,
         currency: 'XAF',
-        balance: newBalance,
+        balance: Math.round(newBalance),
         status: 'pending'
       });
 
@@ -414,7 +470,6 @@ module.exports = function createPublicRouter(deps) {
 
       const data = snapshot.docs[0].data();
       if (data.userId !== req.apiUser.uid) {
-        // On renvoie 404 plutôt que 403 pour ne pas révéler l'existence de la commande
         return res.status(404).json({ success: false, error: 'Commande introuvable.' });
       }
 
