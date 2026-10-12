@@ -2,58 +2,44 @@
  * API Publique Social Boost Horizon — Routeur Express exportable
  *
  * ⚠️ CONFIDENTIEL : Ce fichier ne doit JAMAIS exposer les noms
- * des fournisseurs partenaires (MTP, EXO, AfriqueBoost, SMMWiz).
- * Tous les identifiants publics utilisent des CODES OPQUES définis
- * dans PROVIDER_CODES. En cas de fuite, il suffit de changer ces
- * codes et de redéployer.
+ * des fournisseurs partenaires. Les identifiants publics utilisent
+ * des codes opaques SBH1, SBH2, SBH3, SBH4.
  */
 
 const express = require('express');
 
 module.exports = function createPublicRouter(deps) {
   const {
-    db,
-    admin,
-    callMTP,
-    callExo,
-    callAfriqueBoost,
-    callSmmWiz,
+    db, admin,
+    callMTP, callExo, callAfriqueBoost, callSmmWiz,
     detectPlatformName,
-    MTP_USD_TO_XAF,
-    MTP_MULTIPLIER,
-    EXO_USD_TO_XAF,
-    EXO_MULTIPLIER,
+    MTP_USD_TO_XAF, MTP_MULTIPLIER,
+    EXO_USD_TO_XAF, EXO_MULTIPLIER,
     AFB_MULTIPLIER,
-    SMMWIZ_USD_TO_XAF,
-    SMMWIZ_MULTIPLIER,
+    SMMWIZ_USD_TO_XAF, SMMWIZ_MULTIPLIER,
   } = deps;
 
-  if (!db || !admin) {
-    throw new Error('createPublicRouter: db et admin sont requis.');
-  }
+  if (!db || !admin) throw new Error('createPublicRouter: db et admin sont requis.');
   if (typeof callMTP !== 'function' || typeof callAfriqueBoost !== 'function' || typeof callSmmWiz !== 'function') {
     throw new Error('createPublicRouter: helpers fournisseurs manquants.');
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // CODES OPQUES — NE JAMAIS MODIFIER SANS REDÉPLOIEMENT COMPLET
-  // Ces codes masquent les vrais fournisseurs. Un développeur tiers
-  // qui voit "sbh_a1x_1234" ne peut pas savoir qu'il s'agit de MTP.
+  // CODES SOURCES PUBLIQUES — SBH1 / SBH2 / SBH3 / SBH4
+  // Ne JAMAIS révéler la vraie source derrière chaque code.
   // ═══════════════════════════════════════════════════════════════
   const PROVIDER_CODES = {
-    'mtp':          'a1x',
-    'exo':          'b2y',
-    'afriqueboost': 'c3z',
-    'smmwiz':       'd4w',
+    'mtp':          'SBH1',
+    'exo':          'SBH2',
+    'afriqueboost': 'SBH3',
+    'smmwiz':       'SBH4',
   };
   const CODES_TO_PROVIDER = {};
-  Object.keys(PROVIDER_CODES).forEach(k => {
-    CODES_TO_PROVIDER[PROVIDER_CODES[k]] = k;
-  });
+  Object.keys(PROVIDER_CODES).forEach(k => { CODES_TO_PROVIDER[PROVIDER_CODES[k]] = k; });
+  const PUBLIC_SOURCES = Object.values(PROVIDER_CODES); // ['SBH1','SBH2','SBH3','SBH4']
 
   const router = express.Router();
 
-  // ─── Cache catalogue (5 min) ─────────────────────────────────
   let _catalogCache = null;
   let _catalogCacheTime = 0;
   const CATALOG_TTL = 5 * 60 * 1000;
@@ -67,158 +53,95 @@ module.exports = function createPublicRouter(deps) {
     return isNaN(parsed) ? 0 : parsed;
   }
 
+  function makeEntry(s, providerKey, rate, usdToXaf, multiplier) {
+    const priceXAF = usdToXaf
+      ? Math.round(rate * usdToXaf * multiplier)
+      : Math.round(rate * multiplier);
+    if (priceXAF <= 0 || !s.service) return null;
+    return {
+      service_id: `sbh_${PROVIDER_CODES[providerKey]}_${s.service}`,
+      provider: 'sbh',
+      source: PROVIDER_CODES[providerKey],
+      name: s.name || '',
+      category: s.category || '',
+      type: s.type || 'default',
+      price_per_1000: priceXAF,
+      min: parseInt(s.min) || 0,
+      max: parseInt(s.max) || 0,
+      refill: s.refill === true || s.refill === 'true' || s.refill === 1,
+      cancel: s.cancel === true || s.cancel === 'true' || s.cancel === 1,
+      description: s.description || null,
+    };
+  }
+
   async function buildCatalog() {
     const now = Date.now();
-    if (_catalogCache && (now - _catalogCacheTime) < CATALOG_TTL) {
-      return _catalogCache;
-    }
+    if (_catalogCache && (now - _catalogCacheTime) < CATALOG_TTL) return _catalogCache;
 
     const services = [];
 
-    // ── Source #1 (code a1x) ──
+    // ── SBH1 ──
     try {
       const raw = await callMTP({ action: 'services' });
       if (Array.isArray(raw)) {
         raw.forEach(s => {
-          const rate = parseFloat(s.rate) || 0;
-          const priceXAF = Math.round(rate * MTP_USD_TO_XAF * MTP_MULTIPLIER);
-          if (priceXAF > 0 && s.service) {
-            services.push({
-              service_id: `sbh_${PROVIDER_CODES['mtp']}_${s.service}`,
-              provider: 'sbh',
-              name: s.name || '',
-              category: s.category || '',
-              type: s.type || 'default',
-              price_per_1000: priceXAF,
-              min: parseInt(s.min) || 0,
-              max: parseInt(s.max) || 0,
-              refill: s.refill === true || s.refill === 'true',
-              cancel: s.cancel === true || s.cancel === 'true',
-              description: s.description || null,
-            });
-          }
+          const e = makeEntry(s, 'mtp', parseFloat(s.rate) || 0, MTP_USD_TO_XAF, MTP_MULTIPLIER);
+          if (e) services.push(e);
         });
       }
-    } catch (e) {
-      console.error('[public/catalog] Source a1x indisponible:', e.message);
-    }
+    } catch (e) { console.error('[public/catalog] SBH1 indisponible:', e.message); }
 
-    // ── Source #2 (code b2y) — EXO ──
+    // ── SBH2 ──
     if (typeof callExo === 'function' && EXO_USD_TO_XAF && EXO_MULTIPLIER) {
       try {
         const raw = await callExo({ action: 'services' });
         if (Array.isArray(raw)) {
           raw.forEach(s => {
-            const rate = parseFloat(s.rate) || 0;
-            const priceXAF = Math.round(rate * EXO_USD_TO_XAF * EXO_MULTIPLIER);
-            if (priceXAF > 0 && s.service) {
-              services.push({
-                service_id: `sbh_${PROVIDER_CODES['exo']}_${s.service}`,
-                provider: 'sbh',
-                name: s.name || '',
-                category: s.category || '',
-                type: s.type || 'default',
-                price_per_1000: priceXAF,
-                min: parseInt(s.min) || 0,
-                max: parseInt(s.max) || 0,
-                refill: s.refill === true || s.refill === 'true',
-                cancel: s.cancel === true || s.cancel === 'true',
-                description: s.description || null,
-              });
-            }
+            const e = makeEntry(s, 'exo', parseFloat(s.rate) || 0, EXO_USD_TO_XAF, EXO_MULTIPLIER);
+            if (e) services.push(e);
           });
         }
-      } catch (e) {
-        console.error('[public/catalog] Source b2y indisponible:', e.message);
-      }
+      } catch (e) { console.error('[public/catalog] SBH2 indisponible:', e.message); }
     }
 
-    // ── Source #3 (code c3z) — AfriqueBoost ──
+    // ── SBH3 ──
     try {
       const raw = await callAfriqueBoost({ action: 'services' });
       if (Array.isArray(raw)) {
         raw.forEach(s => {
-          const rateXAF = parseFloat(s.rate) || 0;
-          const priceXAF = Math.round(rateXAF * AFB_MULTIPLIER);
-          if (priceXAF > 0 && s.service) {
-            services.push({
-              service_id: `sbh_${PROVIDER_CODES['afriqueboost']}_${s.service}`,
-              provider: 'sbh',
-              name: s.name || '',
-              category: s.category || '',
-              type: s.type || 'default',
-              price_per_1000: priceXAF,
-              min: parseInt(s.min) || 0,
-              max: parseInt(s.max) || 0,
-              refill: s.refill === true || s.refill === 'true' || s.refill === 1,
-              cancel: s.cancel === true || s.cancel === 'true' || s.cancel === 1,
-              description: s.description || null,
-            });
-          }
+          const e = makeEntry(s, 'afriqueboost', parseFloat(s.rate) || 0, null, AFB_MULTIPLIER);
+          if (e) services.push(e);
         });
       }
-    } catch (e) {
-      console.error('[public/catalog] Source c3z indisponible:', e.message);
-    }
+    } catch (e) { console.error('[public/catalog] SBH3 indisponible:', e.message); }
 
-    // ── Source #4 (code d4w) — SMMWiz ──
+    // ── SBH4 ──
     try {
       const raw = await callSmmWiz({ action: 'services' });
       if (Array.isArray(raw)) {
         raw.forEach(s => {
-          const rate = parseFloat(s.rate) || 0;
-          const priceXAF = Math.round(rate * SMMWIZ_USD_TO_XAF * SMMWIZ_MULTIPLIER);
-          if (priceXAF > 0 && s.service) {
-            services.push({
-              service_id: `sbh_${PROVIDER_CODES['smmwiz']}_${s.service}`,
-              provider: 'sbh',
-              name: s.name || '',
-              category: s.category || '',
-              type: s.type || 'default',
-              price_per_1000: priceXAF,
-              min: parseInt(s.min) || 0,
-              max: parseInt(s.max) || 0,
-              refill: s.refill === true || s.refill === 'true',
-              cancel: s.cancel === true || s.cancel === 'true',
-              description: s.description || null,
-            });
-          }
+          const e = makeEntry(s, 'smmwiz', parseFloat(s.rate) || 0, SMMWIZ_USD_TO_XAF, SMMWIZ_MULTIPLIER);
+          if (e) services.push(e);
         });
       }
-    } catch (e) {
-      console.error('[public/catalog] Source d4w indisponible:', e.message);
-    }
+    } catch (e) { console.error('[public/catalog] SBH4 indisponible:', e.message); }
 
     _catalogCache = services;
     _catalogCacheTime = Date.now();
-    console.log(`[public/catalog] ${services.length} services exposés (sources multiples, codes opaques)`);
+    console.log(`[public/catalog] ${services.length} services exposés (sources SBH1-SBH4)`);
     return services;
   }
 
-  // ─── Middleware X-Api-Key ────────────────────────────────────
   async function authenticateApiKey(req, res, next) {
     const apiKey = req.header('X-Api-Key');
-
     if (!apiKey || typeof apiKey !== 'string' || apiKey.length < 10) {
-      return res.status(401).json({
-        success: false,
-        error: 'Clé API manquante ou invalide.'
-      });
+      return res.status(401).json({ success: false, error: 'Clé API manquante ou invalide.' });
     }
-
     try {
-      const snapshot = await db.collection('users')
-        .where('apiKey', '==', apiKey)
-        .limit(1)
-        .get();
-
+      const snapshot = await db.collection('users').where('apiKey', '==', apiKey).limit(1).get();
       if (snapshot.empty) {
-        return res.status(401).json({
-          success: false,
-          error: 'Clé API invalide ou révoquée.'
-        });
+        return res.status(401).json({ success: false, error: 'Clé API invalide ou révoquée.' });
       }
-
       const userDoc = snapshot.docs[0];
       req.apiUser = Object.assign({ uid: userDoc.id }, userDoc.data());
       req.apiKey = apiKey;
@@ -235,17 +158,33 @@ module.exports = function createPublicRouter(deps) {
   router.get('/balance', async (req, res) => {
     try {
       const userDoc = await db.collection('users').doc(req.apiUser.uid).get();
-      if (!userDoc.exists) {
-        return res.status(404).json({ success: false, error: 'Compte introuvable.' });
-      }
+      if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Compte introuvable.' });
       const data = userDoc.data();
-      res.json({
-        success: true,
-        balance: Math.round(data.balance || 0),
-        currency: 'XAF'
-      });
+      res.json({ success: true, balance: Math.round(data.balance || 0), currency: 'XAF' });
     } catch (err) {
       console.error('[public/balance]', err);
+      res.status(500).json({ success: false, error: 'Erreur serveur.' });
+    }
+  });
+
+  // ─── GET /api/v1/sources ─────────────────────────────────────
+  // Renvoie la liste des sources publiques (SBH1, SBH2, SBH3, SBH4)
+  // + le nombre de services disponibles par source.
+  router.get('/sources', async (req, res) => {
+    try {
+      const services = await buildCatalog();
+      const counts = {};
+      PUBLIC_SOURCES.forEach(src => { counts[src] = 0; });
+      services.forEach(s => {
+        if (s.source && counts[s.source] !== undefined) counts[s.source]++;
+      });
+      const sources = PUBLIC_SOURCES.map(code => ({
+        code,
+        count: counts[code]
+      }));
+      res.json({ success: true, sources, total: services.length });
+    } catch (err) {
+      console.error('[public/sources]', err);
       res.status(500).json({ success: false, error: 'Erreur serveur.' });
     }
   });
@@ -254,17 +193,32 @@ module.exports = function createPublicRouter(deps) {
   router.get('/services', async (req, res) => {
     try {
       const services = await buildCatalog();
-      const catalog = (req.query.catalog || '').toString().toLowerCase();
+      const catalog = (req.query.catalog || '').toString().trim().toLowerCase();
+      const source  = (req.query.source  || '').toString().trim().toUpperCase();
+
       let filtered = services;
-      if (catalog) {
-        filtered = services.filter(s =>
-          (s.category || '').toLowerCase().includes(catalog)
-        );
+
+      // Filtre par source (SBH1, SBH2, SBH3, SBH4)
+      if (source) {
+        if (!PUBLIC_SOURCES.includes(source)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Source inconnue. Sources valides : ' + PUBLIC_SOURCES.join(', ')
+          });
+        }
+        filtered = filtered.filter(s => s.source === source);
       }
+
+      // Filtre par catégorie
+      if (catalog) {
+        filtered = filtered.filter(s => (s.category || '').toLowerCase().includes(catalog));
+      }
+
       res.json({
         success: true,
         services: filtered,
-        total: filtered.length
+        total: filtered.length,
+        sources: PUBLIC_SOURCES
       });
     } catch (err) {
       console.error('[public/services]', err);
@@ -292,7 +246,6 @@ module.exports = function createPublicRouter(deps) {
         return res.status(400).json({ success: false, error: 'Quantité invalide.' });
       }
 
-      // ─── Décodage du service_id : "sbh_a1x_1234" → provider + id ───
       const serviceIdStr = String(serviceIdRaw);
       const parts = serviceIdStr.split('_');
       if (parts.length !== 3 || parts[0] !== 'sbh') {
@@ -311,27 +264,18 @@ module.exports = function createPublicRouter(deps) {
         return res.status(400).json({ success: false, error: 'Service introuvable dans le catalogue.' });
       }
 
-      if (qty < service.min) {
-        return res.status(400).json({ success: false, error: `Quantité minimale : ${service.min}.` });
-      }
-      if (qty > service.max) {
-        return res.status(400).json({ success: false, error: `Quantité maximale : ${service.max}.` });
-      }
+      if (qty < service.min) return res.status(400).json({ success: false, error: `Quantité minimale : ${service.min}.` });
+      if (qty > service.max) return res.status(400).json({ success: false, error: `Quantité maximale : ${service.max}.` });
 
       const isPackage = (service.type || '').toLowerCase().includes('package');
-      const costRaw = isPackage
-        ? service.price_per_1000
-        : (service.price_per_1000 / 1000) * qty;
+      const costRaw = isPackage ? service.price_per_1000 : (service.price_per_1000 / 1000) * qty;
       const cost = Math.max(1, Math.round(costRaw));
-
       if (!Number.isFinite(cost) || cost <= 0) {
         return res.status(400).json({ success: false, error: 'Coût de commande invalide.' });
       }
 
       const userDoc = await db.collection('users').doc(req.apiUser.uid).get();
-      if (!userDoc.exists) {
-        return res.status(404).json({ success: false, error: 'Compte introuvable.' });
-      }
+      if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Compte introuvable.' });
       const currentBalance = userDoc.data().balance || 0;
       if (currentBalance < cost) {
         return res.status(400).json({
@@ -340,7 +284,6 @@ module.exports = function createPublicRouter(deps) {
         });
       }
 
-      // ─── Appel fournisseur interne (jamais révélé au client) ───
       let providerOrderId = null;
 
       if (provider === 'mtp') {
@@ -379,13 +322,11 @@ module.exports = function createPublicRouter(deps) {
         return res.status(400).json({ success: false, error: "Service temporairement indisponible." });
       }
 
-      // ─── Transaction Firestore ───
       let finalOrderId;
       let newBalance;
       await db.runTransaction(async (transaction) => {
         const counterRef = db.collection('counters').doc('autoOrders');
         const freshUserRef = db.collection('users').doc(req.apiUser.uid);
-
         const counterDoc = await transaction.get(counterRef);
         const freshUserDoc = await transaction.get(freshUserRef);
 
@@ -409,16 +350,11 @@ module.exports = function createPublicRouter(deps) {
         transaction.set(orderRef, {
           orderId: finalOrderId,
           userId: req.apiUser.uid,
-          // ⚠️ Le vrai nom du fournisseur est stocké ici pour usage interne
-          //    mais n'est JAMAIS renvoyé au client via l'API publique.
           provider: provider,
           providerOrderId,
           serviceId: parseInt(providerServiceId, 10) || 0,
           serviceName: service.name,
-          platform,
-          link,
-          quantity: qty,
-          priceXAF: cost,
+          platform, link, quantity: qty, priceXAF: cost,
           status: 'En attente',
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           providerStartCount: 0,
@@ -455,24 +391,13 @@ module.exports = function createPublicRouter(deps) {
   router.get('/order/:orderId', async (req, res) => {
     try {
       const { orderId } = req.params;
-      if (!orderId) {
-        return res.status(400).json({ success: false, error: 'orderId requis.' });
-      }
-
-      const snapshot = await db.collection('autoOrders')
-        .where('orderId', '==', orderId)
-        .limit(1)
-        .get();
-
-      if (snapshot.empty) {
-        return res.status(404).json({ success: false, error: 'Commande introuvable.' });
-      }
-
+      if (!orderId) return res.status(400).json({ success: false, error: 'orderId requis.' });
+      const snapshot = await db.collection('autoOrders').where('orderId', '==', orderId).limit(1).get();
+      if (snapshot.empty) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
       const data = snapshot.docs[0].data();
       if (data.userId !== req.apiUser.uid) {
         return res.status(404).json({ success: false, error: 'Commande introuvable.' });
       }
-
       res.json({
         success: true,
         order: {
@@ -497,11 +422,7 @@ module.exports = function createPublicRouter(deps) {
     try {
       const limitRaw = parseInt(req.query.limit, 10);
       const limit = Math.min(Math.max(isNaN(limitRaw) ? 50 : limitRaw, 1), 200);
-
-      const snapshot = await db.collection('autoOrders')
-        .where('userId', '==', req.apiUser.uid)
-        .get();
-
+      const snapshot = await db.collection('autoOrders').where('userId', '==', req.apiUser.uid).get();
       let orders = snapshot.docs.map(d => {
         const data = d.data();
         return {
@@ -513,22 +434,15 @@ module.exports = function createPublicRouter(deps) {
           created_at: data.createdAt,
         };
       });
-
       orders.sort((a, b) => getTimestampMs(b.created_at) - getTimestampMs(a.created_at));
       orders = orders.slice(0, limit);
-
-      res.json({
-        success: true,
-        orders,
-        total: orders.length
-      });
+      res.json({ success: true, orders, total: orders.length });
     } catch (err) {
       console.error('[public/orders]', err);
       res.status(500).json({ success: false, error: 'Erreur serveur.' });
     }
   });
 
-  // ─── Filet de sécurité 404 local au routeur public ───────────
   router.use((req, res) => {
     res.status(404).json({
       success: false,
