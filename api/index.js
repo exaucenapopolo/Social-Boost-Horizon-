@@ -1825,6 +1825,25 @@ app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
     res.status(500).json({ success: false, error: 'Erreur lors de la révocation de la clé API.' });
   }
 });
+// ── Révélation de la clé API pour usages internes authentifiés ──
+// Utilisé par services-catalog.html pour charger automatiquement le catalogue
+// sans que l'utilisateur ait à recopier sa clé manuellement.
+app.get('/api/user/reveal-api-key', checkAuth, async (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    const uid = req.user.uid;
+    const userDoc = await db.collection('users').doc(uid).get();
+
+    if (!userDoc.exists || !userDoc.data().apiKey) {
+      return res.status(404).json({ success: false, error: 'Aucune clé API active.' });
+    }
+
+    res.json({ success: true, apiKey: userDoc.data().apiKey });
+  } catch (error) {
+    console.error('Erreur /api/user/reveal-api-key:', error);
+    res.status(500).json({ success: false, error: 'Erreur interne.' });
+  }
+});
 
 // ═══════════════════════════════════════════════════════════════
 // Fapshi – Paiement Mobile Money
