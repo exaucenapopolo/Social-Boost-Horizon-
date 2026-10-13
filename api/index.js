@@ -2770,6 +2770,258 @@ app.post('/api/claim-welcome-gift', checkAuth, async (req, res) => {
     return res.status(500).json({ success: false, error: 'Erreur lors de la réclamation du cadeau.' });
   }
 });
+// ═══════════════════════════════════════════════════════════════
+// HORIZON STORE APP — Téléchargements, Avis et Notes
+// ═══════════════════════════════════════════════════════════════
+
+const STORE_ALLOWED_APPS = ['sbh', 'kdo', 'trixhub'];
+const STORE_DL_BASE      = { sbh: 15847, kdo: 4123, trixhub: 6891 };
+
+const storeReviewsCache = new Map();
+const STORE_REVIEWS_CACHE_TTL = 60 * 1000; // 60s
+
+function isValidStoreApp(appId) {
+  return STORE_ALLOWED_APPS.includes(appId);
+}
+
+// ───────────────────────────────────────────────
+// POST /api/app-download  — incrémente le compteur
+// ───────────────────────────────────────────────
+app.post('/api/app-download', async (req, res) => {
+  try {
+    const { app: appId } = req.body || {};
+    if (!appId || !isValidStoreApp(appId)) {
+      return res.status(400).json({ success: false, error: 'Application invalide.' });
+    }
+
+    const countersRef = db.collection('appDownloadCounters').doc(appId);
+
+    await countersRef.set({
+      count: admin.firestore.FieldValue.increment(1),
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    const counterDoc = await countersRef.get();
+    const count = (counterDoc.exists && counterDoc.data().count) || 0;
+    const total = (STORE_DL_BASE[appId] || 0) + count;
+
+    return res.json({ success: true, count, total });
+  } catch (error) {
+    console.error('Erreur /api/app-download:', error);
+    return res.status(500).json({ success: false, error: 'Erreur lors de l\'enregistrement du téléchargement.' });
+  }
+});
+
+// ───────────────────────────────────────────────
+// GET /api/app-download-count?app=xxx — lecture seule
+// ───────────────────────────────────────────────
+app.get('/api/app-download-count', async (req, res) => {
+  try {
+    const appId = req.query.app;
+    if (!appId || !isValidStoreApp(appId)) {
+      return res.status(400).json({ success: false, error: 'Application invalide.' });
+    }
+
+    res.set('Cache-Control', 'public, max-age=60');
+
+    const counterDoc = await db.collection('appDownloadCounters').doc(appId).get();
+    const count = (counterDoc.exists && counterDoc.data().count) || 0;
+    const total = (STORE_DL_BASE[appId] || 0) + count;
+
+    return res.json({ success: true, count, total });
+  } catch (error) {
+    console.error('Erreur /api/app-download-count:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ───────────────────────────────────────────────
+// GET /api/app-reviews?app=xxx — avis + stats
+// ───────────────────────────────────────────────
+app.get('/api/app-reviews', async (req, res) => {
+  try {
+    const appId = req.query.app;
+    if (!appId || !isValidStoreApp(appId)) {
+      return res.status(400).json({ success: false, error: 'Application invalide.' });
+    }
+
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+
+    // Cache en mémoire côté serveur
+    const cached = storeReviewsCache.get(appId);
+    if (cached && Date.now() < cached.expires) {
+      return res.json({ success: true, reviews: cached.reviews, stats: cached.stats, cached: true });
+    }
+
+    // Récupération sans composite index (filtre simple + tri JS)
+    const snapshot = await db.collection('appReviews')
+      .where('app', '==', appId)
+      .limit(200)
+      .get();
+
+    let reviews = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name || 'Utilisateur',
+        rating: data.rating || 0,
+        comment: data.comment || '',
+        likes: data.likes || 0,
+        dislikes: data.dislikes || 0,
+        createdAt: getTimestampMs(data.createdAt),
+      };
+    });
+
+    // Tri : plus récents d'abord
+    reviews.sort((a, b) => b.createdAt - a.createdAt);
+    if (reviews.length > 100) reviews = reviews.slice(0, 100);
+
+    // Statistiques
+    const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    let sum = 0;
+    reviews.forEach(r => {
+      const rating = Math.round(r.rating);
+      if (rating >= 1 && rating <= 5) distribution[rating]++;
+      sum += r.rating;
+    });
+    const total = reviews.length;
+    const average = total > 0 ? (sum / total) : 0;
+    const stats = { total, average, distribution };
+
+    // Mise en cache serveur
+    storeReviewsCache.set(appId, {
+      reviews,
+      stats,
+      expires: Date.now() + STORE_REVIEWS_CACHE_TTL,
+    });
+
+    return res.json({ success: true, reviews, stats });
+  } catch (error) {
+    console.error('Erreur /api/app-reviews:', error);
+    return res.status(500).json({ success: false, error: 'Erreur lors du chargement des avis.' });
+  }
+});
+
+// ───────────────────────────────────────────────
+// POST /api/app-review — publier un avis (public)
+// ───────────────────────────────────────────────
+app.post('/api/app-review', async (req, res) => {
+  try {
+    const { app: appId, name, rating, comment } = req.body || {};
+
+    if (!appId || !isValidStoreApp(appId)) {
+      return res.status(400).json({ success: false, error: 'Application invalide.' });
+    }
+
+    const ratingNum = parseInt(rating);
+    if (!ratingNum || ratingNum < 1 || ratingNum > 5) {
+      return res.status(400).json({ success: false, error: 'Note invalide (1 à 5 étoiles).' });
+    }
+
+    const cleanName    = (name || '').toString().trim().slice(0, 40) || 'Utilisateur';
+    const cleanComment = (comment || '').toString().trim().slice(0, 500);
+
+    // Anti-spam léger : une IP ne peut pas publier 2 avis en moins de 20s sur la même app
+    const ip     = getClientIp(req);
+    const ipHash = sha256Short('review:' + appId + ':' + ip);
+
+    const rateRef = db.collection('appReviewRateLimits').doc(ipHash);
+    const rateDoc = await rateRef.get();
+    const lastAt  = rateDoc.exists ? getTimestampMs(rateDoc.data().lastAt) : 0;
+
+    if (Date.now() - lastAt < 20 * 1000) {
+      return res.status(429).json({
+        success: false,
+        error: 'Veuillez patienter quelques secondes avant de publier un nouvel avis.',
+      });
+    }
+
+    const docRef = await db.collection('appReviews').add({
+      app: appId,
+      name: cleanName,
+      rating: ratingNum,
+      comment: cleanComment,
+      likes: 0,
+      dislikes: 0,
+      ipHash,
+      visible: true,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    await rateRef.set({
+      lastAt: admin.firestore.FieldValue.serverTimestamp(),
+      userId: null,
+    });
+
+    // Invalide le cache
+    storeReviewsCache.delete(appId);
+
+    return res.json({ success: true, reviewId: docRef.id });
+  } catch (error) {
+    console.error('Erreur /api/app-review:', error);
+    return res.status(500).json({ success: false, error: 'Erreur lors de la publication de l\'avis.' });
+  }
+});
+
+// ───────────────────────────────────────────────
+// POST /api/app-review-reaction — like / dislike
+// Anti double-réaction par hash IP via collection
+// ───────────────────────────────────────────────
+app.post('/api/app-review-reaction', async (req, res) => {
+  try {
+    const { reviewId, reaction, app: appId } = req.body || {};
+
+    if (!reviewId || !['like', 'dislike'].includes(reaction)) {
+      return res.status(400).json({ success: false, error: 'Paramètres invalides.' });
+    }
+
+    const ip = getClientIp(req);
+    const reactionId = sha256Short('rxn:' + reviewId + ':' + ip);
+
+    const reactionRef = db.collection('appReviewReactions').doc(reactionId);
+    const reviewRef   = db.collection('appReviews').doc(reviewId);
+
+    let likes = 0, dislikes = 0;
+
+    await db.runTransaction(async (t) => {
+      const reviewDoc = await t.get(reviewRef);
+      if (!reviewDoc.exists) throw new Error('Avis introuvable.');
+
+      const rData = reviewDoc.data();
+      likes    = rData.likes    || 0;
+      dislikes = rData.dislikes || 0;
+
+      const reactionDoc = await t.get(reactionRef);
+      const previous    = reactionDoc.exists ? reactionDoc.data().reaction : null;
+
+      if (previous === reaction) {
+        // Rien à faire, déjà enregistré
+        return;
+      }
+
+      if (previous === 'like')    likes    = Math.max(0, likes - 1);
+      if (previous === 'dislike') dislikes = Math.max(0, dislikes - 1);
+
+      if (reaction === 'like') likes++;
+      else                     dislikes++;
+
+      t.set(reactionRef, {
+        reviewId,
+        reaction,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      t.update(reviewRef, { likes, dislikes });
+    });
+
+    if (appId && isValidStoreApp(appId)) storeReviewsCache.delete(appId);
+
+    return res.json({ success: true, likes, dislikes });
+  } catch (error) {
+    console.error('Erreur /api/app-review-reaction:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 // ═══════════════════════════════════════════════════════════════
 // ADMIN API
