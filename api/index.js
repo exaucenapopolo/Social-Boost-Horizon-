@@ -3,7 +3,7 @@ const cors    = require('cors');
 const admin   = require('firebase-admin');
 const crypto  = require('crypto');
 
-const { sendWelcomeEmail } = require('./email-service.js');
+const { sendWelcomeEmail, sendPartnershipEmail } = require('./email-service.js');
 
 const app = express();
 
@@ -3402,6 +3402,85 @@ try {
 } catch (err) {
   console.error('❌ Erreur chargement routeur public :', err.message);
 }
+// ═══════════════════════════════════════════════════════════════
+// Partenariat — Formulaire public (page partenaire.html)
+// ═══════════════════════════════════════════════════════════════
+app.post('/api/partenariat', async (req, res) => {
+  try {
+    const { name, email, whatsapp, type, message } = req.body || {};
+
+    if (!name || !email || !whatsapp || !type || !message) {
+      return res.status(400).json({ success: false, error: 'Tous les champs sont requis.' });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ success: false, error: 'Adresse email invalide.' });
+    }
+
+    const cleanName     = String(name).trim().slice(0, 120);
+    const cleanEmail    = String(email).trim().toLowerCase().slice(0, 120);
+    const cleanWhatsapp = String(whatsapp).trim().slice(0, 30);
+    const cleanType     = String(type).trim().slice(0, 100);
+    const cleanMessage  = String(message).trim().slice(0, 3000);
+
+    if (cleanMessage.length < 20) {
+      return res.status(400).json({ success: false, error: 'Merci de détailler davantage votre projet (20 caractères minimum).' });
+    }
+
+    // Anti-spam : 1 candidature par 60s par IP
+    const ip = getClientIp(req);
+    const ipHash = sha256Short('partner:' + ip);
+    const rateRef = db.collection('partnerRequestRateLimits').doc(ipHash);
+    const rateDoc = await rateRef.get();
+    const lastAt = rateDoc.exists ? getTimestampMs(rateDoc.data().lastAt) : 0;
+    if (Date.now() - lastAt < 60 * 1000) {
+      return res.status(429).json({
+        success: false,
+        error: 'Veuillez patienter une minute avant d\'envoyer une nouvelle candidature.',
+      });
+    }
+
+    // Enregistrement Firestore
+    const docRef = await db.collection('partnerRequests').add({
+      name: cleanName,
+      email: cleanEmail,
+      whatsapp: cleanWhatsapp,
+      type: cleanType,
+      message: cleanMessage,
+      status: 'new',
+      ipHash,
+      userAgent: (req.headers['user-agent'] || '').slice(0, 200),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    await rateRef.set({ lastAt: admin.firestore.FieldValue.serverTimestamp() });
+
+    // Envoi email à l'équipe admin (non bloquant pour la réponse utilisateur)
+    let emailSent = false;
+    try {
+      await sendPartnershipEmail({
+        name: cleanName,
+        email: cleanEmail,
+        whatsapp: cleanWhatsapp,
+        type: cleanType,
+        message: cleanMessage,
+        requestId: docRef.id,
+      });
+      emailSent = true;
+    } catch (emailErr) {
+      console.error('❌ Erreur envoi email partenariat:', emailErr.message);
+      // La candidature reste enregistrée même si l'email échoue
+    }
+
+    console.log(`📥 Nouvelle candidature partenariat [${docRef.id}] — ${cleanName} (${cleanType}) — email ${emailSent ? 'envoyé' : 'échoué'}`);
+
+    res.json({ success: true, requestId: docRef.id });
+  } catch (error) {
+    console.error('Erreur /api/partenariat:', error);
+    res.status(500).json({ success: false, error: 'Erreur lors du traitement de la candidature. Veuillez réessayer.' });
+  }
+});
 
 app.use((req, res) => res.status(404).json({ success: false, error: `Route non trouvée : ${req.method} ${req.path}` }));
 app.use((err, req, res, next) => {
