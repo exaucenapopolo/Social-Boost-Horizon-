@@ -34,6 +34,7 @@
       --accent: #4DA6FF;
       --danger: #f87171;
       --success: #34d399;
+      --warning: #fbbf24;
       --font-primary: 'Plus Jakarta Sans', sans-serif;
       --font-display: 'Space Grotesk', sans-serif;
     }
@@ -303,13 +304,52 @@
     .form-field textarea { resize: vertical; min-height: 130px; font-family: var(--font-primary); line-height: 1.6; }
     .form-field select option { background: var(--bg-elev); color: var(--text); }
 
+    /* États de validation */
+    .form-field input.is-valid,
+    .form-field select.is-valid,
+    .form-field textarea.is-valid {
+      border-color: rgba(52, 211, 153, 0.55);
+    }
+    .form-field input.is-invalid,
+    .form-field select.is-invalid,
+    .form-field textarea.is-invalid {
+      border-color: rgba(248, 113, 113, 0.55);
+    }
+
+    .field-message {
+      font-size: 0.78rem;
+      margin-top: 0.4rem;
+      min-height: 1.1em;
+      line-height: 1.4;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.2s;
+    }
+    .field-message.error { color: var(--danger); }
+    .field-message.success { color: var(--success); }
+    .field-message.hint { color: var(--text-dim); }
+
+    /* Compteur de caractères */
+    .char-counter {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-align: right;
+      margin-top: 0.35rem;
+      font-variant-numeric: tabular-nums;
+      transition: color 0.2s;
+    }
+    .char-counter.warning { color: var(--warning); }
+    .char-counter.success { color: var(--success); }
+
     .phone-row { display: grid; grid-template-columns: 140px 1fr; gap: 0.6rem; }
     @media (max-width: 480px) { .phone-row { grid-template-columns: 120px 1fr; } }
 
     .submit-row {
       margin-top: 2rem;
       display: flex;
-      justify-content: flex-start;
+      flex-direction: column;
+      gap: 0.75rem;
     }
     .btn-submit {
       display: inline-flex; align-items: center; justify-content: center; gap: 10px;
@@ -323,15 +363,40 @@
       border: none;
       border-radius: 6px;
       cursor: pointer;
-      transition: background 0.2s, transform 0.2s;
+      transition: background 0.2s, transform 0.2s, opacity 0.2s;
+      align-self: flex-start;
       min-width: 260px;
     }
-    .btn-submit:hover { background: var(--gold-bright); transform: translateY(-1px); }
-    .btn-submit:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+    .btn-submit:hover:not(:disabled) { background: var(--gold-bright); transform: translateY(-1px); }
+    .btn-submit:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      background: rgba(201, 169, 97, 0.5);
+    }
+
+    /* Bandeau d'aide sous le bouton */
+    .form-help {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0.6rem 0.85rem;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      transition: 0.2s;
+    }
+    .form-help.ready {
+      color: var(--success);
+      border-color: rgba(52, 211, 153, 0.3);
+      background: rgba(52, 211, 153, 0.05);
+    }
+    .form-help i { font-size: 0.9rem; }
 
     #formStatus {
       display: none;
-      margin-top: 1.4rem;
+      margin-top: 1.2rem;
       padding: 1rem 1.2rem;
       border-radius: 6px;
       font-size: 0.9rem;
@@ -679,12 +744,14 @@
 
             <div class="form-field">
               <label for="fullName">Nom complet ou raison sociale</label>
-              <input type="text" id="fullName" placeholder="Ex : Jean Dupont / Agence Média+" required>
+              <input type="text" id="fullName" placeholder="Ex : Jean Dupont / Agence Média+" autocomplete="name">
+              <div class="field-message hint" id="msg-fullName">Minimum 2 caractères</div>
             </div>
 
             <div class="form-field">
               <label for="email">Email professionnel</label>
-              <input type="email" id="email" placeholder="contact@entreprise.com" required>
+              <input type="email" id="email" placeholder="contact@entreprise.com" autocomplete="email">
+              <div class="field-message hint" id="msg-email">Adresse email valide requise</div>
             </div>
 
             <div class="form-field full">
@@ -716,13 +783,14 @@
                   <option value="+1">🇺🇸 +1</option>
                   <option value="+44">🇬🇧 +44</option>
                 </select>
-                <input type="tel" id="phoneNumber" placeholder="699 85 36 65" required>
+                <input type="tel" id="phoneNumber" placeholder="699 85 36 65" autocomplete="tel">
               </div>
+              <div class="field-message hint" id="msg-phoneNumber">Minimum 6 chiffres</div>
             </div>
 
             <div class="form-field full">
               <label for="partnerType">Cadre de collaboration envisagé</label>
-              <select id="partnerType" required>
+              <select id="partnerType">
                 <option value="">Sélectionnez un cadre</option>
                 <option>Revendeur officiel</option>
                 <option>Ambassadeur & influence</option>
@@ -736,19 +804,26 @@
                 <option>Investisseur & business angel</option>
                 <option>Autre (à préciser dans le message)</option>
               </select>
+              <div class="field-message hint" id="msg-partnerType">Sélectionnez un cadre de collaboration</div>
             </div>
 
             <div class="form-field full">
               <label for="message">Présentation du projet</label>
-              <textarea id="message" placeholder="Décrivez votre organisation, votre zone géographique, votre audience, vos objectifs et la nature précise du partenariat envisagé." required></textarea>
+              <textarea id="message" placeholder="Décrivez votre organisation, votre zone géographique, votre audience, vos objectifs et la nature précise du partenariat envisagé."></textarea>
+              <div class="char-counter" id="charCounter">0 / 20 caractères minimum</div>
+              <div class="field-message hint" id="msg-message">Minimum 20 caractères requis</div>
             </div>
 
           </div>
 
           <div class="submit-row">
-            <button type="submit" class="btn-submit" id="submitBtn">
+            <button type="submit" class="btn-submit" id="submitBtn" disabled>
               Envoyer la candidature
             </button>
+            <div class="form-help" id="formHelp">
+              <i class="fas fa-circle-info"></i>
+              <span id="formHelpText">Veuillez compléter tous les champs correctement pour activer l'envoi.</span>
+            </div>
           </div>
 
           <div id="formStatus"></div>
@@ -882,6 +957,8 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {
+
+    // ─── Menu hamburger ───
     const header = document.querySelector('header');
     const hamburger = document.querySelector('.icon-hamburger');
     if (hamburger) {
@@ -891,65 +968,264 @@
       });
     }
 
+    // ─── Références DOM ───
     const form = document.getElementById('collaborationForm');
     const submitBtn = document.getElementById('submitBtn');
     const formStatus = document.getElementById('formStatus');
+    const formHelp = document.getElementById('formHelp');
+    const formHelpText = document.getElementById('formHelpText');
 
+    const fields = {
+      fullName:    document.getElementById('fullName'),
+      email:       document.getElementById('email'),
+      phoneNumber: document.getElementById('phoneNumber'),
+      partnerType: document.getElementById('partnerType'),
+      message:     document.getElementById('message')
+    };
+
+    const messages = {
+      fullName:    document.getElementById('msg-fullName'),
+      email:       document.getElementById('msg-email'),
+      phoneNumber: document.getElementById('msg-phoneNumber'),
+      partnerType: document.getElementById('msg-partnerType'),
+      message:     document.getElementById('msg-message')
+    };
+
+    const charCounter = document.getElementById('charCounter');
+
+    // ─── Règles de validation ───
+    const RULES = {
+      fullName: (v) => {
+        const val = v.trim();
+        if (val.length === 0) return { valid: false, error: 'Ce champ est obligatoire.' };
+        if (val.length < 2)   return { valid: false, error: `Trop court (${val.length}/2 caractères minimum).` };
+        return { valid: true, success: 'Nom valide.' };
+      },
+      email: (v) => {
+        const val = v.trim();
+        if (val.length === 0) return { valid: false, error: 'L\'adresse email est obligatoire.' };
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!re.test(val))    return { valid: false, error: 'Format d\'email invalide.' };
+        return { valid: true, success: 'Adresse email valide.' };
+      },
+      phoneNumber: (v) => {
+        const digits = v.replace(/[^0-9]/g, '');
+        if (digits.length === 0) return { valid: false, error: 'Le numéro de téléphone est obligatoire.' };
+        if (digits.length < 6)   return { valid: false, error: `Numéro trop court (${digits.length}/6 chiffres minimum).` };
+        return { valid: true, success: 'Numéro valide.' };
+      },
+      partnerType: (v) => {
+        if (!v) return { valid: false, error: 'Veuillez sélectionner un cadre de collaboration.' };
+        return { valid: true, success: 'Cadre sélectionné.' };
+      },
+      message: (v) => {
+        const val = v.trim();
+        if (val.length === 0)  return { valid: false, error: 'La présentation du projet est obligatoire.' };
+        if (val.length < 20)   return { valid: false, error: `Trop court (${val.length}/20 caractères minimum).` };
+        return { valid: true, success: 'Message prêt à être envoyé.' };
+      }
+    };
+
+    // ─── Applique l'état visuel d'un champ ───
+    function applyFieldState(fieldKey, state) {
+      const input = fields[fieldKey];
+      const msg   = messages[fieldKey];
+      if (!input || !msg) return;
+
+      input.classList.remove('is-valid', 'is-invalid');
+      msg.classList.remove('error', 'success', 'hint');
+
+      if (state.valid) {
+        input.classList.add('is-valid');
+        msg.classList.add('success');
+        msg.textContent = state.success || 'Champ valide.';
+      } else {
+        input.classList.add('is-invalid');
+        msg.classList.add('error');
+        msg.textContent = state.error || 'Champ invalide.';
+      }
+    }
+
+    // ─── Applique l'état "hint" initial (neutre) ───
+    function applyInitialState(fieldKey, hintText) {
+      const input = fields[fieldKey];
+      const msg   = messages[fieldKey];
+      if (!input || !msg) return;
+      input.classList.remove('is-valid', 'is-invalid');
+      msg.classList.remove('error', 'success');
+      msg.classList.add('hint');
+      msg.textContent = hintText;
+    }
+
+    // ─── Met à jour le compteur de caractères du message ───
+    function updateCharCounter() {
+      const len = fields.message.value.trim().length;
+      charCounter.textContent = `${len} / 20 caractères minimum`;
+      charCounter.classList.remove('warning', 'success');
+      if (len === 0)             charCounter.classList.remove('warning', 'success');
+      else if (len < 20)         charCounter.classList.add('warning');
+      else                       charCounter.classList.add('success');
+    }
+
+    // ─── Vérifie tous les champs et active/désactive le bouton ───
+    function validateAll() {
+      const results = {};
+      let allValid = true;
+      const missing = [];
+
+      for (const key of Object.keys(RULES)) {
+        const value = fields[key] ? fields[key].value : '';
+        const result = RULES[key](value);
+        results[key] = result;
+        if (!result.valid) {
+          allValid = false;
+          missing.push(key);
+        }
+      }
+
+      // Bouton
+      submitBtn.disabled = !allValid;
+
+      // Bandeau d'aide
+      if (allValid) {
+        formHelp.classList.add('ready');
+        formHelpText.textContent = 'Tous les champs sont correctement renseignés. Vous pouvez envoyer votre candidature.';
+      } else {
+        formHelp.classList.remove('ready');
+        const labels = {
+          fullName: 'nom / raison sociale',
+          email: 'email professionnel',
+          phoneNumber: 'numéro WhatsApp',
+          partnerType: 'cadre de collaboration',
+          message: 'présentation du projet'
+        };
+        const remaining = missing.map(k => labels[k]).join(', ');
+        formHelpText.textContent = `Champs à compléter ou corriger : ${remaining}.`;
+      }
+
+      return { allValid, results };
+    }
+
+    // ─── Attache les événements sur chaque champ ───
+    Object.keys(RULES).forEach((key) => {
+      const input = fields[key];
+      if (!input) return;
+
+      const eventName = input.tagName === 'SELECT' ? 'change' : 'input';
+
+      input.addEventListener(eventName, () => {
+        // Si le champ est vide au démarrage, on garde le hint initial
+        const value = input.value;
+        if (String(value).trim().length === 0 && eventName === 'input') {
+          const hints = {
+            fullName: 'Minimum 2 caractères',
+            email: 'Adresse email valide requise',
+            phoneNumber: 'Minimum 6 chiffres',
+            message: 'Minimum 20 caractères requis'
+          };
+          if (hints[key]) applyInitialState(key, hints[key]);
+        } else {
+          const result = RULES[key](value);
+          applyFieldState(key, result);
+        }
+
+        if (key === 'message') updateCharCounter();
+        validateAll();
+      });
+
+      // Validation au blur (uniquement si champ non vide)
+      input.addEventListener('blur', () => {
+        if (String(input.value).trim().length > 0) {
+          applyFieldState(key, RULES[key](input.value));
+        }
+      });
+    });
+
+    // ─── État initial ───
+    updateCharCounter();
+    validateAll();
+
+    // ─── Soumission ───
     form.addEventListener('submit', async function (e) {
       e.preventDefault();
 
-      const name = document.getElementById('fullName').value.trim();
-      const email = document.getElementById('email').value.trim();
-      const phoneCode = document.getElementById('phoneCode').value;
-      const phoneRaw = document.getElementById('phoneNumber').value.trim();
-      const type = document.getElementById('partnerType').value;
-      const message = document.getElementById('message').value.trim();
-
       formStatus.className = '';
       formStatus.style.display = '';
+      formStatus.textContent = '';
 
-      if (!name || !email || !phoneRaw || !type || !message) {
+      // Vérification finale de sécurité
+      const check = validateAll();
+      if (!check.allValid) {
         formStatus.className = 'error';
-        formStatus.textContent = 'Veuillez compléter l\'ensemble des champs avant l\'envoi.';
+        formStatus.textContent = 'Veuillez corriger les champs signalés avant de soumettre votre candidature.';
+        // Focus sur le premier champ invalide
+        for (const key of Object.keys(RULES)) {
+          if (!check.results[key].valid && fields[key]) {
+            fields[key].focus();
+            break;
+          }
+        }
         return;
       }
 
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        formStatus.className = 'error';
-        formStatus.textContent = 'Adresse email professionnelle invalide.';
-        return;
-      }
-
-      const whatsapp = phoneCode + phoneRaw;
+      const name     = fields.fullName.value.trim();
+      const email    = fields.email.value.trim();
+      const phoneCode = document.getElementById('phoneCode').value;
+      const phoneRaw = fields.phoneNumber.value.trim();
+      const type     = fields.partnerType.value;
+      const message  = fields.message.value.trim();
+      const whatsapp = phoneCode + phoneRaw.replace(/\s+/g, '');
 
       submitBtn.disabled = true;
       submitBtn.innerHTML = 'Envoi en cours...';
 
       try {
-  const resp = await fetch('/api/partenariat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, whatsapp, type, message })
-  });
-  const data = await resp.json();
-        
-        if (data.success) {
+        const resp = await fetch('/api/partenariat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, whatsapp, type, message })
+        });
+
+        let data;
+        try {
+          data = await resp.json();
+        } catch (parseErr) {
+          formStatus.className = 'error';
+          formStatus.textContent = `Erreur serveur (code ${resp.status}). Réponse invalide.`;
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = 'Envoyer la candidature';
+          return;
+        }
+
+        if (resp.ok && data.success) {
           formStatus.className = 'success';
           formStatus.textContent = 'Votre candidature a bien été enregistrée. Notre équipe partenariats vous contactera sous 24 à 48 heures ouvrées.';
           form.reset();
+          updateCharCounter();
+          Object.keys(RULES).forEach((key) => {
+            const hints = {
+              fullName: 'Minimum 2 caractères',
+              email: 'Adresse email valide requise',
+              phoneNumber: 'Minimum 6 chiffres',
+              partnerType: 'Sélectionnez un cadre de collaboration',
+              message: 'Minimum 20 caractères requis'
+            };
+            applyInitialState(key, hints[key]);
+          });
+          validateAll();
         } else {
           formStatus.className = 'error';
-          formStatus.textContent = data.error || 'Une erreur est survenue. Veuillez réessayer ou nous écrire directement par email.';
+          formStatus.textContent = data.error || `Erreur ${resp.status}. Veuillez réessayer ou nous écrire directement par email.`;
         }
       } catch (err) {
         formStatus.className = 'error';
         formStatus.textContent = 'Erreur réseau. Veuillez réessayer ou nous écrire directement à Support@socialboosthorizon.com.';
       }
 
-      submitBtn.disabled = false;
       submitBtn.innerHTML = 'Envoyer la candidature';
+      validateAll();
     });
+
   });
 </script>
 </body>
