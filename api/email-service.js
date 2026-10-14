@@ -1,9 +1,6 @@
 // ─────────────────────────────────────────────────────────────────
 // email-service.js — Social Boost Horizon
 // Basé sur Resend (https://resend.com)
-//
-// Toutes les fonctions d'envoi d'emails transactionnels et admin.
-// Charte sobre : fond sombre, accents or, ton professionnel, vouvoiement.
 // ─────────────────────────────────────────────────────────────────
 
 const { Resend } = require('resend');
@@ -35,7 +32,9 @@ function divider() {
 }
 
 function infoTable(rows) {
-  const safeRows = rows.filter(Boolean).join('');
+  const safeRows = Array.isArray(rows)
+    ? rows.filter(Boolean).join('')
+    : String(rows || '');
   return `<table width="100%" cellpadding="0" cellspacing="0" style="background:#0f131c;border:1px solid #1e2430;border-radius:6px;padding:6px 20px;margin:8px 0;">
     ${safeRows}
   </table>`;
