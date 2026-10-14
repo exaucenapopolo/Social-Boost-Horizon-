@@ -2,14 +2,8 @@
 // email-service.js — Social Boost Horizon
 // Basé sur Resend (https://resend.com)
 //
-// PRÉREQUIS OBLIGATOIRE :
-//   Votre domaine doit être vérifié sur https://resend.com/domains
-//   Si le domaine n'est pas vérifié, AUCUN email ne part et
-//   l'erreur est silencieuse côté client.
-//
-//   Pour tester sans domaine vérifié, remplacez FROM par :
-//   const FROM = 'Social Boost Horizon <onboarding@resend.dev>';
-//   (limité à votre propre adresse email uniquement)
+// Toutes les fonctions d'envoi d'emails transactionnels et admin.
+// Charte sobre : fond sombre, accents or, ton professionnel, vouvoiement.
 // ─────────────────────────────────────────────────────────────────
 
 const { Resend } = require('resend');
@@ -20,488 +14,515 @@ const REPLY_TO = 'support@socialboosthorizon.com';
 const ADMIN_EMAIL = 'socialboosthorizon984@gmail.com';
 const SITE_URL    = 'https://socialboosthorizon.com';
 
+// ─── Identité visuelle ───
+const LOGO_URL             = 'https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg';
+const WHATSAPP_NUMBER      = '+1 (242) 454-2961';
+const WHATSAPP_LINK        = 'https://wa.me/12424542961';
+const PARTNER_TEXERRA_URL  = 'https://www.texerra.site/';
+const PARTNER_TRIXHUB_URL  = 'https://www.trixhub.store/?ref=EXA0001HJB';
+
 function fmt(n) {
   return Number(n || 0).toLocaleString('fr-FR');
 }
 
-function baseTemplate(title, previewText, bodyContent) {
-  return `<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>${title}</title>
-</head>
-<body style="margin:0;padding:0;background:#0b0b1a;font-family:'Segoe UI',Arial,sans-serif;">
-<div style="display:none;max-height:0;overflow:hidden;">${previewText}</div>
-
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#0b0b1a;padding:30px 10px;">
-  <tr><td align="center">
-    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
-
-      <!-- HEADER -->
-      <tr><td style="background:linear-gradient(135deg,#1a0a3e 0%,#0d1b3e 100%);border-radius:16px 16px 0 0;padding:32px 40px;text-align:center;border-bottom:2px solid rgba(139,92,246,0.4);">
-        <div style="font-size:28px;font-weight:900;letter-spacing:1px;">
-          <span style="color:#8B5CF6;">Social</span>
-          <span style="color:#06B6D4;"> Boost</span>
-          <span style="background:linear-gradient(90deg,#f59e0b,#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;"> Horizon</span>
-        </div>
-        <div style="color:rgba(255,255,255,0.45);font-size:12px;margin-top:6px;letter-spacing:2px;text-transform:uppercase;">La plateforme de croissance social</div>
-      </td></tr>
-
-      <!-- BODY -->
-      <tr><td style="background:linear-gradient(180deg,#120d2a 0%,#0f1a30 100%);padding:40px;border-left:1px solid rgba(139,92,246,0.15);border-right:1px solid rgba(139,92,246,0.15);">
-        ${bodyContent}
-      </td></tr>
-
-      <!-- FOOTER -->
-      <tr><td style="background:#080814;border-radius:0 0 16px 16px;padding:24px 40px;text-align:center;border:1px solid rgba(139,92,246,0.1);border-top:none;">
-        <div style="margin-bottom:16px;">
-          <a href="${SITE_URL}/dashboard.html" style="color:#8B5CF6;text-decoration:none;font-size:13px;margin:0 10px;">Dashboard</a>
-          <a href="${SITE_URL}/commander.html" style="color:#8B5CF6;text-decoration:none;font-size:13px;margin:0 10px;">Commander</a>
-          <a href="${SITE_URL}/fonds.html" style="color:#8B5CF6;text-decoration:none;font-size:13px;margin:0 10px;">Recharger</a>
-        </div>
-        <div style="margin-bottom:14px;">
-          <a href="https://wa.me/56927785730" style="display:inline-block;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;text-decoration:none;padding:10px 24px;border-radius:50px;font-size:13px;font-weight:700;">
-            📲 Support WhatsApp : +56 9 2778 5730
-          </a>
-        </div>
-        <div style="background:rgba(6,182,212,0.07);border:1px solid rgba(6,182,212,0.2);border-radius:10px;padding:12px 16px;margin-bottom:14px;text-align:center;">
-          <div style="color:#22d3ee;font-size:12px;font-weight:700;margin-bottom:4px;">🌐 Vous cherchez un numéro étranger ?</div>
-          <div style="color:rgba(255,255,255,0.55);font-size:12px;line-height:1.6;margin-bottom:8px;">Notre partenaire a ce qu'il vous faut — rapide et fiable.</div>
-          <a href="https://texerra.site" style="color:#06b6d4;text-decoration:none;font-size:12px;font-weight:700;">👉 Consulter texerra.site</a>
-        </div>
-        <div style="color:rgba(255,255,255,0.3);font-size:11px;line-height:1.6;">
-          &copy; ${new Date().getFullYear()} Social Boost Horizon. Tous droits réservés.<br/>
-          <a href="mailto:${REPLY_TO}" style="color:#8B5CF6;text-decoration:none;">${REPLY_TO}</a>
-        </div>
-      </td></tr>
-
-    </table>
-  </td></tr>
-</table>
-</body>
-</html>`;
+// ─── Composants HTML réutilisables ───
+function sectionTitle(text) {
+  return `<div style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#C9A961;margin:0 0 14px;">${text}</div>`;
 }
 
-function adminTemplate(title, previewText, bodyContent) {
-  return `<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>${title}</title>
-</head>
-<body style="margin:0;padding:0;background:#0a0a14;font-family:'Segoe UI',Arial,sans-serif;">
-<div style="display:none;max-height:0;overflow:hidden;">${previewText}</div>
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a14;padding:20px 10px;">
-  <tr><td align="center">
-    <table width="680" cellpadding="0" cellspacing="0" style="max-width:680px;width:100%;">
-      <tr><td style="background:linear-gradient(135deg,#1a0a3e 0%,#0a1a3e 100%);border-radius:16px 16px 0 0;padding:28px 36px;text-align:center;border-bottom:3px solid rgba(139,92,246,0.5);">
-        <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:8px;">ESPACE ADMIN — SOCIAL BOOST HORIZON</div>
-        <div style="font-size:24px;font-weight:900;">
-          <span style="color:#8B5CF6;">📊</span>
-          <span style="color:#fff;"> ${title}</span>
-        </div>
-        <div style="color:rgba(255,255,255,0.4);font-size:12px;margin-top:6px;">${previewText}</div>
-      </td></tr>
-      <tr><td style="background:linear-gradient(180deg,#0f0c24 0%,#0a1020 100%);padding:32px 36px;border-left:1px solid rgba(139,92,246,0.12);border-right:1px solid rgba(139,92,246,0.12);">
-        ${bodyContent}
-      </td></tr>
-      <tr><td style="background:#060610;border-radius:0 0 16px 16px;padding:20px 36px;text-align:center;border:1px solid rgba(139,92,246,0.08);border-top:none;">
-        <div style="margin-bottom:12px;">
-          <a href="https://wa.me/56927785730" style="display:inline-block;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;text-decoration:none;padding:8px 20px;border-radius:50px;font-size:12px;font-weight:700;">
-            📲 Support WhatsApp : +56 9 2778 5730
-          </a>
-        </div>
-        <div style="background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.15);border-radius:8px;padding:10px 14px;margin-bottom:12px;">
-          <div style="color:#22d3ee;font-size:11px;font-weight:700;margin-bottom:3px;">🌐 Vous cherchez un numéro étranger ?</div>
-          <div style="color:rgba(255,255,255,0.4);font-size:11px;margin-bottom:5px;">Notre partenaire a ce qu'il vous faut — rapide et fiable.</div>
-          <a href="https://texerra.site" style="color:#06b6d4;text-decoration:none;font-size:11px;font-weight:700;">👉 Consulter texerra.site</a>
-        </div>
-        <div style="color:rgba(255,255,255,0.25);font-size:11px;">
-          Rapport généré automatiquement — Social Boost Horizon<br/>
-          <a href="mailto:${REPLY_TO}" style="color:#8B5CF6;">${REPLY_TO}</a>
-        </div>
-      </td></tr>
-    </table>
-  </td></tr>
-</table>
-</body>
-</html>`;
+function divider() {
+  return `<div style="height:1px;background:#1e2430;margin:28px 0;"></div>`;
 }
 
-function badge(text, color) {
-  const colors = {
-    purple: { bg: 'rgba(139,92,246,0.15)', border: 'rgba(139,92,246,0.4)', text: '#a78bfa' },
-    cyan:   { bg: 'rgba(6,182,212,0.15)',  border: 'rgba(6,182,212,0.4)',  text: '#22d3ee' },
-    green:  { bg: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.4)', text: '#34d399' },
-    gold:   { bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.4)', text: '#fbbf24' },
-    red:    { bg: 'rgba(239,68,68,0.15)',  border: 'rgba(239,68,68,0.4)',  text: '#f87171' },
-  };
-  const c = colors[color] || colors.purple;
-  return `<span style="display:inline-block;background:${c.bg};border:1px solid ${c.border};color:${c.text};border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700;letter-spacing:0.5px;">${text}</span>`;
-}
-
-function infoRow(icon, label, value, valueColor) {
-  return `<tr>
-    <td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
-      <table width="100%" cellpadding="0" cellspacing="0"><tr>
-        <td style="color:rgba(255,255,255,0.5);font-size:13px;">${icon} ${label}</td>
-        <td align="right" style="color:${valueColor || '#e2e8f0'};font-size:13px;font-weight:600;">${value}</td>
-      </tr></table>
-    </td>
-  </tr>`;
-}
-
-function ctaButton(text, url, color) {
-  const bg = color === 'green' ? 'linear-gradient(135deg,#10b981,#059669)'
-           : color === 'gold'  ? 'linear-gradient(135deg,#f59e0b,#d97706)'
-           : color === 'red'   ? 'linear-gradient(135deg,#ef4444,#dc2626)'
-           : 'linear-gradient(135deg,#8B5CF6,#6d28d9)';
-  return `<div style="text-align:center;margin-top:28px;">
-    <a href="${url}" style="display:inline-block;background:${bg};color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 36px;border-radius:50px;letter-spacing:0.5px;box-shadow:0 4px 20px rgba(139,92,246,0.35);">${text}</a>
-  </div>`;
-}
-
-function infoCard(rows) {
-  return `<table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:4px 20px;margin:20px 0;">
-    ${rows}
+function infoTable(rows) {
+  const safeRows = rows.filter(Boolean).join('');
+  return `<table width="100%" cellpadding="0" cellspacing="0" style="background:#0f131c;border:1px solid #1e2430;border-radius:6px;padding:6px 20px;margin:8px 0;">
+    ${safeRows}
   </table>`;
 }
 
-function adminSection(title, color, content) {
-  const colors = {
-    blue:   { border: 'rgba(6,182,212,0.4)',   bg: 'rgba(6,182,212,0.06)',   text: '#22d3ee' },
-    purple: { border: 'rgba(139,92,246,0.4)',  bg: 'rgba(139,92,246,0.06)',  text: '#a78bfa' },
-    yellow: { border: 'rgba(245,158,11,0.4)',  bg: 'rgba(245,158,11,0.06)', text: '#fbbf24' },
-    green:  { border: 'rgba(16,185,129,0.4)',  bg: 'rgba(16,185,129,0.06)',  text: '#34d399' },
-    orange: { border: 'rgba(249,115,22,0.4)',  bg: 'rgba(249,115,22,0.06)',  text: '#fb923c' },
-    gift:   { border: 'rgba(236,72,153,0.4)',  bg: 'rgba(236,72,153,0.06)',  text: '#f472b6' },
-  };
-  const c = colors[color] || colors.purple;
-  return `<div style="border:1px solid ${c.border};background:${c.bg};border-radius:12px;padding:20px 24px;margin-bottom:20px;">
-    <div style="font-size:15px;font-weight:800;color:${c.text};margin-bottom:14px;">${title}</div>
-    ${content}
+function infoRow(label, value, valueColor) {
+  return `<tr>
+    <td style="padding:11px 0;border-bottom:1px solid #161c27;color:#8b93a7;font-size:13px;width:42%;">${label}</td>
+    <td align="right" style="padding:11px 0;border-bottom:1px solid #161c27;color:${valueColor || '#e8eaf0'};font-size:13px;font-weight:600;">${value}</td>
+  </tr>`;
+}
+
+function ctaButton(text, url, tone) {
+  const bg = tone === 'green' ? '#2e7d54'
+           : tone === 'red'   ? '#8a3535'
+           : '#C9A961';
+  const fg = tone === 'gold' || !tone ? '#0a0e17' : '#ffffff';
+  return `<div style="text-align:center;margin-top:32px;">
+    <a href="${url}" style="display:inline-block;background:${bg};color:${fg};text-decoration:none;font-weight:700;font-size:14px;letter-spacing:0.5px;padding:14px 36px;border-radius:6px;font-family:Arial,sans-serif;">${text}</a>
   </div>`;
 }
 
-function adminRow(label, value, valueColor, bold) {
-  return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
-    <span style="color:rgba(255,255,255,0.55);font-size:13px;">${label}</span>
-    <span style="color:${valueColor || '#e2e8f0'};font-size:13px;font-weight:${bold ? '700' : '500'};">${value}</span>
+function paragraph(text) {
+  return `<p style="color:#c3c9d6;font-size:14px;line-height:1.75;margin:0 0 14px;font-family:Arial,sans-serif;">${text}</p>`;
+}
+
+function blockItem(title, description) {
+  return `<div style="margin-bottom:22px;">
+    <div style="color:#e8eaf0;font-size:14px;font-weight:700;letter-spacing:0.3px;margin-bottom:5px;font-family:Arial,sans-serif;">${title}</div>
+    <div style="color:#8b93a7;font-size:13px;line-height:1.7;font-family:Arial,sans-serif;">${description}</div>
   </div>`;
 }
 
-function statBox(value, label, color) {
-  return `<td align="center" style="padding:12px 8px;">
-    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:14px 10px;">
-      <div style="font-size:24px;font-weight:900;color:${color};">${value}</div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px;">${label}</div>
+// ─── En-tête commun (logo + nom de marque) ───
+function header() {
+  return `<tr><td align="center" style="padding:0 0 26px;">
+    <img src="${LOGO_URL}" alt="Social Boost Horizon" width="60" height="60" style="display:block;border-radius:50%;border:2px solid #C9A961;">
+    <div style="margin-top:12px;color:#C9A961;font-size:14px;font-weight:700;letter-spacing:2.5px;font-family:Arial,sans-serif;">SOCIAL BOOST HORIZON</div>
+    <div style="margin-top:5px;color:#666e7d;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:Arial,sans-serif;">Plateforme de croissance digitale</div>
+  </td></tr>`;
+}
+
+// ─── Section partenaires (2 blocs côte à côte) ───
+function partnersBlock() {
+  return `<tr><td style="padding:26px 0 0;">
+    <div style="color:#666e7d;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-align:center;margin-bottom:14px;font-family:Arial,sans-serif;">Nos partenaires officiels</div>
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td width="50%" valign="top" style="padding-right:6px;">
+          <a href="${PARTNER_TEXERRA_URL}" style="text-decoration:none;display:block;">
+            <div style="border:1px solid #1e2430;border-radius:6px;padding:16px 14px;background:#0f131c;min-height:92px;">
+              <div style="color:#C9A961;font-size:12px;font-weight:700;letter-spacing:1.2px;font-family:Arial,sans-serif;">TEXERRA SMS</div>
+              <div style="color:#8b93a7;font-size:11px;line-height:1.55;margin-top:6px;font-family:Arial,sans-serif;">Services digitaux, SMS et solutions en ligne.</div>
+              <div style="color:#4DA6FF;font-size:11px;margin-top:8px;font-weight:600;font-family:Arial,sans-serif;">texerra.site →</div>
+            </div>
+          </a>
+        </td>
+        <td width="50%" valign="top" style="padding-left:6px;">
+          <a href="${PARTNER_TRIXHUB_URL}" style="text-decoration:none;display:block;">
+            <div style="border:1px solid #1e2430;border-radius:6px;padding:16px 14px;background:#0f131c;min-height:92px;">
+              <div style="color:#C9A961;font-size:12px;font-weight:700;letter-spacing:1.2px;font-family:Arial,sans-serif;">TRIXHUB</div>
+              <div style="color:#8b93a7;font-size:11px;line-height:1.55;margin-top:6px;font-family:Arial,sans-serif;">Gagnez jusqu'à 5 000 FCFA par jour en ligne.</div>
+              <div style="color:#4DA6FF;font-size:11px;margin-top:8px;font-weight:600;font-family:Arial,sans-serif;">trixhub.store →</div>
+            </div>
+          </a>
+        </td>
+      </tr>
+    </table>
+  </td></tr>`;
+}
+
+// ─── Pied de page commun ───
+function footer() {
+  return `<tr><td align="center" style="padding:28px 12px 0;">
+    <div style="color:#8b93a7;font-size:12px;line-height:1.9;font-family:Arial,sans-serif;">
+      Support : <a href="mailto:${REPLY_TO}" style="color:#C9A961;text-decoration:none;">${REPLY_TO}</a><br>
+      WhatsApp : <a href="${WHATSAPP_LINK}" style="color:#C9A961;text-decoration:none;">${WHATSAPP_NUMBER}</a>
     </div>
-  </td>`;
+    <div style="color:#3d4453;font-size:10px;margin-top:14px;font-family:Arial,sans-serif;">
+      © ${new Date().getFullYear()} Social Boost Horizon — Tous droits réservés.
+    </div>
+  </td></tr>`;
 }
 
-// ─────────────────────────────────────────────────────────────────
+// ─── Enveloppe email utilisateur ───
+function userTemplate(subject, previewText, content) {
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>${subject}</title>
+</head>
+<body style="margin:0;padding:0;background:#0b0e17;">
+<div style="display:none;max-height:0;overflow:hidden;color:transparent;">${previewText}</div>
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0b0e17;padding:36px 12px;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+
+      ${header()}
+
+      <tr><td style="background:#131720;border:1px solid #1e2430;border-radius:8px;padding:38px 34px;">
+        ${content}
+      </td></tr>
+
+      ${partnersBlock()}
+      ${footer()}
+
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}
+
+// ─── Enveloppe email admin ───
+function adminTemplate(subject, previewText, content) {
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>${subject}</title>
+</head>
+<body style="margin:0;padding:0;background:#0b0e17;">
+<div style="display:none;max-height:0;overflow:hidden;color:transparent;">${previewText}</div>
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0b0e17;padding:36px 12px;">
+  <tr><td align="center">
+    <table width="660" cellpadding="0" cellspacing="0" style="max-width:660px;width:100%;">
+
+      <tr><td align="center" style="padding:0 0 22px;">
+        <img src="${LOGO_URL}" alt="Social Boost Horizon" width="52" height="52" style="display:block;border-radius:50%;border:2px solid #C9A961;">
+        <div style="margin-top:10px;color:#C9A961;font-size:12px;font-weight:700;letter-spacing:2.5px;font-family:Arial,sans-serif;">ESPACE ADMINISTRATION</div>
+        <div style="margin-top:4px;color:#666e7d;font-size:10px;letter-spacing:2px;font-family:Arial,sans-serif;">SOCIAL BOOST HORIZON</div>
+      </td></tr>
+
+      <tr><td style="background:#131720;border:1px solid #1e2430;border-radius:8px;padding:34px 32px;">
+        ${content}
+      </td></tr>
+
+      ${footer()}
+
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // 1. EMAIL DE BIENVENUE
-//
-// FIX : la fonction lève maintenant une vraie erreur si Resend
-//       échoue, au lieu de l'avaler silencieusement.
-//       index.js capture cette erreur et log un message clair.
-// ─────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
 async function sendWelcomeEmail({ email, username, country }) {
   if (!resend) {
-    console.warn('⚠️ sendWelcomeEmail : RESEND_API_KEY non défini — email non envoyé.');
+    console.warn('sendWelcomeEmail : RESEND_API_KEY non défini — email non envoyé.');
     return;
   }
 
-  const body = `
-    <h2 style="color:#fff;font-size:22px;font-weight:700;margin:0 0 8px;">Bienvenue sur Social Boost Horizon ! 🎉</h2>
-    <p style="color:rgba(255,255,255,0.6);font-size:14px;margin:0 0 28px;">Ton compte a été créé avec succès. Tu rejoins des milliers d'utilisateurs qui boostent leur présence en ligne.</p>
+  const prenom = username || (email || '').split('@')[0] || 'Cher client';
 
-    <div style="background:linear-gradient(135deg,rgba(139,92,246,0.12),rgba(6,182,212,0.08));border:1px solid rgba(139,92,246,0.25);border-radius:14px;padding:24px;margin-bottom:24px;">
-      <div style="font-size:16px;font-weight:700;color:#c4b5fd;margin-bottom:16px;">👤 Ton compte</div>
-      ${infoCard(`
-        ${infoRow('🧑', 'Nom', username)}
-        ${infoRow('📧', 'Email', email)}
-        ${infoRow('🌍', 'Pays', country || 'Non spécifié')}
-      `)}
-    </div>
+  const content = `
+    <div style="font-size:20px;color:#e8eaf0;font-weight:700;margin:0 0 8px;font-family:Arial,sans-serif;">Bienvenue chez Social Boost Horizon</div>
+    <div style="color:#8b93a7;font-size:13px;margin-bottom:26px;font-family:Arial,sans-serif;">Votre compte a été créé avec succès.</div>
 
-    <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:12px;padding:20px;margin-bottom:24px;">
-      <div style="font-size:14px;font-weight:700;color:#34d399;margin-bottom:12px;">🚀 Comment démarrer ?</div>
-      <div style="color:rgba(255,255,255,0.65);font-size:13px;line-height:1.8;">
-        <div style="margin-bottom:8px;">💳 <strong style="color:#e2e8f0;">1. Rechargez votre compte</strong> — Déposez du crédit via Mobile Money</div>
-        <div style="margin-bottom:8px;">🛒 <strong style="color:#e2e8f0;">2. Choisissez un service</strong> — Followers, Likes, Vues et bien plus</div>
-        <div style="margin-bottom:8px;">⚡ <strong style="color:#e2e8f0;">3. Passez votre commande</strong> — Livraison rapide et automatique</div>
-        <div>📊 <strong style="color:#e2e8f0;">4. Suivez vos résultats</strong> — Historique en temps réel</div>
-      </div>
-    </div>
+    ${paragraph(`Bonjour ${prenom},`)}
+    ${paragraph(`Nous avons le plaisir de vous confirmer l'ouverture de votre espace personnel sur Social Boost Horizon, la plateforme tout-en-un dédiée à la croissance digitale. Votre compte est désormais actif et vous pouvez commencer à utiliser l'ensemble de nos services immédiatement.`)}
 
-    <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:12px;padding:16px;margin-bottom:28px;text-align:center;">
-      <div style="color:#fbbf24;font-size:13px;font-weight:600;">💎 Programme Revendeur disponible</div>
-      <div style="color:rgba(255,255,255,0.55);font-size:12px;margin-top:4px;">Commandez en volume et bénéficiez de remises allant jusqu'à 15%</div>
-    </div>
+    ${divider()}
 
-    ${ctaButton('🚀 Accéder à mon Dashboard', `${SITE_URL}/dashboard.html`, 'purple')}
+    ${sectionTitle('Ce que vous pouvez faire dès maintenant')}
+
+    ${blockItem('Commander parmi plus de 12 500 services', "Accédez à un catalogue complet couvrant 46 plateformes internationales : abonnés, likes, vues, spectateurs live, streams, comptes monétisables, logiciels et bien davantage.")}
+
+    ${blockItem('Revendre nos services sous votre marque', "Proposez nos prestations à vos propres clients, fixez vos tarifs et développez votre activité commerciale sans nécessiter de démarche préalable auprès de notre équipe.")}
+
+    ${blockItem('Ouvrir votre boutique personnalisée', "Créez directement sur notre plateforme une boutique à votre image, avec vos visuels, votre identité graphique et vos propres prix de vente.")}
+
+    ${blockItem('Intégrer notre API (développeurs)', "Vous êtes développeur ou disposez déjà d'un site web ? Intégrez notre API REST documentée pour vendre nos 12 500 services depuis vos propres interfaces et automatiser vos commandes.")}
+
+    ${blockItem('Recharger votre solde en toute simplicité', "Alimentez votre compte par Mobile Money dans 21 pays africains, par carte bancaire internationale (Visa, Mastercard, American Express) ou par PayPal.")}
+
+    ${blockItem('Suivre vos performances en temps réel', "Consultez votre tableau de bord, l'historique détaillé de vos commandes, vos statistiques d'activité et l'état de chacune de vos livraisons.")}
+
+    ${divider()}
+
+    ${infoTable(
+      infoRow('Titulaire du compte', prenom) +
+      infoRow('Adresse email', email || '—') +
+      infoRow('Pays', country || 'Non spécifié') +
+      infoRow('Solde initial', '0 FCFA')
+    )}
+
+    ${paragraph(`Nous vous invitons à vous connecter à votre espace personnel pour explorer l'ensemble des fonctionnalités disponibles et effectuer votre première opération.`)}
+
+    ${ctaButton('Accéder à mon tableau de bord', `${SITE_URL}/dashboard.html`)}
+
+    ${paragraph(`Pour toute question ou assistance, notre équipe support reste à votre disposition 7 jours sur 7. Vous pouvez nous écrire à <a href="mailto:${REPLY_TO}" style="color:#C9A961;text-decoration:none;">${REPLY_TO}</a> ou nous joindre sur WhatsApp au <a href="${WHATSAPP_LINK}" style="color:#C9A961;text-decoration:none;">${WHATSAPP_NUMBER}</a>.`)}
   `;
 
-  // FIX : on laisse l'erreur remonter au lieu de l'avaler.
-  // index.js la capture et log un message clair avec la cause exacte.
   const result = await resend.emails.send({
     from:     FROM,
     to:       email,
     reply_to: REPLY_TO,
-    subject:  `Bienvenue ${username} sur Social Boost Horizon ! 🎉`,
-    html:     baseTemplate(
-      'Bienvenue sur Social Boost Horizon',
-      `Bienvenue ${username} ! Votre compte est prêt.`,
-      body
+    subject:  `Bienvenue chez Social Boost Horizon — Votre compte est actif`,
+    html:     userTemplate(
+      'Bienvenue chez Social Boost Horizon',
+      `Bonjour ${prenom}, votre compte est désormais actif.`,
+      content
     )
   });
 
-  console.log(`📧 Email bienvenue envoyé à ${email} — id: ${result.id || 'n/a'}`);
+  console.log(`Email bienvenue envoyé à ${email} — id: ${result.id || 'n/a'}`);
   return result;
 }
 
-// ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
 // 2. RECHARGE CONFIRMÉE
-// ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
 async function sendRechargeEmail({ email, username, amountXAF, originalAmount, currency, newBalance, method, transactionId }) {
   if (!resend) return;
+
   const displayOriginal = (currency && currency !== 'XAF' && originalAmount)
-    ? `<br/><span style="color:rgba(255,255,255,0.4);font-size:11px;">(${fmt(originalAmount)} ${currency})</span>`
+    ? `<br><span style="color:#666e7d;font-size:11px;">(équivalent à ${fmt(originalAmount)} ${currency})</span>`
     : '';
-  const body = `
-    <div style="text-align:center;margin-bottom:28px;">
-      <div style="width:64px;height:64px;background:linear-gradient(135deg,rgba(16,185,129,0.2),rgba(6,182,212,0.1));border:2px solid rgba(16,185,129,0.4);border-radius:50%;margin:0 auto 16px;line-height:64px;font-size:28px;">✅</div>
-      <h2 style="color:#fff;font-size:22px;font-weight:700;margin:0 0 6px;">Recharge Confirmée !</h2>
-      <p style="color:rgba(255,255,255,0.55);font-size:14px;margin:0;">Votre crédit a bien été ajouté à votre compte.</p>
-    </div>
-    <div style="background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(6,182,212,0.05));border:1px solid rgba(16,185,129,0.3);border-radius:14px;padding:28px;text-align:center;margin-bottom:24px;">
-      <div style="color:rgba(255,255,255,0.5);font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Montant crédité</div>
-      <div style="font-size:38px;font-weight:900;color:#34d399;">+${fmt(amountXAF)} <span style="font-size:20px;">FCFA</span></div>
+
+  const content = `
+    <div style="font-size:20px;color:#e8eaf0;font-weight:700;margin:0 0 8px;font-family:Arial,sans-serif;">Recharge confirmée</div>
+    <div style="color:#8b93a7;font-size:13px;margin-bottom:26px;font-family:Arial,sans-serif;">Votre crédit a été ajouté à votre compte.</div>
+
+    ${paragraph(`Bonjour ${username || email},`)}
+    ${paragraph(`Nous vous confirmons la bonne réception de votre paiement. Le montant indiqué ci-dessous a été crédité sur votre solde Social Boost Horizon.`)}
+
+    <div style="background:#0f131c;border:1px solid #1e2430;border-radius:6px;padding:30px;text-align:center;margin:22px 0;">
+      <div style="color:#666e7d;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-family:Arial,sans-serif;">Montant crédité</div>
+      <div style="color:#C9A961;font-size:34px;font-weight:700;font-family:Arial,sans-serif;">+ ${fmt(amountXAF)} FCFA</div>
       ${displayOriginal}
     </div>
-    ${infoCard(`
-      ${infoRow('👤', 'Compte', username || email)}
-      ${infoRow('💳', 'Méthode', method || 'Mobile Money')}
-      ${infoRow('📋', 'Référence', transactionId ? `<code style="font-size:11px;color:#a78bfa;">${transactionId}</code>` : '—', '#a78bfa')}
-      ${infoRow('💰', 'Nouveau solde', `${fmt(newBalance)} FCFA`, '#34d399')}
-      ${infoRow('📅', 'Date', new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Douala', dateStyle: 'medium', timeStyle: 'short' }))}
-    `)}
-    <div style="background:rgba(139,92,246,0.08);border-radius:10px;padding:14px 18px;margin-top:20px;text-align:center;">
-      <span style="color:rgba(255,255,255,0.55);font-size:13px;">Votre solde est disponible immédiatement pour passer vos commandes.</span>
-    </div>
-    ${ctaButton('🛒 Commander maintenant', `${SITE_URL}/commander.html`, 'green')}
+
+    ${infoTable(
+      infoRow('Titulaire du compte', username || email) +
+      infoRow('Méthode de paiement', method || 'Mobile Money') +
+      infoRow('Référence de transaction', transactionId ? `<code style="font-size:11px;color:#C9A961;">${transactionId}</code>` : '—') +
+      infoRow('Nouveau solde disponible', `${fmt(newBalance)} FCFA`, '#2e7d54') +
+      infoRow('Date et heure', new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Douala', dateStyle: 'long', timeStyle: 'short' }))
+    )}
+
+    ${paragraph(`Votre solde est immédiatement disponible. Vous pouvez dès à présent passer vos commandes sur l'ensemble de notre catalogue.`)}
+
+    ${ctaButton('Passer une commande', `${SITE_URL}/commander.html`)}
   `;
+
   try {
-    await resend.emails.send({ from: FROM, to: email, reply_to: REPLY_TO,
-      subject: `✅ Recharge de ${fmt(amountXAF)} FCFA confirmée`,
-      html: baseTemplate('Recharge confirmée', `+${fmt(amountXAF)} FCFA ajoutés à votre compte.`, body)
+    await resend.emails.send({
+      from: FROM, to: email, reply_to: REPLY_TO,
+      subject: `Recharge confirmée — ${fmt(amountXAF)} FCFA crédités`,
+      html: userTemplate('Recharge confirmée', `Votre solde a été crédité de ${fmt(amountXAF)} FCFA.`, content)
     });
-    console.log(`📧 Email recharge envoyé à ${email}`);
+    console.log(`Email recharge envoyé à ${email}`);
   } catch (err) {
-    console.error('❌ Erreur email recharge:', err.message);
+    console.error('Erreur email recharge :', err.message);
   }
 }
 
-// ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
 // 3. COMMANDE PASSÉE
-// ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
 async function sendOrderEmail({ email, username, orderId, serviceName, platform, quantity, priceXAF, newBalance, link }) {
   if (!resend) return;
+
   const shortLink = link ? (link.length > 45 ? link.substring(0, 42) + '...' : link) : '—';
   const historyUrl = orderId && orderId.includes('AUTO2')
     ? `${SITE_URL}/historique-avancee.html`
     : orderId && orderId.includes('AUTO')
     ? `${SITE_URL}/mes-commandes-auto.html`
     : `${SITE_URL}/commandes.html`;
-  const body = `
-    <div style="text-align:center;margin-bottom:28px;">
-      <div style="width:64px;height:64px;background:linear-gradient(135deg,rgba(139,92,246,0.2),rgba(6,182,212,0.1));border:2px solid rgba(139,92,246,0.4);border-radius:50%;margin:0 auto 16px;line-height:64px;font-size:28px;">🛒</div>
-      <h2 style="color:#fff;font-size:22px;font-weight:700;margin:0 0 6px;">Commande Passée avec Succès !</h2>
-      <p style="color:rgba(255,255,255,0.55);font-size:14px;margin:0;">Votre commande est en cours de traitement. La livraison démarre sous peu.</p>
+
+  const content = `
+    <div style="font-size:20px;color:#e8eaf0;font-weight:700;margin:0 0 8px;font-family:Arial,sans-serif;">Commande enregistrée</div>
+    <div style="color:#8b93a7;font-size:13px;margin-bottom:26px;font-family:Arial,sans-serif;">Votre commande est en cours de traitement.</div>
+
+    ${paragraph(`Bonjour ${username || email},`)}
+    ${paragraph(`Nous vous confirmons la bonne prise en charge de votre commande. La livraison est en cours et se déroulera progressivement selon le volume commandé.`)}
+
+    <div style="background:#0f131c;border:1px solid #1e2430;border-radius:6px;padding:22px;text-align:center;margin:22px 0;">
+      <div style="color:#666e7d;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;font-family:Arial,sans-serif;">Numéro de commande</div>
+      <div style="color:#C9A961;font-size:19px;font-weight:700;letter-spacing:1px;font-family:Arial,sans-serif;">${orderId}</div>
+      <div style="color:#4DA6FF;font-size:11px;margin-top:8px;font-weight:600;letter-spacing:1px;font-family:Arial,sans-serif;">EN COURS DE TRAITEMENT</div>
     </div>
-    <div style="background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(6,182,212,0.05));border:1px solid rgba(139,92,246,0.25);border-radius:14px;padding:24px;margin-bottom:20px;text-align:center;">
-      <div style="color:rgba(255,255,255,0.4);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Numéro de commande</div>
-      <div style="font-size:22px;font-weight:900;color:#a78bfa;letter-spacing:1px;">${orderId}</div>
-      <div style="margin-top:10px;">${badge('⚡ En cours de traitement', 'purple')}</div>
-    </div>
-    ${infoCard(`
-      ${infoRow('🔧', 'Service', serviceName)}
-      ${platform ? infoRow('📱', 'Plateforme', platform) : ''}
-      ${infoRow('🔢', 'Quantité', `${fmt(quantity)} unités`)}
-      ${infoRow('💵', 'Coût débité', `${fmt(priceXAF)} FCFA`, '#f87171')}
-      ${infoRow('💰', 'Solde restant', `${fmt(newBalance)} FCFA`, '#34d399')}
-      ${infoRow('🔗', 'Lien', `<span style="font-size:11px;word-break:break-all;">${shortLink}</span>`)}
-      ${infoRow('📅', 'Date', new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Douala', dateStyle: 'medium', timeStyle: 'short' }))}
-    `)}
-    <div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.18);border-radius:10px;padding:14px 18px;margin-top:20px;">
-      <div style="color:#fbbf24;font-size:12px;font-weight:700;margin-bottom:4px;">⏱️ Délai de livraison</div>
-      <div style="color:rgba(255,255,255,0.55);font-size:12px;line-height:1.6;">La livraison est progressive et peut prendre quelques minutes à quelques heures selon le volume commandé. Ne modifiez pas votre contenu pendant la livraison.</div>
-    </div>
-    ${ctaButton('📊 Suivre ma commande', historyUrl, 'purple')}
+
+    ${infoTable(
+      infoRow('Service commandé', serviceName) +
+      (platform ? infoRow('Plateforme', platform) : '') +
+      infoRow('Quantité', `${fmt(quantity)} unités`) +
+      infoRow('Coût débité', `${fmt(priceXAF)} FCFA`, '#8a3535') +
+      infoRow('Solde restant', `${fmt(newBalance)} FCFA`, '#2e7d54') +
+      infoRow('Lien ciblé', `<span style="font-size:11px;word-break:break-all;">${shortLink}</span>`) +
+      infoRow('Date et heure', new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Douala', dateStyle: 'long', timeStyle: 'short' }))
+    )}
+
+    ${sectionTitle('Recommandations')}
+
+    ${paragraph(`La livraison étant progressive, nous vous invitons à ne pas modifier votre contenu (profil, publication, lien) pendant toute la durée du traitement. Toute modification pourrait interrompre ou fausser la livraison.`)}
+
+    ${ctaButton('Suivre ma commande', historyUrl)}
   `;
+
   try {
-    await resend.emails.send({ from: FROM, to: email, reply_to: REPLY_TO,
-      subject: `🛒 Commande ${orderId} confirmée`,
-      html: baseTemplate('Commande confirmée', `Votre commande ${orderId} est en cours de livraison.`, body)
+    await resend.emails.send({
+      from: FROM, to: email, reply_to: REPLY_TO,
+      subject: `Commande ${orderId} — Enregistrée avec succès`,
+      html: userTemplate('Commande enregistrée', `Votre commande ${orderId} est en cours de livraison.`, content)
     });
-    console.log(`📧 Email commande envoyé à ${email}`);
+    console.log(`Email commande envoyé à ${email}`);
   } catch (err) {
-    console.error('❌ Erreur email commande:', err.message);
+    console.error('Erreur email commande :', err.message);
   }
 }
 
-// ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
 // 4. DEMANDE DE RETRAIT
-// ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
 async function sendWithdrawalRequestEmail({ email, username, amount, phoneNumber, method, withdrawalId }) {
   if (!resend) return;
-  const body = `
-    <div style="text-align:center;margin-bottom:28px;">
-      <div style="width:64px;height:64px;background:linear-gradient(135deg,rgba(245,158,11,0.2),rgba(239,68,68,0.05));border:2px solid rgba(245,158,11,0.4);border-radius:50%;margin:0 auto 16px;line-height:64px;font-size:28px;">💸</div>
-      <h2 style="color:#fff;font-size:22px;font-weight:700;margin:0 0 6px;">Demande de Retrait Enregistrée</h2>
-      <p style="color:rgba(255,255,255,0.55);font-size:14px;margin:0;">Votre demande a été reçue et sera traitée dans les 24 heures.</p>
+
+  const content = `
+    <div style="font-size:20px;color:#e8eaf0;font-weight:700;margin:0 0 8px;font-family:Arial,sans-serif;">Demande de retrait reçue</div>
+    <div style="color:#8b93a7;font-size:13px;margin-bottom:26px;font-family:Arial,sans-serif;">Votre demande est en cours de traitement.</div>
+
+    ${paragraph(`Bonjour ${username || email},`)}
+    ${paragraph(`Nous vous informons que votre demande de retrait a bien été enregistrée par notre équipe. Elle sera traitée dans un délai maximum de 24 heures ouvrées.`)}
+
+    <div style="background:#0f131c;border:1px solid #1e2430;border-radius:6px;padding:30px;text-align:center;margin:22px 0;">
+      <div style="color:#666e7d;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-family:Arial,sans-serif;">Montant demandé</div>
+      <div style="color:#C9A961;font-size:34px;font-weight:700;font-family:Arial,sans-serif;">${fmt(amount)} FCFA</div>
     </div>
-    <div style="background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(239,68,68,0.03));border:1px solid rgba(245,158,11,0.3);border-radius:14px;padding:28px;text-align:center;margin-bottom:24px;">
-      <div style="color:rgba(255,255,255,0.5);font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Montant demandé</div>
-      <div style="font-size:38px;font-weight:900;color:#fbbf24;">${fmt(amount)} <span style="font-size:20px;">FCFA</span></div>
-    </div>
-    ${infoCard(`
-      ${infoRow('👤', 'Compte', username || email)}
-      ${infoRow('📱', 'Numéro de réception', phoneNumber)}
-      ${infoRow('💳', 'Méthode', method || 'Mobile Money')}
-      ${infoRow('🏷️', 'Référence', withdrawalId ? `<code style="font-size:11px;color:#a78bfa;">${withdrawalId}</code>` : '—', '#a78bfa')}
-      ${infoRow('📅', 'Date de demande', new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Douala', dateStyle: 'medium', timeStyle: 'short' }))}
-      ${infoRow('⏳', 'Délai de traitement', 'Sous 24 heures', '#fbbf24')}
-    `)}
-    ${ctaButton('🏠 Retour au Dashboard', `${SITE_URL}/dashboard.html`, 'gold')}
+
+    ${infoTable(
+      infoRow('Titulaire du compte', username || email) +
+      infoRow('Numéro de réception', phoneNumber) +
+      infoRow('Méthode', method || 'Mobile Money') +
+      infoRow('Référence de la demande', withdrawalId ? `<code style="font-size:11px;color:#C9A961;">${withdrawalId}</code>` : '—') +
+      infoRow('Date de la demande', new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Douala', dateStyle: 'long', timeStyle: 'short' })) +
+      infoRow('Délai de traitement', 'Sous 24 heures', '#C9A961')
+    )}
+
+    ${paragraph(`Aucune action supplémentaire n'est requise de votre part. Vous recevrez un nouveau message dès validation et exécution du paiement.`)}
+
+    ${ctaButton('Retour au tableau de bord', `${SITE_URL}/dashboard.html`)}
   `;
+
   try {
-    await resend.emails.send({ from: FROM, to: email, reply_to: REPLY_TO,
-      subject: `💸 Demande de retrait de ${fmt(amount)} FCFA enregistrée`,
-      html: baseTemplate('Demande de retrait', `Votre retrait de ${fmt(amount)} FCFA est en cours de traitement.`, body)
+    await resend.emails.send({
+      from: FROM, to: email, reply_to: REPLY_TO,
+      subject: `Demande de retrait de ${fmt(amount)} FCFA enregistrée`,
+      html: userTemplate('Demande de retrait', `Votre retrait de ${fmt(amount)} FCFA est en cours de traitement.`, content)
     });
-    console.log(`📧 Email retrait demandé envoyé à ${email}`);
+    console.log(`Email retrait demandé envoyé à ${email}`);
   } catch (err) {
-    console.error('❌ Erreur email retrait demandé:', err.message);
+    console.error('Erreur email retrait demandé :', err.message);
   }
 }
 
-// ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
 // 5. RETRAIT APPROUVÉ
-// ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
 async function sendWithdrawalApprovedEmail({ email, username, amount, phoneNumber, method, note }) {
   if (!resend) return;
-  const body = `
-    <div style="text-align:center;margin-bottom:28px;">
-      <div style="width:64px;height:64px;background:linear-gradient(135deg,rgba(16,185,129,0.2),rgba(6,182,212,0.1));border:2px solid rgba(16,185,129,0.4);border-radius:50%;margin:0 auto 16px;line-height:64px;font-size:28px;">🎉</div>
-      <h2 style="color:#fff;font-size:22px;font-weight:700;margin:0 0 6px;">Retrait Approuvé !</h2>
-      <p style="color:rgba(255,255,255,0.55);font-size:14px;margin:0;">Votre paiement a été effectué avec succès.</p>
+
+  const content = `
+    <div style="font-size:20px;color:#e8eaf0;font-weight:700;margin:0 0 8px;font-family:Arial,sans-serif;">Retrait approuvé</div>
+    <div style="color:#8b93a7;font-size:13px;margin-bottom:26px;font-family:Arial,sans-serif;">Votre paiement a été exécuté avec succès.</div>
+
+    ${paragraph(`Bonjour ${username || email},`)}
+    ${paragraph(`Nous avons le plaisir de vous confirmer que votre demande de retrait a été approuvée et que le paiement correspondant a été exécuté.`)}
+
+    <div style="background:#0f131c;border:1px solid #1e2430;border-radius:6px;padding:30px;text-align:center;margin:22px 0;">
+      <div style="color:#666e7d;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-family:Arial,sans-serif;">Montant versé</div>
+      <div style="color:#2e7d54;font-size:34px;font-weight:700;font-family:Arial,sans-serif;">${fmt(amount)} FCFA</div>
+      <div style="color:#8b93a7;font-size:12px;margin-top:10px;letter-spacing:1px;font-family:Arial,sans-serif;">PAIEMENT EFFECTUÉ</div>
     </div>
-    <div style="background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(6,182,212,0.05));border:1px solid rgba(16,185,129,0.35);border-radius:14px;padding:28px;text-align:center;margin-bottom:24px;">
-      <div style="color:rgba(255,255,255,0.5);font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Montant versé</div>
-      <div style="font-size:38px;font-weight:900;color:#34d399;">${fmt(amount)} <span style="font-size:20px;">FCFA</span></div>
-      <div style="margin-top:12px;">${badge('✅ Paiement effectué', 'green')}</div>
-    </div>
-    ${infoCard(`
-      ${infoRow('👤', 'Bénéficiaire', username || email)}
-      ${infoRow('📱', 'Numéro reçu', phoneNumber)}
-      ${infoRow('💳', 'Méthode', method || 'Mobile Money')}
-      ${infoRow('📅', "Date d'approbation", new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Douala', dateStyle: 'medium', timeStyle: 'short' }))}
-      ${note ? infoRow('💬', 'Note admin', note) : ''}
-    `)}
-    ${ctaButton('🏠 Retour au Dashboard', `${SITE_URL}/dashboard.html`, 'green')}
+
+    ${infoTable(
+      infoRow('Bénéficiaire', username || email) +
+      infoRow('Numéro de réception', phoneNumber) +
+      infoRow('Méthode', method || 'Mobile Money') +
+      (note ? infoRow('Note administrative', note) : '') +
+      infoRow("Date d'approbation", new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Douala', dateStyle: 'long', timeStyle: 'short' }))
+    )}
+
+    ${ctaButton('Retour au tableau de bord', `${SITE_URL}/dashboard.html`, 'green')}
   `;
+
   try {
-    await resend.emails.send({ from: FROM, to: email, reply_to: REPLY_TO,
-      subject: `🎉 Retrait de ${fmt(amount)} FCFA approuvé et payé !`,
-      html: baseTemplate('Retrait approuvé', `Votre retrait de ${fmt(amount)} FCFA a été payé.`, body)
+    await resend.emails.send({
+      from: FROM, to: email, reply_to: REPLY_TO,
+      subject: `Retrait de ${fmt(amount)} FCFA approuvé et payé`,
+      html: userTemplate('Retrait approuvé', `Votre retrait de ${fmt(amount)} FCFA a été payé.`, content)
     });
-    console.log(`📧 Email retrait approuvé envoyé à ${email}`);
+    console.log(`Email retrait approuvé envoyé à ${email}`);
   } catch (err) {
-    console.error('❌ Erreur email retrait approuvé:', err.message);
+    console.error('Erreur email retrait approuvé :', err.message);
   }
 }
 
-// ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
 // 6. RETRAIT REJETÉ
-// ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
 async function sendWithdrawalRejectedEmail({ email, username, amount, note }) {
   if (!resend) return;
-  const body = `
-    <div style="text-align:center;margin-bottom:28px;">
-      <div style="width:64px;height:64px;background:linear-gradient(135deg,rgba(239,68,68,0.2),rgba(245,158,11,0.05));border:2px solid rgba(239,68,68,0.4);border-radius:50%;margin:0 auto 16px;line-height:64px;font-size:28px;">❌</div>
-      <h2 style="color:#fff;font-size:22px;font-weight:700;margin:0 0 6px;">Demande de Retrait Rejetée</h2>
-      <p style="color:rgba(255,255,255,0.55);font-size:14px;margin:0;">Votre demande n'a pas pu être traitée. Votre solde a été remboursé.</p>
+
+  const content = `
+    <div style="font-size:20px;color:#e8eaf0;font-weight:700;margin:0 0 8px;font-family:Arial,sans-serif;">Demande de retrait non validée</div>
+    <div style="color:#8b93a7;font-size:13px;margin-bottom:26px;font-family:Arial,sans-serif;">Le montant a été automatiquement réintégré à votre solde.</div>
+
+    ${paragraph(`Bonjour ${username || email},`)}
+    ${paragraph(`Après examen, votre demande de retrait n'a pas pu être validée. Le montant concerné a été immédiatement réintégré à votre solde Social Boost Horizon, sans perte ni frais.`)}
+
+    <div style="background:#0f131c;border:1px solid #1e2430;border-radius:6px;padding:30px;text-align:center;margin:22px 0;">
+      <div style="color:#666e7d;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-family:Arial,sans-serif;">Montant concerné</div>
+      <div style="color:#8a3535;font-size:34px;font-weight:700;font-family:Arial,sans-serif;">${fmt(amount)} FCFA</div>
+      <div style="color:#8b93a7;font-size:12px;margin-top:10px;letter-spacing:1px;font-family:Arial,sans-serif;">MONTANT RÉINTÉGRÉ À VOTRE SOLDE</div>
     </div>
-    <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:14px;padding:28px;text-align:center;margin-bottom:24px;">
-      <div style="color:rgba(255,255,255,0.5);font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Montant concerné</div>
-      <div style="font-size:38px;font-weight:900;color:#f87171;">${fmt(amount)} <span style="font-size:20px;">FCFA</span></div>
-      <div style="margin-top:12px;">${badge('🔄 Remboursé à votre compte', 'red')}</div>
-    </div>
-    ${infoCard(`
-      ${infoRow('👤', 'Compte', username || email)}
-      ${infoRow('💰', 'Montant', `${fmt(amount)} FCFA`)}
-      ${note ? infoRow('💬', 'Raison', note, '#fbbf24') : ''}
-      ${infoRow('📅', 'Date', new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Douala', dateStyle: 'medium', timeStyle: 'short' }))}
-    `)}
-    ${ctaButton('🏠 Retour au Dashboard', `${SITE_URL}/dashboard.html`, 'red')}
+
+    ${infoTable(
+      infoRow('Titulaire du compte', username || email) +
+      infoRow('Montant concerné', `${fmt(amount)} FCFA`) +
+      (note ? infoRow('Motif communiqué', note) : '') +
+      infoRow('Date', new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Douala', dateStyle: 'long', timeStyle: 'short' }))
+    )}
+
+    ${paragraph(`Pour toute question concernant cette décision, notre équipe support reste joignable à l'adresse <a href="mailto:${REPLY_TO}" style="color:#C9A961;text-decoration:none;">${REPLY_TO}</a>.`)}
+
+    ${ctaButton('Retour au tableau de bord', `${SITE_URL}/dashboard.html`, 'red')}
   `;
+
   try {
-    await resend.emails.send({ from: FROM, to: email, reply_to: REPLY_TO,
-      subject: `❌ Demande de retrait de ${fmt(amount)} FCFA rejetée`,
-      html: baseTemplate('Retrait rejeté', `Votre demande de retrait a été rejetée. Solde remboursé.`, body)
+    await resend.emails.send({
+      from: FROM, to: email, reply_to: REPLY_TO,
+      subject: `Demande de retrait de ${fmt(amount)} FCFA non validée`,
+      html: userTemplate('Retrait non validé', `Votre demande de retrait a été rejetée. Solde réintégré.`, content)
     });
-    console.log(`📧 Email retrait rejeté envoyé à ${email}`);
+    console.log(`Email retrait rejeté envoyé à ${email}`);
   } catch (err) {
-    console.error('❌ Erreur email retrait rejeté:', err.message);
+    console.error('Erreur email retrait rejeté :', err.message);
   }
 }
-// ─────────────────────────────────────────────────────────────────
-// 7. DEMANDE DE PARTENARIAT — Envoyée à l'équipe interne
-// ─────────────────────────────────────────────────────────────────
+
+// ═══════════════════════════════════════════════════════════════
+// 7. CANDIDATURE PARTENARIAT (admin)
+// ═══════════════════════════════════════════════════════════════
 async function sendPartnershipEmail({ name, email, whatsapp, type, message, requestId }) {
   if (!resend) {
-    console.warn('⚠️ sendPartnershipEmail : RESEND_API_KEY non défini — email non envoyé.');
+    console.warn('sendPartnershipEmail : RESEND_API_KEY non défini — email non envoyé.');
     return;
   }
 
-  const waLink = whatsapp ? `https://wa.me/${String(whatsapp).replace(/[^0-9]/g, '')}` : null;
-  const safeMessage = String(message || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const cleanWhatsapp = String(whatsapp || '').replace(/[^0-9]/g, '');
+  const waLink = cleanWhatsapp ? `https://wa.me/${cleanWhatsapp}` : null;
+  const safeMessage = String(message || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
 
-  const body = `
-    <div style="text-align:center;margin-bottom:28px;">
-      <div style="width:64px;height:64px;background:linear-gradient(135deg,rgba(139,92,246,0.2),rgba(6,182,212,0.1));border:2px solid rgba(139,92,246,0.4);border-radius:50%;margin:0 auto 16px;line-height:64px;font-size:26px;">🤝</div>
-      <h2 style="color:#fff;font-size:22px;font-weight:700;margin:0 0 6px;">Nouvelle candidature partenariat</h2>
-      <p style="color:rgba(255,255,255,0.55);font-size:14px;margin:0;">Une proposition vient d'être soumise depuis la page partenariat.</p>
+  const content = `
+    <div style="font-size:20px;color:#e8eaf0;font-weight:700;margin:0 0 8px;font-family:Arial,sans-serif;">Nouvelle candidature partenariat</div>
+    <div style="color:#8b93a7;font-size:13px;margin-bottom:26px;font-family:Arial,sans-serif;">Soumise depuis la page partenariat du site.</div>
+
+    ${infoTable(
+      infoRow('Nom / Raison sociale', name) +
+      infoRow('Email professionnel', `<a href="mailto:${email}" style="color:#C9A961;text-decoration:none;">${email}</a>`) +
+      infoRow('WhatsApp', waLink ? `<a href="${waLink}" style="color:#C9A961;text-decoration:none;">${whatsapp}</a>` : whatsapp) +
+      infoRow('Cadre envisagé', type, '#C9A961') +
+      infoRow('Référence dossier', requestId ? `<code style="font-size:11px;color:#C9A961;">${requestId}</code>` : '—') +
+      infoRow('Date de réception', new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Douala', dateStyle: 'long', timeStyle: 'short' }))
+    )}
+
+    <div style="margin-top:24px;">
+      ${sectionTitle('Présentation du projet')}
+      <div style="background:#0f131c;border:1px solid #1e2430;border-radius:6px;padding:20px 22px;color:#c3c9d6;font-size:13px;line-height:1.75;font-family:Arial,sans-serif;white-space:normal;">${safeMessage}</div>
     </div>
 
-    ${infoCard(`
-      ${infoRow('🧑', 'Nom / Raison sociale', name)}
-      ${infoRow('📧', 'Email professionnel', `<a href="mailto:${email}" style="color:#a78bfa;text-decoration:none;">${email}</a>`)}
-      ${infoRow('📱', 'WhatsApp', waLink ? `<a href="${waLink}" style="color:#34d399;text-decoration:none;">${whatsapp}</a>` : whatsapp)}
-      ${infoRow('🎯', 'Cadre envisagé', type, '#fbbf24')}
-      ${infoRow('🏷️', 'Référence dossier', requestId ? `<code style="font-size:11px;color:#a78bfa;">${requestId}</code>` : '—')}
-      ${infoRow('📅', 'Date de réception', new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Douala', dateStyle: 'full', timeStyle: 'short' }))}
-    `)}
-
-    <div style="background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.25);border-radius:12px;padding:22px 24px;margin-top:20px;">
-      <div style="font-size:13px;font-weight:700;color:#22d3ee;margin-bottom:12px;letter-spacing:0.5px;text-transform:uppercase;">Présentation du projet</div>
-      <div style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.75;white-space:pre-wrap;">${safeMessage}</div>
-    </div>
-
-    <div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:14px 18px;margin-top:20px;">
-      <div style="color:#fbbf24;font-size:12px;font-weight:700;margin-bottom:4px;">⏱️ Action attendue</div>
-      <div style="color:rgba(255,255,255,0.55);font-size:12px;line-height:1.65;">Répondre au candidat sous 24 à 48 heures ouvrées, conformément à l'engagement affiché sur la page partenariat.</div>
+    <div style="margin-top:24px;padding:14px 18px;background:#0f131c;border:1px solid #1e2430;border-radius:6px;">
+      <div style="color:#C9A961;font-size:11px;font-weight:700;letter-spacing:1.2px;margin-bottom:6px;font-family:Arial,sans-serif;">ACTION ATTENDUE</div>
+      <div style="color:#8b93a7;font-size:12px;line-height:1.65;font-family:Arial,sans-serif;">Répondre au candidat sous 24 à 48 heures ouvrées, conformément à l'engagement affiché publiquement sur la page partenariat.</div>
     </div>
 
     ${waLink ? `<div style="text-align:center;margin-top:26px;">
-      <a href="${waLink}" style="display:inline-block;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:13px 30px;border-radius:50px;letter-spacing:0.3px;">
-        📲 Contacter le candidat sur WhatsApp
-      </a>
+      <a href="${waLink}" style="display:inline-block;background:#2e7d54;color:#fff;text-decoration:none;font-weight:700;font-size:13px;letter-spacing:0.5px;padding:13px 30px;border-radius:6px;font-family:Arial,sans-serif;">Contacter le candidat sur WhatsApp</a>
     </div>` : ''}
   `;
 
@@ -509,19 +530,16 @@ async function sendPartnershipEmail({ name, email, whatsapp, type, message, requ
     from: FROM,
     to: ADMIN_EMAIL,
     reply_to: email,
-    subject: `🤝 Nouvelle candidature partenariat — ${name} (${type})`,
-    html: adminTemplate(
-      'Nouvelle candidature partenariat',
-      `De ${name} — ${type}`,
-      body
-    ),
+    subject: `Nouvelle candidature partenariat — ${name} (${type})`,
+    html: adminTemplate('Nouvelle candidature partenariat', `De ${name} — ${type}`, content)
   });
 
-  console.log(`📧 Email partenariat envoyé à ${ADMIN_EMAIL} (candidat : ${email})`);
-};
-// ─────────────────────────────────────────────
+  console.log(`Email partenariat envoyé à ${ADMIN_EMAIL} (candidat : ${email})`);
+}
+
+// ═══════════════════════════════════════════════════════════════
 // EXPORTS
-// ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
 module.exports = {
   sendWelcomeEmail,
   sendRechargeEmail,
