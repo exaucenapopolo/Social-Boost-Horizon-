@@ -460,7 +460,65 @@ async function sendWithdrawalRejectedEmail({ email, username, amount, note }) {
     console.error('❌ Erreur email retrait rejeté:', err.message);
   }
 }
+// ─────────────────────────────────────────────────────────────────
+// 7. DEMANDE DE PARTENARIAT — Envoyée à l'équipe interne
+// ─────────────────────────────────────────────────────────────────
+async function sendPartnershipEmail({ name, email, whatsapp, type, message, requestId }) {
+  if (!resend) {
+    console.warn('⚠️ sendPartnershipEmail : RESEND_API_KEY non défini — email non envoyé.');
+    return;
+  }
 
+  const waLink = whatsapp ? `https://wa.me/${String(whatsapp).replace(/[^0-9]/g, '')}` : null;
+  const safeMessage = String(message || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const body = `
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="width:64px;height:64px;background:linear-gradient(135deg,rgba(139,92,246,0.2),rgba(6,182,212,0.1));border:2px solid rgba(139,92,246,0.4);border-radius:50%;margin:0 auto 16px;line-height:64px;font-size:26px;">🤝</div>
+      <h2 style="color:#fff;font-size:22px;font-weight:700;margin:0 0 6px;">Nouvelle candidature partenariat</h2>
+      <p style="color:rgba(255,255,255,0.55);font-size:14px;margin:0;">Une proposition vient d'être soumise depuis la page partenariat.</p>
+    </div>
+
+    ${infoCard(`
+      ${infoRow('🧑', 'Nom / Raison sociale', name)}
+      ${infoRow('📧', 'Email professionnel', `<a href="mailto:${email}" style="color:#a78bfa;text-decoration:none;">${email}</a>`)}
+      ${infoRow('📱', 'WhatsApp', waLink ? `<a href="${waLink}" style="color:#34d399;text-decoration:none;">${whatsapp}</a>` : whatsapp)}
+      ${infoRow('🎯', 'Cadre envisagé', type, '#fbbf24')}
+      ${infoRow('🏷️', 'Référence dossier', requestId ? `<code style="font-size:11px;color:#a78bfa;">${requestId}</code>` : '—')}
+      ${infoRow('📅', 'Date de réception', new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Douala', dateStyle: 'full', timeStyle: 'short' }))}
+    `)}
+
+    <div style="background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.25);border-radius:12px;padding:22px 24px;margin-top:20px;">
+      <div style="font-size:13px;font-weight:700;color:#22d3ee;margin-bottom:12px;letter-spacing:0.5px;text-transform:uppercase;">Présentation du projet</div>
+      <div style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.75;white-space:pre-wrap;">${safeMessage}</div>
+    </div>
+
+    <div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:14px 18px;margin-top:20px;">
+      <div style="color:#fbbf24;font-size:12px;font-weight:700;margin-bottom:4px;">⏱️ Action attendue</div>
+      <div style="color:rgba(255,255,255,0.55);font-size:12px;line-height:1.65;">Répondre au candidat sous 24 à 48 heures ouvrées, conformément à l'engagement affiché sur la page partenariat.</div>
+    </div>
+
+    ${waLink ? `<div style="text-align:center;margin-top:26px;">
+      <a href="${waLink}" style="display:inline-block;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:13px 30px;border-radius:50px;letter-spacing:0.3px;">
+        📲 Contacter le candidat sur WhatsApp
+      </a>
+    </div>` : ''}
+  `;
+
+  await resend.emails.send({
+    from: FROM,
+    to: ADMIN_EMAIL,
+    reply_to: email,
+    subject: `🤝 Nouvelle candidature partenariat — ${name} (${type})`,
+    html: adminTemplate(
+      'Nouvelle candidature partenariat',
+      `De ${name} — ${type}`,
+      body
+    ),
+  });
+
+  console.log(`📧 Email partenariat envoyé à ${ADMIN_EMAIL} (candidat : ${email})`);
+};
 // ─────────────────────────────────────────────
 // EXPORTS
 // ─────────────────────────────────────────────
@@ -471,4 +529,5 @@ module.exports = {
   sendWithdrawalRequestEmail,
   sendWithdrawalApprovedEmail,
   sendWithdrawalRejectedEmail,
+  sendPartnershipEmail,
 };
