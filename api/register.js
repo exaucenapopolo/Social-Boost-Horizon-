@@ -1,95 +1,231 @@
-// Fichier à placer dans : /api/register.js
 
-export default async function handler(req, res) {
-  // Configuration des en-têtes CORS standards (Sécurité et compatibilité)
-  res.setHeader('Access-Control-Allow-Credentials', true);
+'use strict';
+
+// Point d'entrée Vercel /api/register.
+// Le contenu du mail de bienvenue est désormais géré par
+// api/email-service.js, afin d'éviter les modèles en double.
+
+const admin = require('firebase-admin');
+const { sendWelcomeEmail } = require('./email-service.js');
+
+function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    'Content-Type, Authorization'
   );
+  res.setHeader('Vary', 'Origin');
+}
 
-  // Gestion des requêtes de pré-vérification (Preflight OPTIONS)
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+function initializeFirebaseAdmin() {
+  if (admin.apps.length) return;
+
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY
+    ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+    : undefined;
+
+  if (
+    !process.env.FIREBASE_PROJECT_ID ||
+    !process.env.FIREBASE_CLIENT_EMAIL ||
+    !privateKey
+  ) {
+    throw new Error(
+      'Variables Firebase manquantes : FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY.'
+    );
   }
 
-  // Filtrer pour n'autoriser que les requêtes POST
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey,
+    }),
+  });
+}
+
+function escapeHtml(value, maxLength = 120) {
+  return String(value == null ? '' : value)
+    .trim()
+    .slice(0, maxLength)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatCountry(country) {
+  const raw = String(country || '').trim();
+
+  if (!raw) return 'Non spécifié';
+
+  // Convertit les codes pays, par exemple CM, en noms français.
+  if (/^[a-z]{2}$/i.test(raw)) {
+    try {
+      const localizedName = new Intl.DisplayNames(
+        ['fr'],
+        { type: 'region' }
+      ).of(raw.toUpperCase());
+
+      if (
+        localizedName &&
+        localizedName !== raw.toUpperCase()
+      ) {
+        return escapeHtml(localizedName, 100);
+      }
+    } catch (_) {
+      // Conserve le code reçu si la conversion est indisponible.
+    }
+  }
+
+  return escapeHtml(raw, 100);
+}
+
+module.exports = async function handler(req, res) {
+  setCorsHeaders(res);
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Méthode non autorisée' });
+    res.setHeader('Allow', 'POST, OPTIONS');
+
+    return res.status(405).json({
+      success: false,
+      error: 'Méthode non autorisée.',
+    });
+  }
+
+  if (!process.env.RESEND_API_KEY) {
+    console.error(
+      'RESEND_API_KEY est absent des variables serveur.'
+    );
+
+    return res.status(500).json({
+      success: false,
+      error: 'Configuration email serveur incomplète.',
+    });
+  }
+
+  // Le mail est envoyé uniquement pour un compte authentifié.
+  const authHeader = req.headers.authorization || '';
+
+  if (!authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({
+      success: false,
+      error: 'Authentification requise.',
+    });
   }
 
   try {
-    const { username, email, country, referralCode } = req.body;
+    initializeFirebaseAdmin();
+
+    const idToken = authHeader
+      .slice('Bearer '.length)
+      .trim();
+
+    const decodedToken = await admin
+      .auth()
+      .verifyIdToken(idToken);
+
+    const email = String(
+      decodedToken.email || ''
+    ).trim();
 
     if (!email) {
-      return res.status(400).json({ error: "L'adresse email est obligatoire." });
+      return res.status(401).json({
+        success: false,
+        error:
+          'Le compte authentifié ne possède pas d’adresse email.',
+      });
     }
 
-    const resendApiKey = process.env.RESEND_API_KEY;
-    if (!resendApiKey) {
-      console.error("Erreur de configuration : Clé RESEND_API_KEY introuvable.");
-      return res.status(500).json({ error: "Configuration serveur incomplète pour l'envoi d'emails." });
-    }
+    const body =
+      req.body && typeof req.body === 'object'
+        ? req.body
+        : {};
 
-    // Requête directe vers l'API de Resend
-    const resendResponse = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${resendApiKey}`
-      },
-      body: JSON.stringify({
-        from: 'Social Boost Horizon <welcome@socialboosthorizon.com>', // Modifiez par votre domaine validé Resend
-        to: [email],
-        subject: 'Bienvenue chez Social Boost Horizon ! 🎉',
-        html: `
-          <div style="font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 600px; margin: 0 auto; padding: 30px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-            <div style="text-align: center; margin-bottom: 25px;">
-              <h1 style="color: #6a0dad; margin: 0; font-size: 24px;">Bienvenue dans l'aventure ! 🚀</h1>
-              <p style="color: #1e3c72; font-weight: 600; margin-top: 5px;">Social Boost Horizon</p>
-            </div>
-            
-            <p>Bonjour <strong>@${username}</strong>,</p>
-            <p>Nous sommes super heureux de vous compter parmi nous ! Votre inscription a bien été validée et votre espace est prêt. Tout est en place pour donner un coup de boost mémorable à votre présence sur les réseaux sociaux. 🔥</p>
-            
-            <div style="background: #f4f6f9; border-left: 4px solid #d4af37; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
-              <h3 style="margin-top: 0; color: #080e1a; font-size: 16px;">Vos accès & informations :</h3>
-              <p style="margin: 5px 0;"><strong>Identifiant :</strong> ${email}</p>
-              <p style="margin: 5px 0;"><strong>Pays indiqué :</strong> ${country.toUpperCase()}</p>
-              <p style="margin: 5px 0;"><strong>Votre Code Parrain :</strong> <span style="background: #fff; padding: 2px 6px; border: 1px dashed #6a0dad; border-radius: 4px; font-weight: bold; color: #6a0dad;">${referralCode}</span></p>
-            </div>
+    const rawName =
+      (typeof body.displayName === 'string' &&
+        body.displayName.trim()) ||
+      (typeof body.username === 'string' &&
+        body.username.trim()) ||
+      decodedToken.name ||
+      email.split('@')[0] ||
+      'Nouveau membre';
 
-            <p>Partagez votre code parrain avec vos proches pour cumuler des avantages dès qu'ils s'inscrivent !</p>
-            
-            <div style="text-align: center; margin: 35px 0;">
-              <a href="https://socialboosthorizon.com/dashboard.html" style="background: linear-gradient(135deg, #1e3c72, #6a0dad); color: #ffffff; padding: 14px 28px; text-decoration: none; font-weight: bold; border-radius: 8px; display: inline-block; box-shadow: 0 4px 10px rgba(106, 13, 173, 0.25);">Accéder à mon Espace Membre ☺️</a>
-            </div>
+    const username = escapeHtml(rawName, 120);
+    const country = formatCountry(body.country);
 
-            <hr style="border: 0; border-top: 1px solid #eef2f5; margin: 30px 0;">
-            
-            <p style="font-size: 13px; color: #666; text-align: center;">
-              Besoin d'aide ? Rejoignez notre communauté en ligne ou consultez nos guides d'utilisation.<br>
-              À très vite de l'autre côté !
-            </p>
-            
-            <p style="margin-top: 25px; font-weight: bold; color: #1e3c72; text-align: center;">L'équipe Social Boost Horizon</p>
-          </div>
-        `
-      })
+    // IMPORTANT :
+    // Aucun HTML de bienvenue n'est construit ici.
+    // Le modèle centralisé de api/email-service.js est utilisé.
+    const result = await sendWelcomeEmail({
+      email,
+      username,
+      country,
     });
 
-    const data = await resendResponse.json();
+    if (result && result.error) {
+      console.error(
+        'Resend a refusé le mail de bienvenue :',
+        result.error
+      );
 
-    if (!resendResponse.ok) {
-      console.error("Erreur renvoyée par Resend:", data);
-      return res.status(400).json({ error: "Erreur lors de l'envoi de l'email via Resend", details: data });
+      return res.status(502).json({
+        success: false,
+        error:
+          'Le fournisseur email a refusé l’envoi.',
+      });
     }
 
-    return res.status(200).json({ success: true, message: "Inscription enregistrée et e-mail envoyé !", id: data.id });
+    const emailId =
+      (result && result.data && result.data.id) ||
+      (result && result.id) ||
+      null;
+
+    console.log(
+      `Email de bienvenue traité via email-service.js pour ${email}; id: ${emailId || 'non communiqué'}`
+    );
+
+    return res.status(200).json({
+      success: true,
+      emailSent: true,
+      id: emailId,
+    });
   } catch (error) {
-    console.error("Erreur interne sur la fonction Vercel:", error);
-    return res.status(500).json({ error: "Erreur interne du serveur.", details: error.message });
+    const invalidTokenCodes = new Set([
+      'auth/argument-error',
+      'auth/id-token-expired',
+      'auth/id-token-revoked',
+      'auth/invalid-id-token',
+      'auth/user-disabled',
+      'auth/user-not-found',
+    ]);
+
+    if (
+      error &&
+      invalidTokenCodes.has(error.code)
+    ) {
+      return res.status(401).json({
+        success: false,
+        error:
+          'Jeton de connexion invalide ou expiré.',
+      });
+    }
+
+    console.error(
+      'Erreur dans /api/register :',
+      error && error.message ? error.message : error
+    );
+
+    return res.status(500).json({
+      success: false,
+      error:
+        'Erreur serveur lors de l’envoi du mail de bienvenue.',
+    });
   }
-}
+};
+                 
