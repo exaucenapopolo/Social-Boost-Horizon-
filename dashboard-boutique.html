@@ -3,243 +3,1716 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Tableau de Bord Boutique - Social Boost Horizon</title>
+  <title>Tableau de Bord Boutique — Social Boost Horizon</title>
 
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
   <style>
     :root {
       --bg-main: #06060A;
+      --bg-elevated: #0C0C16;
       --bg-card: #111122;
       --text-main: #FFFFFF;
       --text-muted: rgba(255, 255, 255, 0.6);
-      --accent-primary: #F0A500; 
-      --border-color: rgba(255, 255, 255, 0.1);
+      --text-dim: rgba(255, 255, 255, 0.35);
+      --accent: #F0A500;
+      --accent-soft: rgba(240, 165, 0, 0.12);
+      --success: #10B981;
+      --success-soft: rgba(16, 185, 129, 0.12);
+      --danger: #EF4444;
+      --danger-soft: rgba(239, 68, 68, 0.12);
+      --info: #3B82F6;
+      --info-soft: rgba(59, 130, 246, 0.12);
+      --teal: #0FB5A6;
+      --teal-soft: rgba(15, 181, 166, 0.12);
+      --purple: #8B5CF6;
+      --purple-soft: rgba(139, 92, 246, 0.12);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.15);
+      --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.5);
+      --radius-sm: 8px;
+      --radius: 12px;
+      --radius-lg: 16px;
       font-family: 'Plus Jakarta Sans', sans-serif;
     }
 
-    * { box-sizing: border-box; }
-    body { background-color: var(--bg-main); color: var(--text-main); margin: 0; padding: 0; min-height: 100vh; }
-
-    header {
-      background: rgba(8, 8, 18, 0.9); backdrop-filter: blur(10px);
-      padding: 1rem 2rem; border-bottom: 1px solid var(--border-color);
-      display: flex; justify-content: space-between; align-items: center;
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: var(--bg-main); color: var(--text-main);
+      min-height: 100vh; overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
     }
-    .header-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.2rem; font-weight: 700; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; line-height: 1.5; }
 
-    .container { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
-    
-    .welcome-section { margin-bottom: 2rem; display: flex; align-items: center; gap: 20px; }
+    /* ============ HEADER ============ */
+    .top-header {
+      background: rgba(6, 6, 10, 0.9);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 90;
+    }
+    .top-header-inner {
+      max-width: 1280px; margin: 0 auto;
+      padding: 14px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-logo {
+      width: 42px; height: 42px; border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), #FF6B35);
+      display: flex; align-items: center; justify-content: center;
+      color: #06060A; font-size: 1.2rem;
+      box-shadow: 0 4px 16px rgba(240, 165, 0, 0.35);
+      flex-shrink: 0;
+    }
+    .brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+    .brand-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700; font-size: 1rem; letter-spacing: 0.3px;
+    }
+    .brand-name span { color: var(--accent); }
+    .brand-subtitle {
+      font-size: 0.72rem; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 1.2px;
+      font-weight: 600; margin-top: 2px;
+    }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+    .header-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 16px; border-radius: 10px;
+      font-weight: 700; font-size: 0.82rem;
+      text-decoration: none; transition: all 0.2s;
+      white-space: nowrap;
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+    }
+    .header-btn-primary {
+      background: linear-gradient(135deg, var(--accent), #FF8A3D);
+      color: #06060A;
+      box-shadow: 0 4px 16px rgba(240, 165, 0, 0.3);
+    }
+    .header-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(240, 165, 0, 0.4);
+    }
+    .header-btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border-strong);
+      color: var(--text-main);
+    }
+    .header-btn-ghost:hover {
+      background: rgba(255,255,255,0.04);
+      border-color: var(--accent);
+    }
+
+    /* Bell + Badge */
+    .bell-btn {
+      position: relative;
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      transition: 0.2s;
+      flex-shrink: 0;
+    }
+    .bell-btn:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .bell-badge {
+      position: absolute;
+      top: -4px; right: -4px;
+      min-width: 18px; height: 18px;
+      padding: 0 5px;
+      background: var(--danger);
+      color: #fff;
+      border-radius: 10px;
+      font-size: 0.65rem;
+      font-weight: 800;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--bg-main);
+      animation: bellPulse 2s infinite;
+    }
+    @keyframes bellPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    /* ============ LOADER ============ */
+    #globalLoader {
+      text-align: center;
+      padding: 6rem 2rem;
+      color: var(--accent);
+    }
+    #globalLoader i { font-size: 2.5rem; margin-bottom: 16px; display: block; }
+    #globalLoader p { color: var(--text-muted); }
+
+    /* ============ LAYOUT ============ */
+    #mainContent {
+      display: none;
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 20px 100px;
+    }
+    #mainContent.ready { display: block; }
+
+    /* ============ WELCOME ============ */
+    .welcome-section {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 24px;
+      padding: 4px;
+    }
     .header-avatar-container {
       position: relative;
-      width: 70px;
-      height: 70px;
+      width: 68px; height: 68px;
       border-radius: 50%;
-      border: 2px solid var(--accent-primary);
+      border: 3px solid var(--accent);
       padding: 2px;
-      box-shadow: 0 4px 15px rgba(240, 165, 0, 0.3);
+      box-shadow: 0 6px 20px rgba(240, 165, 0, 0.3);
+      flex-shrink: 0;
+      background: var(--bg-card);
     }
     .header-avatar {
-      width: 100%;
-      height: 100%;
+      width: 100%; height: 100%;
+      border-radius: 50%; object-fit: cover;
+    }
+    .header-avatar-container::after {
+      content: '';
+      position: absolute;
+      bottom: 2px; right: 2px;
+      width: 14px; height: 14px;
+      background: var(--success);
       border-radius: 50%;
-      object-fit: cover;
+      border: 2px solid var(--bg-main);
     }
-    .welcome-text h1 { font-family: 'Space Grotesk', sans-serif; font-size: 1.8rem; margin: 0 0 0.5rem 0; }
-    .welcome-text p { color: var(--text-muted); margin: 0; }
-
-    /* Cartes de solde */
-    .balances-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-    .balance-card {
-      background: var(--bg-card); border: 1px solid var(--border-color);
-      border-radius: 16px; padding: 1.5rem; text-align: center;
-      display: flex; flex-direction: column; justify-content: space-between;
+    .welcome-text { flex: 1; min-width: 0; }
+    .welcome-text h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.6rem;
+      margin: 0 0 4px;
+      line-height: 1.2;
+      letter-spacing: -0.3px;
+      word-break: break-word;
     }
-    .balance-title { color: var(--text-muted); font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
-    .balance-amount { font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; color: var(--accent-primary); margin-bottom: 15px; }
-    .balance-amount.secondary { color: #0FB5A6; }
-
-    /* Carte Boutique */
-    .store-card {
-      background: var(--bg-card); border: 1px solid var(--border-color);
-      border-radius: 16px; padding: 2rem;
+    .welcome-text p {
+      color: var(--text-muted);
+      margin: 0;
+      font-size: 0.9rem;
+      line-height: 1.4;
     }
-    .store-card h2 { font-family: 'Space Grotesk', sans-serif; margin-top: 0; margin-bottom: 1.5rem; font-size: 1.3rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;}
-    
-    .store-info { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
-    .info-label { color: var(--text-muted); font-size: 0.9rem; }
-    .info-value { font-weight: 600; font-size: 1.1rem; }
-    .store-link { color: #0FB5A6; font-family: monospace; word-break: break-all; text-decoration: none; }
-    .store-link:hover { text-decoration: underline; }
 
-    /* Carte de Création de Site Web */
-    .website-upsell-card {
-      background: linear-gradient(135deg, rgba(240, 165, 0, 0.1), rgba(15, 181, 166, 0.1));
+    /* Level badge */
+    .level-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 8px;
+    }
+    .level-debutant { background: rgba(160, 160, 160, 0.15); color: #c8c8c8; }
+    .level-actif { background: rgba(59, 130, 246, 0.15); color: #60A5FA; }
+    .level-top { background: rgba(240, 165, 0, 0.15); color: var(--accent); }
+    .level-elite {
+      background: linear-gradient(135deg, rgba(240, 165, 0, 0.25), rgba(15, 181, 166, 0.25));
+      color: #FFD700;
+    }
+
+    /* ============ ALERT ============ */
+    .alert-banner {
+      display: none;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 18px;
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+    .alert-banner.show { display: flex; }
+    .alert-banner.warning {
+      background: var(--accent-soft);
       border: 1px solid rgba(240, 165, 0, 0.3);
-      border-radius: 16px; padding: 2rem; margin-top: 2rem; text-align: center;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      color: var(--accent);
     }
-    .website-upsell-card h2 { font-family: 'Space Grotesk', sans-serif; color: var(--accent-primary); margin-top: 0; font-size: 1.4rem; }
-    .website-upsell-card p { color: rgba(255, 255, 255, 0.85); margin-bottom: 20px; line-height: 1.6; }
-
-    /* Historique des Ventes / Gains */
-    .history-card {
-      background: var(--bg-card); border: 1px solid var(--border-color);
-      border-radius: 16px; padding: 2rem; margin-top: 2rem; display: none;
+    .alert-banner.success {
+      background: var(--success-soft);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--success);
     }
-    .history-card h2 { font-family: 'Space Grotesk', sans-serif; margin-top: 0; margin-bottom: 1.5rem; font-size: 1.3rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; color: #fff;}
-    
-    .table-responsive { overflow-x: auto; }
-    .tx-table { width: 100%; border-collapse: collapse; text-align: left; }
-    .tx-table th, .tx-table td { padding: 14px 10px; border-bottom: 1px solid var(--border-color); }
-    .tx-table th { color: var(--text-muted); font-weight: 600; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;}
-    .tx-table td { font-size: 0.95rem; }
-    .tx-profit { color: #0FB5A6; font-weight: 700; }
-    .tx-empty { text-align: center; color: var(--text-muted); padding: 30px; font-size: 1rem;}
+    .alert-banner .alert-icon {
+      font-size: 1.1rem; flex-shrink: 0; margin-top: 2px;
+    }
+    .alert-banner .alert-content { flex: 1; }
+    .alert-banner .alert-content strong { display: block; margin-bottom: 2px; }
+    .alert-banner .alert-action {
+      color: inherit;
+      font-weight: 700;
+      text-decoration: underline;
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-size: inherit;
+      padding: 0;
+    }
 
+    /* ============ STATS ============ */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex; flex-direction: column; gap: 8px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .stat-card:hover {
+      border-color: var(--border-strong);
+      transform: translateY(-2px);
+    }
+    .stat-card-icon {
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+    }
+    .stat-card-icon.accent { background: var(--accent-soft); color: var(--accent); }
+    .stat-card-icon.success { background: var(--success-soft); color: var(--success); }
+    .stat-card-icon.teal { background: var(--teal-soft); color: var(--teal); }
+    .stat-card-icon.info { background: var(--info-soft); color: var(--info); }
+    .stat-card-icon.purple { background: var(--purple-soft); color: var(--purple); }
+    .stat-card-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+    .stat-card-value {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      line-height: 1.2;
+      color: var(--text-main);
+      word-break: break-word;
+    }
+    .stat-card-value.sm { font-size: 0.95rem; }
+    .stat-card-sub {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+    .stat-badge {
+      position: absolute;
+      top: 12px; right: 12px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-size: 0.65rem;
+      font-weight: 800;
+    }
+    .stat-badge.new {
+      background: var(--danger-soft);
+      color: var(--danger);
+      animation: pulseDot 2s infinite;
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    /* ============ BALANCES ============ */
+    .balances-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .balance-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+      display: flex; flex-direction: column; gap: 14px;
+      position: relative; overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .balance-card:hover { border-color: var(--border-strong); }
+    .balance-card.primary {
+      background: linear-gradient(135deg, rgba(240, 165, 0, 0.08), transparent);
+      border-color: rgba(240, 165, 0, 0.25);
+    }
+    .balance-card.teal {
+      background: linear-gradient(135deg, rgba(15, 181, 166, 0.08), transparent);
+      border-color: rgba(15, 181, 166, 0.25);
+    }
+    .balance-card::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 120px; height: 120px;
+      border-radius: 50%;
+      opacity: 0.08;
+      filter: blur(20px);
+    }
+    .balance-card.primary::before { background: var(--accent); }
+    .balance-card.teal::before { background: var(--teal); }
+    .balance-header {
+      display: flex; align-items: center; gap: 10px;
+      padding-right: 40px;
+    }
+    .balance-icon {
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.95rem;
+    }
+    .balance-card.primary .balance-icon {
+      background: var(--accent-soft); color: var(--accent);
+    }
+    .balance-card.teal .balance-icon {
+      background: var(--teal-soft); color: var(--teal);
+    }
+    .balance-title {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+    .balance-amount {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.5px;
+      word-break: break-word;
+    }
+    .balance-card.primary .balance-amount { color: var(--accent); }
+    .balance-card.teal .balance-amount { color: var(--teal); }
+    .balance-hint {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: -6px;
+    }
+    .balance-hint.warn { color: var(--accent); }
+    .balance-hint.ok { color: var(--success); }
+
+    /* Eye toggle */
+    .eye-toggle {
+      position: absolute;
+      top: 16px; right: 16px;
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem;
+      transition: 0.2s;
+      z-index: 2;
+    }
+    .eye-toggle:hover { color: var(--accent); border-color: var(--accent); }
+
+    /* ============ BUTTONS ============ */
     .btn {
-      padding: 12px 20px; border-radius: 8px; font-weight: 600; cursor: pointer;
-      border: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      text-decoration: none; transition: 0.2s; width: 100%;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.88rem;
+      cursor: pointer;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      font-family: inherit;
+      white-space: nowrap;
     }
-    .btn-auto { width: auto; }
-    .btn-primary { background: var(--accent-primary); color: #000; }
-    .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
-    .btn-success { background: #0FB5A6; color: #fff; }
-    .btn-primary:hover, .btn-success:hover { opacity: 0.9; transform: translateY(-2px); }
-    .btn-outline:hover { background: rgba(255,255,255,0.05); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary {
+      background: var(--accent);
+      color: #06060A;
+    }
+    .btn-primary:not(:disabled):hover {
+      background: #FFB833;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(240, 165, 0, 0.35);
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1.5px solid var(--border-strong);
+      color: var(--text-main);
+    }
+    .btn-outline:hover {
+      background: rgba(255,255,255,0.04);
+      border-color: var(--accent);
+    }
+    .btn-teal {
+      background: var(--teal);
+      color: #fff;
+    }
+    .btn-teal:hover {
+      background: #0EA194;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(15, 181, 166, 0.35);
+    }
+    .btn-success {
+      background: #25D366;
+      color: #fff;
+    }
+    .btn-success:hover {
+      background: #1ebc59;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(37, 211, 102, 0.35);
+    }
+    .btn-sm {
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      border-radius: 8px;
+    }
+    .btn-block { width: 100%; }
 
-    /* Styles pour les fenêtres modales (Modals) */
+    /* ============ SECTION CARDS ============ */
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .section-header h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.1rem;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-header h2 i { color: var(--accent); }
+    .section-badge {
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.68rem;
+      font-weight: 800;
+      background: var(--success-soft);
+      color: var(--success);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .section-badge.draft {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    /* ============ INSIGHTS GRID (2 cols) ============ */
+    .insights-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .insights-grid .section-card { margin-bottom: 0; height: 100%; display: flex; flex-direction: column; }
+
+    /* ============ CHART ============ */
+    .chart-tabs { display: flex; gap: 6px; }
+    .chart-tab {
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: 0.2s;
+    }
+    .chart-tab.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-color: rgba(240,165,0,0.4);
+    }
+    .chart-tab:hover:not(.active) { border-color: var(--border-strong); }
+    .chart-wrap {
+      position: relative;
+      height: 220px;
+      margin-top: 8px;
+    }
+    .chart-empty {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 40px 20px;
+      font-size: 0.88rem;
+    }
+    .chart-empty i {
+      display: block;
+      font-size: 2rem;
+      opacity: 0.3;
+      margin-bottom: 10px;
+    }
+    .chart-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 0.82rem;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .chart-summary-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .chart-summary-item .label { color: var(--text-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 700; }
+    .chart-summary-item .value { font-family: 'Space Grotesk', sans-serif; font-weight: 700; }
+    .chart-summary-item .value.positive { color: var(--success); }
+
+    /* ============ MONTHLY GOAL ============ */
+    .goal-body { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+    .goal-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .goal-current {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .goal-target {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .goal-progress {
+      height: 12px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 20px;
+      overflow: hidden;
+      margin: 12px 0;
+      position: relative;
+    }
+    .goal-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--teal));
+      border-radius: 20px;
+      transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+    .goal-fill::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      animation: shimmer 2s infinite;
+    }
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    .goal-pct {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: var(--text-main);
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .goal-msg {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+    .goal-edit {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 700;
+      transition: 0.2s;
+    }
+    .goal-edit:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ============ ACTIVITY TIMELINE ============ */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      flex: 1;
+    }
+    .timeline-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px 0;
+      position: relative;
+    }
+    .timeline-item:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 15px;
+      top: 44px;
+      bottom: -12px;
+      width: 2px;
+      background: var(--border);
+    }
+    .timeline-dot {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--accent-soft);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      flex-shrink: 0;
+      z-index: 1;
+    }
+    .timeline-dot.success { background: var(--success-soft); color: var(--success); }
+    .timeline-dot.teal { background: var(--teal-soft); color: var(--teal); }
+    .timeline-dot.info { background: var(--info-soft); color: var(--info); }
+    .timeline-dot.purple { background: var(--purple-soft); color: var(--purple); }
+    .timeline-content { flex: 1; min-width: 0; }
+    .timeline-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 2px;
+      word-break: break-word;
+    }
+    .timeline-time {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+    .timeline-empty {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 30px 20px;
+      font-size: 0.85rem;
+    }
+    .timeline-empty i {
+      display: block;
+      font-size: 1.6rem;
+      opacity: 0.3;
+      margin-bottom: 8px;
+    }
+
+    /* ============ TEAM CARD ============ */
+    .team-grid { display: grid; gap: 10px; }
+    .team-member {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.2s;
+      text-align: left;
+      font-family: inherit;
+      width: 100%;
+      color: inherit;
+    }
+    .team-member:hover {
+      border-color: var(--accent);
+      background: rgba(240, 165, 0, 0.05);
+      transform: translateX(2px);
+    }
+    .team-avatar {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+      color: #fff;
+    }
+    .team-avatar.purple { background: linear-gradient(135deg, #8B5CF6, #6D28D9); }
+    .team-avatar.blue { background: linear-gradient(135deg, #3B82F6, #1D4ED8); }
+    .team-avatar.green { background: linear-gradient(135deg, #10B981, #059669); }
+    .team-info { flex: 1; min-width: 0; }
+    .team-name { font-weight: 700; font-size: 0.85rem; }
+    .team-role { font-size: 0.72rem; color: var(--text-muted); }
+    .team-status {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      flex-shrink: 0;
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+    }
+    .team-footer {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.5;
+    }
+    .team-footer strong { color: var(--accent); }
+
+    /* ============ TIPS CARD ============ */
+    .tip-card {
+      background: linear-gradient(135deg, rgba(240,165,0,0.1), rgba(15,181,166,0.05));
+      border: 1px solid rgba(240,165,0,0.25);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      min-height: 90px;
+    }
+    .tip-icon {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .tip-content { flex: 1; min-width: 0; }
+    .tip-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; }
+    .tip-text { font-size: 0.82rem; color: var(--text-muted); line-height: 1.55; }
+    .tip-nav {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-top: 14px;
+    }
+    .tip-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      border: none;
+      cursor: pointer;
+      transition: 0.2s;
+      padding: 0;
+    }
+    .tip-dot.active {
+      background: var(--accent);
+      width: 20px;
+      border-radius: 4px;
+    }
+
+    /* ============ STORE INFO ============ */
+    .store-info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    .info-block { display: flex; flex-direction: column; gap: 4px; }
+    .info-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+    .info-value {
+      font-weight: 600;
+      font-size: 0.95rem;
+      word-break: break-word;
+    }
+    .store-link {
+      color: var(--teal);
+      font-family: 'Space Grotesk', monospace;
+      font-size: 0.85rem;
+      text-decoration: none;
+      word-break: break-all;
+      line-height: 1.4;
+      transition: color 0.2s;
+    }
+    .store-link:hover { color: var(--accent); text-decoration: underline; }
+    .store-link.disabled { color: var(--text-dim); cursor: not-allowed; text-decoration: none; }
+    .store-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .empty-store { text-align: center; padding: 32px 20px; }
+    .empty-store .empty-icon {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: var(--accent-soft);
+      color: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem;
+      margin: 0 auto 16px;
+    }
+    .empty-store p {
+      color: var(--text-muted);
+      margin-bottom: 18px;
+      font-size: 0.9rem;
+    }
+
+    /* ============ TABLE ============ */
+    .table-responsive { overflow-x: auto; margin: 0 -8px; }
+    .tx-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      min-width: 550px;
+    }
+    .tx-table th, .tx-table td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .tx-table th {
+      color: var(--text-muted);
+      font-weight: 700;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      background: var(--bg-elevated);
+      position: sticky;
+      top: 0;
+    }
+    .tx-table tbody tr { transition: background 0.15s; }
+    .tx-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+    .tx-table td {
+      font-size: 0.88rem;
+      vertical-align: middle;
+    }
+    .tx-table td.tx-date { color: var(--text-muted); font-size: 0.78rem; white-space: nowrap; }
+    .tx-table td.tx-customer { font-weight: 600; }
+    .tx-table td.tx-profit {
+      color: var(--teal);
+      font-weight: 800;
+      font-family: 'Space Grotesk', sans-serif;
+      white-space: nowrap;
+    }
+    .tx-empty {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 40px 20px;
+      font-size: 0.9rem;
+    }
+    .tx-empty i {
+      display: block;
+      font-size: 1.8rem;
+      margin-bottom: 10px;
+      opacity: 0.4;
+    }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+      align-items: center;
+    }
+    .filter-chip {
+      padding: 6px 12px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.2s;
+      font-family: inherit;
+    }
+    .filter-chip:hover { border-color: var(--border-strong); }
+    .filter-chip.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-color: rgba(240,165,0,0.4);
+    }
+    .filter-search {
+      flex: 1;
+      min-width: 150px;
+      padding: 8px 12px;
+      border-radius: 20px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      font-size: 0.8rem;
+      outline: none;
+      font-family: inherit;
+    }
+    .filter-search:focus { border-color: var(--accent); }
+    .filter-search::placeholder { color: var(--text-dim); }
+
+    /* ============ WEBSITE CARD ============ */
+    .website-card {
+      background: linear-gradient(135deg, rgba(240, 165, 0, 0.1), rgba(15, 181, 166, 0.05));
+      border: 1px solid rgba(240, 165, 0, 0.3);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+    .website-card::before {
+      content: '';
+      position: absolute;
+      top: -50px; right: -50px;
+      width: 160px; height: 160px;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0.08;
+      filter: blur(30px);
+    }
+    .website-card .wc-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem;
+    }
+    .website-card h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      color: var(--accent);
+      margin: 0;
+      font-size: 1.2rem;
+    }
+    .website-card p {
+      color: var(--text-muted);
+      line-height: 1.55;
+      font-size: 0.9rem;
+      margin: 0;
+    }
+    .website-card .btn { align-self: flex-start; margin-top: 6px; }
+
+    /* ============ MODAL ============ */
     .modal {
-      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
       backdrop-filter: blur(8px);
+      padding: 16px;
     }
     .modal.active { display: flex; }
     .modal-content {
-      background: var(--bg-card); border: 1px solid var(--border-color);
-      border-radius: 20px; padding: 2rem; width: 90%; max-width: 500px;
-      position: relative; animation: modalSlideIn 0.3s ease;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 26px 24px;
+      width: 100%;
+      max-width: 480px;
+      position: relative;
+      animation: modalSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: var(--shadow-lg);
+      max-height: 92vh;
+      overflow-y: auto;
     }
-    @keyframes modalSlideIn { from { opacity: 0; transform: translateY(-30px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes modalSlideIn {
+      from { opacity: 0; transform: translateY(-20px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
     .modal-close {
-      position: absolute; top: 15px; right: 20px; background: none; border: none;
-      color: var(--text-muted); font-size: 1.8rem; cursor: pointer; transition: 0.3s;
+      position: absolute;
+      top: 14px; right: 14px;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: 0.2s;
     }
-    .modal-close:hover { color: var(--accent-primary); }
-    .modal-header h3 { font-family: 'Space Grotesk', sans-serif; color: var(--accent-primary); margin-top: 0; font-size: 1.4rem; }
-    
-    .form-group { margin-bottom: 15px; text-align: left; }
-    .form-group label { display: block; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;}
-    .form-control {
-      width: 100%; padding: 12px 15px; border-radius: 10px; border: 1px solid var(--border-color);
-      background: rgba(0,0,0,0.3); color: #fff; font-family: inherit; font-size: 0.95rem;
-      transition: all 0.3s;
+    .modal-close:hover { background: rgba(255,255,255,0.1); color: var(--accent); }
+    .modal-header h3 {
+      font-family: 'Space Grotesk', sans-serif;
+      color: var(--accent);
+      margin: 0 0 8px;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
-    .form-control:focus { outline: none; border-color: var(--accent-primary); background: rgba(0,0,0,0.5); }
-    .form-text-info { font-size: 0.85rem; color: #F0A500; margin-top: 10px; display: flex; align-items: flex-start; gap: 8px; line-height: 1.4; background: rgba(240, 165, 0, 0.1); padding: 10px; border-radius: 8px;}
+    .modal-header p {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin: 0 0 20px;
+      line-height: 1.5;
+    }
 
-    #globalLoader { text-align: center; padding: 5rem; color: var(--accent-primary); }
-    #mainContent { display: none; }
-    #noStoreView { display: none; text-align: center; padding: 2rem 0; }
-    #hasStoreView { display: none; }
-    
+    .form-group { margin-bottom: 16px; }
+    .form-group:last-of-type { margin-bottom: 0; }
+    .form-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    .form-label .req { color: var(--danger); }
+    .form-control {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border-strong);
+      background: rgba(0,0,0,0.3);
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.92rem;
+      transition: all 0.2s;
+      outline: none;
+      resize: vertical;
+    }
+    .form-control:focus {
+      border-color: var(--accent);
+      background: rgba(0,0,0,0.5);
+      box-shadow: 0 0 0 3px rgba(240, 165, 0, 0.12);
+    }
+    .form-control::placeholder { color: var(--text-dim); }
+    textarea.form-control { min-height: 90px; }
+
+    .info-box {
+      background: rgba(240, 165, 0, 0.08);
+      border: 1px solid rgba(240, 165, 0, 0.25);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 0.82rem;
+      color: var(--accent);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+    .info-box i { margin-top: 2px; flex-shrink: 0; }
+    .info-box.teal {
+      background: rgba(15, 181, 166, 0.08);
+      border-color: rgba(15, 181, 166, 0.25);
+      color: var(--teal);
+    }
+    .info-box.danger {
+      background: var(--danger-soft);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: var(--danger);
+    }
+
+    /* ============ NOTIFICATIONS DRAWER ============ */
+    .notif-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 998;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .notif-overlay.open { opacity: 1; pointer-events: auto; }
+    .notif-drawer {
+      position: fixed;
+      top: 0; right: 0;
+      width: 100%;
+      max-width: 400px;
+      height: 100vh;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border);
+      z-index: 999;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: -20px 0 60px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+    }
+    .notif-drawer.open { transform: translateX(0); }
+    .notif-drawer-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .notif-drawer-header h3 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.05rem;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .notif-drawer-header h3 i { color: var(--accent); }
+    .notif-close {
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.04);
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: 0.2s;
+    }
+    .notif-close:hover { color: var(--accent); background: rgba(255,255,255,0.08); }
+    .notif-drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+    .notif-item {
+      padding: 12px 14px;
+      background: rgba(255,255,255,0.02);
+      border-radius: 10px;
+      margin-bottom: 10px;
+      border-left: 3px solid var(--accent);
+      transition: 0.2s;
+    }
+    .notif-item:hover { background: rgba(255,255,255,0.04); }
+    .notif-item.unread {
+      background: rgba(240, 165, 0, 0.06);
+      border-left-color: var(--accent);
+    }
+    .notif-item.success { border-left-color: var(--success); }
+    .notif-item.info { border-left-color: var(--info); }
+    .notif-item.purple { border-left-color: var(--purple); }
+    .notif-item-title {
+      font-weight: 700;
+      font-size: 0.85rem;
+      margin-bottom: 3px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .notif-item-title i { font-size: 0.8rem; }
+    .notif-item-text {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .notif-item-time {
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+    .notif-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+    .notif-empty i { display: block; font-size: 2rem; opacity: 0.3; margin-bottom: 10px; }
+
+    /* ============ TOASTS ============ */
+    .toast-container {
+      position: fixed;
+      bottom: 90px; right: 20px;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 380px;
+    }
+    .toast {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-strong);
+      border-left: 4px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      box-shadow: var(--shadow-lg);
+      animation: toastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      min-width: 280px;
+    }
+    .toast.removing { animation: toastOut 0.3s ease forwards; }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(40px) scale(0.9); }
+      to { opacity: 1; transform: translateX(0) scale(1); }
+    }
+    @keyframes toastOut { to { opacity: 0; transform: translateX(40px) scale(0.9); } }
+    .toast-icon {
+      flex-shrink: 0;
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem;
+    }
+    .toast.success { border-left-color: var(--success); }
+    .toast.success .toast-icon { background: var(--success-soft); color: var(--success); }
+    .toast.error { border-left-color: var(--danger); }
+    .toast.error .toast-icon { background: var(--danger-soft); color: var(--danger); }
+    .toast.warning { border-left-color: var(--accent); }
+    .toast.warning .toast-icon { background: var(--accent-soft); color: var(--accent); }
+    .toast.info { border-left-color: var(--info); }
+    .toast.info .toast-icon { background: var(--info-soft); color: var(--info); }
+    .toast-content { flex: 1; min-width: 0; }
+    .toast-title { font-weight: 700; font-size: 0.85rem; margin-bottom: 2px; }
+    .toast-message { font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; }
+    .toast-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 0.95rem;
+      padding: 0;
+      line-height: 1;
+      transition: color 0.2s;
+    }
+    .toast-close:hover { color: var(--text-main); }
+
+    /* ============ HELP FLOAT ============ */
+    .help-float {
+      position: fixed;
+      bottom: 22px; right: 22px;
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: #25D366;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem;
+      box-shadow: 0 8px 24px rgba(37, 211, 102, 0.4);
+      z-index: 997;
+      transition: transform 0.25s, box-shadow 0.25s;
+    }
+    .help-float:hover {
+      transform: scale(1.08);
+      box-shadow: 0 12px 32px rgba(37, 211, 102, 0.55);
+    }
+    .help-float::after {
+      content: 'Besoin d\'aide ?';
+      position: absolute;
+      right: 66px; top: 50%;
+      transform: translateY(-50%);
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      border: 1px solid var(--border-strong);
+    }
+    .help-float:hover::after { opacity: 1; }
+
+    /* ============ CURRENCY SELECT ============ */
+    .currency-bar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-bottom: 12px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    .currency-select {
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      outline: none;
+      font-family: inherit;
+    }
+    .currency-select:hover { border-color: var(--accent); }
+
+    /* ============ RESPONSIVE ============ */
+    @media (max-width: 1000px) {
+      .insights-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 900px) {
+      .balances-grid { grid-template-columns: 1fr; }
+      .store-info-grid { grid-template-columns: 1fr; }
+    }
     @media (max-width: 600px) {
-      .welcome-section { flex-direction: column; text-align: center; }
+      .top-header-inner { padding: 12px 14px; }
+      .brand-subtitle { display: none; }
+      .brand-name { font-size: 0.88rem; }
+      .header-btn { padding: 9px 12px; font-size: 0.75rem; }
+      .header-btn span { display: none; }
+      .header-btn i { font-size: 1rem; }
+      #mainContent { padding: 20px 14px 100px; }
+      .welcome-section { gap: 14px; }
+      .header-avatar-container { width: 56px; height: 56px; }
+      .welcome-text h1 { font-size: 1.25rem; }
+      .welcome-text p { font-size: 0.82rem; }
+      .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+      .stat-card { padding: 12px; }
+      .stat-card-value { font-size: 1rem; }
+      .balance-card { padding: 18px; }
+      .balance-amount { font-size: 1.5rem; }
+      .section-card { padding: 18px; }
+      .section-header { margin-bottom: 14px; padding-bottom: 12px; }
+      .section-header h2 { font-size: 1rem; }
+      .website-card { padding: 22px; }
+      .website-card h2 { font-size: 1.1rem; }
+      .toast-container { left: 14px; right: 14px; bottom: 90px; max-width: none; }
+      .toast { min-width: 0; }
+      .chart-wrap { height: 180px; }
+      .notif-drawer { max-width: 100%; }
+    }
+    @media (max-width: 380px) {
+      .stats-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
 
-  <header>
-    <div class="header-title"><i class="fas fa-store"></i> Tableau de Bord Boutique</div>
-    <a href="gestion-boutique.html" class="btn btn-outline btn-auto" style="padding: 8px 15px;"><i class="fas fa-cog"></i> Gérer ma boutique</a>
+  <header class="top-header">
+    <div class="top-header-inner">
+      <div class="brand">
+        <div class="brand-logo"><i class="fas fa-bolt"></i></div>
+        <div class="brand-text">
+          <div class="brand-name">Social Boost <span>Horizon</span></div>
+          <div class="brand-subtitle">Tableau de bord</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="bell-btn" onclick="openNotifDrawer()" title="Notifications" aria-label="Notifications">
+          <i class="fas fa-bell"></i>
+          <span class="bell-badge" id="bellBadge">0</span>
+        </button>
+        <button class="header-btn header-btn-ghost" onclick="contactSupport()" title="Contacter l'assistance">
+          <i class="fas fa-headset"></i>
+          <span>Aide</span>
+        </button>
+        <a href="gestion-boutique.html" class="header-btn header-btn-primary" title="Gérer ma boutique">
+          <i class="fas fa-cog"></i>
+          <span>Gérer</span>
+        </a>
+      </div>
+    </div>
   </header>
 
-  <div id="globalLoader"><i class="fas fa-circle-notch fa-spin fa-2x"></i></div>
+  <div id="globalLoader">
+    <i class="fas fa-circle-notch fa-spin"></i>
+    <p>Chargement de votre tableau de bord…</p>
+  </div>
 
-  <div id="mainContent" class="container">
-    
+  <div id="mainContent">
+
+    <!-- WELCOME -->
     <div class="welcome-section">
       <div class="header-avatar-container">
         <img id="userAvatarImg" src="https://ui-avatars.com/api/?name=User&background=111122&color=F0A500" alt="Avatar" class="header-avatar">
       </div>
       <div class="welcome-text">
-        <h1>Bienvenue, <span id="userNameDisplay">...</span> 👋</h1>
-        <p>Suivez ici les performances et les gains de votre boutique de revente.</p>
+        <h1>Bienvenue, <span id="userNameDisplay">…</span> 👋</h1>
+        <p>Voici l'aperçu de votre activité et de vos gains en temps réel.</p>
+        <div class="level-badge level-debutant" id="levelBadge">
+          <i class="fas fa-seedling"></i> Débutant
+        </div>
       </div>
     </div>
 
-    <!-- Section des soldes -->
+    <!-- ALERT -->
+    <div class="alert-banner" id="alertBanner">
+      <i class="fas fa-circle-exclamation alert-icon"></i>
+      <div class="alert-content" id="alertContent"></div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-card-icon accent"><i class="fas fa-receipt"></i></div>
+        <div class="stat-card-label">Commandes</div>
+        <div class="stat-card-value" id="statOrders">—</div>
+        <div class="stat-card-sub" id="statOrdersSub">Sur les 100 dernières</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-icon success"><i class="fas fa-coins"></i></div>
+        <div class="stat-card-label">Gains totaux</div>
+        <div class="stat-card-value" id="statRecentProfit">—</div>
+        <div class="stat-card-sub">Profit cumulé</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-icon teal"><i class="fas fa-calendar-check"></i></div>
+        <div class="stat-card-label">Ce mois-ci</div>
+        <div class="stat-card-value" id="statMonthProfit">—</div>
+        <div class="stat-card-sub">Gains du mois</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-icon info"><i class="fas fa-store"></i></div>
+        <div class="stat-card-label">Boutique</div>
+        <div class="stat-card-value sm" id="statStoreStatus">—</div>
+        <div class="stat-card-sub" id="statStoreSub">Statut</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-icon purple"><i class="fas fa-eye"></i></div>
+        <div class="stat-card-label">Visiteurs</div>
+        <div class="stat-card-value" id="statVisits">—</div>
+        <div class="stat-card-sub">Cette semaine</div>
+      </div>
+    </div>
+
+    <!-- BALANCES -->
+    <div class="currency-bar">
+      <i class="fas fa-coins" style="color: var(--accent);"></i>
+      <span>Afficher en :</span>
+      <select class="currency-select" id="currencySelect" onchange="onCurrencyChange()">
+        <option value="XAF">FCFA (XAF)</option>
+        <option value="EUR">EUR (€)</option>
+        <option value="USD">USD ($)</option>
+      </select>
+    </div>
+
     <div class="balances-grid">
-      <div class="balance-card">
-        <div>
-          <div class="balance-title">Solde Principal (Site)</div>
-          <div class="balance-amount" id="mainBalanceDisplay">0 FCFA</div>
+      <div class="balance-card primary">
+        <button class="eye-toggle" onclick="toggleBalances()" id="mainBalanceToggle" title="Masquer les montants">
+          <i class="fas fa-eye-slash"></i>
+        </button>
+        <div class="balance-header">
+          <div class="balance-icon"><i class="fas fa-wallet"></i></div>
+          <div class="balance-title">Solde Principal</div>
         </div>
-        <a href="paid.html" class="btn btn-primary"><i class="fas fa-wallet"></i> Déposer de l'argent</a>
+        <div class="balance-amount" id="mainBalanceDisplay">0 FCFA</div>
+        <div class="balance-hint">Pour vos achats sur la plateforme</div>
+        <a href="paid.html" class="btn btn-primary btn-block">
+          <i class="fas fa-plus-circle"></i> Déposer de l'argent
+        </a>
       </div>
-      
-      <div class="balance-card">
-        <div>
+
+      <div class="balance-card teal">
+        <button class="eye-toggle" onclick="toggleBalances()" id="storeBalanceToggle" title="Masquer les montants">
+          <i class="fas fa-eye-slash"></i>
+        </button>
+        <div class="balance-header">
+          <div class="balance-icon"><i class="fas fa-sack-dollar"></i></div>
           <div class="balance-title">Solde Boutique (Gains)</div>
-          <div class="balance-amount secondary" id="storeBalanceDisplay">0 FCFA</div>
         </div>
-        <button onclick="openWithdrawModal()" class="btn btn-outline" style="border-color: #0FB5A6; color: #0FB5A6;"><i class="fas fa-money-bill-wave"></i> Retirer l'argent</button>
+        <div class="balance-amount" id="storeBalanceDisplay">0 FCFA</div>
+        <div class="balance-hint" id="withdrawHint">Chargement du minimum…</div>
+        <button onclick="openWithdrawModal()" class="btn btn-teal btn-block">
+          <i class="fas fa-money-bill-transfer"></i> Retirer mes gains
+        </button>
       </div>
     </div>
 
-    <!-- Section Boutique -->
-    <div class="store-card">
-      <h2>
-        <span><i class="fas fa-shopping-bag"></i> Informations de la Boutique</span>
-      </h2>
-      
-      <!-- S'il n'a pas de boutique -->
-      <div id="noStoreView">
-        <i class="fas fa-store-slash fa-3x" style="color: var(--border-color); margin-bottom: 1rem;"></i>
-        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Vous n'avez pas encore configuré votre boutique.</p>
-        <a href="gestion-boutique.html" class="btn btn-primary btn-auto"><i class="fas fa-plus-circle"></i> Créer ma boutique</a>
+    <!-- INSIGHTS : CHART + GOAL -->
+    <div class="insights-grid">
+      <div class="section-card">
+        <div class="section-header">
+          <h2><i class="fas fa-chart-area"></i> Évolution des gains</h2>
+          <div class="chart-tabs">
+            <button class="chart-tab active" data-days="7" onclick="setChartPeriod(7, this)">7j</button>
+            <button class="chart-tab" data-days="30" onclick="setChartPeriod(30, this)">30j</button>
+          </div>
+        </div>
+        <div class="chart-wrap" id="chartWrap">
+          <canvas id="salesChart"></canvas>
+        </div>
+        <div class="chart-summary">
+          <div class="chart-summary-item">
+            <span class="label">Total période</span>
+            <span class="value positive" id="chartTotal">—</span>
+          </div>
+          <div class="chart-summary-item" style="text-align: right;">
+            <span class="label">Moy. / jour</span>
+            <span class="value" id="chartAvg">—</span>
+          </div>
+        </div>
       </div>
 
-      <!-- S'il a une boutique -->
-      <div id="hasStoreView">
-        <div class="store-info">
-          <div>
+      <div class="section-card">
+        <div class="section-header">
+          <h2><i class="fas fa-bullseye"></i> Objectif mensuel</h2>
+          <button class="goal-edit" onclick="editGoal()" title="Modifier l'objectif">
+            <i class="fas fa-pen"></i> Modifier
+          </button>
+        </div>
+        <div class="goal-body">
+          <div class="goal-header-row">
+            <span class="goal-current" id="goalCurrent">0 FCFA</span>
+            <span class="goal-target">sur <strong id="goalTarget">50 000 FCFA</strong></span>
+          </div>
+          <div class="goal-progress">
+            <div class="goal-fill" id="goalFill" style="width: 0%;"></div>
+          </div>
+          <div class="goal-pct" id="goalPct">0%</div>
+          <div class="goal-msg" id="goalMsg">Définissez votre objectif pour suivre votre progression.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STORE INFO -->
+    <div class="section-card">
+      <div class="section-header">
+        <h2><i class="fas fa-shopping-bag"></i> Ma boutique</h2>
+        <span class="section-badge" id="storeStatusBadge" style="display:none;">—</span>
+      </div>
+
+      <div id="noStoreView" class="empty-store" style="display:none;">
+        <div class="empty-icon"><i class="fas fa-store-slash"></i></div>
+        <p>Vous n'avez pas encore créé votre boutique.</p>
+        <a href="gestion-boutique.html" class="btn btn-primary">
+          <i class="fas fa-plus-circle"></i> Créer ma boutique
+        </a>
+      </div>
+
+      <div id="hasStoreView" style="display:none;">
+        <div class="store-info-grid">
+          <div class="info-block">
             <div class="info-label">Nom de la boutique</div>
-            <div class="info-value" id="storeNameDisplay">Chargement...</div>
+            <div class="info-value" id="storeNameDisplay">—</div>
           </div>
-          <div>
-            <div class="info-label">Propriétaire enregistré</div>
-            <div class="info-value" id="storeOwnerDisplay">Non renseigné</div>
+          <div class="info-block">
+            <div class="info-label">Propriétaire</div>
+            <div class="info-value" id="storeOwnerDisplay">—</div>
           </div>
-          <div>
-            <div class="info-label">Lien public de la boutique</div>
-            <a href="#" target="_blank" class="info-value store-link" id="storeLinkDisplay">Non publié</a>
+          <div class="info-block" style="grid-column: 1 / -1;">
+            <div class="info-label">Lien public</div>
+            <a href="#" target="_blank" class="info-value store-link disabled" id="storeLinkDisplay">Non publiée</a>
           </div>
         </div>
-        <a href="gestion-boutique.html" class="btn btn-primary btn-auto"><i class="fas fa-edit"></i> Modifier les paramètres de la boutique</a>
+        <div class="store-actions">
+          <a href="gestion-boutique.html" class="btn btn-outline btn-sm">
+            <i class="fas fa-edit"></i> Modifier
+          </a>
+          <button class="btn btn-outline btn-sm" onclick="copyStoreLink()" id="copyLinkBtn" style="display:none;">
+            <i class="fas fa-copy"></i> Copier le lien
+          </button>
+          <a href="#" target="_blank" class="btn btn-teal btn-sm" id="viewStoreBtn" style="display:none;">
+            <i class="fas fa-external-link-alt"></i> Voir ma boutique
+          </a>
+        </div>
       </div>
     </div>
 
-    <!-- Section Upsell Création de Site Web -->
-    <div class="website-upsell-card">
-      <h2><i class="fas fa-laptop-code"></i> Créez votre Propre Entreprise</h2>
-      <p>Souhaitez-vous créer votre site web à présent pour avoir votre propre entreprise personnelle avec plus de personnalisation que celui-ci ? Prenez le contrôle total de votre image !</p>
-      <button onclick="openWebsiteModal()" class="btn btn-primary btn-auto"><i class="fas fa-rocket"></i> Créer mon propre site web</button>
+    <!-- ACTIVITY + TEAM -->
+    <div class="insights-grid">
+      <div class="section-card">
+        <div class="section-header">
+          <h2><i class="fas fa-history"></i> Activité récente</h2>
+        </div>
+        <div class="timeline" id="activityTimeline">
+          <div class="timeline-empty">
+            <i class="fas fa-hourglass-start"></i>
+            Chargement de l'activité…
+          </div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-header">
+          <h2><i class="fas fa-users"></i> Notre équipe</h2>
+        </div>
+        <div class="team-grid">
+          <button class="team-member" onclick="contactTeam('support')">
+            <div class="team-avatar purple"><i class="fas fa-headset"></i></div>
+            <div class="team-info">
+              <div class="team-name">Support général</div>
+              <div class="team-role">Réponse &lt; 2h</div>
+            </div>
+            <div class="team-status"></div>
+          </button>
+          <button class="team-member" onclick="contactTeam('tech')">
+            <div class="team-avatar blue"><i class="fas fa-wrench"></i></div>
+            <div class="team-info">
+              <div class="team-name">Problème technique</div>
+              <div class="team-role">Assistance boutique</div>
+            </div>
+            <div class="team-status"></div>
+          </button>
+          <button class="team-member" onclick="contactTeam('billing')">
+            <div class="team-avatar green"><i class="fas fa-money-check-dollar"></i></div>
+            <div class="team-info">
+              <div class="team-name">Facturation & paiements</div>
+              <div class="team-role">Retraits & soldes</div>
+            </div>
+            <div class="team-status"></div>
+          </button>
+        </div>
+        <div class="team-footer">
+          <strong>Une équipe dédiée</strong> à votre réussite.<br>
+          Nous sommes là pour vous accompagner à chaque étape.
+        </div>
+      </div>
     </div>
 
-    <!-- Historique des Ventes -->
-    <div class="history-card" id="transactionsSection">
-      <h2><i class="fas fa-chart-line"></i> Derniers gains (Commandes)</h2>
+    <!-- TRANSACTIONS -->
+    <div class="section-card" id="transactionsSection" style="display:none;">
+      <div class="section-header">
+        <h2><i class="fas fa-chart-line"></i> Mes transactions</h2>
+        <button class="btn btn-outline btn-sm" onclick="exportCSV()">
+          <i class="fas fa-download"></i> Exporter CSV
+        </button>
+      </div>
+
+      <div class="filter-bar">
+        <button class="filter-chip active" data-range="all" onclick="setDateRange('all', this)">Tout</button>
+        <button class="filter-chip" data-range="7" onclick="setDateRange('7', this)">7 jours</button>
+        <button class="filter-chip" data-range="30" onclick="setDateRange('30', this)">30 jours</button>
+        <button class="filter-chip" data-status="success" onclick="setStatusFilter('success', this)">✓ Réussies</button>
+        <button class="filter-chip" data-status="pending" onclick="setStatusFilter('pending', this)">⏳ En attente</button>
+        <button class="filter-chip" data-status="failed" onclick="setStatusFilter('failed', this)">✗ Échouées</button>
+        <input type="text" class="filter-search" id="filterSearch" placeholder="Rechercher (client, service)…" oninput="onSearchFilter()">
+      </div>
+
       <div class="table-responsive">
         <table class="tx-table">
           <thead>
@@ -248,75 +1721,178 @@
               <th>Client</th>
               <th>Service</th>
               <th>Qté</th>
-              <th>Prix Payé</th>
-              <th>Votre Gain</th>
+              <th>Payé</th>
+              <th>Mon gain</th>
+              <th>Statut</th>
             </tr>
           </thead>
           <tbody id="transactionsBody">
-            <tr><td colspan="6" class="tx-empty"><i class="fas fa-spinner fa-spin"></i> Chargement de vos gains...</td></tr>
+            <tr><td colspan="7" class="tx-empty"><i class="fas fa-spinner fa-spin"></i> Chargement…</td></tr>
           </tbody>
         </table>
       </div>
     </div>
 
+    <!-- TIPS -->
+    <div class="section-card">
+      <div class="section-header">
+        <h2><i class="fas fa-lightbulb"></i> Conseils pour vendre plus</h2>
+      </div>
+      <div class="tip-card">
+        <div class="tip-icon" id="tipIcon"><i class="fas fa-rocket"></i></div>
+        <div class="tip-content">
+          <div class="tip-title" id="tipTitle">Bienvenue sur votre tableau de bord !</div>
+          <div class="tip-text" id="tipText">Explorez les conseils ci-dessous pour maximiser vos ventes.</div>
+        </div>
+      </div>
+      <div class="tip-nav" id="tipNav"></div>
+    </div>
+
+    <!-- WEBSITE UPSELL -->
+    <div class="website-card">
+      <div class="wc-icon"><i class="fas fa-rocket"></i></div>
+      <h2>Envie de créer votre propre site web ?</h2>
+      <p>
+        Passez au niveau supérieur avec une plateforme 100 % à votre image : votre nom de domaine,
+        votre identité visuelle, vos fonctionnalités sur mesure. Dites-nous ce que vous avez en tête,
+        et notre équipe vous accompagne pour concrétiser votre projet.
+      </p>
+      <button class="btn btn-primary" onclick="openWebsiteModal()">
+        <i class="fab fa-whatsapp"></i> Discuter de mon projet
+      </button>
+    </div>
+
   </div>
 
-  <!-- MODAL DE RETRAIT -->
+  <!-- NOTIFICATIONS DRAWER -->
+  <div class="notif-overlay" id="notifOverlay" onclick="closeNotifDrawer()"></div>
+  <div class="notif-drawer" id="notifDrawer">
+    <div class="notif-drawer-header">
+      <h3><i class="fas fa-bell"></i> Notifications</h3>
+      <button class="notif-close" onclick="closeNotifDrawer()" aria-label="Fermer">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="notif-drawer-body" id="notifBody">
+      <div class="notif-empty">
+        <i class="fas fa-bell-slash"></i>
+        Aucune notification pour le moment.
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL RETRAIT -->
   <div class="modal" id="withdrawModal">
     <div class="modal-content">
-      <button class="modal-close" onclick="closeModal('withdrawModal')">&times;</button>
+      <button class="modal-close" onclick="closeModal('withdrawModal')" aria-label="Fermer">
+        <i class="fas fa-times"></i>
+      </button>
       <div class="modal-header">
-        <h3><i class="fas fa-money-bill-transfer"></i> Demande de Retrait</h3>
-      </div>
-      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">Demandez le retrait de vos gains. Vos informations de compte seront automatiquement jointes à la demande.</p>
-      
-      <div class="form-group">
-        <label for="withdrawPhone"><i class="fas fa-phone-alt"></i> Numéro de réception de l'argent</label>
-        <input type="tel" id="withdrawPhone" class="form-control" placeholder="Ex: +237 6XX XXX XXX (avec indicatif)" required>
-      </div>
-      
-      <div class="form-group">
-        <label for="withdrawMessage"><i class="fas fa-comment-dots"></i> Message (Optionnel)</label>
-        <textarea id="withdrawMessage" class="form-control" rows="3" placeholder="Ex: Je souhaite recevoir par Mobile Money..."></textarea>
+        <h3><i class="fas fa-money-bill-transfer"></i> Retirer mes gains</h3>
+        <p>Votre demande sera transmise à notre équipe via WhatsApp pour un traitement rapide.</p>
       </div>
 
-      <div class="form-text-info">
-        <i class="fas fa-exclamation-triangle"></i>
-        <span>Le retrait peut prendre jusqu'à 24 heures voire plus. Cela dépend du moyen de paiement choisi et du pays dans lequel vous vous trouvez.</span>
+      <div class="info-box teal">
+        <i class="fas fa-wallet"></i>
+        <div>
+          <strong>Solde boutique :</strong> <span id="withdrawBalanceDisplay">0 FCFA</span>
+          <div id="withdrawMinInfo" style="margin-top: 4px; font-size: 0.78rem; opacity: 0.85;"></div>
+        </div>
       </div>
 
-      <button onclick="submitWithdraw()" class="btn btn-success" style="margin-top: 20px;">
-        <i class="fab fa-whatsapp" style="font-size: 1.2rem;"></i> Envoyer la demande sur WhatsApp
+      <div id="withdrawWarning" class="info-box danger" style="display:none;">
+        <i class="fas fa-triangle-exclamation"></i>
+        <div id="withdrawWarningText"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="withdrawPhone">
+          <i class="fas fa-phone-alt"></i>
+          Numéro de réception <span class="req">*</span>
+        </label>
+        <input type="tel" id="withdrawPhone" class="form-control" placeholder="Ex : +237 6XX XXX XXX">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="withdrawMessage">
+          <i class="fas fa-comment-dots"></i>
+          Message (optionnel)
+        </label>
+        <textarea id="withdrawMessage" class="form-control" rows="2" placeholder="Ex : Orange Money de préférence"></textarea>
+      </div>
+
+      <div class="info-box">
+        <i class="fas fa-clock"></i>
+        <span>Le traitement peut prendre jusqu'à 24 h selon votre pays et le moyen de paiement.</span>
+      </div>
+
+      <button onclick="submitWithdraw()" class="btn btn-success btn-block" id="btnWithdrawSubmit" style="margin-top: 6px;">
+        <i class="fab fa-whatsapp" style="font-size: 1.1rem;"></i> Envoyer la demande sur WhatsApp
       </button>
     </div>
   </div>
 
-  <!-- MODAL DE CREATION DE SITE WEB -->
+  <!-- MODAL SITE WEB -->
   <div class="modal" id="websiteModal">
     <div class="modal-content">
-      <button class="modal-close" onclick="closeModal('websiteModal')">&times;</button>
+      <button class="modal-close" onclick="closeModal('websiteModal')" aria-label="Fermer">
+        <i class="fas fa-times"></i>
+      </button>
       <div class="modal-header">
-        <h3><i class="fas fa-globe"></i> Lancer mon Site Web</h3>
-      </div>
-      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">Donnez-nous quelques détails sur votre vision, et nous vous accompagnerons pour créer une plateforme à votre image.</p>
-      
-      <div class="form-group">
-        <label for="websiteName"><i class="fas fa-heading"></i> Nom de votre future plateforme</label>
-        <input type="text" id="websiteName" class="form-control" placeholder="Ex: BoostImpact Pro">
-      </div>
-      
-      <div class="form-group">
-        <label for="websiteDetails"><i class="fas fa-list-ul"></i> Vos besoins / Fonctionnalités souhaitées</label>
-        <textarea id="websiteDetails" class="form-control" rows="4" placeholder="J'aimerais avoir un design similaire à... avec des options pour..."></textarea>
+        <h3><i class="fas fa-globe"></i> Discutons de votre projet</h3>
+        <p>Un message est déjà prérempli avec vos informations. Vous pouvez le modifier avant l'envoi.</p>
       </div>
 
-      <button onclick="submitWebsite()" class="btn btn-primary" style="margin-top: 10px;">
-        <i class="fab fa-whatsapp" style="font-size: 1.2rem;"></i> Discuter de mon projet
+      <div class="form-group">
+        <label class="form-label" for="websiteExtra">
+          <i class="fas fa-pen"></i>
+          Précisions supplémentaires (optionnel)
+        </label>
+        <textarea id="websiteExtra" class="form-control" rows="3" placeholder="Ex : J'aimerais un design moderne avec un système de paiement intégré…"></textarea>
+      </div>
+
+      <div class="info-box">
+        <i class="fas fa-info-circle"></i>
+        <span>Ce message sera envoyé par WhatsApp à notre équipe qui vous répondra dans les plus brefs délais.</span>
+      </div>
+
+      <button onclick="submitWebsite()" class="btn btn-success btn-block" id="btnWebsiteSubmit">
+        <i class="fab fa-whatsapp" style="font-size: 1.1rem;"></i> Envoyer sur WhatsApp
       </button>
     </div>
   </div>
 
+  <!-- MODAL OBJECTIF -->
+  <div class="modal" id="goalModal">
+    <div class="modal-content" style="max-width: 400px;">
+      <button class="modal-close" onclick="closeModal('goalModal')" aria-label="Fermer">
+        <i class="fas fa-times"></i>
+      </button>
+      <div class="modal-header">
+        <h3><i class="fas fa-bullseye"></i> Objectif mensuel</h3>
+        <p>Définissez le montant de gains que vous souhaitez atteindre ce mois-ci.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="goalInput">
+          <i class="fas fa-coins"></i>
+          Montant cible (FCFA)
+        </label>
+        <input type="number" id="goalInput" class="form-control" min="1000" step="1000" placeholder="Ex : 50000">
+      </div>
+      <button onclick="saveGoal()" class="btn btn-primary btn-block" style="margin-top: 8px;">
+        <i class="fas fa-check"></i> Enregistrer
+      </button>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <button class="help-float" onclick="contactSupport()" title="Contacter l'assistance">
+    <i class="fab fa-whatsapp"></i>
+  </button>
+
   <script>
+    /* ==================== CONFIG ==================== */
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       authDomain: "social-boost-horizon.firebaseapp.com",
@@ -329,135 +1905,1056 @@
     const db = firebase.firestore();
     const auth = firebase.auth();
 
-    // Variable pour stocker les infos de l'utilisateur courant pour les formulaires
+    /* ==================== CONSTANTES ==================== */
+    const SUPPORT_WHATSAPP = '14236752034'; // +1 (423) 675-2034
+    const MIN_WITHDRAW_CAMEROUN = 1000;
+    const MIN_WITHDRAW_OTHER = 1500;
+    const DEFAULT_GOAL = 50000;
+
+    /* ==================== STATE ==================== */
     let currentGlobalUser = {};
-    let storeOwnerName = "";
+    let storeOwnerName = '';
+    let currentStoreData = null;
+    let currentStoreId = null;
+    let currentUserCountry = '';
 
-    auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        try {
-          const userDoc = await db.collection('users').doc(user.uid).get();
-          if(userDoc.exists) {
-            const userData = userDoc.data();
-            currentGlobalUser = userData;
-            currentGlobalUser.email = user.email; // Garder l'email sous la main
-            
-            // Chargement de la photo de profil (comme dans profil.html)
-            const photoUrl = userData.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.nom || 'Revendeur')}&background=F0A500&color=000000&bold=true`;
-            document.getElementById('userAvatarImg').src = photoUrl;
-            
-            // Affichage initial du nom (Sera écrasé par le nom du propriétaire de la boutique s'il existe)
-            document.getElementById('userNameDisplay').innerText = userData.nom || "Revendeur";
-            
-            // Gestion des soldes : on cherche le champ 'balance' pour le solde principal !
-            const soldePrincipal = userData.balance || 0; 
-            const soldeBoutique = userData.soldeBoutique || 0;
-            
-            document.getElementById('mainBalanceDisplay').innerText = soldePrincipal + " FCFA";
-            document.getElementById('storeBalanceDisplay').innerText = soldeBoutique + " FCFA";
+    let allTransactions = [];
+    let filteredTransactions = [];
+    let chartPeriod = 7;
+    let chartInstance = null;
 
-            // Vérification de la boutique associée
-            if(userData.storeId) {
-              await loadStoreDetails(userData.storeId);
-              document.getElementById('noStoreView').style.display = 'none';
-              document.getElementById('hasStoreView').style.display = 'block';
-              document.getElementById('transactionsSection').style.display = 'block';
-              await loadTransactions(userData.storeId);
-            } else {
-              document.getElementById('hasStoreView').style.display = 'none';
-              document.getElementById('noStoreView').style.display = 'block';
-              document.getElementById('transactionsSection').style.display = 'none';
-            }
+    let currentMainBalance = 0;
+    let currentStoreBalance = 0;
 
-            document.getElementById('globalLoader').style.display = 'none';
-            document.getElementById('mainContent').style.display = 'block';
-          }
-        } catch (error) {
-          console.error("Erreur de chargement du tableau de bord boutique :", error);
-        }
-      } else {
-        window.location.href = "login.html";
+    let displayCurrency = localStorage.getItem('displayCurrency') || 'XAF';
+    let balancesHidden = localStorage.getItem('hideBalances') === 'true';
+
+    let currentFilters = {
+      dateRange: 'all',
+      status: 'all',
+      search: ''
+    };
+
+    const CURRENCY_RATES = {
+      'XAF': { rate: 1, symbol: 'FCFA', decimals: 0 },
+      'EUR': { rate: 0.00152, symbol: '€', decimals: 2 },
+      'USD': { rate: 0.00167, symbol: '$', decimals: 2 }
+    };
+
+    /* ==================== TIPS ==================== */
+    const TIPS = [
+      {
+        icon: 'fa-share-nodes',
+        title: 'Partagez votre boutique',
+        text: 'Publiez votre lien sur WhatsApp, Facebook et Instagram. Plus il circule, plus vous vendez.'
+      },
+      {
+        icon: 'fa-images',
+        title: 'Ajoutez des réalisations',
+        text: 'Une galerie avec des captures de vos résultats rassure les clients et multiplie votre crédibilité.'
+      },
+      {
+        icon: 'fa-circle-question',
+        title: 'Activez la FAQ',
+        text: 'Répondre aux questions courantes évite les hésitations et augmente le taux de commande.'
+      },
+      {
+        icon: 'fa-bullhorn',
+        title: 'Créez une bannière promo',
+        text: 'Une annonce "Promo -20%" en haut de votre boutique attire immédiatement l\'attention.'
+      },
+      {
+        icon: 'fa-percent',
+        title: 'Optimisez votre marge',
+        text: 'Une marge de 50 à 100% est idéale : assez rentable, et reste attractive pour vos clients.'
+      },
+      {
+        icon: 'fa-palette',
+        title: 'Personnalisez vos couleurs',
+        text: 'Une boutique à votre image inspire confiance. Choisissez vos couleurs préférées !'
+      },
+      {
+        icon: 'fa-bolt',
+        title: 'Répondez rapidement',
+        text: 'Sur WhatsApp, les clients qui reçoivent une réponse rapide commandent 3x plus souvent.'
+      },
+      {
+        icon: 'fa-star',
+        title: 'Soignez la description',
+        text: 'Un client bien informé commande plus facilement. Décrivez précisément vos services.'
       }
-    });
+    ];
+    let currentTipIndex = 0;
 
-    async function loadStoreDetails(storeId) {
-      try {
-        const storeDoc = await db.collection('stores').doc(storeId).get();
-        if(storeDoc.exists) {
-          const storeData = storeDoc.data();
-          
-          // Récupérer le nom du propriétaire de la boutique et l'afficher dans le message de bienvenue !
-          if (storeData.ownerName) {
-            storeOwnerName = storeData.ownerName;
-            document.getElementById('userNameDisplay').innerText = storeOwnerName;
-          }
+    /* ==================== UTILS ==================== */
+    function escapeHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
 
-          document.getElementById('storeNameDisplay').innerText = storeData.name || "Ma Boutique";
-          document.getElementById('storeOwnerDisplay').innerText = storeData.ownerName || "Non renseigné";
-          
-          if (storeData.status === "published" && storeData.storeUrl) {
-            const linkEl = document.getElementById('storeLinkDisplay');
-            linkEl.innerText = storeData.storeUrl;
-            linkEl.href = storeData.storeUrl;
-          } else {
-            document.getElementById('storeLinkDisplay').innerText = "Boutique non publiée (Mode Brouillon)";
-            document.getElementById('storeLinkDisplay').removeAttribute('href');
-          }
-        }
-      } catch (error) {
-        console.error("Erreur lecture boutique :", error);
+    function formatNumber(n) {
+      return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    }
+
+    function formatFCFA(amountXAF) {
+      const n = Math.round(Number(amountXAF) || 0);
+      const curr = CURRENCY_RATES[displayCurrency];
+      const converted = n * curr.rate;
+      if (curr.decimals === 0) {
+        return formatNumber(converted) + ' ' + curr.symbol;
+      } else {
+        const fixed = converted.toFixed(curr.decimals);
+        const parts = fixed.split('.');
+        return formatNumber(parseInt(parts[0])) + ',' + parts[1] + ' ' + curr.symbol;
       }
     }
 
+    function formatFCFARaw(amount) {
+      return formatNumber(amount) + ' FCFA';
+    }
+
+    function showToast(type, title, message) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      const icons = { success: 'fa-check', error: 'fa-xmark', warning: 'fa-exclamation', info: 'fa-info' };
+      toast.innerHTML = `
+        <div class="toast-icon"><i class="fas ${icons[type] || 'fa-info'}"></i></div>
+        <div class="toast-content">
+          <div class="toast-title">${escapeHtml(title)}</div>
+          <div class="toast-message">${escapeHtml(message || '')}</div>
+        </div>
+        <button class="toast-close" aria-label="Fermer"><i class="fas fa-times"></i></button>
+      `;
+      container.appendChild(toast);
+      const remove = () => {
+        toast.classList.add('removing');
+        setTimeout(() => toast.remove(), 300);
+      };
+      toast.querySelector('.toast-close').addEventListener('click', remove);
+      setTimeout(remove, 5500);
+    }
+
+    function isCameroon() {
+      const c = String(currentUserCountry || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return c.includes('camer') || c.includes('cameroon') || c === 'cm';
+    }
+
+    function getMinWithdraw() {
+      return isCameroon() ? MIN_WITHDRAW_CAMEROUN : MIN_WITHDRAW_OTHER;
+    }
+
+    function getSimulatedVisits(storeId) {
+      if (!storeId) return 0;
+      const weekSeed = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+      const seed = String(storeId) + weekSeed;
+      let hash = 0;
+      for (let i = 0; i < seed.length; i++) {
+        hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+        hash |= 0;
+      }
+      return 25 + Math.abs(hash % 200);
+    }
+
+    function getMonthlyGoal() {
+      if (!currentStoreId) return DEFAULT_GOAL;
+      const stored = parseInt(localStorage.getItem('monthlyGoal_' + currentStoreId));
+      return (stored && stored > 0) ? stored : DEFAULT_GOAL;
+    }
+
+    /* ==================== AUTH ==================== */
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) { window.location.href = 'login.html'; return; }
+
+      try {
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        if (!userDoc.exists) {
+          showToast('error', 'Compte introuvable', 'Veuillez finaliser votre inscription.');
+          return;
+        }
+
+        const userData = userDoc.data();
+        currentGlobalUser = { ...userData, email: user.email };
+        currentUserCountry = userData.pays || userData.country || '';
+
+        const photoUrl = userData.photoURL
+          || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.nom || 'Revendeur')}&background=F0A500&color=000000&bold=true`;
+        document.getElementById('userAvatarImg').src = photoUrl;
+
+        let displayName = (userData.nom || '').trim() || 'Revendeur';
+        document.getElementById('userNameDisplay').innerText = displayName;
+
+        currentMainBalance = Number(userData.balance) || 0;
+        currentStoreBalance = Number(userData.soldeBoutique) || 0;
+
+        // Restaurer préférences
+        document.getElementById('currencySelect').value = displayCurrency;
+        renderBalances();
+        updateWithdrawHint(currentStoreBalance);
+
+        if (userData.storeId) {
+          currentStoreId = userData.storeId;
+          await loadStoreDetails(userData.storeId);
+          document.getElementById('noStoreView').style.display = 'none';
+          document.getElementById('hasStoreView').style.display = 'block';
+          document.getElementById('transactionsSection').style.display = 'block';
+          await loadTransactions(userData.storeId);
+        } else {
+          document.getElementById('hasStoreView').style.display = 'none';
+          document.getElementById('noStoreView').style.display = 'block';
+          document.getElementById('transactionsSection').style.display = 'none';
+          setStoreStatus('draft', 'Aucune boutique');
+          document.getElementById('statOrders').innerText = '0';
+          document.getElementById('statRecentProfit').innerText = formatFCFA(0);
+          document.getElementById('statMonthProfit').innerText = formatFCFA(0);
+          document.getElementById('statVisits').innerText = '0';
+          updateLevelBadge(0);
+        }
+
+        if (currentStoreData && currentStoreData.status !== 'published') {
+          showAlert(
+            'warning',
+            '<strong>Votre boutique n\'est pas encore publiée</strong>Vos clients ne peuvent pas encore la visiter. Publiez-la dès maintenant !',
+            'Publier maintenant',
+            () => { window.location.href = 'gestion-boutique.html'; }
+          );
+        }
+
+        initTips();
+
+        document.getElementById('globalLoader').style.display = 'none';
+        document.getElementById('mainContent').classList.add('ready');
+
+      } catch (error) {
+        console.error('Erreur chargement dashboard :', error);
+        showToast('error', 'Erreur de chargement', 'Impossible de récupérer vos données.');
+      }
+    });
+
+    /* ==================== LOAD STORE ==================== */
+    async function loadStoreDetails(storeId) {
+      try {
+        const storeDoc = await db.collection('stores').doc(storeId).get();
+        if (!storeDoc.exists) return;
+        currentStoreData = storeDoc.data();
+
+        if (currentStoreData.ownerName && currentStoreData.ownerName.trim()) {
+          storeOwnerName = currentStoreData.ownerName.trim();
+          document.getElementById('userNameDisplay').innerText = storeOwnerName;
+        } else if (currentGlobalUser.nom) {
+          document.getElementById('userNameDisplay').innerText = currentGlobalUser.nom;
+        }
+
+        document.getElementById('storeNameDisplay').innerText = currentStoreData.name || 'Ma Boutique';
+        document.getElementById('storeOwnerDisplay').innerText = currentStoreData.ownerName || currentGlobalUser.nom || '—';
+
+        const linkEl = document.getElementById('storeLinkDisplay');
+        const statusBadge = document.getElementById('storeStatusBadge');
+        const copyBtn = document.getElementById('copyLinkBtn');
+        const viewBtn = document.getElementById('viewStoreBtn');
+
+        if (currentStoreData.status === 'published' && currentStoreData.storeUrl) {
+          linkEl.innerText = currentStoreData.storeUrl;
+          linkEl.href = currentStoreData.storeUrl;
+          linkEl.classList.remove('disabled');
+          setStoreStatus('published', 'Publiée');
+          statusBadge.className = 'section-badge';
+          statusBadge.innerText = 'Publiée';
+          statusBadge.style.display = 'inline-block';
+          if (copyBtn) copyBtn.style.display = 'inline-flex';
+          if (viewBtn) { viewBtn.href = currentStoreData.storeUrl; viewBtn.style.display = 'inline-flex'; }
+        } else {
+          linkEl.innerText = 'Boutique non publiée (brouillon)';
+          linkEl.removeAttribute('href');
+          linkEl.classList.add('disabled');
+          setStoreStatus('draft', 'Brouillon');
+          statusBadge.className = 'section-badge draft';
+          statusBadge.innerText = 'Brouillon';
+          statusBadge.style.display = 'inline-block';
+          if (copyBtn) copyBtn.style.display = 'none';
+          if (viewBtn) viewBtn.style.display = 'none';
+        }
+      } catch (error) {
+        console.error('Erreur lecture boutique :', error);
+      }
+    }
+
+    function setStoreStatus(status, label) {
+      document.getElementById('statStoreStatus').innerText = label;
+      document.getElementById('statStoreSub').innerText =
+        status === 'published' ? 'Accessible publiquement' : 'Non visible par les clients';
+    }
+
+    /* ==================== LOAD TRANSACTIONS ==================== */
     async function loadTransactions(storeId) {
       const tbody = document.getElementById('transactionsBody');
       try {
         const snapshot = await db.collection('stores').doc(storeId).collection('transactions')
-                                 .orderBy('createdAt', 'desc')
-                                 .limit(20)
-                                 .get();
+          .orderBy('createdAt', 'desc')
+          .limit(100)
+          .get();
 
-        if (snapshot.empty) {
-          tbody.innerHTML = `<tr><td colspan="6" class="tx-empty"><i class="fas fa-box-open"></i> Vous n'avez pas encore fait de ventes avec votre boutique.</td></tr>`;
-          return;
-        }
-
-        let rowsHtml = '';
+        allTransactions = [];
         snapshot.forEach(doc => {
-          const tx = doc.data();
-          
-          // Formater la date
-          let dateStr = "En attente";
-          if (tx.createdAt) {
-            const dateObj = tx.createdAt.toDate();
-            dateStr = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + " à " + dateObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-          }
-
-          rowsHtml += `
-            <tr>
-              <td style="color: var(--text-muted); font-size: 0.85rem;">${dateStr}</td>
-              <td style="font-weight: 600;">${tx.customerEmail || 'Anonyme'}</td>
-              <td>${tx.serviceName || 'Service inconnu'}</td>
-              <td>${tx.quantity || 0}</td>
-              <td>${tx.totalPaid || 0} FCFA</td>
-              <td class="tx-profit">+${tx.profit || 0} FCFA</td>
-            </tr>
-          `;
+          allTransactions.push({ id: doc.id, ...doc.data() });
         });
-        
-        tbody.innerHTML = rowsHtml;
+
+        renderAll();
+
       } catch (error) {
-        console.error("Erreur lors de la lecture des transactions :", error);
-        tbody.innerHTML = `<tr><td colspan="6" class="tx-empty" style="color: #F87171;">Impossible de charger les transactions.</td></tr>`;
+        console.error('Erreur transactions :', error);
+        tbody.innerHTML = `<tr><td colspan="7" class="tx-empty" style="color: #EF4444;">
+          <i class="fas fa-circle-exclamation"></i>
+          Impossible de charger les transactions.
+        </td></tr>`;
       }
     }
 
-    // GESTION DES FENÊTRES MODALES
+    function renderAll() {
+      applyFilters();
+      renderStats();
+      renderTable();
+      renderChart();
+      renderActivity();
+      renderGoal();
+      updateNotifications();
+      updateLevelBadge(allTransactions.length);
+      document.getElementById('statVisits').innerText = getSimulatedVisits(currentStoreId);
+    }
+
+    /* ==================== FILTERS ==================== */
+    function applyFilters() {
+      const now = new Date();
+      const ranges = { all: null, '7': 7, '30': 30 };
+      const maxDays = ranges[currentFilters.dateRange];
+
+      filteredTransactions = allTransactions.filter(tx => {
+        if (maxDays !== null) {
+          if (!tx.createdAt) return false;
+          try {
+            const d = tx.createdAt.toDate();
+            const diff = (now - d) / (1000 * 60 * 60 * 24);
+            if (diff > maxDays) return false;
+          } catch (e) { return false; }
+        }
+
+        if (currentFilters.status !== 'all') {
+          const status = String(tx.status || 'pending').toLowerCase();
+          if (currentFilters.status === 'success') {
+            if (!['success', 'completed', 'complété', 'livré'].includes(status)) return false;
+          } else if (currentFilters.status === 'pending') {
+            if (!['pending', 'en attente', 'processing', 'en cours'].includes(status)) return false;
+          } else if (currentFilters.status === 'failed') {
+            if (!['failed', 'canceled', 'annulé', 'échoué'].includes(status)) return false;
+          }
+        }
+
+        if (currentFilters.search) {
+          const term = currentFilters.search;
+          const haystack = [
+            tx.customerEmail, tx.serviceName, tx.contact
+          ].join(' ').toLowerCase();
+          if (!haystack.includes(term)) return false;
+        }
+
+        return true;
+      });
+    }
+
+    function setDateRange(range, btn) {
+      currentFilters.dateRange = range;
+      document.querySelectorAll('.filter-chip[data-range]').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      applyFilters();
+      renderTable();
+    }
+
+    function setStatusFilter(status, btn) {
+      if (currentFilters.status === status) {
+        currentFilters.status = 'all';
+        document.querySelectorAll('.filter-chip[data-status]').forEach(c => c.classList.remove('active'));
+      } else {
+        currentFilters.status = status;
+        document.querySelectorAll('.filter-chip[data-status]').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+      }
+      applyFilters();
+      renderTable();
+    }
+
+    function onSearchFilter() {
+      currentFilters.search = document.getElementById('filterSearch').value.trim().toLowerCase();
+      applyFilters();
+      renderTable();
+    }
+
+    /* ==================== RENDER STATS ==================== */
+    function renderStats() {
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      let totalProfit = 0;
+      let monthProfit = 0;
+
+      allTransactions.forEach(tx => {
+        const p = Number(tx.profit) || 0;
+        totalProfit += p;
+        if (tx.createdAt) {
+          try {
+            const d = tx.createdAt.toDate();
+            if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+              monthProfit += p;
+            }
+          } catch (e) {}
+        }
+      });
+
+      document.getElementById('statOrders').innerText = allTransactions.length;
+      document.getElementById('statOrdersSub').innerText =
+        allTransactions.length === 100 ? '100+ commandes' : 'Commandes totales';
+      document.getElementById('statRecentProfit').innerText = formatFCFA(totalProfit);
+      document.getElementById('statMonthProfit').innerText = formatFCFA(monthProfit);
+    }
+
+    /* ==================== RENDER TABLE ==================== */
+    function renderTable() {
+      const tbody = document.getElementById('transactionsBody');
+
+      if (filteredTransactions.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="tx-empty">
+          <i class="fas fa-box-open"></i>
+          Aucune transaction ${currentFilters.search || currentFilters.status !== 'all' || currentFilters.dateRange !== 'all' ? 'pour ces filtres' : 'pour le moment'}.
+        </td></tr>`;
+        return;
+      }
+
+      let html = '';
+      filteredTransactions.forEach(tx => {
+        let dateStr = '—';
+        if (tx.createdAt) {
+          try {
+            const d = tx.createdAt.toDate();
+            dateStr = d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+              + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          } catch (e) {}
+        }
+
+        const status = String(tx.status || 'pending').toLowerCase();
+        let statusText = 'En attente';
+        let statusClass = 'status-pending';
+        if (['success', 'completed', 'complété', 'livré'].includes(status)) {
+          statusText = '✓ Réussie';
+          statusClass = 'status-success';
+        } else if (['failed', 'canceled', 'annulé', 'échoué'].includes(status)) {
+          statusText = '✗ Échouée';
+          statusClass = 'status-failed';
+        }
+
+        html += `
+          <tr>
+            <td class="tx-date">${escapeHtml(dateStr)}</td>
+            <td class="tx-customer">${escapeHtml(tx.customerEmail || 'Anonyme')}</td>
+            <td>${escapeHtml(tx.serviceName || 'Service')}</td>
+            <td>${tx.quantity || 0}</td>
+            <td>${formatFCFA(tx.totalPaid || 0)}</td>
+            <td class="tx-profit">+${formatFCFA(tx.profit || 0)}</td>
+            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+    }
+
+    /* ==================== RENDER CHART ==================== */
+    function renderChart() {
+      const wrap = document.getElementById('chartWrap');
+
+      if (typeof Chart === 'undefined') {
+        wrap.innerHTML = '<div class="chart-empty"><i class="fas fa-exclamation-triangle"></i>Graphique indisponible</div>';
+        return;
+      }
+
+      if (allTransactions.length === 0) {
+        wrap.innerHTML = '<div class="chart-empty"><i class="fas fa-chart-line"></i>Aucune vente encore — partagez votre boutique pour commencer !</div>';
+        document.getElementById('chartTotal').innerText = formatFCFA(0);
+        document.getElementById('chartAvg').innerText = formatFCFA(0);
+        if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+        return;
+      }
+
+      // Reconstruire le canvas si nécessaire
+      if (!document.getElementById('salesChart')) {
+        wrap.innerHTML = '<canvas id="salesChart"></canvas>';
+      }
+
+      const days = chartPeriod;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const labels = [];
+      const dataPoints = [];
+
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        labels.push(d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }));
+        dataPoints.push(0);
+      }
+
+      allTransactions.forEach(tx => {
+        if (!tx.createdAt) return;
+        try {
+          const d = tx.createdAt.toDate();
+          d.setHours(0, 0, 0, 0);
+          const diff = Math.floor((today - d) / (1000 * 60 * 60 * 24));
+          if (diff >= 0 && diff < days) {
+            const idx = days - 1 - diff;
+            dataPoints[idx] += Number(tx.profit) || 0;
+          }
+        } catch (e) {}
+      });
+
+      const total = dataPoints.reduce((a, b) => a + b, 0);
+      const avg = total / days;
+
+      document.getElementById('chartTotal').innerText = formatFCFA(total);
+      document.getElementById('chartAvg').innerText = formatFCFA(avg);
+
+      const ctx = document.getElementById('salesChart').getContext('2d');
+      if (chartInstance) chartInstance.destroy();
+
+      const gradient = ctx.createLinearGradient(0, 0, 0, 220);
+      gradient.addColorStop(0, 'rgba(240, 165, 0, 0.35)');
+      gradient.addColorStop(1, 'rgba(240, 165, 0, 0)');
+
+      const textColor = 'rgba(255, 255, 255, 0.5)';
+      const gridColor = 'rgba(255, 255, 255, 0.05)';
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Gains',
+            data: dataPoints,
+            borderColor: '#F0A500',
+            backgroundColor: gradient,
+            borderWidth: 2.5,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 3,
+            pointBackgroundColor: '#F0A500',
+            pointBorderColor: '#06060A',
+            pointBorderWidth: 2,
+            pointHoverRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { intersect: false, mode: 'index' },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#111122',
+              borderColor: 'rgba(240, 165, 0, 0.4)',
+              borderWidth: 1,
+              titleColor: '#fff',
+              bodyColor: 'rgba(255,255,255,0.85)',
+              padding: 10,
+              cornerRadius: 8,
+              displayColors: false,
+              callbacks: {
+                label: (ctx) => formatFCFA(ctx.parsed.y)
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: {
+                color: textColor,
+                font: { size: 10, family: 'Plus Jakarta Sans' },
+                maxRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: 8
+              }
+            },
+            y: {
+              beginAtZero: true,
+              grid: { color: gridColor, drawTicks: false },
+              ticks: {
+                color: textColor,
+                font: { size: 10, family: 'Plus Jakarta Sans' },
+                padding: 8,
+                callback: (val) => formatFCFA(val).replace(' FCFA', '')
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function setChartPeriod(days, btn) {
+      chartPeriod = days;
+      document.querySelectorAll('.chart-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderChart();
+    }
+
+    /* ==================== RENDER ACTIVITY ==================== */
+    function renderActivity() {
+      const container = document.getElementById('activityTimeline');
+
+      if (allTransactions.length === 0) {
+        container.innerHTML = `<div class="timeline-empty">
+          <i class="fas fa-hourglass-start"></i>
+          Aucune activité pour le moment.<br>Vos ventes apparaîtront ici.
+        </div>`;
+        return;
+      }
+
+      const recent = allTransactions.slice(0, 5);
+      let html = '';
+      recent.forEach(tx => {
+        let timeStr = 'Récemment';
+        if (tx.createdAt) {
+          try {
+            const d = tx.createdAt.toDate();
+            const diffMs = Date.now() - d.getTime();
+            const mins = Math.floor(diffMs / 60000);
+            const hrs = Math.floor(mins / 60);
+            const days = Math.floor(hrs / 24);
+            if (days > 0) timeStr = `Il y a ${days} jour${days > 1 ? 's' : ''}`;
+            else if (hrs > 0) timeStr = `Il y a ${hrs}h`;
+            else if (mins > 0) timeStr = `Il y a ${mins} min`;
+            else timeStr = 'À l\'instant';
+          } catch (e) {}
+        }
+
+        const profit = Number(tx.profit) || 0;
+        html += `
+          <div class="timeline-item">
+            <div class="timeline-dot success"><i class="fas fa-shopping-cart"></i></div>
+            <div class="timeline-content">
+              <div class="timeline-title">${escapeHtml(tx.serviceName || 'Nouvelle vente')}</div>
+              <div class="timeline-time">+${formatFCFA(profit)} • ${timeStr}</div>
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    /* ==================== RENDER GOAL ==================== */
+    function renderGoal() {
+      const goal = getMonthlyGoal();
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      let monthProfit = 0;
+      allTransactions.forEach(tx => {
+        if (tx.createdAt) {
+          try {
+            const d = tx.createdAt.toDate();
+            if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+              monthProfit += Number(tx.profit) || 0;
+            }
+          } catch (e) {}
+        }
+      });
+
+      document.getElementById('goalCurrent').innerText = formatFCFA(monthProfit);
+      document.getElementById('goalTarget').innerText = formatFCFA(goal);
+
+      const pct = Math.min(100, Math.round((monthProfit / goal) * 100));
+      document.getElementById('goalFill').style.width = pct + '%';
+      document.getElementById('goalPct').innerText = pct + '%';
+
+      let msg;
+      if (pct >= 100) {
+        msg = '🎉 Félicitations ! Vous avez atteint votre objectif mensuel. Fixez-en un nouveau pour continuer à progresser !';
+      } else if (pct >= 75) {
+        msg = `🔥 Bravo ! Vous êtes à ${pct}% de votre objectif. Encore un petit effort !`;
+      } else if (pct >= 50) {
+        msg = `💪 À mi-parcours ! Il vous reste ${formatFCFA(goal - monthProfit)} pour atteindre votre objectif.`;
+      } else if (pct >= 25) {
+        msg = `📈 Bon rythme ! Vous progressez bien ce mois-ci.`;
+      } else {
+        msg = `🚀 C'est parti ! Chaque vente vous rapproche de votre objectif.`;
+      }
+      document.getElementById('goalMsg').innerText = msg;
+    }
+
+    function editGoal() {
+      document.getElementById('goalInput').value = getMonthlyGoal();
+      document.getElementById('goalModal').classList.add('active');
+    }
+
+    function saveGoal() {
+      const val = parseInt(document.getElementById('goalInput').value);
+      if (isNaN(val) || val < 1000) {
+        showToast('warning', 'Montant invalide', 'L\'objectif doit être au moins 1 000 FCFA.');
+        return;
+      }
+      localStorage.setItem('monthlyGoal_' + currentStoreId, val);
+      closeModal('goalModal');
+      renderGoal();
+      showToast('success', 'Objectif mis à jour', `Nouvel objectif : ${formatFCFARaw(val)}`);
+    }
+
+    /* ==================== LEVEL BADGE ==================== */
+    function updateLevelBadge(count) {
+      const badge = document.getElementById('levelBadge');
+      let cls = 'level-debutant';
+      let html = '<i class="fas fa-seedling"></i> Débutant';
+
+      if (count >= 50) {
+        cls = 'level-elite';
+        html = '<i class="fas fa-crown"></i> Elite';
+      } else if (count >= 20) {
+        cls = 'level-top';
+        html = '<i class="fas fa-trophy"></i> Top vendeur';
+      } else if (count >= 5) {
+        cls = 'level-actif';
+        html = '<i class="fas fa-star"></i> Actif';
+      }
+
+      badge.className = 'level-badge ' + cls;
+      badge.innerHTML = html;
+    }
+
+    /* ==================== BALANCES & CURRENCY ==================== */
+    function renderBalances() {
+      const mainEl = document.getElementById('mainBalanceDisplay');
+      const storeEl = document.getElementById('storeBalanceDisplay');
+      const mainToggle = document.getElementById('mainBalanceToggle');
+      const storeToggle = document.getElementById('storeBalanceToggle');
+
+      if (balancesHidden) {
+        mainEl.innerText = '••••••';
+        storeEl.innerText = '••••••';
+        mainToggle.innerHTML = '<i class="fas fa-eye"></i>';
+        storeToggle.innerHTML = '<i class="fas fa-eye"></i>';
+      } else {
+        mainEl.innerText = formatFCFA(currentMainBalance);
+        storeEl.innerText = formatFCFA(currentStoreBalance);
+        mainToggle.innerHTML = '<i class="fas fa-eye-slash"></i>';
+        storeToggle.innerHTML = '<i class="fas fa-eye-slash"></i>';
+      }
+    }
+
+    function toggleBalances() {
+      balancesHidden = !balancesHidden;
+      localStorage.setItem('hideBalances', balancesHidden ? 'true' : 'false');
+      renderBalances();
+    }
+
+    function onCurrencyChange() {
+      displayCurrency = document.getElementById('currencySelect').value;
+      localStorage.setItem('displayCurrency', displayCurrency);
+      renderBalances();
+      renderStats();
+      renderTable();
+      renderChart();
+      renderGoal();
+      renderActivity();
+      updateWithdrawHint(currentStoreBalance);
+    }
+
+    /* ==================== HINT RETRAIT ==================== */
+    function updateWithdrawHint(balance) {
+      const hint = document.getElementById('withdrawHint');
+      const min = getMinWithdraw();
+      const country = isCameroon() ? 'Cameroun' : (currentUserCountry || 'votre pays');
+
+      if (balance < min) {
+        const missing = min - balance;
+        hint.innerText = `Minimum ${formatFCFA(min)} (${country}) — il vous manque ${formatFCFA(missing)}`;
+        hint.className = 'balance-hint warn';
+      } else {
+        hint.innerText = `Retrait minimum : ${formatFCFA(min)} (${country}) ✓`;
+        hint.className = 'balance-hint ok';
+      }
+    }
+
+    /* ==================== ALERT ==================== */
+    function showAlert(type, html, actionLabel, actionCb) {
+      const banner = document.getElementById('alertBanner');
+      const content = document.getElementById('alertContent');
+      banner.className = 'alert-banner show ' + type;
+      const icon = banner.querySelector('.alert-icon');
+      icon.className = (type === 'warning' ? 'fas fa-circle-exclamation' : 'fas fa-circle-check') + ' alert-icon';
+
+      content.innerHTML = html;
+      if (actionLabel && actionCb) {
+        const btn = document.createElement('button');
+        btn.className = 'alert-action';
+        btn.innerText = actionLabel;
+        btn.onclick = actionCb;
+        content.appendChild(document.createElement('br'));
+        content.appendChild(btn);
+      }
+    }
+
+    /* ==================== NOTIFICATIONS ==================== */
+    function updateNotifications() {
+      const lastSeen = parseInt(localStorage.getItem('lastSeenOrders_' + currentStoreId)) || 0;
+      let unreadCount = 0;
+
+      allTransactions.forEach(tx => {
+        if (tx.createdAt) {
+          try {
+            const ts = tx.createdAt.toMillis();
+            if (ts > lastSeen) unreadCount++;
+          } catch (e) {}
+        }
+      });
+
+      const badge = document.getElementById('bellBadge');
+      if (unreadCount > 0) {
+        badge.innerText = unreadCount > 99 ? '99+' : unreadCount;
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    function openNotifDrawer() {
+      buildNotifList();
+      document.getElementById('notifOverlay').classList.add('open');
+      document.getElementById('notifDrawer').classList.add('open');
+      // Marquer comme lu après ouverture
+      if (currentStoreId) {
+        localStorage.setItem('lastSeenOrders_' + currentStoreId, Date.now());
+        document.getElementById('bellBadge').style.display = 'none';
+      }
+    }
+
+    function closeNotifDrawer() {
+      document.getElementById('notifOverlay').classList.remove('open');
+      document.getElementById('notifDrawer').classList.remove('open');
+    }
+
+    function buildNotifList() {
+      const body = document.getElementById('notifBody');
+      const items = [];
+
+      // Nouvelles commandes
+      const lastSeen = parseInt(localStorage.getItem('lastSeenOrders_' + currentStoreId)) || 0;
+      const recentOrders = allTransactions.filter(tx => {
+        try {
+          return tx.createdAt && tx.createdAt.toMillis() > lastSeen;
+        } catch (e) { return false; }
+      }).slice(0, 5);
+
+      recentOrders.forEach(tx => {
+        items.push({
+          type: 'success',
+          icon: 'fa-shopping-bag',
+          title: 'Nouvelle vente',
+          text: `${tx.serviceName || 'Service'} — +${formatFCFA(tx.profit || 0)}`,
+          time: getTimeAgo(tx.createdAt)
+        });
+      });
+
+      // Si boutique non publiée
+      if (currentStoreData && currentStoreData.status !== 'published') {
+        items.push({
+          type: 'warning',
+          icon: 'fa-globe',
+          title: 'Boutique en brouillon',
+          text: 'Publiez votre boutique pour recevoir vos premières commandes.',
+          time: 'Action recommandée'
+        });
+      }
+
+      // Objectif atteint
+      const goal = getMonthlyGoal();
+      const monthProfit = getMonthProfit();
+      if (monthProfit >= goal && goal > 0) {
+        items.push({
+          type: 'purple',
+          icon: 'fa-trophy',
+          title: '🎉 Objectif atteint !',
+          text: `Bravo, vous avez dépassé votre objectif de ${formatFCFA(goal)}.`,
+          time: 'Ce mois-ci'
+        });
+      }
+
+      // Conseils
+      if (allTransactions.length > 0 && currentStoreData && !currentStoreData.galleryImages?.length) {
+        items.push({
+          type: 'info',
+          icon: 'fa-images',
+          title: '💡 Astuce',
+          text: 'Ajoutez des réalisations dans votre galerie pour rassurer vos clients.',
+          time: 'Recommandation'
+        });
+      }
+
+      if (items.length === 0) {
+        body.innerHTML = `<div class="notif-empty">
+          <i class="fas fa-bell-slash"></i>
+          Aucune nouvelle notification.<br>Vous serez alerté dès qu'une vente arrive !
+        </div>`;
+        return;
+      }
+
+      body.innerHTML = items.map(item => `
+        <div class="notif-item ${item.type}">
+          <div class="notif-item-title">
+            <i class="fas ${item.icon}"></i> ${escapeHtml(item.title)}
+          </div>
+          <div class="notif-item-text">${escapeHtml(item.text)}</div>
+          <div class="notif-item-time">${escapeHtml(item.time)}</div>
+        </div>
+      `).join('');
+    }
+
+    function getMonthProfit() {
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      let total = 0;
+      allTransactions.forEach(tx => {
+        if (tx.createdAt) {
+          try {
+            const d = tx.createdAt.toDate();
+            if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+              total += Number(tx.profit) || 0;
+            }
+          } catch (e) {}
+        }
+      });
+      return total;
+    }
+
+    function getTimeAgo(ts) {
+      if (!ts) return 'Récemment';
+      try {
+        const d = ts.toDate();
+        const diffMs = Date.now() - d.getTime();
+        const mins = Math.floor(diffMs / 60000);
+        const hrs = Math.floor(mins / 60);
+        const days = Math.floor(hrs / 24);
+        if (days > 0) return `Il y a ${days}j`;
+        if (hrs > 0) return `Il y a ${hrs}h`;
+        if (mins > 0) return `Il y a ${mins}min`;
+        return 'À l\'instant';
+      } catch (e) { return 'Récemment'; }
+    }
+
+    /* ==================== TIPS ==================== */
+    function initTips() {
+      const nav = document.getElementById('tipNav');
+      nav.innerHTML = TIPS.map((_, i) =>
+        `<button class="tip-dot ${i === 0 ? 'active' : ''}" onclick="showTip(${i})" aria-label="Conseil ${i + 1}"></button>`
+      ).join('');
+      showTip(0);
+
+      // Auto-rotate toutes les 8s
+      setInterval(() => {
+        currentTipIndex = (currentTipIndex + 1) % TIPS.length;
+        showTip(currentTipIndex);
+      }, 8000);
+    }
+
+    function showTip(index) {
+      currentTipIndex = index;
+      const tip = TIPS[index];
+      document.getElementById('tipIcon').innerHTML = `<i class="fas ${tip.icon}"></i>`;
+      document.getElementById('tipTitle').innerText = tip.title;
+      document.getElementById('tipText').innerText = tip.text;
+
+      document.querySelectorAll('.tip-dot').forEach((d, i) => {
+        d.classList.toggle('active', i === index);
+      });
+    }
+
+    /* ==================== COPY STORE LINK ==================== */
+    function copyStoreLink() {
+      if (!currentStoreData || !currentStoreData.storeUrl) {
+        showToast('warning', 'Boutique non publiée', 'Publiez votre boutique d\'abord.');
+        return;
+      }
+      navigator.clipboard.writeText(currentStoreData.storeUrl)
+        .then(() => showToast('success', 'Lien copié', 'Le lien est dans le presse-papiers.'))
+        .catch(() => showToast('error', 'Copie impossible', 'Copiez le lien manuellement.'));
+    }
+
+    /* ==================== EXPORT CSV ==================== */
+    function exportCSV() {
+      if (filteredTransactions.length === 0) {
+        showToast('warning', 'Aucune donnée', 'Aucune transaction à exporter.');
+        return;
+      }
+
+      const rows = [['Date', 'Client', 'Service', 'Quantité', 'Payé (FCFA)', 'Gain (FCFA)', 'Statut']];
+
+      filteredTransactions.forEach(tx => {
+        let date = '';
+        if (tx.createdAt) {
+          try { date = tx.createdAt.toDate().toLocaleString('fr-FR'); } catch (e) {}
+        }
+        rows.push([
+          date,
+          tx.customerEmail || 'Anonyme',
+          tx.serviceName || '',
+          tx.quantity || 0,
+          tx.totalPaid || 0,
+          tx.profit || 0,
+          tx.status || 'pending'
+        ]);
+      });
+
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `transactions-${(currentStoreData?.name || 'boutique').replace(/[^a-z0-9]/gi, '-')}-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast('success', 'Export réussi', `${filteredTransactions.length} transaction(s) exportée(s).`);
+    }
+
+    /* ==================== MODALS ==================== */
     function openWithdrawModal() {
+      const balance = currentStoreBalance;
+      const min = getMinWithdraw();
+      const country = isCameroon() ? 'Cameroun' : (currentUserCountry || 'votre pays');
+
+      document.getElementById('withdrawBalanceDisplay').innerText = formatFCFA(balance);
+      document.getElementById('withdrawMinInfo').innerHTML =
+        `Minimum requis : <strong>${formatFCFARaw(min)}</strong> (${country})`;
+
+      const warning = document.getElementById('withdrawWarning');
+      const warningText = document.getElementById('withdrawWarningText');
+      const submitBtn = document.getElementById('btnWithdrawSubmit');
+
+      if (balance < min) {
+        const missing = min - balance;
+        warning.style.display = 'flex';
+        warningText.innerHTML = `Solde insuffisant. Il vous manque <strong>${formatFCFARaw(missing)}</strong> pour atteindre le minimum de retrait.`;
+        submitBtn.disabled = true;
+      } else {
+        warning.style.display = 'none';
+        submitBtn.disabled = false;
+      }
+
       document.getElementById('withdrawModal').classList.add('active');
     }
-    
+
     function openWebsiteModal() {
+      document.getElementById('websiteExtra').value = '';
       document.getElementById('websiteModal').classList.add('active');
     }
 
@@ -465,76 +2962,113 @@
       document.getElementById(modalId).classList.remove('active');
     }
 
-    // Fermer les modales en cliquant à l'extérieur
-    window.onclick = function(event) {
+    window.addEventListener('click', function (event) {
       if (event.target.classList.contains('modal')) {
         event.target.classList.remove('active');
       }
-    }
+    });
 
-    // ENVOI DE LA DEMANDE DE RETRAIT
+    /* ==================== SUBMIT WITHDRAW ==================== */
     function submitWithdraw() {
       const phone = document.getElementById('withdrawPhone').value.trim();
       const message = document.getElementById('withdrawMessage').value.trim();
-      
+      const balance = currentStoreBalance;
+      const min = getMinWithdraw();
+      const country = isCameroon() ? 'Cameroun' : (currentUserCountry || 'Non renseigné');
+
       if (!phone) {
-        alert("Veuillez renseigner le numéro de réception avec l'indicatif de votre pays.");
+        showToast('warning', 'Numéro manquant', 'Indiquez le numéro qui recevra l\'argent.');
         return;
       }
 
-      const balanceText = document.getElementById('storeBalanceDisplay').innerText;
-      const userName = storeOwnerName || currentGlobalUser.nom || "Revendeur";
-      const userEmail = currentGlobalUser.email || "Non renseigné";
-      const userCountry = currentGlobalUser.pays || currentGlobalUser.country || "Non renseigné";
-      
-      // Construction du message WhatsApp
+      if (balance < min) {
+        showToast('error', 'Solde insuffisant', `Vous devez avoir au moins ${formatFCFARaw(min)}.`);
+        return;
+      }
+
+      const userName = storeOwnerName || currentGlobalUser.nom || 'Revendeur';
+      const userEmail = currentGlobalUser.email || 'Non renseigné';
+
       let waMessage = `*DEMANDE DE RETRAIT (BOUTIQUE)* 💸\n\n`;
       waMessage += `*Propriétaire :* ${userName}\n`;
       waMessage += `*Email :* ${userEmail}\n`;
-      waMessage += `*Pays :* ${userCountry}\n`;
-      waMessage += `*Solde Boutique Actuel :* ${balanceText}\n\n`;
+      waMessage += `*Pays :* ${country}\n`;
+      waMessage += `*Solde Boutique :* ${formatFCFARaw(balance)}\n`;
+      waMessage += `*Minimum requis :* ${formatFCFARaw(min)}\n\n`;
       waMessage += `*Numéro de réception :* ${phone}\n`;
-      
-      if (message) {
-        waMessage += `*Note supplémentaire :* ${message}\n`;
-      }
 
-      // Redirection WhatsApp vers +237 652 20 57 68
-      const whatsappUrl = `https://wa.me/237652205768?text=${encodeURIComponent(waMessage)}`;
-      window.open(whatsappUrl, '_blank');
-      
+      if (message) waMessage += `*Note :* ${message}\n`;
+
+      const url = `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(waMessage)}`;
+      window.open(url, '_blank');
+
+      showToast('success', 'Demande envoyée', 'Notre équipe vous répondra sous peu.');
       closeModal('withdrawModal');
       document.getElementById('withdrawPhone').value = '';
       document.getElementById('withdrawMessage').value = '';
     }
 
-    // ENVOI DE LA DEMANDE DE CRÉATION DE SITE WEB
+    /* ==================== SUBMIT WEBSITE ==================== */
     function submitWebsite() {
-      const siteName = document.getElementById('websiteName').value.trim();
-      const details = document.getElementById('websiteDetails').value.trim();
-      
-      const userName = storeOwnerName || currentGlobalUser.nom || "Client";
-      const userEmail = currentGlobalUser.email || "Non renseigné";
+      const extra = document.getElementById('websiteExtra').value.trim();
+      const userName = storeOwnerName || currentGlobalUser.nom || 'Client';
+      const userEmail = currentGlobalUser.email || 'Non renseigné';
+      const country = currentUserCountry || 'Non renseigné';
+      const storeUrl = currentStoreData && currentStoreData.storeUrl ? currentStoreData.storeUrl : 'Non publiée';
 
-      // Construction du message WhatsApp
       let waMessage = `*CRÉATION DE SITE WEB PERSONNEL* 🚀\n\n`;
-      waMessage += `*Nom du demandeur :* ${userName}\n`;
-      waMessage += `*Email de contact :* ${userEmail}\n\n`;
-      waMessage += `*Nom du futur site :* ${siteName || "Non encore défini"}\n`;
-      
-      if (details) {
-        waMessage += `*Détails et besoins spécifiques :* \n${details}\n`;
-      } else {
-        waMessage += `*Détails :* Le client souhaite en discuter.\n`;
-      }
+      waMessage += `Bonjour, je souhaite créer mon propre site web professionnel.\n\n`;
+      waMessage += `*Mes informations :*\n`;
+      waMessage += `• Nom : ${userName}\n`;
+      waMessage += `• Email : ${userEmail}\n`;
+      waMessage += `• Pays : ${country}\n`;
+      waMessage += `• Boutique actuelle : ${storeUrl}\n\n`;
+      waMessage += `*Mon projet :*\n`;
+      waMessage += extra || `Je souhaite en discuter avec votre équipe pour définir mon projet.`;
 
-      // Redirection WhatsApp vers +237 652 20 57 68
-      const whatsappUrl = `https://wa.me/237652205768?text=${encodeURIComponent(waMessage)}`;
-      window.open(whatsappUrl, '_blank');
-      
+      const url = `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(waMessage)}`;
+      window.open(url, '_blank');
+
       closeModal('websiteModal');
-      document.getElementById('websiteName').value = '';
-      document.getElementById('websiteDetails').value = '';
+      document.getElementById('websiteExtra').value = '';
+    }
+
+    /* ==================== CONTACT SUPPORT ==================== */
+    function contactSupport() {
+      const userName = storeOwnerName || currentGlobalUser.nom || 'Revendeur';
+      const userEmail = currentGlobalUser.email || 'Non renseigné';
+      const storeName = currentStoreData ? (currentStoreData.name || '—') : 'Aucune boutique';
+
+      let waMessage = `*CONTACT SUPPORT* 💬\n\n`;
+      waMessage += `Bonjour, j'ai besoin d'assistance.\n\n`;
+      waMessage += `*Informations :*\n`;
+      waMessage += `• Nom : ${userName}\n`;
+      waMessage += `• Email : ${userEmail}\n`;
+      waMessage += `• Boutique : ${storeName}\n\n`;
+      waMessage += `*Ma demande :*\nBonjour, j'aurais besoin d'aide concernant...`;
+
+      const url = `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(waMessage)}`;
+      window.open(url, '_blank');
+    }
+
+    function contactTeam(type) {
+      const userName = storeOwnerName || currentGlobalUser.nom || 'Revendeur';
+      const storeName = currentStoreData ? (currentStoreData.name || '—') : 'Aucune boutique';
+      const teams = {
+        support: { name: 'Support général', prefix: 'J\'ai une question générale sur la plateforme' },
+        tech: { name: 'Problème technique', prefix: 'Je rencontre un problème technique sur ma boutique' },
+        billing: { name: 'Facturation & paiements', prefix: 'J\'ai une question sur les paiements ou les retraits' }
+      };
+      const team = teams[type] || teams.support;
+
+      let waMessage = `*CONTACT ÉQUIPE — ${team.name.toUpperCase()}* 💬\n\n`;
+      waMessage += `*De :* ${userName}\n`;
+      waMessage += `*Boutique :* ${storeName}\n\n`;
+      waMessage += `*Ma demande :*\n${team.prefix}...\n\n`;
+      waMessage += `Merci de me répondre dès que possible.`;
+
+      const url = `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(waMessage)}`;
+      window.open(url, '_blank');
     }
   </script>
 </body>
