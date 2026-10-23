@@ -5,34 +5,61 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Boutique</title>
 
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 
-  <!-- Polices et Icônes -->
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
   <style>
-    /* Variables dynamiques */
     :root {
       --bg: #F8F9FA;
       --text: #212529;
       --card: #FFFFFF;
-      --border: rgba(0,0,0,0.1);
+      --border: rgba(0,0,0,0.08);
+      --border-strong: rgba(0,0,0,0.14);
+      --muted: rgba(0,0,0,0.6);
       --accent: #F0A500;
       --btn-color: #F0A500;
       font-family: 'Plus Jakarta Sans', sans-serif;
     }
 
     * { box-sizing: border-box; }
-    body { background-color: var(--bg); color: var(--text); margin: 0; padding: 0; overflow-x: hidden; transition: 0.3s; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg); color: var(--text);
+      overflow-x: hidden; transition: 0.3s;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
+    }
 
-    /* ===== HEADER MODERNE ===== */
+    /* ========== ANNOUNCEMENT BANNER ========== */
+    .announcement-banner {
+      display: none;
+      padding: 11px 20px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: #fff;
+      line-height: 1.4;
+      position: relative;
+      z-index: 99;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .announcement-banner.show {
+      display: block;
+      animation: slideDown 0.4s ease;
+    }
+    @keyframes slideDown {
+      from { transform: translateY(-100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* ========== HEADER STORE ========== */
     .store-header {
       background: var(--card);
       border-bottom: 1px solid var(--border);
-      padding: 30px 20px 20px;
+      padding: 32px 20px 24px;
       text-align: center;
       position: relative;
     }
@@ -40,17 +67,18 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 15px;
+      gap: 16px;
       flex-wrap: wrap;
     }
     .store-header .logo {
-      width: 70px;
-      height: 70px;
+      width: 76px;
+      height: 76px;
       border-radius: 50%;
       object-fit: cover;
       border: 3px solid var(--accent);
       background: #fff;
-      display: none; 
+      display: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
     }
     .store-header .title-group {
       display: flex;
@@ -58,140 +86,90 @@
       align-items: center;
     }
     .store-header .title {
-      font-size: 1.8rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.9rem;
       font-weight: 700;
       margin: 0;
-      line-height: 1.2;
+      line-height: 1.15;
+      letter-spacing: -0.3px;
     }
     .store-header .slogan {
       font-size: 0.9rem;
       opacity: 0.7;
-      margin-top: 2px;
+      margin-top: 4px;
+      font-style: italic;
     }
     .store-header .desc {
-      font-size: 0.95rem;
-      line-height: 1.5;
-      max-width: 600px;
-      margin: 12px auto 0;
-      opacity: 0.85;
+      font-size: 0.92rem;
+      line-height: 1.55;
+      max-width: 640px;
+      margin: 14px auto 0;
+      opacity: 0.8;
       padding: 0 10px;
     }
 
-    /* ===== INVITATION PROMO ===== */
-    .promo-banner {
-      background: linear-gradient(135deg, rgba(240, 165, 0, 0.08) 0%, rgba(240, 165, 0, 0.03) 100%);
-      border: 1px solid rgba(240, 165, 0, 0.3);
-      border-radius: 16px;
-      margin: 20px auto 30px;
-      padding: 24px;
-      text-align: center;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-      position: relative;
-      overflow: hidden;
-    }
-    .promo-banner::before {
-      content: '';
-      position: absolute;
-      top: -10px; right: -10px;
-      width: 60px; height: 60px;
-      background: var(--accent);
-      border-radius: 50%;
-      opacity: 0.1;
-      filter: blur(15px);
-    }
-    .promo-banner h3 {
-      margin: 0 0 12px 0;
-      color: var(--accent);
-      font-size: 1.3rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-    }
-    .promo-banner p {
-      font-size: 0.95rem;
-      line-height: 1.6;
-      margin-bottom: 20px;
-      opacity: 0.85;
-      max-width: 800px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-    .promo-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--accent);
-      color: #fff !important;
-      padding: 12px 28px;
-      border-radius: 50px;
-      font-weight: 700;
-      text-decoration: none;
-      transition: transform 0.2s, box-shadow 0.2s;
-      box-shadow: 0 4px 12px rgba(240, 165, 0, 0.3);
-    }
-    .promo-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(240, 165, 0, 0.4);
-    }
-
-    /* ===== BARRE CLIENT (SOLDE) ===== */
+    /* ========== CUSTOMER BAR ========== */
     .customer-bar {
       display: none;
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 50px;
-      padding: 10px 20px;
+      padding: 10px 14px 10px 20px;
       margin: 0 auto 20px;
       max-width: 700px;
       align-items: center;
       justify-content: space-between;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+      gap: 10px;
     }
     .customer-bar .balance-info {
       display: flex;
       align-items: center;
       gap: 10px;
       font-weight: 700;
-      font-size: 0.95rem;
+      font-size: 0.92rem;
     }
     .customer-bar .balance-info i {
       color: var(--accent);
-      font-size: 1.2rem;
+      font-size: 1.15rem;
     }
     .customer-bar .btn-recharge {
       background: var(--accent);
       color: #fff;
       border: none;
-      padding: 8px 16px;
+      padding: 9px 16px;
       border-radius: 20px;
-      font-weight: 600;
-      font-size: 0.85rem;
+      font-weight: 700;
+      font-size: 0.82rem;
       cursor: pointer;
-      transition: opacity 0.2s;
-      display: flex;
+      transition: all 0.2s;
+      display: inline-flex;
       align-items: center;
       gap: 6px;
+      font-family: inherit;
     }
-    .customer-bar .btn-recharge:hover { opacity: 0.9; }
+    .customer-bar .btn-recharge:hover { opacity: 0.92; transform: translateY(-1px); }
     .customer-bar .btn-logout {
       background: transparent;
       border: none;
       color: var(--text);
-      opacity: 0.6;
+      opacity: 0.55;
       cursor: pointer;
       font-size: 0.85rem;
+      padding: 8px;
+      border-radius: 50%;
+      transition: opacity 0.2s, background 0.2s;
     }
-    .customer-bar .btn-logout:hover { opacity: 1; }
+    .customer-bar .btn-logout:hover { opacity: 1; background: rgba(0,0,0,0.05); }
 
-    /* ===== BARRE DE RECHERCHE & SÉLECTEUR PAYS ===== */
+    /* ========== TOP CONTROLS ========== */
     .top-controls {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: center;
       gap: 12px;
-      max-width: 700px;
+      max-width: 720px;
       margin: 0 auto 20px;
       padding: 0 15px;
     }
@@ -207,24 +185,23 @@
       border: 2px solid var(--border);
       background: var(--card);
       color: var(--text);
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-family: inherit;
       transition: border-color 0.2s, box-shadow 0.2s;
       outline: none;
     }
     .search-bar input:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 4px rgba(240, 165, 0, 0.15);
+      box-shadow: 0 0 0 4px rgba(240, 165, 0, 0.12);
     }
     .search-bar i {
       position: absolute;
       left: 20px;
       top: 50%;
       transform: translateY(-50%);
-      opacity: 0.5;
-      font-size: 1.1rem;
+      opacity: 0.45;
+      font-size: 1rem;
     }
-
     .country-selector {
       display: flex;
       align-items: center;
@@ -233,7 +210,6 @@
       border: 2px solid var(--border);
       border-radius: 50px;
       padding: 4px 12px 4px 16px;
-      transition: border-color 0.2s;
       white-space: nowrap;
     }
     .country-selector select {
@@ -241,155 +217,378 @@
       border: none;
       padding: 10px 0;
       font-family: inherit;
-      font-size: 0.95rem;
+      font-size: 0.92rem;
       font-weight: 600;
       color: var(--text);
       outline: none;
       cursor: pointer;
     }
-    .country-selector select option {
-      background: var(--card);
-      color: var(--text);
-    }
-    .country-selector .flag {
-      font-size: 1.3rem;
-      line-height: 1;
-    }
+    .country-selector select option { background: var(--card); color: var(--text); }
+    .country-selector .flag { font-size: 1.25rem; line-height: 1; }
 
-    /* ===== ONGLETS PLATEFORMES ===== */
+    /* ========== PLATFORM TABS ========== */
     .platform-tabs {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
       justify-content: center;
-      margin-bottom: 25px;
+      margin-bottom: 18px;
       padding: 0 10px;
     }
     .platform-tab {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 10px 20px;
+      padding: 10px 18px;
       border-radius: 40px;
       background: var(--card);
-      border: 1px solid var(--border);
+      border: 1.5px solid var(--border);
       color: var(--text);
-      font-weight: 600;
+      font-weight: 700;
       font-size: 0.85rem;
       cursor: pointer;
       transition: all 0.2s ease;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
       user-select: none;
       white-space: nowrap;
     }
     .platform-tab i {
-      font-size: 1.2rem;
-      width: 1.2rem;
+      font-size: 1.15rem;
+      width: 1.15rem;
       text-align: center;
+      transition: color 0.2s;
     }
     .platform-tab.active {
       background: var(--accent);
       color: #fff;
       border-color: var(--accent);
-      box-shadow: 0 4px 12px rgba(240, 165, 0, 0.3);
+      box-shadow: 0 6px 18px rgba(240, 165, 0, 0.3);
+    }
+    .platform-tab.active i {
+      color: #fff !important;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
     }
     .platform-tab:not(.active):hover {
-      background: var(--bg);
       border-color: var(--accent);
+      transform: translateY(-1px);
     }
-    .platform-tab i.fa-brands { color: inherit; }
 
-    /* ===== LISTE DES SERVICES ===== */
+    /* ========== CATEGORY CHIPS ========== */
+    .category-tabs {
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 22px;
+      padding: 0 10px;
+    }
+    .category-tabs.show { display: flex; }
+    .category-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      color: var(--text);
+      font-weight: 600;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .category-chip .count {
+      opacity: 0.55;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      background: rgba(0,0,0,0.06);
+      border-radius: 10px;
+    }
+    .category-chip.active {
+      background: var(--text);
+      color: var(--bg);
+      border-color: var(--text);
+    }
+    .category-chip.active .count {
+      background: rgba(255,255,255,0.18);
+      opacity: 0.9;
+    }
+    .category-chip:not(.active):hover { border-color: var(--accent); }
+
+    /* ========== SERVICES GRID ========== */
     .services-grid {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 16px;
+      gap: 14px;
       margin-top: 10px;
     }
     .service-card {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 18px 20px;
+      border-radius: 14px;
+      padding: 16px 18px;
       display: flex;
       flex-direction: column;
       gap: 12px;
-      transition: box-shadow 0.2s, transform 0.1s;
+      transition: box-shadow 0.2s, transform 0.15s, border-color 0.2s;
       box-shadow: 0 2px 8px rgba(0,0,0,0.02);
     }
     .service-card:hover {
-      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
       transform: translateY(-2px);
+      border-color: var(--border-strong);
     }
     .service-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       gap: 12px;
+    }
+    .service-title-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
+    }
+    .service-platform-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      color: #fff;
+      flex-shrink: 0;
+      margin-top: 1px;
     }
     .service-name {
       font-weight: 600;
-      font-size: 1rem;
-      line-height: 1.3;
+      font-size: 0.95rem;
+      line-height: 1.35;
+      color: var(--text);
     }
+    .service-price-wrap { text-align: right; flex-shrink: 0; }
     .service-price {
       color: var(--accent);
       font-weight: 800;
-      font-size: 1.2rem;
+      font-size: 1.15rem;
+      line-height: 1;
+      font-family: 'Space Grotesk', sans-serif;
       white-space: nowrap;
     }
     .service-unit {
-      font-size: 0.7rem;
-      opacity: 0.6;
+      font-size: 0.68rem;
+      opacity: 0.55;
       font-weight: 500;
-      text-align: right;
+      margin-top: 3px;
+      white-space: nowrap;
     }
     .btn-buy {
       width: 100%;
-      padding: 12px;
+      padding: 11px;
       border-radius: 10px;
       border: none;
       cursor: pointer;
       background: var(--btn-color, var(--accent));
       color: #fff;
       font-weight: 700;
-      font-size: 1rem;
+      font-size: 0.9rem;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
       transition: opacity 0.2s, transform 0.1s;
       text-decoration: none;
+      font-family: inherit;
     }
-    .btn-buy:hover { opacity: 0.9; transform: scale(1.01); }
+    .btn-buy:hover { opacity: 0.92; transform: scale(1.01); }
     .btn-buy:active { transform: scale(0.98); }
 
     .no-services {
       text-align: center;
-      padding: 40px 20px;
+      padding: 50px 20px;
       opacity: 0.6;
-      font-size: 1rem;
+      font-size: 0.95rem;
+      grid-column: 1 / -1;
+    }
+    .no-services i {
+      font-size: 2rem;
+      display: block;
+      margin-bottom: 12px;
+      opacity: 0.5;
     }
 
-    #loader {
-      text-align: center;
-      padding: 100px 20px;
-      font-weight: 600;
+    /* ========== SECTION WRAPPER (Galerie / FAQ) ========== */
+    .store-section {
+      margin-top: 44px;
+      display: none;
+    }
+    .store-section.show { display: block; animation: fadeIn 0.4s ease; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .store-section-header {
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .store-section-header h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.25rem;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .store-section-header h2 i {
+      color: var(--accent);
+      font-size: 1.1rem;
+    }
+    .store-section-header p {
+      font-size: 0.85rem;
+      opacity: 0.7;
+      margin: 6px 0 0;
+    }
+
+    /* ========== GALLERY ========== */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+    }
+    .gallery-item {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--card);
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .gallery-item:hover {
+      transform: scale(1.02);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.3s;
+    }
+    .gallery-item:hover img { transform: scale(1.05); }
+
+    /* LIGHTBOX */
+    .lightbox-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: fadeIn 0.25s ease;
+    }
+    .lightbox-overlay img {
+      max-width: 95vw;
+      max-height: 90vh;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: #fff;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+      backdrop-filter: blur(10px);
+    }
+    .lightbox-close:hover { background: rgba(255,255,255,0.25); }
+
+    /* ========== FAQ ========== */
+    .faq-list { display: flex; flex-direction: column; gap: 10px; }
+    .faq-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .faq-item.open {
+      border-color: var(--accent);
+      box-shadow: 0 4px 16px rgba(240, 165, 0, 0.08);
+    }
+    .faq-question {
+      padding: 16px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.92rem;
+      user-select: none;
+      transition: background 0.2s;
+    }
+    .faq-question:hover { background: rgba(0,0,0,0.02); }
+    .faq-question span { flex: 1; line-height: 1.4; }
+    .faq-question i {
+      transition: transform 0.3s;
+      opacity: 0.5;
+      flex-shrink: 0;
+      font-size: 0.85rem;
+    }
+    .faq-item.open .faq-question i {
+      transform: rotate(180deg);
+      opacity: 1;
       color: var(--accent);
     }
-    #storeContent { display: none; }
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s ease, padding 0.35s ease, opacity 0.35s ease;
+      padding: 0 18px;
+      font-size: 0.88rem;
+      line-height: 1.6;
+      opacity: 0;
+      color: var(--muted);
+    }
+    .faq-item.open .faq-answer {
+      max-height: 400px;
+      padding: 0 18px 18px;
+      opacity: 1;
+    }
 
-    /* ===== HISTORIQUE DES COMMANDES ===== */
+    /* ========== ORDER HISTORY ========== */
     .history-section {
-      margin-top: 50px;
-      margin-bottom: 20px;
+      margin-top: 44px;
       display: none;
     }
     .history-header {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-bottom: 15px;
+      margin-bottom: 16px;
+      font-family: 'Space Grotesk', sans-serif;
       font-size: 1.2rem;
       font-weight: 700;
     }
@@ -397,76 +596,68 @@
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 12px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
       gap: 12px;
     }
-    .history-info {
-      flex: 1;
-      min-width: 200px;
-    }
-    .history-title {
-      font-weight: 700;
-      font-size: 0.95rem;
-      margin-bottom: 4px;
-    }
-    .history-meta {
-      font-size: 0.8rem;
-      opacity: 0.7;
-    }
+    .history-info { flex: 1; min-width: 200px; }
+    .history-title { font-weight: 700; font-size: 0.92rem; margin-bottom: 4px; }
+    .history-meta { font-size: 0.78rem; opacity: 0.7; }
     .status-badge {
-      padding: 6px 12px;
+      padding: 5px 12px;
       border-radius: 20px;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 700;
       white-space: nowrap;
     }
-    .status-pending { background: rgba(245, 158, 11, 0.1); color: #d97706; }
-    .status-success { background: rgba(16, 185, 129, 0.1); color: #059669; }
-    .status-failed { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
+    .status-pending { background: rgba(245, 158, 11, 0.12); color: #d97706; }
+    .status-success { background: rgba(16, 185, 129, 0.12); color: #059669; }
+    .status-failed { background: rgba(239, 68, 68, 0.12); color: #dc2626; }
 
-
-    /* ===== MODALES (COMMANDE, IDENTITÉ, DÉPÔT) ===== */
+    /* ========== MODALS ========== */
     .modal-overlay {
       display: none;
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.7);
+      inset: 0;
+      background: rgba(0,0,0,0.72);
       z-index: 9999;
       align-items: center;
       justify-content: center;
-      backdrop-filter: blur(5px);
+      backdrop-filter: blur(6px);
+      padding: 16px;
     }
     .modal-box {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 20px;
-      width: 92%;
-      max-width: 450px;
+      width: 100%;
+      max-width: 460px;
       padding: 28px 24px;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.35);
       max-height: 90vh;
       overflow-y: auto;
+      animation: modalIn 0.3s ease;
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.95) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
     }
     .modal-box h3 {
-      margin-top: 0;
-      margin-bottom: 20px;
+      margin: 0 0 20px;
+      font-family: 'Space Grotesk', sans-serif;
       font-size: 1.2rem;
       color: var(--text);
       line-height: 1.3;
       text-align: center;
     }
     .modal-box label {
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       font-weight: 700;
-      opacity: 0.85;
+      opacity: 0.8;
       display: block;
       margin-bottom: 6px;
       color: var(--text);
@@ -480,14 +671,13 @@
       background: var(--bg);
       color: var(--text);
       font-family: inherit;
-      font-size: 0.95rem;
-      transition: border-color 0.2s ease;
-    }
-    .modal-box input:focus, .modal-box textarea:focus {
+      font-size: 0.92rem;
+      transition: border-color 0.2s;
       outline: none;
-      border-color: var(--accent);
     }
+    .modal-box input:focus, .modal-box textarea:focus { border-color: var(--accent); }
     .modal-box .price-display {
+      font-family: 'Space Grotesk', sans-serif;
       font-size: 1.6rem;
       font-weight: 800;
       color: var(--accent);
@@ -496,33 +686,36 @@
     }
     .modal-box .btn-confirm {
       width: 100%;
-      padding: 14px;
+      padding: 13px;
       border-radius: 10px;
       border: none;
       cursor: pointer;
       background: var(--btn-color, var(--accent));
       color: #fff;
       font-weight: 700;
-      font-size: 1rem;
+      font-size: 0.95rem;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
       margin-bottom: 10px;
       transition: opacity 0.2s;
+      font-family: inherit;
     }
     .modal-box .btn-confirm:hover { opacity: 0.9; }
+    .modal-box .btn-confirm:disabled { opacity: 0.6; cursor: not-allowed; }
     .modal-box .btn-cancel {
       width: 100%;
-      padding: 14px;
+      padding: 13px;
       border-radius: 10px;
-      border: 1px solid var(--border);
+      border: 1.5px solid var(--border);
       cursor: pointer;
       background: transparent;
       color: var(--text);
       font-weight: 600;
-      font-size: 1rem;
+      font-size: 0.92rem;
       transition: background 0.2s;
+      font-family: inherit;
     }
     .modal-box .btn-cancel:hover { background: var(--bg); }
     .modal-box small {
@@ -530,13 +723,14 @@
       margin-top: -10px;
       margin-bottom: 15px;
       opacity: 0.6;
+      font-size: 0.78rem;
     }
-    
+
     .alert-message {
       padding: 12px;
       border-radius: 8px;
       margin-bottom: 15px;
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       font-weight: 600;
       display: none;
       text-align: center;
@@ -544,12 +738,12 @@
     .alert-error { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; display: block; }
     .alert-info { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; display: block; }
 
-    /* ===== BOUTON WHATSAPP FLOTTANT ===== */
+    /* ========== WHATSAPP FLOAT ========== */
     .whatsapp-float {
       position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background-color: #25d366;
+      bottom: 22px;
+      right: 22px;
+      background: #25d366;
       color: white;
       border-radius: 50%;
       width: 60px;
@@ -558,61 +752,98 @@
       justify-content: center;
       align-items: center;
       font-size: 30px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      box-shadow: 0 8px 24px rgba(37, 211, 102, 0.4);
       z-index: 1000;
       text-decoration: none;
-      transition: transform 0.2s;
+      transition: transform 0.25s, box-shadow 0.25s;
     }
-    .whatsapp-float:hover { transform: scale(1.08); }
+    .whatsapp-float:hover {
+      transform: scale(1.08);
+      box-shadow: 0 12px 32px rgba(37, 211, 102, 0.5);
+    }
 
-    /* ===== PIED DE PAGE ===== */
+    /* ========== FOOTER ========== */
     .store-footer {
-      margin-top: 40px;
-      padding: 25px 20px;
+      margin-top: 50px;
+      padding: 32px 20px 26px;
       border-top: 1px solid var(--border);
       text-align: center;
       background: var(--card);
     }
     .store-footer .owner-name {
+      font-family: 'Space Grotesk', sans-serif;
       font-size: 1rem;
       font-weight: 700;
-      margin-bottom: 10px;
+      margin-bottom: 14px;
       color: var(--text);
     }
     .store-footer .social-links {
       display: flex;
       justify-content: center;
-      gap: 20px;
+      gap: 12px;
       flex-wrap: wrap;
+      margin: 8px 0 16px;
     }
-    .store-footer .social-links a {
-      color: var(--text);
-      opacity: 0.7;
-      font-size: 1.8rem;
-      transition: opacity 0.2s, transform 0.2s;
+    .store-footer .social-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      color: #fff !important;
       text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
     }
-    .store-footer .social-links a:hover { opacity: 1; transform: scale(1.1); }
-    .store-footer .footer-text { margin-top: 12px; font-size: 0.8rem; opacity: 0.5; }
-    
-    /* MENTION AUTEUR CLICABLE */
+    .store-footer .social-btn:hover {
+      transform: translateY(-3px) scale(1.05);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+    .store-footer .social-btn.facebook { background: #1877F2; }
+    .store-footer .social-btn.instagram {
+      background: linear-gradient(45deg, #F58529 0%, #DD2A7B 50%, #8134AF 100%);
+    }
+    .store-footer .social-btn.youtube { background: #FF0000; }
+    .store-footer .social-btn.tiktok { background: #000000; }
+    .store-footer .social-btn.whatsapp { background: #25D366; }
+    .store-footer .social-btn.telegram { background: #26A5E4; }
+
+    .store-footer .footer-text {
+      margin-top: 14px;
+      font-size: 0.78rem;
+      opacity: 0.5;
+    }
     .footer-author {
       margin-top: 10px;
-      font-size: 0.85rem;
-      opacity: 0.8;
+      font-size: 0.82rem;
+      opacity: 0.85;
     }
     .footer-author a {
       color: var(--accent);
-      font-weight: bold;
+      font-weight: 700;
       text-decoration: none;
       transition: opacity 0.2s;
     }
-    .footer-author a:hover {
-      opacity: 0.7;
-      text-decoration: underline;
+    .footer-author a:hover { opacity: 0.7; text-decoration: underline; }
+
+    /* ========== MISC ========== */
+    #loader {
+      text-align: center;
+      padding: 100px 20px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    #loader i { font-size: 2.5rem; margin-bottom: 16px; display: block; }
+    #storeContent { display: none; }
+
+    .container {
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 24px 16px 0;
     }
 
-    /* ===== RESPONSIVE ===== */
     @media (min-width: 600px) {
       .services-grid { grid-template-columns: 1fr 1fr; }
       .store-header .top-row { flex-wrap: nowrap; }
@@ -620,16 +851,26 @@
     @media (min-width: 900px) {
       .services-grid { grid-template-columns: 1fr 1fr 1fr; }
     }
-    .container { max-width: 1100px; margin: 0 auto; padding: 20px 16px 0; }
+    @media (max-width: 500px) {
+      .store-header .title { font-size: 1.55rem; }
+      .store-header .logo { width: 64px; height: 64px; }
+      .customer-bar { flex-direction: column; gap: 10px; padding: 12px 16px; border-radius: 16px; }
+      .customer-bar > div:last-child { width: 100%; justify-content: space-between; }
+    }
   </style>
 </head>
 <body>
 
-  <div id="loader"><i class="fas fa-spinner fa-spin fa-2x"></i><br><br><span id="loaderText">Chargement de la boutique...</span></div>
+  <!-- Bannière d'annonce (top, full width) -->
+  <div id="announcementBanner" class="announcement-banner"></div>
 
-  <!-- Contenu Principal -->
+  <div id="loader">
+    <i class="fas fa-spinner fa-spin"></i>
+    <span id="loaderText">Chargement de la boutique…</span>
+  </div>
+
   <div id="storeContent">
-    <!-- HEADER MODERNE -->
+    <!-- HEADER -->
     <div class="store-header">
       <div class="top-row">
         <img id="sLogo" class="logo" src="" alt="Logo" style="display:none;">
@@ -642,35 +883,31 @@
     </div>
 
     <div class="container">
-      
-      <!-- INVITATION A CRÉER SA BOUTIQUE -->
-      <div class="promo-banner">
-        <h3><i class="fas fa-rocket"></i> Envie de lancer votre propre business en ligne ?</h3>
-        <p>Vendez des services de boostage à vos propres clients sans aucune compétence en codage ! Nous vous créons une boutique prête à l'emploi. Ajoutez vos propres marges de bénéfice sur nos services, encaissez vos clients via les moyens de paiement locaux, et retirez vos gains librement en toute simplicité.</p>
-        <a href="https://socialboosthorizon.com/" target="_blank" class="promo-btn">Créer ma boutique maintenant</a>
-      </div>
 
-      <!-- Barre d'espace client (Solde & Recharge) -->
+      <!-- Barre client -->
       <div class="customer-bar" id="customerAccountBar">
         <div class="balance-info">
           <i class="fas fa-wallet"></i>
           <div>Solde : <span id="customerBalanceDisplay">0</span></div>
         </div>
-        <div style="display: flex; gap: 10px; align-items: center;">
-          <button id="btnVerifyPayment" class="btn-recharge" style="display:none; background:#28a745;" onclick="manualVerifyPayment()">
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button id="btnVerifyPayment" class="btn-recharge" style="display:none; background:#10B981;" onclick="manualVerifyPayment()">
             <i class="fas fa-sync-alt"></i> Vérifier
           </button>
-          
-          <button class="btn-recharge" onclick="openDepositModal()"><i class="fas fa-plus"></i> Recharger</button>
-          <button class="btn-logout" onclick="logoutCustomer()" title="Se déconnecter"><i class="fas fa-sign-out-alt"></i></button>
+          <button class="btn-recharge" onclick="openDepositModal()">
+            <i class="fas fa-plus"></i> Recharger
+          </button>
+          <button class="btn-logout" onclick="logoutCustomer()" title="Se déconnecter">
+            <i class="fas fa-sign-out-alt"></i>
+          </button>
         </div>
       </div>
 
-      <!-- Contrôles : recherche + pays -->
+      <!-- Recherche + pays -->
       <div class="top-controls">
         <div class="search-bar">
           <i class="fas fa-search"></i>
-          <input type="text" id="searchInput" placeholder="Rechercher un service..." autocomplete="off">
+          <input type="text" id="searchInput" placeholder="Rechercher un service…" autocomplete="off">
         </div>
         <div class="country-selector">
           <span class="flag" id="currentFlag">🇨🇲</span>
@@ -678,55 +915,75 @@
         </div>
       </div>
 
-      <!-- Onglets plateformes -->
+      <!-- Plateformes -->
       <div id="platformTabs" class="platform-tabs"></div>
 
-      <!-- Grille des services -->
+      <!-- Catégories -->
+      <div id="categoryTabs" class="category-tabs"></div>
+
+      <!-- Services -->
       <div id="servicesGrid" class="services-grid"></div>
+
+      <!-- GALERIE DE RÉALISATIONS -->
+      <div id="gallerySection" class="store-section">
+        <div class="store-section-header">
+          <h2><i class="fas fa-images"></i> Nos réalisations</h2>
+          <p>Découvrez quelques résultats obtenus pour nos clients.</p>
+        </div>
+        <div class="gallery-grid" id="galleryGrid"></div>
+      </div>
+
+      <!-- FAQ -->
+      <div id="faqSection" class="store-section">
+        <div class="store-section-header">
+          <h2><i class="fas fa-circle-question"></i> Questions fréquentes</h2>
+          <p>Tout ce qu'il faut savoir avant de commander.</p>
+        </div>
+        <div class="faq-list" id="faqList"></div>
+      </div>
 
       <!-- HISTORIQUE DES COMMANDES -->
       <div class="history-section" id="orderHistoryContainer">
-        <div class="history-header"><i class="fas fa-history" style="color:var(--accent);"></i> Historique de vos commandes</div>
-        <div id="orderHistoryList">
-          <!-- Les commandes seront générées ici par Javascript -->
+        <div class="history-header">
+          <i class="fas fa-history" style="color:var(--accent);"></i> Historique de vos commandes
         </div>
+        <div id="orderHistoryList"></div>
       </div>
 
-      <!-- Pied de page -->
-      <div class="store-footer" id="storeFooter" style="display:none;">
+      <!-- FOOTER -->
+      <div class="store-footer" id="storeFooter">
         <div class="owner-name" id="ownerNameDisplay"></div>
         <div class="social-links" id="socialLinks"></div>
         <div class="footer-text">© 2026 Tous droits réservés</div>
-        <!-- MENTION SOCIAL BOOST HORIZON -->
         <div class="footer-author">
-          Propulsé par <a href="https://socialboosthorizon.com/" target="_blank">Social Boost Horizon</a>
+          Propulsé par <a href="https://socialboosthorizon.com/" target="_blank" rel="noopener">Social Boost Horizon</a>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Bouton WhatsApp Flottant -->
+  <!-- WhatsApp flottant -->
   <a href="#" id="waFloatBtn" class="whatsapp-float" target="_blank" title="Contacter le support">
     <i class="fab fa-whatsapp"></i>
   </a>
 
-  <!-- Modale de Commande -->
+  <!-- Modale commande -->
   <div id="orderModalOverlay" class="modal-overlay">
     <div class="modal-box">
       <h3 id="modalServiceName">Nom du Service</h3>
       <form id="orderForm">
         <label>Lien / URL cible</label>
-        <input type="url" id="modalLink" placeholder="https://..." required>
-        
+        <input type="url" id="modalLink" placeholder="https://…" required>
+
         <label>Quantité</label>
         <input type="number" id="modalQty" min="1" required>
         <small id="modalMinMax"></small>
 
-        <label>Ton Contact (Optionnel)</label>
-        <input type="text" id="modalContact" placeholder="Email ou Numéro WhatsApp">
+        <label>Ton contact (optionnel)</label>
+        <input type="text" id="modalContact" placeholder="Email ou WhatsApp">
 
         <div class="price-display" id="modalPrice">0 FCFA</div>
-        
+
         <button type="submit" class="btn-confirm" id="btnConfirmOrder">
           <i class="fas fa-paper-plane"></i> Commander
         </button>
@@ -735,35 +992,36 @@
     </div>
   </div>
 
-  <!-- Modale d'Identité -->
+  <!-- Modale identité -->
   <div id="identityModalOverlay" class="modal-overlay">
     <div class="modal-box">
       <h3><i class="fas fa-user-circle" style="color:var(--accent); margin-right:8px;"></i>Espace Client</h3>
-      <p style="font-size:0.9rem; opacity:0.8; margin-bottom:20px; text-align:center;">Veuillez entrer votre email pour gérer votre solde sur cette boutique.</p>
+      <p style="font-size:0.9rem; opacity:0.75; margin-bottom:20px; text-align:center;">
+        Entrez votre email pour gérer votre solde sur cette boutique.
+      </p>
       <form id="identityForm">
-        <label>Adresse Email</label>
+        <label>Adresse email</label>
         <input type="email" id="identityEmail" placeholder="votre@email.com" required>
-        
         <button type="submit" class="btn-confirm">Continuer</button>
         <button type="button" class="btn-cancel" onclick="closeIdentityModal()">Annuler</button>
       </form>
     </div>
   </div>
 
-  <!-- Modale de Dépôt / Rechargement -->
+  <!-- Modale dépôt -->
   <div id="depositModalOverlay" class="modal-overlay">
     <div class="modal-box">
       <h3><i class="fas fa-wallet" style="color:var(--accent); margin-right:8px;"></i>Recharger mon solde</h3>
       <div id="depositAlert" class="alert-message"></div>
       <form id="depositForm">
-        <label>Numéro Mobile Money (Optionnel selon le pays)</label>
+        <label>Numéro Mobile Money (optionnel)</label>
         <input type="tel" id="depositPhone" placeholder="+237 6XX XXX XXX">
-        
+
         <label>Montant (<span id="depositCurrencySymbol">FCFA</span>)</label>
         <input type="number" id="depositAmount" min="500" placeholder="Montant à recharger" required>
-        
-        <p style="font-size:0.8rem; opacity:0.7; margin-bottom:20px; text-align:center;">
-          Paiement 100% sécurisé via Mobile Money & Cartes.
+
+        <p style="font-size:0.78rem; opacity:0.65; margin-bottom:20px; text-align:center;">
+          Paiement 100 % sécurisé via Mobile Money & Cartes.
         </p>
 
         <button type="submit" class="btn-confirm" id="btnConfirmDeposit">
@@ -775,7 +1033,7 @@
   </div>
 
   <script>
-    // ==================== 1. CONFIGURATION & VARIABLES ====================
+    /* ==================== 1. CONFIG & STATE ==================== */
     const firebaseConfig = {
       apiKey: "AIzaSyD2JiDS0g8EkeNXxjO7_wGI3WznpPvcCCk",
       projectId: "social-boost-horizon",
@@ -785,24 +1043,27 @@
 
     const params = new URLSearchParams(window.location.search);
     const storeId = params.get('id');
-
-    const BACKEND_URL = 'https://socialboosthorizon.com'; 
+    const BACKEND_URL = 'https://socialboosthorizon.com';
 
     let storeData = null;
-    let resellerWa = "";
+    let resellerWa = '';
     let allServices = [];
     let platformsMap = {};
     let currentPlatform = null;
+    let currentCategory = 'all';
     let searchTerm = '';
     let resellerMargin = 0;
 
     let customerEmail = localStorage.getItem('storeCustomerEmail_' + storeId) || null;
     let customerBalanceXAF = 0;
     let customerUnsubscribe = null;
-    let ordersUnsubscribe = null; // Pour gérer l'historique
+    let ordersUnsubscribe = null;
     let returnToOrderAfterIdentity = false;
 
-    // ==================== 2. DEVISE AVEC ISO PAYS ====================
+    let currentSelectedService = null;
+    let computedTotalXAF = 0;
+
+    /* ==================== 2. DEVISE ==================== */
     const CURRENCY_CONFIG = {
       'Cameroun': { code: 'XAF', iso: 'CM', symbol: 'FCFA', rate: 1, flag: '🇨🇲' },
       'RDC': { code: 'CDF', iso: 'CD', symbol: 'FC', rate: 4.27, flag: '🇨🇩' },
@@ -817,7 +1078,7 @@
       'Niger': { code: 'XOF', iso: 'NE', symbol: 'FCFA', rate: 1, flag: '🇳🇪' },
       'Tchad': { code: 'XAF', iso: 'TD', symbol: 'FCFA', rate: 1, flag: '🇹🇩' },
       'Centrafrique': { code: 'XAF', iso: 'CF', symbol: 'FCFA', rate: 1, flag: '🇨🇫' },
-      'Guinée équatoriale': { code: 'XAF', iso: 'GQ', symbol: 'FCFA', rate: 1, flag: '🇬GQ' },
+      'Guinée équatoriale': { code: 'XAF', iso: 'GQ', symbol: 'FCFA', rate: 1, flag: '🇬🇶' },
       'Nigeria': { code: 'NGN', iso: 'NG', symbol: '₦', rate: 0.0007, flag: '🇳🇬' },
       'Ghana': { code: 'GHS', iso: 'GH', symbol: '₵', rate: 0.06, flag: '🇬🇭' },
       'Kenya': { code: 'KES', iso: 'KE', symbol: 'KSh', rate: 0.0065, flag: '🇰🇪' },
@@ -835,54 +1096,119 @@
     let userCurrency = CURRENCY_CONFIG['Cameroun'];
 
     function convertFromXAF(amountXAF) { return amountXAF * userCurrency.rate; }
-    
+
     function formatPrice(amountXAF, applyMargin = true) {
       const withMargin = applyMargin ? amountXAF * (1 + resellerMargin / 100) : amountXAF;
       const localAmount = convertFromXAF(withMargin);
       if (userCurrency.rate === 1 || userCurrency.code === 'XOF' || userCurrency.code === 'XAF') {
-        return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(localAmount)) + ' ' + userCurrency.symbol;
-      } else {
-        return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(localAmount) + ' ' + userCurrency.symbol;
+        return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+          .format(Math.round(localAmount)) + ' ' + userCurrency.symbol;
       }
+      return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        .format(localAmount) + ' ' + userCurrency.symbol;
     }
 
-    // ==================== 3. GESTION DU COMPTE CLIENT ET HISTORIQUE ====================
+    /* ==================== 3. PLATFORM ICONS (mapping robuste) ==================== */
+    const PLATFORM_ICONS = {
+      'TikTok':    { icon: 'fa-brands fa-tiktok',     color: '#010101', bg: 'linear-gradient(135deg, #25F4EE, #FE2C55, #000)' },
+      'Instagram': { icon: 'fa-brands fa-instagram',  color: '#E4405F', bg: 'linear-gradient(45deg, #F58529, #DD2A7B, #8134AF)' },
+      'YouTube':   { icon: 'fa-brands fa-youtube',    color: '#FF0000', bg: '#FF0000' },
+      'Facebook':  { icon: 'fa-brands fa-facebook-f', color: '#1877F2', bg: '#1877F2' },
+      'Twitter':   { icon: 'fa-brands fa-twitter',    color: '#1DA1F2', bg: '#1DA1F2' },
+      'X':         { icon: 'fa-brands fa-x-twitter',  color: '#000000', bg: '#000000' },
+      'Telegram':  { icon: 'fa-brands fa-telegram',   color: '#26A5E4', bg: '#26A5E4' },
+      'WhatsApp':  { icon: 'fa-brands fa-whatsapp',   color: '#25D366', bg: '#25D366' },
+      'Snapchat':  { icon: 'fa-brands fa-snapchat',   color: '#FFFC00', bg: '#FFFC00' },
+      'LinkedIn':  { icon: 'fa-brands fa-linkedin',   color: '#0A66C2', bg: '#0A66C2' },
+      'Spotify':   { icon: 'fa-brands fa-spotify',    color: '#1DB954', bg: '#1DB954' },
+      'Threads':   { icon: 'fa-brands fa-threads',    color: '#000000', bg: '#000000' },
+      'Twitch':    { icon: 'fa-brands fa-twitch',     color: '#9146FF', bg: '#9146FF' },
+      'Discord':   { icon: 'fa-brands fa-discord',    color: '#5865F2', bg: '#5865F2' },
+      'Reddit':    { icon: 'fa-brands fa-reddit',     color: '#FF4500', bg: '#FF4500' },
+      'Pinterest': { icon: 'fa-brands fa-pinterest',  color: '#BD081C', bg: '#BD081C' },
+    };
+
+    function normalizePlatform(name) {
+      const n = String(name || '').toLowerCase().trim();
+      if (n.includes('tiktok') || n.includes('tik tok')) return 'TikTok';
+      if (n.includes('instagram') || n.includes('insta')) return 'Instagram';
+      if (n.includes('youtube') || n === 'yt') return 'YouTube';
+      if (n.includes('facebook') || n === 'fb') return 'Facebook';
+      if (n.includes('twitter') || n === 'x') return 'X';
+      if (n.includes('telegram')) return 'Telegram';
+      if (n.includes('whatsapp') || n === 'wa') return 'WhatsApp';
+      if (n.includes('snapchat') || n.includes('snap')) return 'Snapchat';
+      if (n.includes('linkedin')) return 'LinkedIn';
+      if (n.includes('spotify')) return 'Spotify';
+      if (n.includes('threads')) return 'Threads';
+      if (n.includes('twitch')) return 'Twitch';
+      if (n.includes('discord')) return 'Discord';
+      if (n.includes('reddit')) return 'Reddit';
+      if (n.includes('pinterest')) return 'Pinterest';
+      return name;
+    }
+
+    function getPlatformIcon(platformName) {
+      const normalized = normalizePlatform(platformName);
+      return PLATFORM_ICONS[normalized] || {
+        icon: 'fa-solid fa-share-nodes',
+        color: 'var(--accent)',
+        bg: 'var(--accent)'
+      };
+    }
+
+    /* ==================== 4. DÉTECTION CATÉGORIE ==================== */
+    function detectCategory(serviceName) {
+      const n = String(serviceName || '').toLowerCase();
+      if (/\babonn|follower|subscriber|membre|membres|join/.test(n)) return 'Abonnés';
+      if (/j'aime|jaime|\blikes?\b|\baimes?\b|réaction|reaction|\bcoeurs?\b/.test(n)) return "J'aime";
+      if (/\bvues?\b|\bviews?\b|visuali|regard|\bplays?\b/.test(n)) return 'Vues';
+      if (/commentaire|\bcomment|\bcomm\b/.test(n)) return 'Commentaires';
+      if (/partage|\bshares?\b|repost|retweet|repin/.test(n)) return 'Partages';
+      if (/\blive\b|\bdirect\b/.test(n)) return 'Live';
+      if (/impression/.test(n)) return 'Impressions';
+      if (/membre.*canal|membres.*canal/.test(n)) return 'Abonnés';
+      return 'Autres';
+    }
+
+    function getServicesForCurrentPlatform() {
+      return currentPlatform === 'all'
+        ? allServices
+        : (platformsMap[currentPlatform] || []);
+    }
+
+    /* ==================== 5. GESTION COMPTE CLIENT ==================== */
     function initCustomerListener() {
       if (!customerEmail || !storeId) return;
-      
       const docRef = db.collection('stores').doc(storeId).collection('customers').doc(customerEmail);
-      
       if (customerUnsubscribe) customerUnsubscribe();
-      
+
       customerUnsubscribe = docRef.onSnapshot(doc => {
         if (doc.exists) {
           customerBalanceXAF = doc.data().balance || 0;
         } else {
-          docRef.set({ 
-            email: customerEmail, 
-            balance: 0, 
-            createdAt: firebase.firestore.FieldValue.serverTimestamp() 
+          docRef.set({
+            email: customerEmail,
+            balance: 0,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
           });
           customerBalanceXAF = 0;
         }
         updateCustomerUI();
       });
 
-      // Lancement de l'écouteur d'historique de commandes
       initOrdersListener();
     }
 
     function initOrdersListener() {
       if (!customerEmail || !storeId) return;
-      
-      const ordersRef = db.collection('stores').doc(storeId).collection('customers').doc(customerEmail).collection('orders');
-      
+      const ordersRef = db.collection('stores').doc(storeId)
+        .collection('customers').doc(customerEmail).collection('orders');
       if (ordersUnsubscribe) ordersUnsubscribe();
 
       ordersUnsubscribe = ordersRef.orderBy('createdAt', 'desc').limit(15).onSnapshot(snapshot => {
         const historyContainer = document.getElementById('orderHistoryContainer');
         const list = document.getElementById('orderHistoryList');
-        
         historyContainer.style.display = 'block';
 
         if (snapshot.empty) {
@@ -896,46 +1222,40 @@
           const serviceName = order.serviceName || 'Service commandé';
           const qty = order.quantity || '-';
           const price = order.priceXAF ? (order.priceXAF + ' FCFA') : '...';
-          const date = order.createdAt ? new Date(order.createdAt.toMillis()).toLocaleDateString() : 'Récemment';
-          
+          const date = order.createdAt ? new Date(order.createdAt.toMillis()).toLocaleDateString('fr-FR') : 'Récemment';
+
           let statusText = order.status || 'En attente';
           let statusClass = 'status-pending';
-          
-          if(statusText.toLowerCase() === 'complété' || statusText.toLowerCase() === 'completed' || statusText.toLowerCase() === 'success') {
-            statusClass = 'status-success';
-          } else if(statusText.toLowerCase() === 'annulé' || statusText.toLowerCase() === 'canceled' || statusText.toLowerCase() === 'failed') {
-            statusClass = 'status-failed';
-          }
+          const sl = statusText.toLowerCase();
+          if (['complété','completed','success','livré'].includes(sl)) statusClass = 'status-success';
+          else if (['annulé','canceled','failed','échoué'].includes(sl)) statusClass = 'status-failed';
 
           html += `
             <div class="history-card">
               <div class="history-info">
-                <div class="history-title">${serviceName} <span style="opacity:0.7; font-weight:normal;">(x${qty})</span></div>
+                <div class="history-title">${escapeHtml(serviceName)} <span style="opacity:0.7; font-weight:normal;">(x${qty})</span></div>
                 <div class="history-meta"><i class="far fa-calendar-alt"></i> ${date} &nbsp;•&nbsp; ${price}</div>
               </div>
-              <div class="status-badge ${statusClass}">${statusText}</div>
+              <div class="status-badge ${statusClass}">${escapeHtml(statusText)}</div>
             </div>
           `;
         });
         list.innerHTML = html;
-      }, err => {
-        console.error("Erreur de chargement de l'historique:", err);
-      });
+      }, err => console.error("Erreur historique:", err));
     }
 
     function updateCustomerUI() {
       const bar = document.getElementById('customerAccountBar');
       const balDisplay = document.getElementById('customerBalanceDisplay');
       const btnVerify = document.getElementById('btnVerifyPayment');
-      
+
       if (customerEmail) {
         bar.style.display = 'flex';
-        balDisplay.textContent = formatPrice(customerBalanceXAF, false); 
-        
+        balDisplay.textContent = formatPrice(customerBalanceXAF, false);
         if (localStorage.getItem('pendingStorePayment_' + storeId)) {
-          if(btnVerify) btnVerify.style.display = 'flex';
+          btnVerify.style.display = 'inline-flex';
         } else {
-          if(btnVerify) btnVerify.style.display = 'none';
+          btnVerify.style.display = 'none';
         }
       } else {
         bar.style.display = 'none';
@@ -944,62 +1264,54 @@
     }
 
     function logoutCustomer() {
-      if(confirm("Voulez-vous vous déconnecter de votre espace client sur cette boutique ?")) {
+      if (confirm("Voulez-vous vous déconnecter de votre espace client sur cette boutique ?")) {
         localStorage.removeItem('storeCustomerEmail_' + storeId);
         customerEmail = null;
         customerBalanceXAF = 0;
-        
-        if(customerUnsubscribe) customerUnsubscribe();
-        if(ordersUnsubscribe) ordersUnsubscribe();
-        
+        if (customerUnsubscribe) customerUnsubscribe();
+        if (ordersUnsubscribe) ordersUnsubscribe();
         updateCustomerUI();
       }
     }
 
-    // Identité Modale
     function openIdentityModal(forOrder = false) {
       returnToOrderAfterIdentity = forOrder;
       document.getElementById('identityModalOverlay').style.display = 'flex';
-      if(customerEmail) document.getElementById('identityEmail').value = customerEmail;
+      if (customerEmail) document.getElementById('identityEmail').value = customerEmail;
     }
-
     function closeIdentityModal() {
       document.getElementById('identityModalOverlay').style.display = 'none';
       returnToOrderAfterIdentity = false;
     }
 
-    document.getElementById('identityForm').addEventListener('submit', function(e) {
+    document.getElementById('identityForm').addEventListener('submit', function (e) {
       e.preventDefault();
       const email = document.getElementById('identityEmail').value.trim();
-      if(email) {
+      if (email) {
         customerEmail = email;
         localStorage.setItem('storeCustomerEmail_' + storeId, email);
         initCustomerListener();
         closeIdentityModal();
-        if(returnToOrderAfterIdentity && currentSelectedService) {
-          openOrderModal(currentSelectedService);
-        }
+        if (returnToOrderAfterIdentity && currentSelectedService) openOrderModal(currentSelectedService);
       }
     });
 
-    // ==================== 4. PAIEMENT & RECHARGEMENT (SWYCHR) ====================
+    /* ==================== 6. PAIEMENT & RECHARGE ==================== */
     function openDepositModal(minXAFNeeded = 0) {
       document.getElementById('depositModalOverlay').style.display = 'flex';
       const input = document.getElementById('depositAmount');
-      
       const config = userCurrency;
       const minLocal = Math.max(500, Math.round(minXAFNeeded * config.rate));
-      
       input.min = minLocal;
-      input.value = minLocal > 500 ? minLocal : "";
+      input.value = minLocal > 500 ? minLocal : '';
       input.placeholder = `Min: ${minLocal} ${config.symbol}`;
       document.getElementById('depositCurrencySymbol').textContent = config.symbol;
       document.getElementById('depositAlert').style.display = 'none';
 
-      if(minXAFNeeded > 0) {
+      if (minXAFNeeded > 0) {
         const alertBox = document.getElementById('depositAlert');
-        alertBox.className = "alert-message alert-info";
-        alertBox.textContent = `Solde insuffisant pour la commande. Veuillez recharger au moins ${minLocal} ${config.symbol}.`;
+        alertBox.className = 'alert-message alert-info';
+        alertBox.textContent = `Solde insuffisant. Rechargez au moins ${minLocal} ${config.symbol}.`;
       }
     }
 
@@ -1007,27 +1319,21 @@
       document.getElementById('depositModalOverlay').style.display = 'none';
     }
 
-    document.getElementById('depositForm').addEventListener('submit', async function(e) {
+    document.getElementById('depositForm').addEventListener('submit', async function (e) {
       e.preventDefault();
-      
-      if(!customerEmail) {
-        closeDepositModal();
-        openIdentityModal();
-        return;
-      }
+      if (!customerEmail) { closeDepositModal(); openIdentityModal(); return; }
 
       const amountLocal = parseInt(document.getElementById('depositAmount').value);
       const phone = document.getElementById('depositPhone').value;
       const config = userCurrency;
       const amountXAF = Math.round(amountLocal / config.rate);
-      
       const btn = document.getElementById('btnConfirmDeposit');
       btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Initialisation...';
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Initialisation…';
 
       const requestBody = {
         email: customerEmail,
-        userId: customerEmail, 
+        userId: customerEmail,
         username: customerEmail.split('@')[0],
         country: config.iso || 'CM',
         phone: phone,
@@ -1043,9 +1349,8 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody)
         });
-
         const data = await response.json();
-        
+
         if (data.success && data.checkoutUrl) {
           localStorage.setItem('pendingStorePayment_' + storeId, JSON.stringify({
             transactionId: data.transactionId,
@@ -1055,15 +1360,15 @@
           window.location.href = data.checkoutUrl;
         } else {
           const alertBox = document.getElementById('depositAlert');
-          alertBox.className = "alert-message alert-error";
-          alertBox.textContent = "Erreur : " + (data.error || "Impossible d'initier le paiement.");
+          alertBox.className = 'alert-message alert-error';
+          alertBox.textContent = 'Erreur : ' + (data.error || 'Impossible d\'initier le paiement.');
           btn.disabled = false;
           btn.innerHTML = '<i class="fas fa-lock"></i> Payer maintenant';
         }
       } catch (error) {
         const alertBox = document.getElementById('depositAlert');
-        alertBox.className = "alert-message alert-error";
-        alertBox.textContent = "Erreur réseau. Vérifiez votre connexion.";
+        alertBox.className = 'alert-message alert-error';
+        alertBox.textContent = 'Erreur réseau. Vérifiez votre connexion.';
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-lock"></i> Payer maintenant';
       }
@@ -1072,82 +1377,75 @@
     async function manualVerifyPayment() {
       const pending = localStorage.getItem('pendingStorePayment_' + storeId);
       if (!pending) return;
-
       const btn = document.getElementById('btnVerifyPayment');
       const originalText = btn.innerHTML;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Patientez...';
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Patientez…';
       btn.disabled = true;
 
       try {
         const paymentData = JSON.parse(pending);
         const res = await fetch(`${BACKEND_URL}/api/confirm-swychr?transactionId=${paymentData.transactionId}`);
         const data = await res.json();
-
         if (data.finalStatus === 'success') {
-          alert("✅ Paiement validé avec succès ! Ton solde est à jour.");
+          alert('✅ Paiement validé ! Ton solde est à jour.');
           localStorage.removeItem('pendingStorePayment_' + storeId);
         } else if (data.finalStatus === 'failed') {
-          alert("❌ Le paiement a échoué ou a été annulé.");
+          alert('❌ Le paiement a échoué ou a été annulé.');
           localStorage.removeItem('pendingStorePayment_' + storeId);
         } else {
-          alert("⏳ Ton paiement est toujours en cours de traitement chez l'opérateur. Réessaie dans une minute !");
+          alert('⏳ Paiement en cours de traitement. Réessaie dans une minute.');
         }
       } catch (e) {
-        alert("⚠️ Erreur de connexion lors de la vérification.");
+        alert('⚠️ Erreur de connexion lors de la vérification.');
       } finally {
-        updateCustomerUI(); 
+        updateCustomerUI();
         btn.innerHTML = originalText;
         btn.disabled = false;
       }
     }
 
-    // ==================== 5. MAPPING ICÔNES PLATEFORMES ====================
-    const PLATFORM_ICONS = {
-      'TikTok': { icon: 'fa-brands fa-tiktok', color: '#010101' },
-      'Instagram': { icon: 'fa-brands fa-instagram', color: '#E4405F' },
-      'YouTube': { icon: 'fa-brands fa-youtube', color: '#FF0000' },
-      'Facebook': { icon: 'fa-brands fa-facebook', color: '#1877F2' },
-      'Twitter': { icon: 'fa-brands fa-twitter', color: '#000000' },
-      'X': { icon: 'fa-brands fa-x-twitter', color: '#000000' },
-      'Telegram': { icon: 'fa-brands fa-telegram', color: '#26A5E4' }
-    };
-    function getPlatformIcon(platformName) {
-      return PLATFORM_ICONS[platformName] || { icon: 'fa-solid fa-circle', color: 'var(--accent)' };
-    }
-
-    // ==================== 6. CHARGEMENT DE LA BOUTIQUE ====================
+    /* ==================== 7. CHARGEMENT BOUTIQUE ==================== */
     async function loadStore() {
       if (!storeId) {
-        document.getElementById('loader').innerHTML = "Erreur : ID de la boutique introuvable.";
+        document.getElementById('loader').innerHTML = 'Erreur : ID de la boutique introuvable.';
         return;
       }
-      
+
       try {
         const storeDoc = await db.collection('stores').doc(storeId).get();
         if (!storeDoc.exists) {
-          document.getElementById('loader').innerHTML = "Boutique inexistante ou désactivée.";
+          document.getElementById('loader').innerHTML = 'Boutique inexistante ou désactivée.';
           return;
         }
         storeData = storeDoc.data();
 
+        // Titre du document
+        document.title = (storeData.name || 'Boutique') + ' — Boutique en ligne';
+
+        // Logo
         if (storeData.logoUrl) {
           document.getElementById('sLogo').src = storeData.logoUrl;
           document.getElementById('sLogo').style.display = 'inline-block';
         }
-        document.getElementById('sTitle').textContent = storeData.name || "Boutique";
-        document.getElementById('sSlogan').textContent = storeData.slogan || "";
-        document.getElementById('sDesc').textContent = storeData.description || "";
+        document.getElementById('sTitle').textContent = storeData.name || 'Boutique';
+        document.getElementById('sSlogan').textContent = storeData.slogan || '';
+        document.getElementById('sDesc').textContent = storeData.description || '';
 
+        // Thème
         if (storeData.themeMode === 'dark') {
-          document.documentElement.style.setProperty('--bg', '#111122');
-          document.documentElement.style.setProperty('--card', '#1a1a2e');
-          document.documentElement.style.setProperty('--text', '#ffffff');
-          document.documentElement.style.setProperty('--border', 'rgba(255,255,255,0.15)');
+          document.documentElement.style.setProperty('--bg', '#0F0F1A');
+          document.documentElement.style.setProperty('--card', '#1A1A2E');
+          document.documentElement.style.setProperty('--text', '#FFFFFF');
+          document.documentElement.style.setProperty('--border', 'rgba(255,255,255,0.1)');
+          document.documentElement.style.setProperty('--border-strong', 'rgba(255,255,255,0.18)');
+          document.documentElement.style.setProperty('--muted', 'rgba(255,255,255,0.65)');
         } else {
           document.documentElement.style.setProperty('--bg', '#F8F9FA');
           document.documentElement.style.setProperty('--card', '#FFFFFF');
           document.documentElement.style.setProperty('--text', '#212529');
-          document.documentElement.style.setProperty('--border', 'rgba(0,0,0,0.1)');
+          document.documentElement.style.setProperty('--border', 'rgba(0,0,0,0.08)');
+          document.documentElement.style.setProperty('--border-strong', 'rgba(0,0,0,0.14)');
+          document.documentElement.style.setProperty('--muted', 'rgba(0,0,0,0.6)');
         }
         const accent = storeData.themeColor || '#F0A500';
         document.documentElement.style.setProperty('--accent', accent);
@@ -1155,6 +1453,7 @@
 
         resellerMargin = storeData.margin || 0;
 
+        // WhatsApp
         if (storeData.whatsapp) {
           resellerWa = storeData.whatsapp.replace(/\D/g, '');
           const waBtn = document.getElementById('waFloatBtn');
@@ -1162,26 +1461,129 @@
           waBtn.style.display = 'flex';
         }
 
-        await fetchCatalog();
+        // Bannière d'annonce
+        renderAnnouncement();
+
+        // Footer
         buildFooter();
+
+        // Galerie
+        renderGallery();
+
+        // FAQ
+        renderFAQ();
+
+        // Sélecteur pays
         populateCountrySelector();
 
-        if(customerEmail) initCustomerListener();
+        // Catalogue
+        await fetchCatalog();
+
+        if (customerEmail) initCustomerListener();
 
         document.getElementById('loader').style.display = 'none';
         document.getElementById('storeContent').style.display = 'block';
-
       } catch (error) {
         console.error(error);
-        document.getElementById('loader').innerHTML = "Une erreur s'est produite lors du chargement.";
+        document.getElementById('loader').innerHTML = 'Une erreur s\'est produite lors du chargement.';
       }
     }
 
+    /* ==================== 8. BANNIÈRE ANNONCE ==================== */
+    function renderAnnouncement() {
+      const banner = document.getElementById('announcementBanner');
+      if (storeData.announcementEnabled && (storeData.announcementText || '').trim()) {
+        banner.textContent = storeData.announcementText.trim();
+        banner.style.background = storeData.announcementColor || '#F97316';
+        banner.classList.add('show');
+      } else {
+        banner.classList.remove('show');
+      }
+    }
+
+    /* ==================== 9. GALERIE ==================== */
+    function renderGallery() {
+      const section = document.getElementById('gallerySection');
+      const grid = document.getElementById('galleryGrid');
+      const images = Array.isArray(storeData.galleryImages) ? storeData.galleryImages : [];
+
+      if (images.length === 0) {
+        section.classList.remove('show');
+        return;
+      }
+
+      section.classList.add('show');
+      grid.innerHTML = images.map((url, i) => `
+        <div class="gallery-item" onclick="openLightbox('${escapeAttr(url)}')" title="Voir en grand">
+          <img src="${escapeAttr(url)}" alt="Réalisation ${i + 1}" loading="lazy">
+        </div>
+      `).join('');
+    }
+
+    function openLightbox(url) {
+      const overlay = document.createElement('div');
+      overlay.className = 'lightbox-overlay';
+      overlay.innerHTML = `
+        <button class="lightbox-close" aria-label="Fermer"><i class="fas fa-times"></i></button>
+        <img src="${escapeAttr(url)}" alt="Réalisation">
+      `;
+      document.body.appendChild(overlay);
+      document.body.style.overflow = 'hidden';
+
+      const close = () => {
+        overlay.remove();
+        document.body.style.overflow = '';
+        document.removeEventListener('keydown', onKey);
+      };
+      const onKey = (e) => { if (e.key === 'Escape') close(); };
+
+      overlay.querySelector('.lightbox-close').addEventListener('click', close);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+      document.addEventListener('keydown', onKey);
+    }
+
+    /* ==================== 10. FAQ ==================== */
+    function renderFAQ() {
+      const section = document.getElementById('faqSection');
+      const list = document.getElementById('faqList');
+
+      if (!storeData.faqEnabled) { section.classList.remove('show'); return; }
+
+      const items = Array.isArray(storeData.faqItems) ? storeData.faqItems : [];
+      const valid = items.filter(f => (f.question || '').trim() && (f.answer || '').trim());
+
+      if (valid.length === 0) { section.classList.remove('show'); return; }
+
+      section.classList.add('show');
+      list.innerHTML = valid.map((f, i) => `
+        <div class="faq-item" data-faq="${i}">
+          <div class="faq-question">
+            <span>${escapeHtml(f.question)}</span>
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-answer">${escapeHtml(f.answer)}</div>
+        </div>
+      `).join('');
+
+      list.querySelectorAll('.faq-item').forEach(item => {
+        item.querySelector('.faq-question').addEventListener('click', () => {
+          const wasOpen = item.classList.contains('open');
+          list.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+          if (!wasOpen) item.classList.add('open');
+        });
+      });
+
+      // Ouvrir le premier par défaut
+      const first = list.querySelector('.faq-item');
+      if (first) first.classList.add('open');
+    }
+
+    /* ==================== 11. CATALOGUE ==================== */
     async function fetchCatalog() {
       try {
         const response = await fetch(`${BACKEND_URL}/api/exo-services`);
         const data = await response.json();
-        if (!data.success) throw new Error('Erreur de chargement des services');
+        if (!data.success) throw new Error('Erreur de chargement');
 
         platformsMap = {};
         allServices = [];
@@ -1194,16 +1596,15 @@
         }
 
         renderTabs();
-        const platformNames = Object.keys(platformsMap);
-        currentPlatform = platformNames.length > 0 ? platformNames[0] : 'all';
+        renderCategories();
         renderServices();
 
-        document.getElementById('searchInput').addEventListener('input', function(e) {
+        document.getElementById('searchInput').addEventListener('input', function (e) {
           searchTerm = e.target.value.trim().toLowerCase();
           renderServices();
         });
 
-        document.getElementById('countrySelect').addEventListener('change', function() {
+        document.getElementById('countrySelect').addEventListener('change', function () {
           const country = this.value;
           userCurrency = CURRENCY_CONFIG[country];
           document.getElementById('currentFlag').textContent = userCurrency.flag;
@@ -1211,9 +1612,9 @@
           renderServices();
           if (currentSelectedService) updateModalPrice();
         });
-
       } catch (error) {
-        document.getElementById('servicesGrid').innerHTML = '<div class="no-services">Impossible de charger les services.</div>';
+        document.getElementById('servicesGrid').innerHTML =
+          '<div class="no-services"><i class="fas fa-triangle-exclamation"></i>Impossible de charger les services.</div>';
       }
     }
 
@@ -1244,20 +1645,63 @@
       platformNames.forEach(name => {
         const iconInfo = getPlatformIcon(name);
         const active = currentPlatform === name ? 'active' : '';
-        html += `<div class="platform-tab ${active}" data-platform="${name}">
-          <i class="${iconInfo.icon}" style="color:${iconInfo.color};"></i> ${name}
+        html += `<div class="platform-tab ${active}" data-platform="${escapeAttr(name)}">
+          <i class="${iconInfo.icon}" style="color:${iconInfo.color};"></i> ${escapeHtml(name)}
         </div>`;
       });
 
       container.innerHTML = html;
       container.querySelectorAll('.platform-tab').forEach(tab => {
-        tab.addEventListener('click', function() {
+        tab.addEventListener('click', function () {
           const platform = this.dataset.platform;
           container.querySelectorAll('.platform-tab').forEach(t => t.classList.remove('active'));
           this.classList.add('active');
           currentPlatform = platform;
+          currentCategory = 'all';
           document.getElementById('searchInput').value = '';
           searchTerm = '';
+          renderCategories();
+          renderServices();
+        });
+      });
+    }
+
+    function renderCategories() {
+      const container = document.getElementById('categoryTabs');
+      const services = getServicesForCurrentPlatform();
+
+      const catMap = new Map();
+      services.forEach(s => {
+        const cat = detectCategory(s.name);
+        catMap.set(cat, (catMap.get(cat) || 0) + 1);
+      });
+
+      // On n'affiche les catégories que s'il y a plus d'une catégorie
+      if (catMap.size <= 1) {
+        container.classList.remove('show');
+        container.innerHTML = '';
+        return;
+      }
+
+      container.classList.add('show');
+      let html = `<div class="category-chip ${currentCategory === 'all' ? 'active' : ''}" data-cat="all">
+        Tous <span class="count">${services.length}</span>
+      </div>`;
+
+      Array.from(catMap.keys()).sort().forEach(cat => {
+        const count = catMap.get(cat);
+        const active = currentCategory === cat ? 'active' : '';
+        html += `<div class="category-chip ${active}" data-cat="${escapeAttr(cat)}">
+          ${escapeHtml(cat)} <span class="count">${count}</span>
+        </div>`;
+      });
+
+      container.innerHTML = html;
+      container.querySelectorAll('.category-chip').forEach(chip => {
+        chip.addEventListener('click', function () {
+          currentCategory = this.dataset.cat;
+          container.querySelectorAll('.category-chip').forEach(c => c.classList.remove('active'));
+          this.classList.add('active');
           renderServices();
         });
       });
@@ -1265,26 +1709,42 @@
 
     function renderServices() {
       const grid = document.getElementById('servicesGrid');
-      let servicesToShow = currentPlatform === 'all' ? allServices : (platformsMap[currentPlatform] || []);
-      if (searchTerm) servicesToShow = servicesToShow.filter(s => s.name.toLowerCase().includes(searchTerm));
+      let servicesToShow = getServicesForCurrentPlatform();
+
+      if (searchTerm) {
+        servicesToShow = servicesToShow.filter(s =>
+          String(s.name || '').toLowerCase().includes(searchTerm)
+        );
+      } else if (currentCategory !== 'all') {
+        servicesToShow = servicesToShow.filter(s => detectCategory(s.name) === currentCategory);
+      }
 
       if (servicesToShow.length === 0) {
-        return grid.innerHTML = `<div class="no-services">Aucun service trouvé.</div>`;
+        grid.innerHTML = `<div class="no-services">
+          <i class="fas fa-search"></i>
+          Aucun service trouvé${searchTerm ? ` pour "${escapeHtml(searchTerm)}"` : ''}.
+        </div>`;
+        return;
       }
 
       servicesToShow.sort((a, b) => a.name.localeCompare(b.name));
-      let html = '';
-      
-      servicesToShow.forEach(service => {
+
+      grid.innerHTML = servicesToShow.map(service => {
         const isPerUnit = service.isPerOne || service.isPackage;
         const priceDisplay = formatPrice(service.priceXAF);
-        const unitDisplay = isPerUnit ? "/ unité" : "/ 1000";
+        const unitDisplay = isPerUnit ? '/ unité' : '/ 1000';
+        const iconInfo = getPlatformIcon(service.platform);
 
-        html += `
+        return `
           <div class="service-card">
             <div class="service-header">
-              <div class="service-name">${service.name}</div>
-              <div style="text-align:right">
+              <div class="service-title-row">
+                <div class="service-platform-badge" style="background:${iconInfo.bg};">
+                  <i class="${iconInfo.icon}"></i>
+                </div>
+                <div class="service-name">${escapeHtml(service.name)}</div>
+              </div>
+              <div class="service-price-wrap">
                 <div class="service-price">${priceDisplay}</div>
                 <div class="service-unit">${unitDisplay}</div>
               </div>
@@ -1294,46 +1754,54 @@
             </button>
           </div>
         `;
-      });
-      grid.innerHTML = html;
+      }).join('');
     }
 
+    /* ==================== 12. FOOTER (réseaux sociaux corrigés) ==================== */
     function buildFooter() {
       const footer = document.getElementById('storeFooter');
       const ownerEl = document.getElementById('ownerNameDisplay');
       const socialLinks = document.getElementById('socialLinks');
-      
-      const ownerName = storeData.ownerName || '';
-      ownerEl.textContent = ownerName.trim() !== '' ? 'Propriétaire : ' + ownerName : '';
-      ownerEl.style.display = ownerName.trim() !== '' ? 'block' : 'none';
 
-      const networks = [
-        { url: storeData.facebookUrl, icon: 'fa-facebook', color: '#1877F2' },
-        { url: storeData.instagramUrl, icon: 'fa-instagram', color: '#E1306C' },
-        { url: storeData.youtubeUrl, icon: 'fa-youtube', color: '#FF0000' },
-        { url: storeData.tiktokUrl, icon: 'fa-tiktok', color: '#000000' },
-      ];
+      const ownerName = (storeData.ownerName || '').trim();
+      ownerEl.textContent = ownerName ? 'Propriétaire : ' + ownerName : '';
+      ownerEl.style.display = ownerName ? 'block' : 'none';
 
-      let html = '';
-      networks.forEach(n => {
-        if (n.url && n.url.trim() !== '') html += `<a href="${n.url}" target="_blank" style="color:${n.color};"><i class="fab ${n.icon}"></i></a>`;
+      const socials = [];
+      if (storeData.facebookUrl) socials.push({
+        url: storeData.facebookUrl, icon: 'fa-brands fa-facebook-f', cls: 'facebook', label: 'Facebook'
+      });
+      if (storeData.instagramUrl) socials.push({
+        url: storeData.instagramUrl, icon: 'fa-brands fa-instagram', cls: 'instagram', label: 'Instagram'
+      });
+      if (storeData.youtubeUrl) socials.push({
+        url: storeData.youtubeUrl, icon: 'fa-brands fa-youtube', cls: 'youtube', label: 'YouTube'
+      });
+      if (storeData.tiktokUrl) socials.push({
+        url: storeData.tiktokUrl, icon: 'fa-brands fa-tiktok', cls: 'tiktok', label: 'TikTok'
+      });
+      if (storeData.whatsapp) socials.push({
+        url: 'https://wa.me/' + storeData.whatsapp.replace(/\D/g, ''),
+        icon: 'fa-brands fa-whatsapp', cls: 'whatsapp', label: 'WhatsApp'
       });
 
-      // Toujours afficher le footer à cause de la mention
-      socialLinks.innerHTML = html;
+      socialLinks.innerHTML = socials.map(s =>
+        `<a href="${escapeAttr(s.url)}" target="_blank" rel="noopener" class="social-btn ${s.cls}" title="${s.label}" aria-label="${s.label}">
+          <i class="${s.icon}"></i>
+        </a>`
+      ).join('');
+
       footer.style.display = 'block';
     }
 
-    // ==================== 7. LOGIQUE DE COMMANDE ET SOLDE ====================
-    let currentSelectedService = null;
-    let computedTotalXAF = 0; 
-
+    /* ==================== 13. COMMANDES ==================== */
     function openOrderModal(service) {
       currentSelectedService = service;
       document.getElementById('modalServiceName').textContent = service.name;
       document.getElementById('modalQty').min = service.min || 1;
       document.getElementById('modalQty').value = service.min || 1;
-      document.getElementById('modalMinMax').textContent = `Min: ${service.min || 1} | Max: ${service.max || '∞'}`;
+      document.getElementById('modalMinMax').textContent =
+        `Min : ${service.min || 1} | Max : ${service.max || '∞'}`;
       document.getElementById('modalLink').value = '';
       document.getElementById('modalContact').value = customerEmail || '';
       updateModalPrice();
@@ -1351,14 +1819,14 @@
       if (!currentSelectedService) return;
       const qty = parseInt(document.getElementById('modalQty').value) || 0;
       const isPerUnit = currentSelectedService.isPerOne || currentSelectedService.isPackage;
-      
-      let totalBase = isPerUnit ? (currentSelectedService.priceXAF * qty) : ((currentSelectedService.priceXAF / 1000) * qty);
-      
+      const totalBase = isPerUnit
+        ? currentSelectedService.priceXAF * qty
+        : (currentSelectedService.priceXAF / 1000) * qty;
       computedTotalXAF = Math.round(totalBase * (1 + resellerMargin / 100));
-      document.getElementById('modalPrice').textContent = formatPrice(totalBase); 
+      document.getElementById('modalPrice').textContent = formatPrice(totalBase);
     }
 
-    document.getElementById('orderForm').addEventListener('submit', async function(e) {
+    document.getElementById('orderForm').addEventListener('submit', async function (e) {
       e.preventDefault();
       if (!currentSelectedService) return;
 
@@ -1372,21 +1840,20 @@
       const min = currentSelectedService.min || 1;
       const max = currentSelectedService.max || Infinity;
       if (qty < min || qty > max) {
-        alert(`La quantité doit être comprise entre ${min} et ${max}`);
+        alert(`La quantité doit être comprise entre ${min} et ${max}.`);
         return;
       }
 
-      // Vérification du solde sur le client (le serveur revérifiera de toute façon)
       if (customerBalanceXAF < computedTotalXAF) {
         const manqueXAF = computedTotalXAF - customerBalanceXAF;
         closeOrderModal();
-        openDepositModal(manqueXAF); 
+        openDepositModal(manqueXAF);
         return;
       }
 
       const btn = document.getElementById('btnConfirmOrder');
       btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Traitement...';
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Traitement…';
 
       const link = document.getElementById('modalLink').value;
       const contact = document.getElementById('modalContact').value;
@@ -1399,8 +1866,8 @@
           quantity: qty,
           contactType: contact.includes('@') ? 'email' : 'whatsapp',
           contact: contact || customerEmail,
-          customerEmail: customerEmail, 
-          isGuest: true 
+          customerEmail: customerEmail,
+          isGuest: true
         };
 
         const res = await fetch(`${BACKEND_URL}/api/order-exo`, {
@@ -1408,26 +1875,32 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-
         const result = await res.json();
-        
+
         if (result.success) {
-          // L'historique et le solde se mettront à jour automatiquement grâce à nos listeners
-          alert(`✅ Commande réussie !\n\nID: ${result.orderId}`);
+          alert(`✅ Commande réussie !\n\nID : ${result.orderId}`);
           closeOrderModal();
         } else {
-          alert(`❌ Erreur: ${result.error}`);
+          alert(`❌ Erreur : ${result.error}`);
         }
       } catch (error) {
-        console.error("Détails de l'erreur réseau :", error);
-        alert("Erreur de connexion au serveur. Vérifiez votre connexion.");
+        console.error("Erreur réseau :", error);
+        alert('Erreur de connexion au serveur. Vérifiez votre connexion.');
       } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-paper-plane"></i> Commander';
       }
     });
 
-    // Lancement
+    /* ==================== 14. UTILS ==================== */
+    function escapeHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
+    function escapeAttr(str) { return escapeHtml(str); }
+
+    /* ==================== 15. GO ==================== */
     loadStore();
   </script>
 </body>
