@@ -172,6 +172,7 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
       <button class="nav-item" data-view="finances" onclick="switchView('finances')"><i class="fas fa-chart-line"></i> Finances & marges</button>
       <button class="nav-item" data-view="orders" onclick="switchView('orders')"><i class="fas fa-cart-shopping"></i> Commandes</button>
       <button class="nav-item" data-view="customers" onclick="switchView('customers')"><i class="fas fa-users"></i> Clients & utilisateurs</button>
+      <button class="nav-item" data-view="stores" onclick="switchView('stores')"><i class="fas fa-store"></i> Boutiques</button>
       <button class="nav-item" data-view="services" onclick="switchView('services')"><i class="fas fa-layer-group"></i> Services & Prix</button>
       <div class="nav-section">Gestion</div>
       <button class="nav-item" data-view="gifts" onclick="switchView('gifts')"><i class="fas fa-gift"></i> Cadeaux <span class="badge-count" id="navGiftCount" style="display:none;">0</span></button>
@@ -213,9 +214,9 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
         </div>
         <div class="kpi-card" style="--accent:var(--purple);--accent-dim:var(--purple-dim);">
           <div class="kpi-icon"><i class="fas fa-boxes-stacked"></i></div>
-          <div class="kpi-label">Commandes classiques</div>
+          <div class="kpi-label">Commandes autres collections</div>
           <div class="kpi-value" id="kpiLegacyOrders">—</div>
-          <div class="kpi-sub">Collection commandes</div>
+          <div class="kpi-sub">orders, avancées et revendeurs</div>
         </div>
         <div class="kpi-card" style="--accent:var(--green);--accent-dim:var(--green-dim);">
           <div class="kpi-icon"><i class="fas fa-coins"></i></div>
@@ -283,11 +284,11 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
     <!-- ═══ ORDERS ═══ -->
     <div id="view-orders" class="view" style="display:none;">
       <div class="top-bar">
-        <div><div class="page-title">Commandes</div><div class="page-subtitle">Historique paginé des commandes automatisées et classiques</div></div>
+        <div><div class="page-title">Commandes</div><div class="page-subtitle">Historique paginé de toutes les commandes, filtrable par fournisseur</div></div>
         <div class="top-actions"><button class="btn btn-outline" onclick="refreshOrdersView()"><i class="fas fa-sync-alt"></i> Actualiser</button></div>
       </div>
       <div class="kpi-grid">
-        <div class="kpi-card" style="--accent:var(--blue);--accent-dim:var(--blue-dim);"><div class="kpi-icon"><i class="fas fa-boxes-stacked"></i></div><div class="kpi-label">Toutes les commandes</div><div class="kpi-value" id="orderStatTotal">—</div><div class="kpi-sub">Les deux collections connues</div></div>
+        <div class="kpi-card" style="--accent:var(--blue);--accent-dim:var(--blue-dim);"><div class="kpi-icon"><i class="fas fa-boxes-stacked"></i></div><div class="kpi-label">Toutes les commandes</div><div class="kpi-value" id="orderStatTotal">—</div><div class="kpi-sub">Compteurs des six collections</div></div>
         <div class="kpi-card" style="--accent:var(--gold);--accent-dim:var(--gold-dim);"><div class="kpi-icon"><i class="fas fa-clock"></i></div><div class="kpi-label">En attente</div><div class="kpi-value" id="orderStatPending">—</div></div>
         <div class="kpi-card" style="--accent:var(--purple);--accent-dim:var(--purple-dim);"><div class="kpi-icon"><i class="fas fa-spinner"></i></div><div class="kpi-label">En cours</div><div class="kpi-value" id="orderStatInProgress">—</div></div>
         <div class="kpi-card" style="--accent:var(--green);--accent-dim:var(--green-dim);"><div class="kpi-icon"><i class="fas fa-check-circle"></i></div><div class="kpi-label">Terminées</div><div class="kpi-value" id="orderStatCompleted">—</div></div>
@@ -298,13 +299,13 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
         <div class="filter-bar">
           <div class="filter-group"><label>Recherche</label><input id="orderSearch" type="text" placeholder="ID, service, UID, fournisseur…" oninput="filterOrders()" style="min-width:220px;"></div>
           <div class="filter-group"><label>Statut</label><select id="orderStatusFilter" onchange="filterOrders()"><option value="all">Tous</option><option>En attente</option><option>En cours</option><option>Terminé</option><option>Terminée</option><option>Annulé</option><option>Annulée</option><option>Partiel</option><option>Échouée</option></select></div>
-          <div class="filter-group"><label>Source</label><select id="orderSourceFilter" onchange="filterOrders()"><option value="all">Toutes</option><option value="autoOrders">Commandes automatisées</option><option value="commandes">Commandes classiques</option></select></div>
+          <div class="filter-group"><label>Fournisseur</label><select id="orderProviderFilter" onchange="refreshOrdersView()"><option value="all">Tous les fournisseurs</option><option value="mtp">MTP</option><option value="exo">EXO</option><option value="afriqueboost">AfriqueBoost</option><option value="smmwiz">SMMWiz</option><option value="smmgen">SMMGen</option></select></div>
           <div class="cache-info" id="ordersInfo" style="display:flex;"><i class="fas fa-shield-halved"></i><span id="ordersInfoText">Chargement limité par page</span></div>
         </div>
-        <div class="table-wrap"><table><thead><tr><th>Date</th><th>Référence</th><th>Client (UID)</th><th>Source</th><th>Service</th><th>Montant</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="ordersBody"><tr><td colspan="8" class="loading">Ouvrez cette vue pour charger les commandes.</td></tr></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Date</th><th>Référence</th><th>Client (UID)</th><th>Fournisseur</th><th>Service</th><th>Montant</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="ordersBody"><tr><td colspan="8" class="loading">Ouvrez cette vue pour charger les commandes.</td></tr></tbody></table></div>
         <div class="stats-bar" id="ordersStats"></div>
         <div style="display:flex;justify-content:center;margin-top:16px;"><button class="btn btn-outline" id="ordersMoreBtn" onclick="loadMoreOrders()" style="display:none;"><i class="fas fa-chevron-down"></i> Charger la suite</button></div>
-        <p style="font-size:.75rem;color:var(--text-dim);margin-top:12px;line-height:1.6;">Les compteurs de statut couvrent les deux collections connues et sont mis en cache 15 minutes. Le tableau est paginé; ses filtres de texte s'appliquent aux commandes déjà chargées. Pour chercher l'historique d'une personne, utilisez « Clients & utilisateurs ». Le montant affiché est le champ financier disponible, pas un bénéfice.</p>
+        <p style="font-size:.75rem;color:var(--text-dim);margin-top:12px;line-height:1.6;">Les totaux utilisent les six compteurs Firestore et les statuts sont mis en cache 15 minutes. Le tableau est paginé; ses filtres de texte s'appliquent aux commandes déjà chargées. Pour chercher l'historique d'une personne, utilisez « Clients & utilisateurs ». Le montant affiché est le champ financier disponible, pas un bénéfice.</p>
       </div>
     </div>
 
@@ -317,13 +318,19 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
       <div class="section">
         <div class="filter-bar">
           <div class="filter-group"><label>Recherche</label><input id="customerSearch" type="text" placeholder="Nom, début du nom, email exact ou UID" onkeydown="if(event.key==='Enter')loadCustomers(true)" style="min-width:280px;"></div>
-          <button class="btn btn-gold" onclick="loadCustomers(true)"><i class="fas fa-search"></i> Rechercher</button>
-          <div class="cache-info"><i class="fas fa-shield-halved"></i> <span>25 utilisateurs/page; pas de lecture globale</span></div>
+          <div class="filter-group"><label>Pays</label><select id="customerCountryFilter" onchange="loadCustomers(true)"><option value="">Tous les pays</option><option value="CM">Cameroun (CM)</option><option value="CD">RDC (CD)</option><option value="CI">Côte d’Ivoire (CI)</option><option value="SN">Sénégal (SN)</option><option value="GA">Gabon (GA)</option><option value="NG">Nigeria (NG)</option></select></div><div class="filter-group"><label>Segment</label><select id="customerSegmentFilter" onchange="loadCustomers(true)"><option value="all">Tous</option><option value="ordered">A déjà commandé (champ compte)</option><option value="neverOrdered">Jamais commandé (champ compte)</option><option value="highOrders">Plus de commandes</option><option value="highBalance">Solde élevé</option></select></div><div class="filter-group"><label>Classer par</label><select id="customerSortFilter" onchange="loadCustomers(true)"><option value="recent">Plus récents</option><option value="orders">Commandes enregistrées</option><option value="balance">Solde</option></select></div><button class="btn btn-gold" onclick="loadCustomers(true)"><i class="fas fa-search"></i> Rechercher</button><div class="cache-info"><i class="fas fa-shield-halved"></i> <span>25 utilisateurs/page; filtres paginés</span></div>
         </div>
         <div class="table-wrap"><table><thead><tr><th>Inscription</th><th>Utilisateur</th><th>Pays</th><th>Commandes</th><th>Total dépensé</th><th>Solde</th><th>Dernière activité</th><th>Contacter</th></tr></thead><tbody id="customersBody"><tr><td colspan="8" class="loading">Ouvrez cette vue pour charger les utilisateurs.</td></tr></tbody></table></div>
         <div class="stats-bar" id="customersStats"></div>
         <div style="display:flex;justify-content:center;margin-top:16px;"><button class="btn btn-outline" id="customersMoreBtn" onclick="loadMoreCustomers()" style="display:none;"><i class="fas fa-chevron-down"></i> Charger la suite</button></div>
       </div>
+    </div>
+
+    <!-- ═══ STORES ═══ -->
+    <div id="view-stores" class="view" style="display:none;">
+      <div class="top-bar"><div><div class="page-title">Boutiques</div><div class="page-subtitle">Boutiques enregistrées dans la collection stores, propriétaire et lien public</div></div><div class="top-actions"><button class="btn btn-outline" onclick="loadStores(true)"><i class="fas fa-sync-alt"></i> Actualiser</button></div></div>
+      <div class="section"><div class="filter-bar"><div class="filter-group"><label>Pays</label><select id="storeCountryFilter" onchange="loadStores(true)"><option value="">Tous les pays</option><option value="CM">Cameroun (CM)</option><option value="CD">RDC (CD)</option><option value="CI">Côte d’Ivoire (CI)</option><option value="SN">Sénégal (SN)</option></select></div><div class="cache-info"><i class="fas fa-shield-halved"></i> Liste paginée; aucun scan complet de stores</div></div>
+      <div class="table-wrap"><table><thead><tr><th>Boutique</th><th>Propriétaire</th><th>Pays</th><th>Statut</th><th>Créée le</th><th>Actions</th></tr></thead><tbody id="storesBody"><tr><td colspan="6" class="loading">Ouvrez cette vue pour charger les boutiques.</td></tr></tbody></table></div><div style="display:flex;justify-content:center;margin-top:16px;"><button class="btn btn-outline" id="storesMoreBtn" onclick="loadMoreStores()" style="display:none;">Charger la suite</button></div></div>
     </div>
 
     <!-- ═══ SERVICES ═══ -->
@@ -555,6 +562,7 @@ function switchView(view){
   if(view==='users')loadUsersStats();
   if(view==='orders'){if(allOrders.length===0)loadOrders(true);if(!orderSummaryLoaded)loadOrderSummary();}
   if(view==='customers'&&allCustomers.length===0)loadCustomers(true);
+  if(view==='stores'&&allStores.length===0)loadStores(true);
   document.querySelector('.sidebar').classList.remove('open');
 }
 
@@ -577,10 +585,10 @@ async function loadOverview(force=false){
       document.getElementById('kpiNewUsers').textContent=`+${s.newUsers7d||0} cette semaine`;
       document.getElementById('kpiTotalOrders').textContent=(s.totalOrders??'—').toLocaleString('fr-FR');
       document.getElementById('kpiPendingOrders').textContent=`${s.pendingOrders??0} en attente`;
-      document.getElementById('kpiLegacyOrders').textContent=(s.totalLegacyOrders??'—').toLocaleString('fr-FR');
+      document.getElementById('kpiLegacyOrders').textContent=(s.otherOrderCollectionsTotal??'—').toLocaleString('fr-FR');
       document.getElementById('kpiRevenue').textContent=(s.totalRevenue??0).toLocaleString('fr-FR')+' FCFA';
-      document.getElementById('kpiRevenueSub').textContent=`${(s.totalAutoOrders||0).toLocaleString('fr-FR')} commandes automatisées · remboursements déduits`;
-      if(s.totalLegacyOrders>0)showError('Le chiffre d’affaires affiché couvre autoOrders uniquement. Les commandes classiques sont comptées mais leur schéma financier doit être normalisé avant de les additionner.');
+      document.getElementById('kpiRevenueSub').textContent=`${(s.totalAutoOrders||0).toLocaleString('fr-FR')} commandes avec montant disponible · remboursement déduit`;
+      if(s.totalLegacyOrders>0)showError('Le chiffre d’affaires de cette carte reste basé sur autoOrders; consultez Finances pour la couverture exacte des coûts enregistrés.');
       document.getElementById('kpiGiftsPending').textContent=s.giftsPending||0;
       document.getElementById('kpiGiftsLate').textContent=s.giftsLate?`🔴 ${s.giftsLate} en retard`:'Aucun retard';
       if(s.giftsPending>0){const b=document.getElementById('navGiftCount');b.textContent=s.giftsPending;b.style.display='inline-block';}
@@ -675,23 +683,22 @@ async function loadOrderSummary(force=false){
   }catch(e){showError('Compteurs de commandes : '+e.message);}
   finally{orderSummaryLoading=false;}
 }
-function refreshOrdersView(){allOrders=[];orderCursors={autoOrders:null,commandes:null};loadOrders(true);loadOrderSummary(true);}
+function refreshOrdersView(){allOrders=[];orderCursors={autoOrders:null,commandes:null,orders:null,orders_automatique:null,orders_avancee:null,orders_standard_revendeur:null};loadOrders(true);loadOrderSummary(true);}
 
 // ═══ ORDERS ═══
-let allOrders=[];let orderCursors={autoOrders:null,commandes:null};let ordersLoading=false;
+let allOrders=[];let orderCursors={autoOrders:null,commandes:null,orders:null,orders_automatique:null,orders_avancee:null,orders_standard_revendeur:null};let ordersLoading=false;
 async function loadOrders(reset=false){
   if(ordersLoading)return;ordersLoading=true;
   const tb=document.getElementById('ordersBody');
-  if(reset){allOrders=[];orderCursors={autoOrders:null,commandes:null};tb.innerHTML='<tr><td colspan="8" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';}
+  if(reset){allOrders=[];orderCursors={autoOrders:null,commandes:null,orders:null,orders_automatique:null,orders_avancee:null,orders_standard_revendeur:null};tb.innerHTML='<tr><td colspan="8" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';}
   try{
-    const params=new URLSearchParams({limit:'20'});
-    if(orderCursors.autoOrders)params.set('cursorAuto',orderCursors.autoOrders);
-    if(orderCursors.commandes)params.set('cursorLegacy',orderCursors.commandes);
+    const params=new URLSearchParams({limit:'5',cursors:JSON.stringify(orderCursors)});
+    const provider=document.getElementById('orderProviderFilter')?.value||'all';if(provider!=='all')params.set('provider',provider);
+    const selectedStatus=document.getElementById('orderStatusFilter')?.value||'all';if(selectedStatus!=='all')params.set('status',selectedStatus);
     const d=await fetchAdmin('/orders?'+params.toString());
     allOrders=reset?(d.orders||[]):allOrders.concat(d.orders||[]);orderCursors=d.nextCursors||orderCursors;
-    renderOrders();
-    document.getElementById('ordersMoreBtn').style.display=(orderCursors.autoOrders||orderCursors.commandes)?'inline-flex':'none';
-    document.getElementById('ordersInfoText').textContent=`${allOrders.length} commandes chargées · pagination séparée par collection`;
+    renderOrders();document.getElementById('ordersMoreBtn').style.display=Object.values(orderCursors).some(Boolean)?'inline-flex':'none';
+    document.getElementById('ordersInfoText').textContent=`${allOrders.length} commandes chargées · 6 collections · 5 documents maximum par collection et par page`;
   }catch(e){tb.innerHTML=`<tr><td colspan="8" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Commandes : '+e.message);}
   finally{ordersLoading=false;}
 }
@@ -700,11 +707,11 @@ function filterOrders(){renderOrders();}
 function renderOrders(){
   const q=(document.getElementById('orderSearch')?.value||'').toLowerCase().trim();
   const st=document.getElementById('orderStatusFilter')?.value||'all';
-  const source=document.getElementById('orderSourceFilter')?.value||'all';
+  const provider=document.getElementById('orderProviderFilter')?.value||'all';
   const list=allOrders.filter(o=>{
-    if(st!=='all'&&String(o.status||'').toLowerCase()!==st.toLowerCase())return false;
-    if(source!=='all'&&o.source!==source)return false;
-    if(q&&!([o.orderId,o.userId,o.serviceName,o.provider,o.source,o.status].filter(Boolean).join(' ').toLowerCase().includes(q)))return false;
+    if(st!=='all'){const sv=String(o.status||'').toLowerCase();const sm={'en attente':['en attente','pending'],'en cours':['en cours','in progress','processing'],'terminé':['terminé','terminée','completed','done','delivered'],'terminée':['terminé','terminée','completed','done','delivered'],'annulé':['annulé','annulée','canceled','cancelled'],'annulée':['annulé','annulée','canceled','cancelled'],'partiel':['partiel','partial'],'échouée':['échouée','failed','error']};if(!(sm[st.toLowerCase()]||[st.toLowerCase()]).includes(sv))return false;}
+    if(provider!=='all'&&String(o.provider||'').toLowerCase()!==({mtp:'mtp',exo:'exo',afriqueboost:'afriqueboost',smmwiz:'smmwiz',smmgen:'smmgen'}[provider]||provider))return false;
+    if(q&&!([o.orderId,o.userId,o.serviceName,o.provider,o.collection,o.status].filter(Boolean).join(' ').toLowerCase().includes(q)))return false;
     return true;
   });
   const tb=document.getElementById('ordersBody');tb.innerHTML='';
@@ -714,15 +721,26 @@ function renderOrders(){
     tr.innerHTML=`<td style="white-space:nowrap;font-size:.78rem;color:var(--text-muted);">${esc(formatDate(o.createdAt))}</td>
       <td><strong>${esc(o.orderId||o.id)}</strong></td>
       <td style="font-size:.75rem;word-break:break-all;">${esc(o.userId||'—')}</td>
-      <td><span class="badge ${o.source==='autoOrders'?'badge-mtp':'badge-exo'}">${o.source==='autoOrders'?'Automatisée':'Classique'}</span><br><small style="color:var(--text-dim);">${esc(o.provider||'')}</small></td>
+      <td><span class="badge badge-mtp">${esc(o.provider||'Fournisseur inconnu')}</span><br><small style="color:var(--text-dim);">${esc(o.collection||'')}</small></td>
       <td>${esc(o.serviceName||'Service')}<br><small style="color:var(--text-dim);">${esc(o.platform||'')}</small></td>
       <td style="white-space:nowrap;font-weight:700;">${Number(o.amount||0).toLocaleString('fr-FR')} FCFA${o.refunded?'<br><small class="kpi-warning">Remboursée partiellement/totalement</small>':''}</td>
       <td>${esc(o.status||'Inconnu')}</td>
-      <td><div class="action-row"><button class="btn btn-outline btn-sm" title="Ouvrir la fiche client" ${!o.userId?'disabled':''} onclick="openCustomerDetail('${escAttr(o.userId||'')}')"><i class="fas fa-user"></i></button>${o.link?`<a class="btn btn-outline btn-sm" href="${escAttr(o.link)}" target="_blank" rel="noopener" title="Ouvrir le lien"><i class="fas fa-arrow-up-right-from-square"></i></a>`:''}</div></td>`;
+      <td><div class="action-row"><button class="btn btn-outline btn-sm" title="Ouvrir la fiche client" ${!o.userId?'disabled':''} onclick="openCustomerDetail('${escAttr(o.userId||'')}')"><i class="fas fa-user"></i></button>${o.userId?`<button class="btn btn-gold btn-sm" title="Envoyer un email au client" onclick="sendCustomerEmail('${escAttr(o.userId)}','Client','${escAttr(o.orderId||o.id)}')"><i class="fas fa-envelope"></i></button>`:''}${o.link?`<a class="btn btn-outline btn-sm" href="${escAttr(o.link)}" target="_blank" rel="noopener" title="Ouvrir le lien"><i class="fas fa-arrow-up-right-from-square"></i></a>`:''}</div></td>`;
     tb.appendChild(tr);
   });
   const total=list.reduce((sum,o)=>sum+Number(o.amount||0),0);
   document.getElementById('ordersStats').innerHTML=`<div class="stat-item">Résultats chargés : <strong>${list.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Montant des lignes affichées : <strong>${total.toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-sep"></div><div class="stat-item">Ce total n'est pas un bénéfice.</div>`;
+}
+
+async function sendCustomerEmail(userId, userName, orderRef){
+  const subjectDefault=orderRef?`Suivi de votre commande ${orderRef} — Social Boost Horizon`:'Suivi de votre compte — Social Boost Horizon';
+  const messageDefault=`Bonjour ${userName||'cher client'},\n\nNous vous contactons au sujet de votre compte Social Boost Horizon${orderRef?` et de la commande ${orderRef}`:''}.\n\nNous souhaitons savoir si tout se passe bien et si vous avez besoin d’aide. Vous pouvez répondre directement à cet email.\n\nCordialement,\nL’équipe Social Boost Horizon`;
+  const subject=window.prompt('Objet du message :',subjectDefault);if(subject===null)return;
+  const message=window.prompt('Message (modifiable avant envoi) :',messageDefault);if(message===null)return;
+  if(!subject.trim()||!message.trim()){showError('Objet et message obligatoires.');return;}
+  if(!window.confirm('Envoyer cet email directement via le serveur à l’adresse enregistrée sur le compte ?'))return;
+  try{const d=await fetchAdmin(`/customers/${encodeURIComponent(userId)}/email`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject,message})});if(!d.success)throw new Error(d.error||'Envoi refusé');showToast('Email accepté par le fournisseur.');}
+  catch(e){showError('Échec de l’envoi email : '+e.message);}
 }
 
 // ═══ CUSTOMERS ═══
@@ -733,7 +751,7 @@ async function loadCustomers(reset=false){
   const q=(document.getElementById('customerSearch')?.value||'').trim();
   if(reset){allCustomers=[];customerCursor=null;tb.innerHTML='<tr><td colspan="8" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';}
   try{
-    const params=new URLSearchParams({limit:'25'});if(q)params.set('q',q);if(!q&&customerCursor)params.set('cursor',customerCursor);
+    const params=new URLSearchParams({limit:'25'});if(q)params.set('q',q);const country=document.getElementById('customerCountryFilter')?.value||'';const segment=document.getElementById('customerSegmentFilter')?.value||'all';const sort=document.getElementById('customerSortFilter')?.value||'recent';if(country)params.set('country',country);params.set('segment',segment);params.set('sort',sort);if(!q&&customerCursor)params.set('cursor',customerCursor);
     const d=await fetchAdmin('/customers?'+params.toString());
     allCustomers=reset?(d.customers||[]):allCustomers.concat(d.customers||[]);customerCursor=d.nextCursor||null;
     renderCustomers();document.getElementById('customersMoreBtn').style.display=(!q&&customerCursor)?'inline-flex':'none';
@@ -754,7 +772,7 @@ function renderCustomers(){
       <td style="color:var(--green);font-weight:600;white-space:nowrap;">${Number(u.totalSpent||0).toLocaleString('fr-FR')} FCFA</td>
       <td style="white-space:nowrap;">${Number(u.balance||0).toLocaleString('fr-FR')} FCFA</td>
       <td style="font-size:.78rem;white-space:nowrap;">${last?esc(formatDate(last)):'Non tracée'}</td>
-      <td><div class="action-row"><button class="btn btn-outline btn-sm" title="Historique et fiche" onclick="openCustomerDetail('${escAttr(u.id)}')"><i class="fas fa-eye"></i></button>${u.email?`<a class="btn btn-gold btn-sm" title="Email" href="mailto:${escAttr(u.email)}"><i class="fas fa-envelope"></i></a>`:''}${phone?`<a class="btn btn-wa btn-sm" title="WhatsApp" href="https://wa.me/${escAttr(phone)}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i></a>`:''}</div></td>`;
+      <td><div class="action-row"><button class="btn btn-outline btn-sm" title="Historique et fiche" onclick="openCustomerDetail('${escAttr(u.id)}')"><i class="fas fa-eye"></i></button>${u.email?`<button class="btn btn-gold btn-sm" title="Envoyer un email via le serveur" onclick="sendCustomerEmail('${escAttr(u.id)}','${escAttr(u.name||'')}','')"><i class="fas fa-envelope"></i></button>`:''}${phone?`<a class="btn btn-wa btn-sm" title="WhatsApp" href="https://wa.me/${escAttr(phone)}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i></a>`:''}</div></td>`;
     tb.appendChild(tr);
   });
   document.getElementById('customersStats').innerHTML=`<div class="stat-item">Utilisateurs chargés : <strong>${allCustomers.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Page limitée : <strong>25 par appel</strong></div>`;
@@ -764,12 +782,27 @@ async function openCustomerDetail(id){
   try{
     const d=await fetchAdmin('/customers/'+encodeURIComponent(id));if(!d.success)throw new Error(d.error||'Fiche indisponible');
     const c=d.customer;const phone=String(c.phone||'').replace(/[^0-9]/g,'');
-    const links=`<div class="action-row" style="margin:12px 0;">${c.email?`<a class="btn btn-gold btn-sm" href="mailto:${escAttr(c.email)}"><i class="fas fa-envelope"></i> Contacter par email</a>`:''}${phone?`<a class="btn btn-wa btn-sm" href="https://wa.me/${escAttr(phone)}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> WhatsApp</a>`:''}</div>`;
+    const links=`<div class="action-row" style="margin:12px 0;">${c.email?`<button class="btn btn-gold btn-sm" onclick="sendCustomerEmail('${escAttr(c.id)}','${escAttr(c.name||'')}','')"><i class="fas fa-envelope"></i> Envoyer un email</button>`:''}${phone?`<a class="btn btn-wa btn-sm" href="https://wa.me/${escAttr(phone)}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> WhatsApp</a>`:''}</div>`;
     const orders=(d.orders||[]).map(o=>`<tr><td>${esc(formatDate(o.createdAt))}</td><td>${esc(o.orderId||o.id)}</td><td>${esc(o.serviceName||'Service')}</td><td>${Number(o.amount||0).toLocaleString('fr-FR')} FCFA</td><td>${esc(o.status||'Inconnu')}</td></tr>`).join('');
-    document.getElementById('customerDetailBody').innerHTML=`<h3 style="font-size:1.15rem;margin-bottom:6px;">${esc(c.name||'Utilisateur')}</h3><p style="color:var(--text-muted);word-break:break-all;">${esc(c.email||'Aucun email')} · ${esc(c.country||'Pays non indiqué')}</p><p style="font-size:.75rem;color:var(--text-dim);word-break:break-all;margin-top:6px;">UID : ${esc(c.id)}</p>${links}<div class="stats-bar"><div class="stat-item">Commandes du profil : <strong>${Number(c.totalOrders||0)}</strong></div><div class="stat-item">Dépenses déclarées : <strong>${Number(c.totalSpent||0).toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-item">Solde : <strong>${Number(c.balance||0).toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-item">Total commandes trouvées : <strong>${Number(d.exactOrderCount||0)}</strong></div></div><p style="margin:14px 0 8px;font-weight:700;">Historique d'exemple (jusqu'à 15 par collection)</p><div class="table-wrap"><table><thead><tr><th>Date</th><th>Référence</th><th>Service</th><th>Montant</th><th>Statut</th></tr></thead><tbody>${orders||'<tr><td colspan="5" class="loading">Aucune commande trouvée dans les deux collections suivies.</td></tr>'}</tbody></table></div><p style="color:var(--text-dim);font-size:.75rem;margin-top:8px;">Le total est calculé séparément avec deux agrégations. Le tableau montre un échantillon limité pour préserver le quota Firestore; il ne représente pas nécessairement les toutes dernières commandes.</p>`;
+    document.getElementById('customerDetailBody').innerHTML=`<h3 style="font-size:1.15rem;margin-bottom:6px;">${esc(c.name||'Utilisateur')}</h3><p style="color:var(--text-muted);word-break:break-all;">${esc(c.email||'Aucun email')} · ${esc(c.country||'Pays non indiqué')}</p><p style="font-size:.75rem;color:var(--text-dim);word-break:break-all;margin-top:6px;">UID : ${esc(c.id)}</p>${links}<div class="stats-bar"><div class="stat-item">Commandes du profil : <strong>${Number(c.totalOrders||0)}</strong></div><div class="stat-item">Dépenses enregistrées : <strong>${Number(d.derivedSpendPriceXAF||c.totalSpent||0).toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-item">Solde : <strong>${Number(c.balance||0).toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-item">Total commandes trouvées : <strong>${Number(d.exactOrderCount||0)}</strong></div></div><p style="margin:14px 0 8px;font-weight:700;">Historique d'exemple (jusqu'à 15 par collection)</p><div class="table-wrap"><table><thead><tr><th>Date</th><th>Référence</th><th>Service</th><th>Montant</th><th>Statut</th></tr></thead><tbody>${orders||'<tr><td colspan="5" class="loading">Aucune commande trouvée dans les deux collections suivies.</td></tr>'}</tbody></table></div><p style="color:var(--text-dim);font-size:.75rem;margin-top:8px;">Le nombre de commandes est agrégé sur les six collections. Les dépenses calculées ici additionnent uniquement priceXAF lorsqu'il existe; si les anciennes collections utilisent un autre champ, il faudra normaliser ces schémas avant d'afficher un total exact. Historique limité pour préserver les quotas.</p>`;
   }catch(e){document.getElementById('customerDetailBody').innerHTML=`<p class="error-msg" style="display:block;">${esc(e.message)}</p>`;showError('Fiche client : '+e.message);}
 }
 function closeCustomerModal(){document.getElementById('customerModal').classList.remove('active');}
+
+// ═══ STORES ═══
+let allStores=[];let storeCursor=null;let storesLoading=false;
+async function loadStores(reset=false){
+  if(storesLoading)return;storesLoading=true;const tb=document.getElementById('storesBody');
+  if(reset){allStores=[];storeCursor=null;tb.innerHTML='<tr><td colspan="6" class="loading">Chargement des boutiques…</td></tr>';}
+  try{
+    const params=new URLSearchParams({limit:'25'});const country=document.getElementById('storeCountryFilter')?.value||'';if(country)params.set('country',country);if(storeCursor)params.set('cursor',storeCursor);
+    const d=await fetchAdmin('/stores?'+params.toString());allStores=reset?(d.stores||[]):allStores.concat(d.stores||[]);storeCursor=d.nextCursor||null;
+    tb.innerHTML='';if(!allStores.length)tb.innerHTML='<tr><td colspan="6" class="loading">Aucune boutique trouvée.</td></tr>';
+    allStores.forEach(s=>{const phone='';const url=s.url|| (s.slug?`https://${s.slug}`:'');const tr=document.createElement('tr');tr.innerHTML=`<td>${s.logo?`<img src="${escAttr(s.logo)}" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:7px;vertical-align:middle;margin-right:8px;">`:''}<strong>${esc(s.name)}</strong><br><small style="color:var(--text-dim)">${esc(s.slug||s.id)}</small></td><td>${esc(s.ownerName||s.ownerEmail||'Propriétaire à identifier')}<br><small style="color:var(--text-dim)">${esc(s.ownerEmail||s.ownerId||'')}</small></td><td>${esc(s.country||'—')}</td><td>${esc(s.status||'—')}</td><td>${esc(formatDate(s.createdAt))}</td><td><div class="action-row">${url?`<a class="btn btn-outline btn-sm" href="${escAttr(url)}" target="_blank" rel="noopener" title="Ouvrir la boutique"><i class="fas fa-arrow-up-right-from-square"></i></a>`:''}${s.ownerEmail?`<a class="btn btn-gold btn-sm" href="mailto:${escAttr(s.ownerEmail)}?subject=${encodeURIComponent('Votre boutique Social Boost Horizon')}" title="Contacter le propriétaire"><i class="fas fa-envelope"></i></a>`:''}${s.ownerId?`<button class="btn btn-outline btn-sm" onclick="openCustomerDetail('${escAttr(s.ownerId)}')" title="Fiche propriétaire"><i class="fas fa-user"></i></button>`:''}</div></td>`;tb.appendChild(tr);});
+    document.getElementById('storesMoreBtn').style.display=storeCursor?'inline-flex':'none';
+  }catch(e){tb.innerHTML=`<tr><td colspan="6" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Boutiques : '+e.message);}finally{storesLoading=false;}
+}
+function loadMoreStores(){loadStores(false);}
 
 // ═══ EMAIL CADEAUX ═══
 let currentEmailGift=null;let emailSending=false;
