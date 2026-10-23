@@ -3452,13 +3452,16 @@ adminRouter.get('/overview', async (req, res) => {
     const sevenDaysStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const usersRef = db.collection('users'); const giftsRef = db.collection('welcomeGiftClaims');
     const [usersCount, newUsers7d, newUsersToday, newUsersYesterday, newUsersDayBefore, orderCounters,
-      pendingOrdersCount, giftsPending, giftsLate, autoFinancials, visitAgg, activeVisitors7d, balanceAgg] = await Promise.all([
+      ordersTodayCounts, ordersYesterdayCounts, ordersDayBeforeCounts, pendingOrdersCount, giftsPending, giftsLate, autoFinancials, visitAgg, activeVisitors7d, balanceAgg] = await Promise.all([
       usersRef.count().get(),
       countCreatedBetween(usersRef, sevenDaysStart, now),
       countCreatedBetween(usersRef, todayStart, now),
       countCreatedBetween(usersRef, yesterdayStart, todayStart),
       countCreatedBetween(usersRef, dayBeforeStart, yesterdayStart),
       readOrderCounters(),
+      Promise.all(ADMIN_ORDER_COLLECTIONS.map(name => countInWindow(db.collection(name), todayStart, tomorrowStart))),
+      Promise.all(ADMIN_ORDER_COLLECTIONS.map(name => countInWindow(db.collection(name), yesterdayStart, todayStart))),
+      Promise.all(ADMIN_ORDER_COLLECTIONS.map(name => countInWindow(db.collection(name), dayBeforeStart, yesterdayStart))),
       countPendingAdminOrders(),
       giftsRef.where('status', '==', 'pending').count().get(),
       giftsRef.where('status', '==', 'pending').where('createdAt', '<', admin.firestore.Timestamp.fromDate(new Date(now.getTime() - 24 * 60 * 60 * 1000))).count().get(),
@@ -3473,8 +3476,9 @@ adminRouter.get('/overview', async (req, res) => {
     const data = {
       totalUsers, newUsers7d: Number(newUsers7d || 0), newUsersToday: Number(newUsersToday || 0),
       newUsersYesterday: Number(newUsersYesterday || 0), newUsersDayBefore: Number(newUsersDayBefore || 0),
-      totalOrders, totalAutoOrders: counts.autoOrders || 0, totalLegacyOrders: counts.commandes || 0,
-      otherOrderCollectionsTotal: totalOrders - (counts.autoOrders || 0) - (counts.commandes || 0),
+      totalOrders, ordersToday: ordersTodayCounts.reduce((sum,n)=>sum+Number(n||0),0),
+      ordersYesterday: ordersYesterdayCounts.reduce((sum,n)=>sum+Number(n||0),0),
+      ordersDayBefore: ordersDayBeforeCounts.reduce((sum,n)=>sum+Number(n||0),0),
       orderCountsByCollection: counts, pendingOrders: Number(pendingOrdersCount || 0),
       totalRevenue: Math.max(0, autoGrossSales - autoRefunds), autoOrdersGrossSales: autoGrossSales, autoOrdersRefunds: autoRefunds,
       totalBalance, averageBalance: totalUsers ? Math.round(totalBalance / totalUsers) : 0,
@@ -3507,9 +3511,9 @@ adminRouter.get('/top-users', async (req, res) => {
 
     let usersSnap;
     try {
-      usersSnap = await db.collection('users').orderBy('totalOrders', 'desc').limit(20).get();
+      usersSnap = await db.collection('users').orderBy('adminOrderCount', 'desc').limit(20).get();
     } catch {
-      usersSnap = await db.collection('users').orderBy('createdAt', 'desc').limit(20).get();
+      usersSnap = await db.collection('users').where('adminOrderCount', '>', 0).orderBy('adminOrderCount', 'desc').limit(20).get();
     }
 
     const users = usersSnap.docs.map(d => {
@@ -3521,8 +3525,8 @@ adminRouter.get('/top-users', async (req, res) => {
         balance: u.balance || 0,
         country: u.country || null,
         createdAt: u.createdAt || null,
-        orderCount: u.totalOrders || 0,
-        totalSpent: u.totalSpent || 0,
+        orderCount: Number(u.adminOrderCount || 0),
+        totalSpent: Number(u.adminTotalSpent || 0),
       };
     });
 
@@ -3664,12 +3668,22 @@ adminRouter.get('/orders', async (req, res) => {
       return { collectionName, items, nextCursor: snap.size === limit ? snap.docs[snap.docs.length-1].id : null };
     }));
     const orders = results.flatMap(r=>r.items).sort((a,b)=>getTimestampMs(b.createdAt)-getTimestampMs(a.createdAt));
-    return res.json({ success:true, orders, nextCursors:Object.fromEntries(results.map(r=>[r.collectionName,r.nextCursor])), pageSizePerCollection:limit, collections:ADMIN_ORDER_COLLECTIONS, providerFilter:providerFilter||null });
+    const ordersWithUsers = await enrichAdminOrderUsers(orders);
+    return res.json({ success:true, orders:ordersWithUsers, nextCursors:Object.fromEntries(results.map(r=>[r.collectionName,r.nextCursor])), pageSizePerCollection:limit, collections:ADMIN_ORDER_COLLECTIONS, providerFilter:providerFilter||null });
   } catch (error) {
     console.error('Erreur /api/admin/orders:', error);
     res.status(500).json({ success:false, error:'Impossible de charger les commandes.' });
   }
 });
+
+const adminOrderUserCache = new Map();
+async function enrichAdminOrderUsers(orders) {
+  const ids=[...new Set(orders.map(o=>o.userId).filter(Boolean))];
+  const now=Date.now(); const missing=ids.filter(id=>{const v=adminOrderUserCache.get(id);return !v||v.expires<now;});
+  const snapshots=await Promise.all(missing.map(id=>db.collection('users').doc(id).get()));
+  snapshots.forEach(s=>{const u=s.exists?(s.data()||{}):{};adminOrderUserCache.set(s.id,{name:u.displayName||u.username||u.name||u.fullName||null,email:u.email||null,expires:now+5*60*1000});});
+  return orders.map(o=>{const u=adminOrderUserCache.get(o.userId)||{};return {...o,userName:u.name||null,userEmail:u.email||null};});
+}
 
 function normalizeAdminOrder(doc, collectionName) {
   const d = doc.data() || {}; const rawProvider = d.provider || d.fournisseur || d.providerName || d.supplier || d.api || (collectionName === 'commandes' ? 'EXO' : null);
@@ -3696,23 +3710,34 @@ adminRouter.get('/stores', async (req, res) => {
     const snap = await query.limit(limit).get();
     const stores = snap.docs.map(doc => { const d=doc.data()||{}; const ownerId=d.userId||d.ownerId||d.uid||d.createdBy||d.ownerUid||null; const slug=d.slug||d.username||d.storeSlug||null;
       return { id:doc.id, name:d.name||d.storeName||d.title||d.businessName||'Boutique sans nom', slug, url:d.url||d.storeUrl||d.publicUrl||d.customDomain||null, logo:d.logo||d.logoUrl||d.image||d.photo||null, ownerId, ownerName:d.ownerName||d.userName||d.displayName||d.owner||null, ownerEmail:d.email||d.ownerEmail||null, country:d.country||null, status:d.status||(d.active===false?'inactive':'active'), createdAt:d.createdAt||d.created_at||d.creationDate||d.dateCreated||null }; });
+    const ownerIds=[...new Set(stores.map(s=>s.ownerId).filter(Boolean))];
+    const ownerSnaps=await Promise.all(ownerIds.map(id=>db.collection('users').doc(id).get()));
+    const owners=new Map(ownerSnaps.filter(s=>s.exists).map(s=>{const u=s.data()||{};return [s.id,{name:u.displayName||u.username||u.name||u.fullName||null,email:u.email||null,country:u.country||u.countryCode||u.country_code||null,phone:u.phone||u.whatsapp||null,balance:Number(u.balance||0),createdAt:u.createdAt||u.created_at||null}];}));
+    for(const store of stores){const owner=owners.get(store.ownerId);if(owner){store.ownerName=store.ownerName||owner.name;store.ownerEmail=store.ownerEmail||owner.email;store.ownerCountry=owner.country||null;store.ownerPhone=owner.phone||null;store.ownerBalance=owner.balance;store.ownerCreatedAt=owner.createdAt;if(!store.country)store.country=owner.country;}}
     return res.json({ success:true, stores, nextCursor:snap.size===limit?snap.docs[snap.docs.length-1].id:null, pageSize:limit });
   } catch (error) { console.error('Erreur /api/admin/stores:',error); return res.status(500).json({success:false,error:'Impossible de charger les boutiques.'}); }
 });
 
 adminRouter.get('/deposits', async (req,res)=>{
   try {
-    const limit=Math.min(Math.max(parseInt(req.query.limit,10)||25,10),50); const cursorId=String(req.query.cursor||''); const status=String(req.query.status||'all').toUpperCase();
-    const statuses={CONFIRMED:['CONFIRMED','confirmed','SUCCESS','success','SUCCEEDED','succeeded','PAID','paid'],PENDING:['PENDING','pending','PROCESSING','processing'],FAILED:['FAILED','failed','FAILURE','failure','CANCELLED','cancelled']};
-    let query=db.collection('paymentTransactions'); if(statuses[status]) query=query.where('status','in',statuses[status].slice(0,10));
-    query=query.orderBy(admin.firestore.FieldPath.documentId()); if(cursorId){const cursor=await db.collection('paymentTransactions').doc(cursorId).get();if(cursor.exists)query=query.startAfter(cursor);}
-    const snap=await query.limit(limit).get(); const transactions=snap.docs.map(doc=>{const d=doc.data()||{};return{id:doc.id,reference:d.reference||doc.id,userId:d.userId||d.uid||null,userName:d.userName||d.displayName||null,userEmail:d.email||d.userEmail||null,provider:d.provider||'—',status:d.status||'UNKNOWN',requestedAmount:Number(d.requestedAmount||0),requestedCurrency:d.requestedCurrency||null,creditedAmountXAF:Number(d.creditedAmountXAF||0),createdAt:d.createdAt||d.created_at||null,completedAt:d.completedAt||d.creditedAt||null,failureReason:d.failureReason||null};});
-    const usersToLoad=[...new Set(transactions.filter(t=>t.userId&&(!t.userName||!t.userEmail)).map(t=>t.userId))];
-    const userSnapshots=await Promise.all(usersToLoad.map(uid=>db.collection('users').doc(uid).get()));
-    const userLookup=new Map(userSnapshots.filter(s=>s.exists).map(s=>{const u=s.data()||{};return[s.id,{name:u.displayName||u.username||u.name||null,email:u.email||null}]}));
-    for(const t of transactions){const u=userLookup.get(t.userId);if(u){t.userName=t.userName||u.name;t.userEmail=t.userEmail||u.email;}}
+    const limit=Math.min(Math.max(parseInt(req.query.limit,10)||25,10),50); const status=String(req.query.status||'all').toUpperCase();
+    let cursors={};try{cursors=JSON.parse(String(req.query.cursors||'{}'))||{};}catch(_){}
+    const sources=[
+      {name:'paymentTransactions',providerFallback:'NelsiusPay',amountKeys:['requestedAmount','amount'],currencyKeys:['requestedCurrency','currency'],creditKeys:['creditedAmountXAF','amountXAF']},
+      {name:'fapshiTransactions',providerFallback:'Fapshi',amountKeys:['amount','requestedAmount'],currencyKeys:['currency','requestedCurrency'],creditKeys:['creditedAmountXAF','creditedAmount','amountCreditedXAF']},
+    ];
+    const statusVariants={CONFIRMED:['CONFIRMED','confirmed','SUCCESS','success','SUCCEEDED','succeeded','PAID','paid','SUCCESSFUL','successful'],PENDING:['PENDING','pending','PROCESSING','processing'],FAILED:['FAILED','failed','FAILURE','failure','CANCELLED','cancelled','REJECTED','rejected']};
+    const results=await Promise.all(sources.map(async source=>{
+      let q=db.collection(source.name).orderBy(admin.firestore.FieldPath.documentId());const cursorId=String(cursors[source.name]||'');if(cursorId){const cursor=await db.collection(source.name).doc(cursorId).get();if(cursor.exists)q=q.startAfter(cursor);}
+      const snap=await q.limit(limit).get();const items=snap.docs.map(doc=>{const d=doc.data()||{};const pick=keys=>{for(const k of keys)if(d[k]!==undefined&&d[k]!==null&&d[k]!=='')return d[k];return null;};const rawStatus=String(d.status||d.paymentStatus||d.state||'UNKNOWN');const amount=Number(pick(source.amountKeys)||0);return{id:doc.id,source:source.name,reference:d.reference||d.transId||d.fapshiTransId||d.transactionId||doc.id,userId:d.userId||d.uid||d.user_id||null,userName:d.userName||d.displayName||d.name||null,userEmail:d.email||d.userEmail||null,provider:d.provider||d.paymentProvider||source.providerFallback,status:rawStatus,requestedAmount:amount,requestedCurrency:pick(source.currencyKeys)||'XAF',creditedAmountXAF:pick(source.creditKeys)===null?null:Number(pick(source.creditKeys)),createdAt:d.createdAt||d.created_at||d.dateCreated||d.timestamp||null,completedAt:d.completedAt||d.creditedAt||d.updatedAt||null,failureReason:d.failureReason||d.error||d.message||null};});
+      return {source:source.name,items,nextCursor:snap.size===limit?snap.docs[snap.docs.length-1].id:null};
+    }));
+    let transactions=results.flatMap(r=>r.items);
+    if(status!=='ALL'&&statusVariants[status]){const allowed=statusVariants[status].map(s=>s.toLowerCase());transactions=transactions.filter(t=>allowed.includes(String(t.status).toLowerCase()));}
+    const userIds=[...new Set(transactions.filter(t=>t.userId&&(!t.userName||!t.userEmail)).map(t=>t.userId))];const userSnaps=await Promise.all(userIds.map(id=>db.collection('users').doc(id).get()));const users=new Map(userSnaps.filter(s=>s.exists).map(s=>{const u=s.data()||{};return[s.id,{name:u.displayName||u.username||u.name||null,email:u.email||null}]}));
+    for(const t of transactions){const u=users.get(t.userId);if(u){t.userName=t.userName||u.name;t.userEmail=t.userEmail||u.email;}}
     transactions.sort((a,b)=>getTimestampMs(b.createdAt)-getTimestampMs(a.createdAt));
-    return res.json({success:true,transactions,nextCursor:snap.size===limit?snap.docs[snap.docs.length-1].id:null,pageSize:limit});
+    return res.json({success:true,transactions,nextCursors:Object.fromEntries(results.map(r=>[r.source,r.nextCursor])),pageSize:limit,sources:sources.map(s=>s.name)});
   }catch(error){console.error('Erreur /api/admin/deposits:',error);return res.status(500).json({success:false,error:'Impossible de charger les recharges.'});}
 });
 
@@ -3831,7 +3856,7 @@ adminRouter.get('/customers/:id', async (req,res)=>{
       }
     }
     all.sort((a,b)=>getTimestampMs(b.createdAt||b.created_at||b.dateCreated)-getTimestampMs(a.createdAt||a.created_at||a.dateCreated));
-    const orders=all.slice(0,50).map(o=>({id:o.id,source:o.source,orderId:o.orderId||o.reference||o.order_id||o.id,serviceName:o.serviceName||o.service_name||o.name||'Service',provider:o.normalizedProvider||null,status:o.status||o.orderStatus||o.state||'Inconnu',amount:o.normalizedAmount,providerCostXAF:o.normalizedProviderCost,grossProfitXAF:o.normalizedProfit,profitMarginPct:o.normalizedMarginPct,providerCostEstimated:o.providerCostEstimated,profitEstimated:o.profitEstimated,createdAt:o.createdAt||o.dateCreated||o.created_at||o.timestamp||null}));
+    const orders=all.slice(0,50).map(o=>({id:o.id,source:o.source,orderId:o.orderId||o.reference||o.order_id||o.id,serviceName:o.serviceName||o.service_name||o.name||'Service',quantity:Number(o.quantity||o.qty||o.count||0),provider:o.normalizedProvider||null,status:o.status||o.orderStatus||o.state||'Inconnu',amount:o.normalizedAmount,providerCostXAF:o.normalizedProviderCost,grossProfitXAF:o.normalizedProfit,profitMarginPct:o.normalizedMarginPct,providerCostEstimated:o.providerCostEstimated,profitEstimated:o.profitEstimated,createdAt:o.createdAt||o.dateCreated||o.created_at||o.timestamp||null}));
     return res.json({success:true,customer:{id:userDoc.id,name:u.displayName||u.username||u.name||'Utilisateur',email:u.email||null,phone:u.phone||u.whatsapp||null,country:u.country||null,balance:Number(u.balance||0),totalOrders:exactOrderCount,totalSpent:Math.round(derivedSpendPriceXAF),createdAt:u.createdAt||u.created_at||null,lastSignIn:u.lastSignIn||u.lastLoginAt||null,lastActivityAt:u.lastActivityAt||u.lastSeenAt||u.lastDashboardVisit||u.lastSignIn||u.lastLoginAt||null,resellerLevel:u.resellerLevel||null},orders,exactOrderCount,derivedSpendPriceXAF:Math.round(derivedSpendPriceXAF),storedTotalSpent:Number(u.totalSpent||0),countsByCollection,ordersReturned:orders.length,capped:exactOrderCount>orders.length,unattributedAmountCount,spendNote:'Total brut des montants de commandes retrouvés dans les six collections, en normalisant les champs connus. Les commandes sans montant reconnu sont comptées dans le volume, mais pas dans le total dépensé.'});
   }catch(error){console.error('Erreur /api/admin/customers/:id:',error);return res.status(500).json({success:false,error:'Impossible de charger la fiche utilisateur.'});}
 });
