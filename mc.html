@@ -211,23 +211,23 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
           <div class="kpi-value" id="kpiTotalOrders">—</div>
           <div class="kpi-sub" id="kpiPendingOrders">—</div>
         </div>
-        <div class="kpi-card" style="--accent:var(--purple);--accent-dim:var(--purple-dim);">
-          <div class="kpi-icon"><i class="fas fa-boxes-stacked"></i></div>
-          <div class="kpi-label">Commandes hors automatiques</div>
-          <div class="kpi-value" id="kpiLegacyOrders">—</div>
-          <div class="kpi-sub">Toutes les autres collections historiques</div>
-        </div>
         <div class="kpi-card" style="--accent:var(--green);--accent-dim:var(--green-dim);">
-          <div class="kpi-icon"><i class="fas fa-coins"></i></div>
-          <div class="kpi-label">Ventes nettes automatisées</div>
-          <div class="kpi-value" id="kpiRevenue">—</div>
-          <div class="kpi-sub" id="kpiRevenueSub">—</div>
+          <div class="kpi-icon"><i class="fas fa-calendar-check"></i></div>
+          <div class="kpi-label">Commandes aujourd’hui</div>
+          <div class="kpi-value" id="kpiOrdersToday">—</div>
+          <div class="kpi-sub">Toutes les collections</div>
         </div>
-        <div class="kpi-card" style="--accent:var(--red);--accent-dim:var(--red-dim);">
-          <div class="kpi-icon"><i class="fas fa-gift"></i></div>
-          <div class="kpi-label">Cadeaux en attente</div>
-          <div class="kpi-value" id="kpiGiftsPending">—</div>
-          <div class="kpi-sub" id="kpiGiftsLate">—</div>
+        <div class="kpi-card" style="--accent:var(--purple);--accent-dim:var(--purple-dim);">
+          <div class="kpi-icon"><i class="fas fa-calendar-day"></i></div>
+          <div class="kpi-label">Commandes hier</div>
+          <div class="kpi-value" id="kpiOrdersYesterday">—</div>
+          <div class="kpi-sub">Toutes les collections</div>
+        </div>
+        <div class="kpi-card" style="--accent:var(--gold);--accent-dim:var(--gold-dim);">
+          <div class="kpi-icon"><i class="fas fa-calendar-minus"></i></div>
+          <div class="kpi-label">Commandes avant-hier</div>
+          <div class="kpi-value" id="kpiOrdersDayBefore">—</div>
+          <div class="kpi-sub">Toutes les collections</div>
         </div>
       </div>
 
@@ -241,6 +241,11 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
           <div class="kpi-card" style="--accent:var(--green);--accent-dim:var(--green-dim);"><div class="kpi-icon"><i class="fas fa-eye"></i></div><div class="kpi-label">Visites enregistrées</div><div class="kpi-value" id="kpiDashboardVisits">—</div><div class="kpi-sub" id="kpiDashboardActive">— actifs sur les 7 derniers jours</div></div>
           <div class="kpi-card" style="--accent:var(--blue);--accent-dim:var(--blue-dim);"><div class="kpi-icon"><i class="fas fa-wallet"></i></div><div class="kpi-label">Soldes clients cumulés</div><div class="kpi-value" id="kpiTotalBalance">—</div><div class="kpi-sub" id="kpiAverageBalance">— de solde moyen</div></div>
         </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header"><div class="section-title"><i class="fas fa-trophy"></i> Clients les plus actifs</div><button class="btn btn-outline btn-sm" onclick="loadTopUsers(true)"><i class="fas fa-sync-alt"></i> Actualiser</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Client</th><th>Pays</th><th>Commandes</th><th>Total payé reconnu</th><th>Fiche</th></tr></thead><tbody id="topUsersBody"><tr><td colspan="5" class="loading">Chargement du classement…</td></tr></tbody></table></div>
       </div>
 
       <div class="section">
@@ -300,7 +305,7 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
           <div class="filter-group"><label>Fournisseur</label><select id="orderProviderFilter" onchange="refreshOrdersView()"><option value="all">Tous les fournisseurs</option><option value="mtp">MTP</option><option value="exo">EXO</option><option value="afriqueboost">AfriqueBoost</option><option value="smmwiz">SMMWiz</option><option value="smmgen">SMMGen</option></select></div>
           
         </div>
-        <div class="table-wrap"><table><thead><tr><th>Date</th><th>Référence</th><th>Client (UID)</th><th>Fournisseur</th><th>Service</th><th>Montant payé</th><th>Coût fournisseur</th><th>Marge brute</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="ordersBody"><tr><td colspan="10" class="loading">Ouvrez cette vue pour charger les commandes.</td></tr></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Date</th><th>Référence</th><th>Client</th><th>Fournisseur</th><th>Service</th><th>Quantité</th><th>Montant payé</th><th>Coût fournisseur</th><th>Marge brute</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="ordersBody"><tr><td colspan="11" class="loading">Ouvrez cette vue pour charger les commandes.</td></tr></tbody></table></div>
         <div class="stats-bar" id="ordersStats"></div>
         <div style="display:flex;justify-content:center;margin-top:16px;"><button class="btn btn-outline" id="ordersMoreBtn" onclick="loadMoreOrders()" style="display:none;"><i class="fas fa-chevron-down"></i> Charger la suite</button></div>
         <p style="font-size:.75rem;color:var(--text-dim);margin-top:12px;line-height:1.6;">Les coûts et marges portant la mention « estimé » utilisent le multiplicateur fournisseur lorsque le coût d’origine n’a pas été enregistré.</p>
@@ -309,7 +314,7 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
 
     <!-- ═══ DEPOSITS ═══ -->
     <div id="view-deposits" class="view" style="display:none;">
-      <div class="top-bar"><div><div class="page-title">Recharges clients</div><div class="page-subtitle">Transactions de paiement enregistrées dans paymentTransactions</div></div><div class="top-actions"><button class="btn btn-outline" onclick="loadDeposits(true)"><i class="fas fa-sync-alt"></i> Actualiser</button></div></div>
+      <div class="top-bar"><div><div class="page-title">Recharges clients</div><div class="page-subtitle">Transactions de paiement enregistrées par les partenaires intégrés</div></div><div class="top-actions"><button class="btn btn-outline" onclick="loadDeposits(true)"><i class="fas fa-sync-alt"></i> Actualiser</button></div></div>
       <div class="section"><div class="filter-bar"><div class="filter-group"><label>Statut</label><select id="depositStatusFilter" onchange="loadDeposits(true)"><option value="all">Tous</option><option value="CONFIRMED">Réussies</option><option value="PENDING">En attente</option><option value="FAILED">Échouées</option></select></div></div>
       <div class="table-wrap"><table><thead><tr><th>Date</th><th>Référence</th><th>Client</th><th>Fournisseur</th><th>Montant demandé</th><th>Montant crédité</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="depositsBody"><tr><td colspan="8" class="loading">Ouvrez cette vue pour charger les recharges.</td></tr></tbody></table></div><div class="stats-bar" id="depositsStats"></div><div style="display:flex;justify-content:center;margin-top:16px;"><button class="btn btn-outline" id="depositsMoreBtn" onclick="loadMoreDeposits()" style="display:none;">Charger la suite</button></div></div>
     </div>
@@ -344,6 +349,7 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
       <div class="top-bar">
         <div><div class="page-title">Services & Prix</div><div class="page-subtitle">Analyse des prix et marges par fournisseur</div></div>
         <div class="top-actions">
+          <div class="cache-info" id="servicesCacheInfo" style="display:none;"><i class="fas fa-shield-halved"></i> <span id="servicesCacheText">—</span></div>
           <button class="btn btn-gold" onclick="exportServicesPDF()"><i class="fas fa-file-pdf"></i> Exporter PDF</button>
         </div>
       </div>
@@ -395,6 +401,7 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
       <div class="top-bar">
         <div><div class="page-title">🎁 Cadeaux de bienvenue</div><div class="page-subtitle">Traitement manuel des demandes</div></div>
         <div class="top-actions">
+          <div class="cache-info" id="giftsCacheInfo" style="display:none;"><i class="fas fa-shield-halved"></i> <span id="giftsCacheText">—</span></div>
           <button class="btn btn-gold" onclick="exportGiftsPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
         </div>
       </div>
@@ -481,6 +488,22 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
   </div>
 </div>
 
+<!-- Customer email composer -->
+<div id="customerEmailModal" class="wa-modal-overlay" onclick="if(event.target===this)closeCustomerEmailModal()">
+  <div class="wa-modal">
+    <div class="wa-modal-header"><h3><i class="fas fa-envelope"></i> Rédiger un email client</h3><button class="wa-modal-close" onclick="closeCustomerEmailModal()">&times;</button></div>
+    <div class="wa-modal-body">
+      <div class="wa-recipient" id="customerEmailRecipient"><div class="name">Destinataire</div></div>
+      <label class="wa-preview-label" for="customerEmailSubject">Objet du message</label>
+      <input id="customerEmailSubject" type="text" maxlength="180" style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;margin-bottom:14px;font-family:inherit;" placeholder="Objet de votre email">
+      <label class="wa-preview-label" for="customerEmailMessage">Message</label>
+      <textarea id="customerEmailMessage" rows="12" style="min-height:240px;resize:vertical;" placeholder="Rédigez votre message ici…"></textarea>
+      <p style="font-size:.75rem;color:var(--text-dim);margin-top:10px;">Le message est envoyé par le serveur avec une mise en page email propre. Les retours à la ligne sont conservés.</p>
+    </div>
+    <div class="wa-modal-footer"><button class="btn btn-outline" onclick="closeCustomerEmailModal()">Annuler</button><button class="btn btn-gold" id="sendCustomerEmailBtn" onclick="submitCustomerEmail()"><i class="fas fa-paper-plane"></i> Envoyer l’email</button></div>
+  </div>
+</div>
+
 <!-- Customer details modal -->
 <div id="customerModal" class="wa-modal-overlay" onclick="if(event.target===this)closeCustomerModal()">
   <div class="wa-modal">
@@ -503,8 +526,8 @@ function populateCountryFilters(){const labels=new Intl.DisplayNames(['fr'],{typ
 function formatCountryLabel(raw){const v=String(raw||'').trim();if(!v)return '—';if(/^[a-z]{2}$/i.test(v)){try{return new Intl.DisplayNames(['fr'],{type:'region'}).of(v.toUpperCase())+' ('+v.toUpperCase()+')';}catch(_){return v.toUpperCase();}}return v;}
 let metricsRebuildRunning=false;
 async function rebuildCustomerMetrics(){if(metricsRebuildRunning)return;if(!confirm('Recalculer les commandes et dépenses historiques en parcourant les six collections de commandes et les profils utilisateurs ? Cette opération lit l’historique et écrit seulement les agrégats administratifs qui diffèrent. Elle ne modifie ni les soldes clients ni les commandes.'))return;metricsRebuildRunning=true;const btn=[...document.querySelectorAll('button')].find(b=>b.textContent.includes('Recalculer l’historique'));if(btn){btn.disabled=true;btn.textContent='Recalcul en cours…';}try{const d=await fetchAdmin('/customers/rebuild-order-metrics',{method:'POST',body:JSON.stringify({confirm:true})});showToast(`Historique recalculé : ${Number(d.ordersRead||0).toLocaleString('fr-FR')} commandes lues · ${Number(d.unattributedAmounts||0).toLocaleString('fr-FR')} sans montant reconnu`);allCustomers=[];customerCursor=null;await loadCustomers(true);await loadOverview(true);}catch(e){showError('Recalcul historique impossible : '+e.message);}finally{metricsRebuildRunning=false;if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-calculator"></i> Recalculer l’historique des commandes';}}}
-let allDeposits=[];let depositCursor=null;let depositsLoading=false;
-async function loadDeposits(reset=false){if(depositsLoading)return;depositsLoading=true;const tb=document.getElementById('depositsBody');if(reset){allDeposits=[];depositCursor=null;tb.innerHTML='<tr><td colspan="8" class="loading">Chargement des recharges…</td></tr>';}try{const p=new URLSearchParams({limit:'25',status:document.getElementById('depositStatusFilter')?.value||'all'});if(depositCursor)p.set('cursor',depositCursor);const d=await fetchAdmin('/deposits?'+p.toString());allDeposits=reset?(d.transactions||[]):allDeposits.concat(d.transactions||[]);depositCursor=d.nextCursor||null;tb.innerHTML='';if(!allDeposits.length)tb.innerHTML='<tr><td colspan="8" class="loading">Aucune recharge trouvée pour ce filtre.</td></tr>';for(const t of allDeposits){const tr=document.createElement('tr');const status=String(t.status||'UNKNOWN').toUpperCase();const color=status==='CONFIRMED'?'var(--green)':status==='FAILED'?'var(--red)':'var(--gold)';tr.innerHTML=`<td>${esc(formatDate(t.createdAt))}</td><td><strong>${esc(t.reference)}</strong></td><td><strong>${esc(t.userName||'Client à identifier')}</strong><br><small>${esc(t.userEmail||t.userId||'UID absent')}</small></td><td>${esc(t.provider)}</td><td>${Number(t.requestedAmount||0).toLocaleString('fr-FR')} ${esc(t.requestedCurrency||'')}</td><td style="font-weight:700;color:var(--green);">${Number(t.creditedAmountXAF||0).toLocaleString('fr-FR')} FCFA</td><td><span style="font-weight:700;color:${color};">${esc(status)}</span>${t.failureReason?'<br><small>'+esc(t.failureReason)+'</small>':''}</td><td><div class="action-row"><button class="btn btn-outline btn-sm" onclick="openCustomerDetail('${escAttr(t.userId||'')}')" ${!t.userId?'disabled':''} title="Fiche client"><i class="fas fa-user"></i></button></div></td>`;tb.appendChild(tr);}const confirmed=allDeposits.filter(t=>['CONFIRMED','SUCCESS','SUCCEEDED','PAID'].includes(String(t.status||'').toUpperCase()));const credited=confirmed.reduce((sum,t)=>sum+Number(t.creditedAmountXAF||0),0);document.getElementById('depositsStats').innerHTML=`Transactions affichées : <strong>${allDeposits.length}</strong><span class="stat-sep"></span> Recharges confirmées : <strong>${confirmed.length}</strong><span class="stat-sep"></span> Montant crédité affiché : <strong>${credited.toLocaleString('fr-FR')} FCFA</strong>`;document.getElementById('depositsMoreBtn').style.display=depositCursor?'inline-flex':'none';}catch(e){tb.innerHTML=`<tr><td colspan="8" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Recharges : '+e.message);}finally{depositsLoading=false;}}
+let allDeposits=[];let depositCursors={paymentTransactions:null,fapshiTransactions:null};let depositsLoading=false;
+async function loadDeposits(reset=false){if(depositsLoading)return;depositsLoading=true;const tb=document.getElementById('depositsBody');if(reset){allDeposits=[];depositCursors={paymentTransactions:null,fapshiTransactions:null};tb.innerHTML='<tr><td colspan="8" class="loading">Chargement des recharges…</td></tr>';}try{const p=new URLSearchParams({limit:'25',status:document.getElementById('depositStatusFilter')?.value||'all'});p.set('cursors',JSON.stringify(depositCursors));const d=await fetchAdmin('/deposits?'+p.toString());allDeposits=reset?(d.transactions||[]):allDeposits.concat(d.transactions||[]);depositCursors=d.nextCursors||depositCursors;tb.innerHTML='';if(!allDeposits.length)tb.innerHTML='<tr><td colspan="8" class="loading">Aucune recharge trouvée pour ce filtre.</td></tr>';for(const t of allDeposits){const tr=document.createElement('tr');const status=String(t.status||'UNKNOWN').toUpperCase();const color=status==='CONFIRMED'?'var(--green)':status==='FAILED'?'var(--red)':'var(--gold)';tr.innerHTML=`<td>${esc(formatDate(t.createdAt))}</td><td><strong>${esc(t.reference)}</strong></td><td><strong>${esc(t.userName||'Client à identifier')}</strong><br><small>${esc(t.userEmail||t.userId||'UID absent')}</small></td><td>${esc(t.provider)}</td><td>${Number(t.requestedAmount||0).toLocaleString('fr-FR')} ${esc(t.requestedCurrency||'')}</td><td style="font-weight:700;color:var(--green);">${t.creditedAmountXAF===null||t.creditedAmountXAF===undefined?'—':Number(t.creditedAmountXAF).toLocaleString('fr-FR')+' FCFA'}</td><td><span style="font-weight:700;color:${color};">${esc(status)}</span>${t.failureReason?'<br><small>'+esc(t.failureReason)+'</small>':''}</td><td><div class="action-row"><button class="btn btn-outline btn-sm" onclick="openCustomerDetail('${escAttr(t.userId||'')}')" ${!t.userId?'disabled':''} title="Fiche client"><i class="fas fa-user"></i></button></div></td>`;tb.appendChild(tr);}const confirmed=allDeposits.filter(t=>['CONFIRMED','SUCCESS','SUCCEEDED','PAID'].includes(String(t.status||'').toUpperCase()));const credited=confirmed.reduce((sum,t)=>sum+(t.creditedAmountXAF===null||t.creditedAmountXAF===undefined?0:Number(t.creditedAmountXAF||0)),0);document.getElementById('depositsStats').innerHTML=`Transactions affichées : <strong>${allDeposits.length}</strong><span class="stat-sep"></span> Recharges confirmées : <strong>${confirmed.length}</strong><span class="stat-sep"></span> Montant crédité affiché : <strong>${credited.toLocaleString('fr-FR')} FCFA</strong>`;document.getElementById('depositsMoreBtn').style.display=Object.values(depositCursors).some(Boolean)?'inline-flex':'none';}catch(e){tb.innerHTML=`<tr><td colspan="8" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Recharges : '+e.message);}finally{depositsLoading=false;}}
 function loadMoreDeposits(){loadDeposits(false);}
 populateCountryFilters();
 
@@ -566,15 +589,23 @@ async function loadOverview(force=false){
     const put=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
     put('kpiTotalUsers',Number(s.totalUsers||0).toLocaleString('fr-FR'));put('kpiNewUsers',`+${Number(s.newUsers7d||0).toLocaleString('fr-FR')} cette semaine`);
     put('kpiTotalOrders',Number(s.totalOrders||0).toLocaleString('fr-FR'));put('kpiPendingOrders',`${Number(s.pendingOrders||0).toLocaleString('fr-FR')} en attente`);
-    put('kpiLegacyOrders',Number(s.otherOrderCollectionsTotal||0).toLocaleString('fr-FR'));put('kpiRevenue',Number(s.totalRevenue||0).toLocaleString('fr-FR')+' FCFA');
-    put('kpiRevenueSub',`${Number(s.totalAutoOrders||0).toLocaleString('fr-FR')} commandes automatiques · net des remboursements connus`);
-    put('kpiGiftsPending',Number(s.giftsPending||0).toLocaleString('fr-FR'));put('kpiGiftsLate',s.giftsLate?`🔴 ${s.giftsLate} en retard`:'Aucun retard');
+    put('kpiOrdersToday',Number(s.ordersToday||0).toLocaleString('fr-FR'));put('kpiOrdersYesterday',Number(s.ordersYesterday||0).toLocaleString('fr-FR'));put('kpiOrdersDayBefore',Number(s.ordersDayBefore||0).toLocaleString('fr-FR'));
     put('kpiUsersToday',Number(s.newUsersToday||0).toLocaleString('fr-FR'));put('kpiUsersYesterday',Number(s.newUsersYesterday||0).toLocaleString('fr-FR'));put('kpiUsersDayBefore',Number(s.newUsersDayBefore||0).toLocaleString('fr-FR'));
     put('kpiDashboardVisits',Number(s.dashboardVisitsRecorded||0).toLocaleString('fr-FR'));put('kpiDashboardActive',`${Number(s.activeDashboardUsers7d||0).toLocaleString('fr-FR')} utilisateurs actifs sur 7 jours`);
     put('kpiTotalBalance',Number(s.totalBalance||0).toLocaleString('fr-FR')+' FCFA');put('kpiAverageBalance',Number(s.averageBalance||0).toLocaleString('fr-FR')+' FCFA de solde moyen');
+    loadTopUsers();
     if(s.giftsPending>0){const b=document.getElementById('navGiftCount');b.textContent=s.giftsPending;b.style.display='inline-block';}else{const b=document.getElementById('navGiftCount');if(b)b.style.display='none';}
     if(s.multipliers){put('multMTP','×'+(s.multipliers.MTP??'—'));put('multEXO','×'+(s.multipliers.EXO??'—'));put('multAFB','×'+(s.multipliers.AfriqueBoost??'—'));put('multSMMGen','×'+(s.multipliers.SMMGen??'—'));put('multSMMWiz','×'+(s.multipliers.SMMWiz??'—'));}
   }catch(e){console.warn('Vue d’ensemble:',e);showError('Impossible de charger la vue d’ensemble : '+e.message);}
+}
+
+
+let topUsersLoaded=false;let topUsersLoadedAt=0;let topUsersLoading=false;
+async function loadTopUsers(force=false){
+  if(topUsersLoading||(!force&&topUsersLoaded&&Date.now()-topUsersLoadedAt<5*60*1000))return;topUsersLoading=true;
+  const tb=document.getElementById('topUsersBody');if(!tb){topUsersLoading=false;return;}
+  try{const d=await fetchAdmin('/top-users'+(force?'?refresh=1':''));const users=d.users||[];tb.innerHTML='';if(!users.length)tb.innerHTML='<tr><td colspan="5" class="loading">Le classement sera disponible après le recalcul des commandes historiques.</td></tr>';users.forEach(u=>{const tr=document.createElement('tr');tr.innerHTML=`<td><strong>${esc(u.name||'Client')}</strong>${u.email?`<br><small>${esc(u.email)}</small>`:''}</td><td>${esc(formatCountryLabel(u.country)||'—')}</td><td>${Number(u.orderCount||0).toLocaleString('fr-FR')}</td><td>${Number(u.totalSpent||0).toLocaleString('fr-FR')} FCFA</td><td><button class="btn btn-outline btn-sm" onclick="openCustomerDetail('${escAttr(u.id)}')"><i class="fas fa-eye"></i></button></td>`;tb.appendChild(tr);});topUsersLoaded=true;topUsersLoadedAt=Date.now();}
+  catch(e){tb.innerHTML=`<tr><td colspan="5" class="loading">Classement indisponible : ${esc(e.message)}</td></tr>`;}finally{topUsersLoading=false;}
 }
 
 // ═══ FINANCES ═══
@@ -638,7 +669,7 @@ let allOrders=[];let orderCursors={autoOrders:null,commandes:null,orders:null,or
 async function loadOrders(reset=false){
   if(ordersLoading)return;ordersLoading=true;
   const tb=document.getElementById('ordersBody');
-  if(reset){allOrders=[];orderCursors={autoOrders:null,commandes:null,orders:null,orders_automatique:null,orders_avancee:null,orders_standard_revendeur:null};tb.innerHTML='<tr><td colspan="10" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';}
+  if(reset){allOrders=[];orderCursors={autoOrders:null,commandes:null,orders:null,orders_automatique:null,orders_avancee:null,orders_standard_revendeur:null};tb.innerHTML='<tr><td colspan="11" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';}
   try{
     const params=new URLSearchParams({limit:'5',cursors:JSON.stringify(orderCursors)});
     const provider=document.getElementById('orderProviderFilter')?.value||'all';if(provider!=='all')params.set('provider',provider);
@@ -647,7 +678,7 @@ async function loadOrders(reset=false){
     allOrders=reset?(d.orders||[]):allOrders.concat(d.orders||[]);orderCursors=d.nextCursors||orderCursors;
     renderOrders();document.getElementById('ordersMoreBtn').style.display=Object.values(orderCursors).some(Boolean)?'inline-flex':'none';
     const info=document.getElementById('ordersInfoText');if(info)info.textContent=`${allOrders.length} commandes chargées`;
-  }catch(e){tb.innerHTML=`<tr><td colspan="10" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Commandes : '+e.message);}
+  }catch(e){tb.innerHTML=`<tr><td colspan="11" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Commandes : '+e.message);}
   finally{ordersLoading=false;}
 }
 function loadMoreOrders(){loadOrders(false);}
@@ -659,18 +690,19 @@ function renderOrders(){
   const list=allOrders.filter(o=>{
     if(st!=='all'){const sv=String(o.status||'').toLowerCase();const sm={'en attente':['en attente','pending'],'en cours':['en cours','in progress','processing'],'terminé':['terminé','terminée','completed','done','delivered'],'terminée':['terminé','terminée','completed','done','delivered'],'annulé':['annulé','annulée','canceled','cancelled'],'annulée':['annulé','annulée','canceled','cancelled'],'partiel':['partiel','partial'],'échouée':['échouée','failed','error']};if(!(sm[st.toLowerCase()]||[st.toLowerCase()]).includes(sv))return false;}
     if(provider!=='all'&&String(o.provider||'').toLowerCase()!==({mtp:'mtp',exo:'exo',afriqueboost:'afriqueboost',smmwiz:'smmwiz',smmgen:'smmgen'}[provider]||provider))return false;
-    if(q&&!([o.orderId,o.userId,o.serviceName,o.provider,o.collection,o.status].filter(Boolean).join(' ').toLowerCase().includes(q)))return false;
+    if(q&&!([o.orderId,o.userId,o.userName,o.userEmail,o.serviceName,o.provider,o.collection,o.status].filter(Boolean).join(' ').toLowerCase().includes(q)))return false;
     return true;
   });
   const tb=document.getElementById('ordersBody');tb.innerHTML='';
-  if(!list.length){const more=Object.values(orderCursors).some(Boolean);tb.innerHTML=`<tr><td colspan="10" class="loading">${more?'Aucune commande correspondante dans les pages déjà chargées. Cliquez sur « Charger la suite » pour continuer la recherche.':'Aucune commande correspondante.'}</td></tr>`;}
+  if(!list.length){const more=Object.values(orderCursors).some(Boolean);tb.innerHTML=`<tr><td colspan="11" class="loading">${more?'Aucune commande correspondante dans les pages déjà chargées. Cliquez sur « Charger la suite » pour continuer la recherche.':'Aucune commande correspondante.'}</td></tr>`;}
   list.forEach(o=>{
     const tr=document.createElement('tr');
     tr.innerHTML=`<td style="white-space:nowrap;font-size:.78rem;color:var(--text-muted);">${esc(formatDate(o.createdAt))}</td>
       <td><strong>${esc(o.orderId||o.id)}</strong></td>
-      <td style="font-size:.75rem;word-break:break-all;">${esc(o.userId||'—')}</td>
+      <td><strong>${esc(o.userName||'Client inconnu')}</strong>${o.userId?`<br><small style="color:var(--text-dim);">${esc(o.userEmail||'')}</small>`:''}</td>
       <td><span class="badge badge-mtp">${esc(o.provider||'Fournisseur inconnu')}</span><br><small style="color:var(--text-dim);">${esc(o.collection||'')}</small></td>
       <td>${esc(o.serviceName||'Service')}<br><small style="color:var(--text-dim);">${esc(o.platform||'')}</small></td>
+      <td>${Number(o.quantity||0).toLocaleString('fr-FR')}</td>
       <td style="white-space:nowrap;font-weight:700;">${o.amount===null||o.amount===undefined?'—':Number(o.amount).toLocaleString('fr-FR')+' FCFA'}${o.refunded?'<br><small class="kpi-warning">Remboursée partiellement/totalement</small>':''}</td>
       <td style="white-space:nowrap;">${o.providerCostXAF===null||o.providerCostXAF===undefined?'—':Number(o.providerCostXAF).toLocaleString('fr-FR')+' FCFA'}${o.providerCostEstimated?'<br><small style="color:var(--text-dim);">estimé</small>':''}</td>
       <td style="white-space:nowrap;">${o.grossProfitXAF===null||o.grossProfitXAF===undefined?'—':Number(o.grossProfitXAF).toLocaleString('fr-FR')+' FCFA'}${o.profitMarginPct===null||o.profitMarginPct===undefined?'':`<br><small>${Number(o.profitMarginPct).toLocaleString('fr-FR')} %</small>`}${o.profitEstimated?'<br><small style="color:var(--text-dim);">estimée</small>':''}</td>
@@ -686,15 +718,25 @@ function renderOrders(){
   document.getElementById('ordersStats').innerHTML=`<div class="stat-item">Commandes affichées : <strong>${list.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Montant payé : <strong>${total.toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-sep"></div><div class="stat-item">Coûts connus/estimés : <strong>${costs.toLocaleString('fr-FR')} FCFA</strong> (${knownCost.length})</div><div class="stat-sep"></div><div class="stat-item">Marge calculable : <strong>${profit.toLocaleString('fr-FR')} FCFA</strong> (${knownProfit.length})</div>`;
 }
 
-async function sendCustomerEmail(userId, userName, orderRef){
+let currentCustomerEmail=null;let customerEmailSending=false;
+function sendCustomerEmail(userId, userName, orderRef){
+  if(!userId)return;
+  currentCustomerEmail={userId,userName:userName||'cher client',orderRef:orderRef||''};
   const subjectDefault=orderRef?`Suivi de votre commande ${orderRef} — Social Boost Horizon`:'Suivi de votre compte — Social Boost Horizon';
   const messageDefault=`Bonjour ${userName||'cher client'},\n\nNous vous contactons au sujet de votre compte Social Boost Horizon${orderRef?` et de la commande ${orderRef}`:''}.\n\nNous souhaitons savoir si tout se passe bien et si vous avez besoin d’aide. Vous pouvez répondre directement à cet email.\n\nCordialement,\nL’équipe Social Boost Horizon`;
-  const subject=window.prompt('Objet du message :',subjectDefault);if(subject===null)return;
-  const message=window.prompt('Message (modifiable avant envoi) :',messageDefault);if(message===null)return;
-  if(!subject.trim()||!message.trim()){showError('Objet et message obligatoires.');return;}
-  if(!window.confirm('Envoyer cet email directement via le serveur à l’adresse enregistrée sur le compte ?'))return;
-  try{const d=await fetchAdmin(`/customers/${encodeURIComponent(userId)}/email`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject,message})});if(!d.success)throw new Error(d.error||'Envoi refusé');showToast('Email accepté par le fournisseur.');}
+  document.getElementById('customerEmailRecipient').innerHTML=`<div class="name">${esc(userName||'Client')}</div><div>Le serveur utilisera l’adresse email enregistrée dans le compte.</div>`;
+  document.getElementById('customerEmailSubject').value=subjectDefault;document.getElementById('customerEmailMessage').value=messageDefault;document.getElementById('customerEmailModal').classList.add('active');
+}
+function closeCustomerEmailModal(){if(customerEmailSending)return;document.getElementById('customerEmailModal').classList.remove('active');currentCustomerEmail=null;}
+async function submitCustomerEmail(){
+  if(!currentCustomerEmail||customerEmailSending)return;
+  const subject=document.getElementById('customerEmailSubject').value.trim(),message=document.getElementById('customerEmailMessage').value.trim();
+  if(!subject||!message){showError('L’objet et le message sont obligatoires.');return;}
+  if(!confirm(`Envoyer cet email au compte de ${currentCustomerEmail.userName} ?`))return;
+  customerEmailSending=true;const btn=document.getElementById('sendCustomerEmailBtn');btn.disabled=true;btn.innerHTML='<i class="fas fa-circle-notch fa-spin"></i> Envoi…';
+  try{const d=await fetchAdmin(`/customers/${encodeURIComponent(currentCustomerEmail.userId)}/email`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject,message})});if(!d.success)throw new Error(d.error||'Envoi refusé');showToast('Email accepté par le fournisseur.');closeCustomerEmailModal();}
   catch(e){showError('Échec de l’envoi email : '+e.message);}
+  finally{customerEmailSending=false;btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i> Envoyer l’email';}
 }
 
 // ═══ CUSTOMERS ═══
@@ -738,8 +780,8 @@ async function openCustomerDetail(id){
     const d=await fetchAdmin('/customers/'+encodeURIComponent(id));if(!d.success)throw new Error(d.error||'Fiche indisponible');
     const c=d.customer;const phone=String(c.phone||'').replace(/[^0-9]/g,'');
     const links=`<div class="action-row" style="margin:12px 0;">${c.email?`<button class="btn btn-gold btn-sm" onclick="sendCustomerEmail('${escAttr(c.id)}','${escAttr(c.name||'')}','')"><i class="fas fa-envelope"></i> Envoyer un email</button>`:''}${phone?`<a class="btn btn-wa btn-sm" href="https://wa.me/${escAttr(phone)}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> WhatsApp</a>`:''}</div>`;
-    const orders=(d.orders||[]).map(o=>`<tr><td>${esc(formatDate(o.createdAt))}</td><td>${esc(o.orderId||o.id)}</td><td>${esc(o.serviceName||'Service')}</td><td>${o.amount===null||o.amount===undefined?'—':Number(o.amount).toLocaleString('fr-FR')+' FCFA'}</td><td>${o.providerCostXAF===null||o.providerCostXAF===undefined?'—':Number(o.providerCostXAF).toLocaleString('fr-FR')+' FCFA'}${o.providerCostEstimated?' (estimé)':''}</td><td>${o.grossProfitXAF===null||o.grossProfitXAF===undefined?'—':Number(o.grossProfitXAF).toLocaleString('fr-FR')+' FCFA'}${o.profitEstimated?' (estimée)':''}</td><td>${esc(o.status||'Inconnu')}</td></tr>`).join('');
-    document.getElementById('customerDetailBody').innerHTML=`<h3 style="font-size:1.15rem;margin-bottom:6px;">${esc(c.name||'Utilisateur')}</h3><p style="color:var(--text-muted);word-break:break-all;">${esc(c.email||'Aucun email')} · ${esc(formatCountryLabel(c.country)||'Pays non indiqué')}</p><p style="font-size:.75rem;color:var(--text-dim);word-break:break-all;margin-top:6px;">UID : ${esc(c.id)}</p>${links}<div class="stats-bar"><div class="stat-item">Commandes du profil : <strong>${Number(c.totalOrders||0)}</strong></div><div class="stat-item">Total des commandes payées : <strong>${Number(d.derivedSpendPriceXAF ?? c.totalSpent ?? 0).toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-item">Solde : <strong>${Number(c.balance||0).toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-item">Total commandes trouvées : <strong>${Number(d.exactOrderCount||0)}</strong></div></div><p style="margin:14px 0 8px;font-weight:700;">Historique d'exemple (jusqu'à 15 par collection)</p><div class="table-wrap"><table><thead><tr><th>Date</th><th>Référence</th><th>Service</th><th>Montant payé</th><th>Coût fournisseur</th><th>Marge brute</th><th>Statut</th></tr></thead><tbody>${orders||'<tr><td colspan="7" class="loading">Aucune commande associée à ce compte n’a été retrouvée dans les six collections.</td></tr>'}</tbody></table></div><p style="color:var(--text-dim);font-size:.75rem;margin-top:8px;">Le volume de commandes est compté dans les six collections. Le total dépensé additionne les montants reconnus; les commandes sans champ de montant identifiable ne sont pas ajoutées. Les coûts et marges sans instantané fournisseur sont estimés à partir du multiplicateur actif.</p>`;
+    const orders=(d.orders||[]).map(o=>`<tr><td>${esc(formatDate(o.createdAt))}</td><td>${esc(o.orderId||o.id)}</td><td>${esc(o.serviceName||'Service')}</td><td>${Number(o.quantity||0).toLocaleString('fr-FR')}</td><td>${o.amount===null||o.amount===undefined?'—':Number(o.amount).toLocaleString('fr-FR')+' FCFA'}</td><td>${o.providerCostXAF===null||o.providerCostXAF===undefined?'—':Number(o.providerCostXAF).toLocaleString('fr-FR')+' FCFA'}${o.providerCostEstimated?' (estimé)':''}</td><td>${o.grossProfitXAF===null||o.grossProfitXAF===undefined?'—':Number(o.grossProfitXAF).toLocaleString('fr-FR')+' FCFA'}${o.profitEstimated?' (estimée)':''}</td><td>${esc(o.status||'Inconnu')}</td></tr>`).join('');
+    document.getElementById('customerDetailBody').innerHTML=`<h3 style="font-size:1.15rem;margin-bottom:6px;">${esc(c.name||'Utilisateur')}</h3><p style="color:var(--text-muted);word-break:break-all;">${esc(c.email||'Aucun email')} · ${esc(formatCountryLabel(c.country)||'Pays non indiqué')}</p><p style="font-size:.75rem;color:var(--text-dim);word-break:break-all;margin-top:6px;">UID : ${esc(c.id)}</p>${links}<div class="stats-bar"><div class="stat-item">Commandes du profil : <strong>${Number(c.totalOrders||0)}</strong></div><div class="stat-item">Total des commandes payées : <strong>${Number(d.derivedSpendPriceXAF ?? c.totalSpent ?? 0).toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-item">Solde : <strong>${Number(c.balance||0).toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-item">Total commandes trouvées : <strong>${Number(d.exactOrderCount||0)}</strong></div></div><p style="margin:14px 0 8px;font-weight:700;">Historique d'exemple (jusqu'à 15 par collection)</p><div class="table-wrap"><table><thead><tr><th>Date</th><th>Référence</th><th>Service</th><th>Quantité</th><th>Montant payé</th><th>Coût fournisseur</th><th>Marge brute</th><th>Statut</th></tr></thead><tbody>${orders||'<tr><td colspan="8" class="loading">Aucune commande associée à ce compte n’a été retrouvée dans les six collections.</td></tr>'}</tbody></table></div><p style="color:var(--text-dim);font-size:.75rem;margin-top:8px;">Le volume de commandes est compté dans les six collections. Le total dépensé additionne les montants reconnus; les commandes sans champ de montant identifiable ne sont pas ajoutées. Les coûts et marges sans instantané fournisseur sont estimés à partir du multiplicateur actif.</p>`;
   }catch(e){document.getElementById('customerDetailBody').innerHTML=`<p class="error-msg" style="display:block;">${esc(e.message)}</p>`;showError('Fiche client : '+e.message);}
 }
 function closeCustomerModal(){document.getElementById('customerModal').classList.remove('active');}
@@ -753,7 +795,7 @@ async function loadStores(reset=false){
     const params=new URLSearchParams({limit:'25'});const country=document.getElementById('storeCountryFilter')?.value||'';if(country)params.set('country',country);if(storeCursor)params.set('cursor',storeCursor);
     const d=await fetchAdmin('/stores?'+params.toString());allStores=reset?(d.stores||[]):allStores.concat(d.stores||[]);storeCursor=d.nextCursor||null;
     tb.innerHTML='';if(!allStores.length)tb.innerHTML='<tr><td colspan="6" class="loading">Aucune boutique trouvée.</td></tr>';
-    allStores.forEach(s=>{const phone='';const url=s.url||'';const tr=document.createElement('tr');tr.innerHTML=`<td>${s.logo?`<img src="${escAttr(s.logo)}" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:7px;vertical-align:middle;margin-right:8px;">`:''}<strong>${esc(s.name)}</strong><br><small style="color:var(--text-dim)">${esc(s.slug||s.id)}</small></td><td>${esc(s.ownerName||s.ownerEmail||'Propriétaire à identifier')}<br><small style="color:var(--text-dim)">${esc(s.ownerEmail||s.ownerId||'')}</small></td><td>${esc(formatCountryLabel(s.country)||'—')}</td><td>${esc(s.status||'—')}</td><td>${esc(formatDate(s.createdAt))}</td><td><div class="action-row">${url?`<a class="btn btn-outline btn-sm" href="${escAttr(url)}" target="_blank" rel="noopener" title="Ouvrir la boutique"><i class="fas fa-arrow-up-right-from-square"></i></a>`:''}${s.ownerEmail?`<a class="btn btn-gold btn-sm" href="mailto:${escAttr(s.ownerEmail)}?subject=${encodeURIComponent('Votre boutique Social Boost Horizon')}" title="Contacter le propriétaire"><i class="fas fa-envelope"></i></a>`:''}${s.ownerId?`<button class="btn btn-outline btn-sm" onclick="openCustomerDetail('${escAttr(s.ownerId)}')" title="Fiche propriétaire"><i class="fas fa-user"></i></button>`:''}</div></td>`;tb.appendChild(tr);});
+    allStores.forEach(s=>{const phone='';const url=s.url||'';const tr=document.createElement('tr');tr.innerHTML=`<td>${s.logo?`<img src="${escAttr(s.logo)}" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:7px;vertical-align:middle;margin-right:8px;">`:''}<strong>${esc(s.name)}</strong><br><small style="color:var(--text-dim)">${esc(s.slug||s.id)}</small></td><td>${esc(s.ownerName||s.ownerEmail||'Propriétaire à identifier')}<br><small style="color:var(--text-dim)">${esc(s.ownerEmail||s.ownerId||'')}</small></td><td>${esc(formatCountryLabel(s.country||s.ownerCountry)||'—')}</td><td>${esc(s.status||'—')}</td><td>${esc(formatDate(s.createdAt))}</td><td><div class="action-row">${url?`<a class="btn btn-outline btn-sm" href="${escAttr(url)}" target="_blank" rel="noopener" title="Ouvrir la boutique"><i class="fas fa-arrow-up-right-from-square"></i></a>`:''}${s.ownerId&&s.ownerEmail?`<button class="btn btn-gold btn-sm" onclick="sendCustomerEmail('${escAttr(s.ownerId)}','${escAttr(s.ownerName||'Propriétaire')}','')" title="Envoyer un email au propriétaire"><i class="fas fa-envelope"></i></button>`:''}${s.ownerId?`<button class="btn btn-outline btn-sm" onclick="openCustomerDetail('${escAttr(s.ownerId)}')" title="Fiche propriétaire"><i class="fas fa-user"></i></button>`:''}</div></td>`;tb.appendChild(tr);});
     document.getElementById('storesMoreBtn').style.display=storeCursor?'inline-flex':'none';
   }catch(e){tb.innerHTML=`<tr><td colspan="6" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Boutiques : '+e.message);}finally{storesLoading=false;}
 }
@@ -795,7 +837,7 @@ async function loadServices(){
       allServices=d.data.services||[];
       currentMultipliers=d.data.multipliers;
       const ci=document.getElementById('servicesCacheInfo'),ct=document.getElementById('servicesCacheText');
-      ci.style.display='flex';ct.textContent='Cache 30 min';
+      if(ci)ci.style.display='flex';if(ct)ct.textContent='Cache 30 min';
       filterServices();
     }
   }catch(e){tb.innerHTML=`<tr><td colspan="7" class="loading">Erreur : ${e.message}</td></tr>`;}
@@ -863,8 +905,8 @@ async function loadGifts(){
     if(d.success){
       allGifts=d.claims||[];
       const ci=document.getElementById('giftsCacheInfo'),ct=document.getElementById('giftsCacheText');
-      ci.style.display='flex';
-      ct.textContent=d.cached?`Cache actif — ${d.ttl||0}s restant`:`${d.reads||0} lectures — cache 5 min`;
+      if(ci)ci.style.display='flex';
+      if(ct)ct.textContent=d.cached?`Cache actif — ${d.ttl||0}s restant`:`Cache actif · 5 min`;
       filterGifts();
     }
   }catch(e){tb.innerHTML=`<tr><td colspan="7" class="loading">Erreur : ${e.message}</td></tr>`;}
