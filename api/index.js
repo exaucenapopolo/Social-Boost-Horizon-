@@ -274,6 +274,8 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
         balance: newBalance,
         totalOrders: admin.firestore.FieldValue.increment(1),
         totalSpent: admin.firestore.FieldValue.increment(cost),
+        adminOrderCount: admin.firestore.FieldValue.increment(1),
+        adminTotalSpent: admin.firestore.FieldValue.increment(cost),
       });
 
       const orderRef = db.collection('autoOrders').doc();
@@ -728,6 +730,8 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
         balance: newBalance,
         totalOrders: admin.firestore.FieldValue.increment(1),
         totalSpent: admin.firestore.FieldValue.increment(cost),
+        adminOrderCount: admin.firestore.FieldValue.increment(1),
+        adminTotalSpent: admin.firestore.FieldValue.increment(cost),
       });
 
       const orderRef = db.collection('autoOrders').doc();
@@ -1073,6 +1077,8 @@ app.post('/api/smmwiz/order', checkAuth, async (req, res) => {
         balance: newBalance,
         totalOrders: admin.firestore.FieldValue.increment(1),
         totalSpent: admin.firestore.FieldValue.increment(cost),
+        adminOrderCount: admin.firestore.FieldValue.increment(1),
+        adminTotalSpent: admin.firestore.FieldValue.increment(cost),
       });
 
       const orderRef = db.collection('autoOrders').doc();
@@ -3358,22 +3364,56 @@ const ADMIN_ORDER_COLLECTIONS = [
   'orders_standard_revendeur',
 ];
 
-// The existing order flows increment counters/{collectionName}.lastId.
-// Read only these six counter documents for the global order total.
+// Les compteurs globaux sont calculés sur les collections de commandes elles-mêmes.
+// On ne suppose pas l'existence de counters/{collection} pour les collections historiques.
 async function readOrderCounters() {
-  const snapshots = await Promise.all(
-    ADMIN_ORDER_COLLECTIONS.map(name => db.collection('counters').doc(name).get())
-  );
-  const counts = {};
-  let total = 0;
-  snapshots.forEach((snap, index) => {
-    const name = ADMIN_ORDER_COLLECTIONS[index];
-    const d = snap.exists ? (snap.data() || {}) : {};
-    const value = Number(d.lastId ?? d.total ?? d.count ?? d.totalOrders ?? 0);
-    counts[name] = Number.isFinite(value) && value > 0 ? value : 0;
-    total += counts[name];
-  });
+  const snapshots = await Promise.all(ADMIN_ORDER_COLLECTIONS.map(name => db.collection(name).count().get()));
+  const counts = {}; let total = 0;
+  snapshots.forEach((snap, index) => { const n = Number(snap.data()?.count || 0); counts[ADMIN_ORDER_COLLECTIONS[index]] = n; total += n; });
   return { total, counts };
+}
+
+const ADMIN_COUNTRY_CODES = 'AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW'.split(/\s+/);
+function getCountryAliases(value) {
+  const raw = String(value || '').trim(); if (!raw) return [];
+  let code = /^[a-z]{2}$/i.test(raw) ? raw.toUpperCase() : '';
+  const fr = new Intl.DisplayNames(['fr'], { type: 'region' });
+  const en = new Intl.DisplayNames(['en'], { type: 'region' });
+  if (!code) {
+    const target = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    code = ADMIN_COUNTRY_CODES.find(c => [fr.of(c), en.of(c), c].some(n => String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === target)) || '';
+  }
+  if (!code) return [...new Set([raw, raw.toLowerCase(), raw.toUpperCase()])].slice(0, 10);
+  return [...new Set([code, code.toLowerCase(), fr.of(code), String(fr.of(code) || '').toLowerCase(), en.of(code), String(en.of(code) || '').toLowerCase()])].filter(Boolean).slice(0, 10);
+}
+
+function getOrderAmountXAF(d = {}, collectionName = '') {
+  // Prefer unambiguous customer-charge fields. `cost` is accepted only for
+  // `commandes`, where the existing EXO cancellation flow uses it as refund basis.
+  const keys = ['priceXAF','chargedAmountXAF','paidAmountXAF','amountXAF','finalPriceXAF','orderPriceXAF','totalPriceXAF','totalAmountXAF'];
+  if (collectionName === 'commandes') keys.push('totalCost','finalCost','cost');
+  keys.push('amount','totalAmount','total');
+  let explicitZero = false;
+  for (const key of keys) {
+    const value=d[key]; if(value===undefined||value===null||value===''||!Number.isFinite(Number(value)))continue;
+    const n=Math.max(0,Number(value)); if(n>0)return n; explicitZero=true;
+  }
+  return explicitZero ? 0 : null;
+}
+function getOrderFinancials(d = {}, rawProvider = null, collectionName = '') {
+  const amount = getOrderAmountXAF(d, collectionName);
+  const provider = normalizeProvider(rawProvider || d.provider || d.fournisseur || d.providerName || d.supplier || d.api);
+  const storedMultiplier = Number(d.providerMultiplier || d.multiplier || 0);
+  const multiplierByProvider = { MTP: MTP_MULTIPLIER, EXO: EXO_MULTIPLIER, AfriqueBoost: AFB_MULTIPLIER, SMMWiz: SMMWIZ_MULTIPLIER, SMMGen: SMMGEN_MULTIPLIER };
+  const multiplier = storedMultiplier > 1 ? storedMultiplier : multiplierByProvider[provider];
+  const storedCost = d.providerCostXAF ?? d.supplierCostXAF ?? d.provider_cost_xaf ?? d.supplier_cost_xaf;
+  let providerCostXAF = storedCost !== undefined && storedCost !== null && Number.isFinite(Number(storedCost)) ? Math.max(0, Number(storedCost)) : null;
+  let providerCostEstimated = false;
+  if (providerCostXAF === null && amount !== null && multiplier && multiplier > 1) { providerCostXAF = Math.round(amount / multiplier); providerCostEstimated = true; }
+  let grossProfitXAF = d.estimatedProfitXAF !== undefined && d.estimatedProfitXAF !== null && Number.isFinite(Number(d.estimatedProfitXAF)) ? Number(d.estimatedProfitXAF) : (amount !== null && providerCostXAF !== null ? amount - providerCostXAF : null);
+  const profitEstimated = !(d.estimatedProfitXAF !== undefined && d.estimatedProfitXAF !== null && Number.isFinite(Number(d.estimatedProfitXAF))) && (providerCostEstimated || providerCostXAF === null || amount === null);
+  const refundedAmount = Number(d.refundedAmount ?? d.refundAmount ?? 0) || 0;
+  return { amount, provider, providerCostXAF, grossProfitXAF, profitMarginPct: amount > 0 && grossProfitXAF !== null ? Math.round((grossProfitXAF / amount) * 10000) / 100 : null, providerCostEstimated, profitEstimated, multiplier: multiplier || null, refundedAmount };
 }
 
 function normalizeProvider(value) {
@@ -3387,77 +3427,68 @@ function normalizeProvider(value) {
   return String(value).trim();
 }
 
+async function countPendingAdminOrders() {
+  const variants = ['En attente','en attente','pending','Pending'];
+  const snapshots = await Promise.all(ADMIN_ORDER_COLLECTIONS.map(name => db.collection(name).where('status','in',variants).count().get()));
+  return snapshots.reduce((sum, snap) => sum + Number(snap.data()?.count || 0), 0);
+}
+
 adminRouter.get('/overview', async (req, res) => {
   try {
     const forceRefresh = String(req.query.refresh || '') === '1';
     const cached = !forceRefresh ? memCacheGet(adminMemoryCache.overview) : null;
-    if (cached) return res.json({ success: true, data: cached, cached: true, cacheScope: 'instance' });
+    if (cached) return res.json({ success: true, data: cached, cached: true });
     if (!forceRefresh) {
       const shared = await getSharedAdminCache('overview');
-      if (shared) {
-        memCacheSet(adminMemoryCache.overview, shared.payload, Math.max(1000, shared.expiresAtMs - Date.now()));
-        return res.json({ success: true, data: shared.payload, cached: true, cacheScope: 'shared' });
-      }
+      if (shared) { memCacheSet(adminMemoryCache.overview, shared.payload, Math.max(1000, shared.expiresAtMs - Date.now())); return res.json({ success: true, data: shared.payload, cached: true, cacheScope: 'shared' }); }
     }
-
-    const sevenDaysAgo = admin.firestore.Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
-    const oneDayAgo = admin.firestore.Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
-    const autoRef = db.collection('autoOrders');
-    const legacyRef = db.collection('commandes');
-    const giftsRef = db.collection('welcomeGiftClaims');
-
-    const [
-      usersCount, newUsersCount, orderCounters,
-      autoPendingCount, legacyPendingCount, giftsPendingCount, giftsLateCount,
-      autoSalesAgg, autoRefundAgg
-    ] = await Promise.all([
-      db.collection('users').count().get(),
-      countCreatedBetween(db.collection('users'), new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), new Date()),
+    // Cameroon uses UTC+1; daily windows must follow the local calendar, not a rolling 24h window.
+    const now = new Date();
+    const local = new Date(now.getTime() + 60 * 60 * 1000);
+    const todayStart = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) - 60 * 60 * 1000);
+    const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+    const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
+    const dayBeforeStart = new Date(todayStart.getTime() - 48 * 60 * 60 * 1000);
+    const sevenDaysStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const usersRef = db.collection('users'); const giftsRef = db.collection('welcomeGiftClaims');
+    const [usersCount, newUsers7d, newUsersToday, newUsersYesterday, newUsersDayBefore, orderCounters,
+      pendingOrdersCount, giftsPending, giftsLate, autoFinancials, visitAgg, activeVisitors7d, balanceAgg] = await Promise.all([
+      usersRef.count().get(),
+      countCreatedBetween(usersRef, sevenDaysStart, now),
+      countCreatedBetween(usersRef, todayStart, now),
+      countCreatedBetween(usersRef, yesterdayStart, todayStart),
+      countCreatedBetween(usersRef, dayBeforeStart, yesterdayStart),
       readOrderCounters(),
-      autoRef.where('status', 'in', ['En attente', 'en attente', 'pending', 'Pending']).count().get(),
-      legacyRef.where('status', 'in', ['En attente', 'en attente', 'pending', 'Pending']).count().get(),
+      countPendingAdminOrders(),
       giftsRef.where('status', '==', 'pending').count().get(),
-      giftsRef.where('status', '==', 'pending').where('createdAt', '<', oneDayAgo).count().get(),
-      autoRef.aggregate({ total: admin.firestore.AggregateField.sum('priceXAF') }).get(),
-      autoRef.aggregate({ total: admin.firestore.AggregateField.sum('refundedAmount') }).get(),
+      giftsRef.where('status', '==', 'pending').where('createdAt', '<', admin.firestore.Timestamp.fromDate(new Date(now.getTime() - 24 * 60 * 60 * 1000))).count().get(),
+      db.collection('autoOrders').aggregate({ sales: admin.firestore.AggregateField.sum('priceXAF'), refunds: admin.firestore.AggregateField.sum('refundedAmount'), supplierCost: admin.firestore.AggregateField.sum('providerCostXAF'), grossProfit: admin.firestore.AggregateField.sum('estimatedProfitXAF') }).get(),
+      usersRef.aggregate({ total: admin.firestore.AggregateField.sum('dashboardVisitCount') }).get(),
+      usersRef.where('lastDashboardVisit', '>=', admin.firestore.Timestamp.fromDate(sevenDaysStart)).count().get(),
+      usersRef.aggregate({ total: admin.firestore.AggregateField.sum('balance') }).get(),
     ]);
-
-    const totalAutoOrders = orderCounters.counts.autoOrders || 0;
-    const totalLegacyOrders = orderCounters.counts.commandes || 0;
-    const autoGrossSales = Number(autoSalesAgg.data().total || 0);
-    const autoRefunds = Number(autoRefundAgg.data().total || 0);
+    const autoGrossSales = Number(autoFinancials.data().sales || 0); const autoRefunds = Number(autoFinancials.data().refunds || 0);
+    const counts = orderCounters.counts; const totalOrders = orderCounters.total;
+    const totalBalance = Number(balanceAgg.data().total || 0); const totalUsers = Number(usersCount.data().count || 0);
     const data = {
-      totalUsers: usersCount.data().count || 0,
-      newUsers7d: newUsersCount || 0,
-      totalOrders: orderCounters.total,
-      totalAutoOrders,
-      totalLegacyOrders,
-      otherOrderCollectionsTotal: Math.max(0, orderCounters.total - totalAutoOrders - totalLegacyOrders),
-      orderCountsByCollection: orderCounters.counts,
-      pendingOrders: (autoPendingCount.data().count || 0) + (legacyPendingCount.data().count || 0),
-      // Revenus calculables sans lire tous les documents : uniquement autoOrders,
-      // dont le montant client est conservé dans priceXAF. Les commandes classiques
-      // sont comptées mais leur schéma financier doit être normalisé séparément.
-      totalRevenue: Math.max(0, autoGrossSales - autoRefunds),
-      revenueScope: 'autoOrders uniquement; commandes comptées séparément, revenus non agrégés tant que leur schéma financier n’est pas normalisé.',
-      autoOrdersGrossSales: autoGrossSales,
-      autoOrdersRefunds: autoRefunds,
-      giftsPending: giftsPendingCount.data().count || 0,
-      giftsLate: giftsLateCount.data().count || 0,
-      multipliers: {
-        MTP: MTP_MULTIPLIER, EXO: EXO_MULTIPLIER,
-        AfriqueBoost: AFB_MULTIPLIER, SMMGen: SMMGEN_MULTIPLIER,
-        SMMWiz: SMMWIZ_MULTIPLIER,
-      },
-      generatedAt: new Date().toISOString(),
+      totalUsers, newUsers7d: Number(newUsers7d || 0), newUsersToday: Number(newUsersToday || 0),
+      newUsersYesterday: Number(newUsersYesterday || 0), newUsersDayBefore: Number(newUsersDayBefore || 0),
+      totalOrders, totalAutoOrders: counts.autoOrders || 0, totalLegacyOrders: counts.commandes || 0,
+      otherOrderCollectionsTotal: totalOrders - (counts.autoOrders || 0) - (counts.commandes || 0),
+      orderCountsByCollection: counts, pendingOrders: Number(pendingOrdersCount || 0),
+      totalRevenue: Math.max(0, autoGrossSales - autoRefunds), autoOrdersGrossSales: autoGrossSales, autoOrdersRefunds: autoRefunds,
+      totalBalance, averageBalance: totalUsers ? Math.round(totalBalance / totalUsers) : 0,
+      dashboardVisitsRecorded: Number(visitAgg.data().total || 0), activeDashboardUsers7d: Number(activeVisitors7d.data().count || 0),
+      giftsPending: Number(giftsPending.data().count || 0), giftsLate: Number(giftsLate.data().count || 0),
+      multipliers: { MTP: MTP_MULTIPLIER, EXO: EXO_MULTIPLIER, AfriqueBoost: AFB_MULTIPLIER, SMMGen: SMMGEN_MULTIPLIER, SMMWiz: SMMWIZ_MULTIPLIER },
+      generatedAt: now.toISOString(),
+      revenueScope: 'Les ventes nettes visibles ici sont celles de autoOrders. Les autres collections sont comptées, mais leurs montants n’ont pas tous un schéma financier vérifié.'
     };
-
-    memCacheSet(adminMemoryCache.overview, data, 15 * 60 * 1000);
-    await setSharedAdminCache('overview', data, 15 * 60 * 1000);
-    res.json({ success: true, data, cached: false, counterDocumentsRead: 6, cacheTtlMinutes: 15 });
+    memCacheSet(adminMemoryCache.overview, data, 15 * 60 * 1000); await setSharedAdminCache('overview', data, 15 * 60 * 1000);
+    res.json({ success: true, data, cached: false });
   } catch (error) {
     console.error('Erreur /overview:', error);
-    return res.status(500).json({ success: false, error: 'Impossible de calculer les statistiques. Les zéros ne sont pas présentés comme des données valides.' });
+    return res.status(500).json({ success: false, error: 'Impossible de calculer les statistiques de la vue d’ensemble.' });
   }
 });
 
@@ -3591,10 +3622,10 @@ adminRouter.get('/orders-summary', async (req, res) => {
       for (const key of Object.keys(buckets)) data[key] += Number(collectionStatuses[i][key] || 0);
     });
     data.other = Math.max(0, data.total - Object.keys(buckets).reduce((sum, key) => sum + data[key], 0));
-    data.note = 'Total global issu des documents counters/{collection}.lastId; statuts agrégés par collection. Cache 15 minutes.';
+    data.note = 'Total calculé par agrégation sur les six collections de commandes; statuts agrégés par collection. Cache 15 minutes.';
     memCacheSet(adminMemoryCache.orderSummary, data, 15 * 60 * 1000);
     await setSharedAdminCache('orderSummary', data, 15 * 60 * 1000);
-    return res.json({ success: true, data, cached: false, counterDocumentsRead: 6, statusAggregates: 30 });
+    return res.json({ success: true, data, cached: false, collectionsCounted: ADMIN_ORDER_COLLECTIONS.length, statusAggregates: ADMIN_ORDER_COLLECTIONS.length * Object.keys(buckets).length });
   } catch (error) {
     console.error('Erreur /api/admin/orders-summary:', error);
     return res.status(500).json({ success: false, error: 'Impossible de charger les compteurs de commandes.' });
@@ -3603,175 +3634,151 @@ adminRouter.get('/orders-summary', async (req, res) => {
 
 adminRouter.get('/orders', async (req, res) => {
   try {
-    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 5, 3), 10); // per collection
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 5, 3), 10);
     const userId = String(req.query.userId || '').trim();
-    const status = String(req.query.status || '').trim();
-    const provider = String(req.query.provider || '').trim().toLowerCase();
     const statusFilter = String(req.query.status || '').trim().toLowerCase();
+    const providerFilter = String(req.query.provider || '').trim().toLowerCase();
     const statusAliases = {
-      'en attente': ['En attente', 'en attente', 'pending', 'Pending'],
-      'en cours': ['En cours', 'en cours', 'In progress', 'in progress', 'Processing', 'processing'],
-      'terminé': ['Terminé', 'Terminée', 'Terminee', 'Completed', 'completed', 'Done', 'done', 'Delivered', 'delivered'],
-      'annulé': ['Annulé', 'Annulée', 'Annule', 'Canceled', 'Cancelled', 'canceled', 'cancelled'],
-      'partiel': ['Partiel', 'Partial', 'partial'],
-      'échouée': ['Échouée', 'Echouée', 'failed', 'Failed', 'error', 'Erreur'],
+      'en attente':['en attente','pending'], 'en cours':['en cours','in progress','processing'],
+      'terminé':['terminé','terminée','terminee','completed','done','delivered'],
+      'annulé':['annulé','annulée','annule','canceled','cancelled'], 'partiel':['partiel','partial'], 'échouée':['échouée','echouée','failed','error','erreur']
     };
-    const cursorMap = {};
-    try { Object.assign(cursorMap, JSON.parse(String(req.query.cursors || '{}'))); } catch (_) {}
-    const providerAliases = {
-      mtp: ['mtp', 'MTP', 'morethanpanel'], exo: ['exo', 'EXO'],
-      afriqueboost: ['afriqueboost', 'AfriqueBoost', 'afb'],
-      smmwiz: ['smmwiz', 'SMMWiz'], smmgen: ['smmgen', 'SMMGen'],
-    };
-    const collectionsToRead = ADMIN_ORDER_COLLECTIONS;
-    const results = await Promise.all(collectionsToRead.map(async collectionName => {
-      const collectionRef = db.collection(collectionName);
-      let query = collectionRef;
-      if (userId) query = query.where('userId', '==', userId);
-      if (statusFilter && statusFilter !== 'all') {
-        const variants = statusAliases[statusFilter] || [statusFilter];
-        query = variants.length === 1 ? query.where('status', '==', variants[0]) : query.where('status', 'in', variants.slice(0, 10));
+    const providerAliases = { mtp:['mtp','morethanpanel'], exo:['exo'], afriqueboost:['afriqueboost','afb'], smmwiz:['smmwiz'], smmgen:['smmgen'] };
+    const cursorMap = {}; try { Object.assign(cursorMap, JSON.parse(String(req.query.cursors || '{}'))); } catch (_) {}
+    const results = await Promise.all(ADMIN_ORDER_COLLECTIONS.map(async collectionName => {
+      const ref = db.collection(collectionName); let query = ref.orderBy(admin.firestore.FieldPath.documentId());
+      // Only filter user ID server-side; status/provider aliases are filtered after reading a small page
+      // so legacy spellings/capitalization are not silently excluded.
+      if (userId) {
+        const [a,b,c] = await Promise.all([ref.where('userId','==',userId).limit(limit+1).get(),ref.where('uid','==',userId).limit(limit+1).get(),ref.where('user_id','==',userId).limit(limit+1).get()]);
+        const seen = new Set(); const docs = [...a.docs,...b.docs,...c.docs].filter(doc=>!seen.has(doc.id) && seen.add(doc.id)).sort((x,y)=>getTimestampMs((y.data()||{}).createdAt || (y.data()||{}).created_at)-getTimestampMs((x.data()||{}).createdAt || (x.data()||{}).created_at)).slice(0,limit);
+        const items = docs.map(doc => normalizeAdminOrder(doc, collectionName));
+        return { collectionName, items, nextCursor: null };
       }
-      if (provider) {
-        const aliases = providerAliases[provider] || [provider];
-        // Provider field values are normalized at display time; querying exact aliases avoids reading unrelated providers.
-        query = query.where('provider', 'in', aliases.slice(0, 10));
-      }
-      query = query.orderBy('createdAt', 'desc');
-      const cursorId = cursorMap[collectionName];
-      if (cursorId) {
-        const cursorDoc = await collectionRef.doc(String(cursorId)).get();
-        if (cursorDoc.exists) query = query.startAfter(cursorDoc);
-      }
-      const snapshot = await query.limit(limit).get();
-      const items = snapshot.docs.map(doc => {
-        const d = doc.data() || {};
-        const rawProvider = d.provider || d.fournisseur || d.providerName || d.supplier || null;
-        return {
-          id: doc.id, collection: collectionName,
-          orderId: d.orderId || d.reference || d.order_id || doc.id,
-          userId: d.userId || d.uid || d.user_id || null,
-          provider: normalizeProvider(rawProvider), providerRaw: rawProvider,
-          serviceId: d.serviceId ?? d.service_id ?? d.service ?? null,
-          serviceName: d.serviceName || d.service_name || d.name || d.serviceTitle || 'Service',
-          platform: d.platform || null, link: d.link || d.targetLink || d.target || null,
-          quantity: Number(d.quantity || d.qty || 0),
-          amount: Number(d.priceXAF ?? d.totalCost ?? d.finalCost ?? d.cost ?? d.amount ?? d.total ?? 0),
-          status: d.status || d.orderStatus || d.state || 'Inconnu',
-          refunded: Boolean(d.refunded || d.isRefunded || d.refund),
-          refundedAmount: Number(d.refundedAmount || d.refundAmount || 0),
-          createdAt: d.createdAt || d.dateCreated || d.created_at || d.timestamp || null,
-        };
-      });
-      const nextCursor = snapshot.size === limit ? snapshot.docs[snapshot.docs.length - 1].id : null;
-      return { collectionName, items, nextCursor };
+      const cursorId = cursorMap[collectionName]; if (cursorId) { const cursor = await ref.doc(String(cursorId)).get(); if (cursor.exists) query = query.startAfter(cursor); }
+      const snap = await query.limit(limit).get();
+      let items = snap.docs.map(doc => normalizeAdminOrder(doc, collectionName));
+      // Filters operate on current pages, preserving stable pagination and covering historic variants.
+      if (statusFilter && statusFilter !== 'all') { const wanted = (statusAliases[statusFilter] || [statusFilter]).map(s=>s.toLowerCase()); items = items.filter(o => wanted.includes(String(o.status||'').toLowerCase())); }
+      if (providerFilter && providerFilter !== 'all') { const wanted = providerAliases[providerFilter] || [providerFilter]; items = items.filter(o => wanted.includes(String(o.provider||'').toLowerCase())); }
+      return { collectionName, items, nextCursor: snap.size === limit ? snap.docs[snap.docs.length-1].id : null };
     }));
-    const orders = results.flatMap(r => r.items).sort((x, y) => getTimestampMs(y.createdAt) - getTimestampMs(x.createdAt));
-    const nextCursors = Object.fromEntries(results.map(r => [r.collectionName, r.nextCursor]));
-    return res.json({ success: true, orders, nextCursors, pageSizePerCollection: limit, collections: collectionsToRead, providerFilter: provider || null });
+    const orders = results.flatMap(r=>r.items).sort((a,b)=>getTimestampMs(b.createdAt)-getTimestampMs(a.createdAt));
+    return res.json({ success:true, orders, nextCursors:Object.fromEntries(results.map(r=>[r.collectionName,r.nextCursor])), pageSizePerCollection:limit, collections:ADMIN_ORDER_COLLECTIONS, providerFilter:providerFilter||null });
   } catch (error) {
     console.error('Erreur /api/admin/orders:', error);
-    res.status(500).json({ success: false, error: 'Impossible de charger les commandes. Vérifiez les index Firestore et les champs createdAt.' });
+    res.status(500).json({ success:false, error:'Impossible de charger les commandes.' });
   }
 });
+
+function normalizeAdminOrder(doc, collectionName) {
+  const d = doc.data() || {}; const rawProvider = d.provider || d.fournisseur || d.providerName || d.supplier || d.api || (collectionName === 'commandes' ? 'EXO' : null);
+  const financials = getOrderFinancials(d, rawProvider, collectionName);
+  return { id:doc.id, collection:collectionName, orderId:d.orderId||d.reference||d.order_id||doc.id,
+    userId:d.userId||d.uid||d.user_id||d.customerId||null, provider:financials.provider, providerRaw:rawProvider,
+    serviceId:d.serviceId??d.service_id??d.service??null, serviceName:d.serviceName||d.service_name||d.name||d.serviceTitle||'Service',
+    platform:d.platform||null, link:d.link||d.targetLink||d.target||null, quantity:Number(d.quantity||d.qty||0),
+    amount:financials.amount, providerCostXAF:financials.providerCostXAF, grossProfitXAF:financials.grossProfitXAF,
+    profitMarginPct:financials.profitMarginPct, providerCostEstimated:financials.providerCostEstimated, profitEstimated:financials.profitEstimated, multiplier:financials.multiplier,
+    status:d.status||d.orderStatus||d.state||'Inconnu', refunded:Boolean(d.refunded||d.isRefunded||d.refund), refundedAmount:financials.refundedAmount,
+    createdAt:d.createdAt||d.dateCreated||d.created_at||d.timestamp||null };
+}
 
 // Boutiques : lecture paginée de la collection confirmée `stores`.
 adminRouter.get('/stores', async (req, res) => {
   try {
-    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 10), 50);
-    const cursorId = String(req.query.cursor || '');
-    const country = String(req.query.country || '').trim();
-    let query = db.collection('stores').orderBy('createdAt', 'desc');
-    if (country) query = db.collection('stores').where('country', '==', country).orderBy('createdAt', 'desc');
-    if (cursorId) {
-      const cursor = await db.collection('stores').doc(cursorId).get();
-      if (cursor.exists) query = query.startAfter(cursor);
-    }
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 10), 50);
+    const cursorId = String(req.query.cursor || ''); const country = String(req.query.country || '').trim();
+    let query = db.collection('stores');
+    if (country) { const aliases = getCountryAliases(country); if (aliases.length) query = query.where('country','in',aliases.slice(0,10)); }
+    query = query.orderBy(admin.firestore.FieldPath.documentId());
+    if (cursorId) { const cursor = await db.collection('stores').doc(cursorId).get(); if (cursor.exists) query = query.startAfter(cursor); }
     const snap = await query.limit(limit).get();
-    const stores = snap.docs.map(doc => {
-      const d = doc.data() || {};
-      const ownerId = d.userId || d.ownerId || d.uid || d.createdBy || null;
-      return {
-        id: doc.id, name: d.name || d.storeName || d.title || 'Boutique sans nom',
-        slug: d.slug || d.username || d.storeSlug || null,
-        url: d.url || d.storeUrl || d.publicUrl || d.customDomain || (d.slug ? `https://${d.slug}` : null),
-        logo: d.logo || d.logoUrl || d.image || null,
-        ownerId, ownerName: d.ownerName || d.userName || d.displayName || null,
-        ownerEmail: d.email || d.ownerEmail || null, country: d.country || null,
-        status: d.status || (d.active === false ? 'inactive' : 'active'),
-        createdAt: d.createdAt || d.created_at || null,
-      };
-    });
-    return res.json({ success: true, stores, nextCursor: snap.size === limit ? snap.docs[snap.docs.length - 1].id : null, pageSize: limit });
-  } catch (error) {
-    console.error('Erreur /api/admin/stores:', error);
-    return res.status(500).json({ success: false, error: 'Impossible de charger les boutiques. Vérifiez le champ createdAt et les index Firestore.' });
-  }
+    const stores = snap.docs.map(doc => { const d=doc.data()||{}; const ownerId=d.userId||d.ownerId||d.uid||d.createdBy||d.ownerUid||null; const slug=d.slug||d.username||d.storeSlug||null;
+      return { id:doc.id, name:d.name||d.storeName||d.title||d.businessName||'Boutique sans nom', slug, url:d.url||d.storeUrl||d.publicUrl||d.customDomain||null, logo:d.logo||d.logoUrl||d.image||d.photo||null, ownerId, ownerName:d.ownerName||d.userName||d.displayName||d.owner||null, ownerEmail:d.email||d.ownerEmail||null, country:d.country||null, status:d.status||(d.active===false?'inactive':'active'), createdAt:d.createdAt||d.created_at||d.creationDate||d.dateCreated||null }; });
+    return res.json({ success:true, stores, nextCursor:snap.size===limit?snap.docs[snap.docs.length-1].id:null, pageSize:limit });
+  } catch (error) { console.error('Erreur /api/admin/stores:',error); return res.status(500).json({success:false,error:'Impossible de charger les boutiques.'}); }
+});
+
+adminRouter.get('/deposits', async (req,res)=>{
+  try {
+    const limit=Math.min(Math.max(parseInt(req.query.limit,10)||25,10),50); const cursorId=String(req.query.cursor||''); const status=String(req.query.status||'all').toUpperCase();
+    const statuses={CONFIRMED:['CONFIRMED','confirmed','SUCCESS','success','SUCCEEDED','succeeded','PAID','paid'],PENDING:['PENDING','pending','PROCESSING','processing'],FAILED:['FAILED','failed','FAILURE','failure','CANCELLED','cancelled']};
+    let query=db.collection('paymentTransactions'); if(statuses[status]) query=query.where('status','in',statuses[status].slice(0,10));
+    query=query.orderBy(admin.firestore.FieldPath.documentId()); if(cursorId){const cursor=await db.collection('paymentTransactions').doc(cursorId).get();if(cursor.exists)query=query.startAfter(cursor);}
+    const snap=await query.limit(limit).get(); const transactions=snap.docs.map(doc=>{const d=doc.data()||{};return{id:doc.id,reference:d.reference||doc.id,userId:d.userId||d.uid||null,userName:d.userName||d.displayName||null,userEmail:d.email||d.userEmail||null,provider:d.provider||'—',status:d.status||'UNKNOWN',requestedAmount:Number(d.requestedAmount||0),requestedCurrency:d.requestedCurrency||null,creditedAmountXAF:Number(d.creditedAmountXAF||0),createdAt:d.createdAt||d.created_at||null,completedAt:d.completedAt||d.creditedAt||null,failureReason:d.failureReason||null};});
+    const usersToLoad=[...new Set(transactions.filter(t=>t.userId&&(!t.userName||!t.userEmail)).map(t=>t.userId))];
+    const userSnapshots=await Promise.all(usersToLoad.map(uid=>db.collection('users').doc(uid).get()));
+    const userLookup=new Map(userSnapshots.filter(s=>s.exists).map(s=>{const u=s.data()||{};return[s.id,{name:u.displayName||u.username||u.name||null,email:u.email||null}]}));
+    for(const t of transactions){const u=userLookup.get(t.userId);if(u){t.userName=t.userName||u.name;t.userEmail=t.userEmail||u.email;}}
+    transactions.sort((a,b)=>getTimestampMs(b.createdAt)-getTimestampMs(a.createdAt));
+    return res.json({success:true,transactions,nextCursor:snap.size===limit?snap.docs[snap.docs.length-1].id:null,pageSize:limit});
+  }catch(error){console.error('Erreur /api/admin/deposits:',error);return res.status(500).json({success:false,error:'Impossible de charger les recharges.'});}
 });
 
 // Répertoire utilisateurs paginé; seules les informations nécessaires au suivi client sont exposées.
 adminRouter.get('/customers', async (req, res) => {
   try {
-    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 10), 50);
-    const search = String(req.query.q || '').trim();
-    const country = String(req.query.country || '').trim();
-    const segment = String(req.query.segment || 'all').trim();
-    const sort = String(req.query.sort || 'recent').trim();
-    let snapshot;
-
-    if (search && search.includes('@')) {
-      snapshot = await db.collection('users').where('email', '==', search.toLowerCase()).limit(limit).get();
-    } else if (search) {
-      // Une recherche UID est une lecture directe, pas une lecture complète de la collection.
-      const direct = await db.collection('users').doc(search).get();
-      if (direct.exists) snapshot = { docs: [direct], size: 1 };
-      else {
-        const prefix = search;
-        snapshot = await db.collection('users').orderBy('displayName').startAt(prefix).endAt(prefix + '\uf8ff').limit(limit).get();
-        if (snapshot.empty) {
-          snapshot = await db.collection('users').orderBy('username').startAt(prefix).endAt(prefix + '\uf8ff').limit(limit).get();
-        }
-      }
-    } else {
-      let query = db.collection('users');
-      if (country) query = query.where('country', '==', country);
-      const sortField = sort === 'balance' ? 'balance' : sort === 'orders' ? 'totalOrders' : 'createdAt';
-      query = query.orderBy(sortField, sort === 'recent' ? 'desc' : 'desc');
-      if (req.query.cursor) {
-        const cursor = await db.collection('users').doc(String(req.query.cursor)).get();
-        if (cursor.exists) query = query.startAfter(cursor);
-      }
-      snapshot = await query.limit(limit).get();
+    const limit=Math.min(Math.max(parseInt(req.query.limit,10)||25,10),50); const search=String(req.query.q||'').trim();
+    const country=String(req.query.country||'').trim(); const segment=String(req.query.segment||'all').trim(); const sort=String(req.query.sort||'recent').trim();
+    let snap; let query; const usersRef=db.collection('users'); const metricsState=await getSharedAdminCache('customerOrderMetricsState'); const metricsReady=Boolean(metricsState?.payload?.completedAt);
+    if(search && search.includes('@')) { snap=await usersRef.where('email','==',search.toLowerCase()).limit(limit).get(); }
+    else if(search) { const direct=await usersRef.doc(search).get(); if(direct.exists) snap={docs:[direct],size:1}; else { let q=usersRef.orderBy('displayName').startAt(search).endAt(search+'\uf8ff').limit(limit); snap=await q.get(); if(snap.empty) snap=await usersRef.orderBy('username').startAt(search).endAt(search+'\uf8ff').limit(limit).get(); } }
+    else {
+      query=usersRef; if(country){const aliases=getCountryAliases(country); if(aliases.length) query=query.where('country','in',aliases.slice(0,10));}
+      const documentId=admin.firestore.FieldPath.documentId();
+      if(metricsReady && segment==='ordered') query=query.where('adminOrderCount','>',0).orderBy('adminOrderCount','desc').orderBy(documentId);
+      else if(metricsReady && segment==='neverOrdered') query=query.where('adminOrderCount','==',0).orderBy(documentId);
+      else if(metricsReady && (segment==='highOrders'||sort==='orders')) query=query.orderBy('adminOrderCount','desc').orderBy(documentId);
+      else if(segment==='highBalance'||sort==='balance') query=query.orderBy('balance','desc').orderBy(documentId);
+      else query=query.orderBy(documentId);
+      if(req.query.cursor){const cursor=await usersRef.doc(String(req.query.cursor)).get();if(cursor.exists)query=query.startAfter(cursor);}
+      snap=await query.limit(limit).get();
     }
+    let customers=snap.docs.map(doc=>{const u=doc.data()||{}; const orderCount=Number(u.adminOrderCount ?? u.totalOrders ?? 0); const spent=Number(u.adminTotalSpent ?? u.totalSpent ?? 0);
+      return { id:doc.id, name:u.displayName||u.username||u.name||'Utilisateur', email:u.email||null, phone:u.phone||u.whatsapp||null, country:u.country||null, balance:Number(u.balance||0), totalOrders:orderCount, totalSpent:spent, createdAt:u.createdAt||u.created_at||null, lastSignIn:u.lastSignIn||u.lastLoginAt||null, lastActivityAt:u.lastActivityAt||u.lastSeenAt||u.lastDashboardVisit||null, resellerLevel:u.resellerLevel||null, hasOrdered:orderCount>0, metricsReady:metricsReady, orderStatsSource:metricsReady?'historique des six collections; champs adminOrderCount/adminTotalSpent':'compteurs historiques du compte; lancer une seule fois le recalcul historique' }; });
+    if(!metricsReady && ['neverOrdered','ordered','highOrders'].includes(segment)) customers=[];
+    if(country && search){const aliases=new Set(getCountryAliases(country).map(v=>String(v).toLocaleLowerCase()));customers=customers.filter(u=>aliases.has(String(u.country||'').trim().toLocaleLowerCase()));}
+    if(segment==='highBalance') customers.sort((a,b)=>b.balance-a.balance);
+    else if(segment==='highOrders' || sort==='orders') customers.sort((a,b)=>b.totalOrders-a.totalOrders);
+    else if(segment==='ordered') customers=customers.filter(u=>u.hasOrdered);
+    else if(segment==='neverOrdered') customers=customers.filter(u=>!u.hasOrdered);
+    else if(sort==='balance') customers.sort((a,b)=>b.balance-a.balance);
+    else if(sort==='recent') customers.sort((a,b)=>getTimestampMs(b.createdAt)-getTimestampMs(a.createdAt));
+    return res.json({success:true,customers,nextCursor:!search&&snap.size===limit?snap.docs[snap.docs.length-1].id:null,pageSize:limit,metricsReady,metricsAsOf:metricsState?.payload?.completedAt||null,note:metricsReady?'Statistiques de commandes recalculées depuis les six collections.':'Cliquez sur « Recalculer les commandes historiques » pour corriger les anciens comptes.'});
+  } catch(error) { console.error('Erreur /api/admin/customers:',error); return res.status(500).json({success:false,error:'Impossible de charger les utilisateurs.'}); }
+});
 
-    let customers = snapshot.docs.map(doc => {
-      const u = doc.data() || {};
-      return {
-        id: doc.id,
-        name: u.displayName || u.username || u.name || 'Utilisateur',
-        email: u.email || null,
-        phone: u.phone || u.whatsapp || null,
-        country: u.country || null,
-        balance: Number(u.balance || 0),
-        totalOrders: Number(u.totalOrders || 0),
-        totalSpent: Number(u.totalSpent || 0),
-        createdAt: u.createdAt || null,
-        lastSignIn: u.lastSignIn || u.lastLoginAt || null,
-        lastActivityAt: u.lastActivityAt || u.lastSeenAt || u.lastDashboardVisit || null,
-        resellerLevel: u.resellerLevel || null,
-        hasOrdered: Number(u.totalOrders || 0) > 0,
-        orderStatsSource: 'users.totalOrders/users.totalSpent (cache métier; fiche détaillée vérifie les collections)',
-      };
-    });
-    if (segment === 'neverOrdered') customers = customers.filter(u => !u.hasOrdered);
-    else if (segment === 'ordered') customers = customers.filter(u => u.hasOrdered);
-    else if (segment === 'highBalance') customers.sort((x, y) => y.balance - x.balance);
-    else if (segment === 'highOrders') customers.sort((x, y) => y.totalOrders - x.totalOrders);
-    res.json({ success: true, customers, nextCursor: !search && snapshot.size === limit ? snapshot.docs[snapshot.docs.length - 1].id : null, pageSize: limit, filteredPageOnly: ['neverOrdered','ordered','highBalance','highOrders'].includes(segment), note: 'Les segments sont appliqués à la page lue pour préserver les quotas; le classement global nécessite des agrégats maintenus lors des commandes.' });
-  } catch (error) {
-    console.error('Erreur /api/admin/customers:', error);
-    res.status(500).json({ success: false, error: 'Impossible de charger les utilisateurs.' });
-  }
+// Recalcul explicite, à effectuer une fois après déploiement : 6 scans de collections + lecture users.
+// Aucun scan historique n'est exécuté automatiquement lors de l'ouverture du dashboard.
+adminRouter.post('/customers/rebuild-order-metrics', async (req,res)=>{
+  try {
+    if (req.body?.confirm !== true) return res.status(400).json({success:false,error:'Confirmation explicite requise.'});
+    const metricMap=new Map(); let ordersRead=0, unattributedOrders=0, unattributedAmounts=0;
+    for (const collectionName of ADMIN_ORDER_COLLECTIONS) {
+      let last=null;
+      while (true) {
+        let q=db.collection(collectionName).orderBy(admin.firestore.FieldPath.documentId()).limit(500); if(last) q=q.startAfter(last);
+        const page=await q.get(); if(page.empty)break;
+        for(const doc of page.docs){ordersRead++; const d=doc.data()||{}; const uid=String(d.userId||d.uid||d.user_id||d.customerId||d.customerUid||'').trim(); if(!uid){unattributedOrders++;continue;}
+          const current=metricMap.get(uid)||{count:0,spent:0}; current.count++;
+          const amount=getOrderAmountXAF(d, collectionName);
+          if(amount===null) unattributedAmounts++; else current.spent += amount; metricMap.set(uid,current);
+        }
+        last=page.docs[page.docs.length-1]; if(page.size<500)break;
+      }
+    }
+    let usersRead=0, changed=0, batches=0, userLast=null;
+    while(true){let q=db.collection('users').orderBy(admin.firestore.FieldPath.documentId()).limit(500);if(userLast)q=q.startAfter(userLast);const page=await q.get();if(page.empty)break;usersRead+=page.size;let batch=db.batch(),writes=0;
+      for(const doc of page.docs){const expected=metricMap.get(doc.id)||{count:0,spent:0};const u=doc.data()||{};const oldCount=Number(u.adminOrderCount);const oldSpent=Number(u.adminTotalSpent);if(oldCount!==expected.count||!Number.isFinite(oldSpent)||Math.round(oldSpent)!==Math.round(expected.spent)){batch.set(doc.ref,{adminOrderCount:expected.count,adminTotalSpent:Math.round(expected.spent),adminOrderMetricsUpdatedAt:admin.firestore.FieldValue.serverTimestamp()},{merge:true});writes++;changed++;}
+        if(writes>=400){await batch.commit();batches++;batch=db.batch();writes=0;}
+      }
+      if(writes){await batch.commit();batches++;} userLast=page.docs[page.docs.length-1];if(page.size<500)break;
+    }
+    const completedAt=new Date().toISOString(); await setSharedAdminCache('customerOrderMetricsState',{completedAt,ordersRead,usersRead,changed,unattributedOrders,unattributedAmounts},60*60*24*365*1000);
+    for(const key of ['overview','topUsers','usersStats']){if(adminMemoryCache[key]){adminMemoryCache[key].data=null;adminMemoryCache[key].expires=0;}}
+    return res.json({success:true,metricsReady:true,completedAt,ordersRead,usersRead,changed,unattributedOrders,unattributedAmounts,message:`Historique recalculé à partir de ${ordersRead.toLocaleString('fr-FR')} commandes.`});
+  }catch(error){console.error('Erreur rebuild adminOrderMetrics:',error);return res.status(500).json({success:false,error:'Le recalcul historique a échoué. Aucun chiffre ne sera présenté comme recalculé.'});}
 });
 
 adminRouter.post('/customers/:id/email', async (req, res) => {
@@ -3809,51 +3816,24 @@ adminRouter.post('/customers/:id/email', async (req, res) => {
   }
 });
 
-adminRouter.get('/customers/:id', async (req, res) => {
+adminRouter.get('/customers/:id', async (req,res)=>{
   try {
-    const userId = String(req.params.id || '').trim();
-    if (!userId) return res.status(400).json({ success: false, error: 'Identifiant utilisateur requis.' });
-    const userRef = db.collection('users').doc(userId);
-    const userDoc = await userRef.get();
-    if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
-    const u = userDoc.data() || {};
-    const perCollection = await Promise.all(ADMIN_ORDER_COLLECTIONS.map(async collectionName => {
-      const ref = db.collection(collectionName).where('userId', '==', userId);
-      const [countSnap, sampleSnap, spentSnap] = await Promise.all([
-        ref.count().get(),
-        ref.orderBy('createdAt', 'desc').limit(8).get().catch(() => ref.limit(8).get()),
-        ref.aggregate({ total: admin.firestore.AggregateField.sum('priceXAF') }).get().catch(() => ({ data: () => ({ total: 0 }) })),
-      ]);
-      return { collectionName, count: countSnap.data().count || 0, sample: sampleSnap.docs, priceXAF: Number(spentSnap.data().total || 0) };
-    }));
-    const exactOrderCount = perCollection.reduce((sum, x) => sum + x.count, 0);
-    const derivedSpendPriceXAF = perCollection.reduce((sum, x) => sum + x.priceXAF, 0);
-    const orders = perCollection.flatMap(source => source.sample.map(doc => ({ id: doc.id, source: source.collectionName, ...doc.data() })))
-      .sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt))
-      .slice(0, 50)
-      .map(o => ({
-        id: o.id, source: o.source, orderId: o.orderId || o.id,
-        serviceName: o.serviceName || o.service_name || o.name || 'Service',
-        provider: o.provider || null, status: o.status || 'Inconnu',
-        amount: Number(o.priceXAF ?? o.totalCost ?? o.finalCost ?? o.cost ?? 0),
-        createdAt: o.createdAt || o.dateCreated || null,
-      }));
-    res.json({ success: true, customer: {
-      id: userDoc.id, name: u.displayName || u.username || u.name || 'Utilisateur',
-      email: u.email || null, phone: u.phone || u.whatsapp || null, country: u.country || null,
-      balance: Number(u.balance || 0), totalOrders: Number(u.totalOrders || 0), totalSpent: Number(u.totalSpent || 0),
-      createdAt: u.createdAt || null, lastSignIn: u.lastSignIn || u.lastLoginAt || null,
-      lastActivityAt: u.lastActivityAt || u.lastSeenAt || u.lastDashboardVisit || u.lastSignIn || u.lastLoginAt || null, resellerLevel: u.resellerLevel || null,
-    }, orders, exactOrderCount,
-    derivedSpendPriceXAF,
-    storedTotalSpent: Number(u.totalSpent || 0),
-    countsByCollection: Object.fromEntries(perCollection.map(x => [x.collectionName, x.count])),
-    ordersReturned: orders.length, capped: exactOrderCount > orders.length,
-    spendNote: 'derivedSpendPriceXAF additionne uniquement le champ priceXAF; les autres schémas de montant ne sont pas ajoutés automatiquement pour éviter les doubles comptes.' });
-  } catch (error) {
-    console.error('Erreur /api/admin/customers/:id:', error);
-    res.status(500).json({ success: false, error: 'Impossible de charger la fiche utilisateur.' });
-  }
+    const userId=String(req.params.id||'').trim(); if(!userId)return res.status(400).json({success:false,error:'Identifiant utilisateur requis.'});
+    const userDoc=await db.collection('users').doc(userId).get();if(!userDoc.exists)return res.status(404).json({success:false,error:'Utilisateur introuvable.'}); const u=userDoc.data()||{};
+    const all=[]; const countsByCollection={}; let derivedSpendPriceXAF=0, exactOrderCount=0, unattributedAmountCount=0;
+    for(const collectionName of ADMIN_ORDER_COLLECTIONS){
+      // Detail is an explicit user action; queries are bounded by the user's own UID and do not scan whole collections.
+      const [a,b,c,d,e]=await Promise.all([db.collection(collectionName).where('userId','==',userId).get(),db.collection(collectionName).where('uid','==',userId).get(),db.collection(collectionName).where('user_id','==',userId).get(),db.collection(collectionName).where('customerId','==',userId).get(),db.collection(collectionName).where('customerUid','==',userId).get()]);
+      const docsMap=new Map();[...a.docs,...b.docs,...c.docs,...d.docs,...e.docs].forEach(doc=>docsMap.set(doc.id,doc));const docs=[...docsMap.values()];
+      countsByCollection[collectionName]=docs.length; exactOrderCount+=docs.length;
+      for(const doc of docs){const d=doc.data()||{}; const financials=getOrderFinancials(d,d.provider||d.fournisseur||d.providerName||d.supplier||(collectionName==='commandes'?'EXO':null),collectionName);const amount=financials.amount;if(amount===null)unattributedAmountCount++;else derivedSpendPriceXAF+=amount;
+        all.push({id:doc.id,source:collectionName,...d,normalizedAmount:amount,normalizedProvider:financials.provider,normalizedProviderCost:financials.providerCostXAF,normalizedProfit:financials.grossProfitXAF,normalizedMarginPct:financials.profitMarginPct,providerCostEstimated:financials.providerCostEstimated,profitEstimated:financials.profitEstimated});
+      }
+    }
+    all.sort((a,b)=>getTimestampMs(b.createdAt||b.created_at||b.dateCreated)-getTimestampMs(a.createdAt||a.created_at||a.dateCreated));
+    const orders=all.slice(0,50).map(o=>({id:o.id,source:o.source,orderId:o.orderId||o.reference||o.order_id||o.id,serviceName:o.serviceName||o.service_name||o.name||'Service',provider:o.normalizedProvider||null,status:o.status||o.orderStatus||o.state||'Inconnu',amount:o.normalizedAmount,providerCostXAF:o.normalizedProviderCost,grossProfitXAF:o.normalizedProfit,profitMarginPct:o.normalizedMarginPct,providerCostEstimated:o.providerCostEstimated,profitEstimated:o.profitEstimated,createdAt:o.createdAt||o.dateCreated||o.created_at||o.timestamp||null}));
+    return res.json({success:true,customer:{id:userDoc.id,name:u.displayName||u.username||u.name||'Utilisateur',email:u.email||null,phone:u.phone||u.whatsapp||null,country:u.country||null,balance:Number(u.balance||0),totalOrders:exactOrderCount,totalSpent:Math.round(derivedSpendPriceXAF),createdAt:u.createdAt||u.created_at||null,lastSignIn:u.lastSignIn||u.lastLoginAt||null,lastActivityAt:u.lastActivityAt||u.lastSeenAt||u.lastDashboardVisit||u.lastSignIn||u.lastLoginAt||null,resellerLevel:u.resellerLevel||null},orders,exactOrderCount,derivedSpendPriceXAF:Math.round(derivedSpendPriceXAF),storedTotalSpent:Number(u.totalSpent||0),countsByCollection,ordersReturned:orders.length,capped:exactOrderCount>orders.length,unattributedAmountCount,spendNote:'Total brut des montants de commandes retrouvés dans les six collections, en normalisant les champs connus. Les commandes sans montant reconnu sont comptées dans le volume, mais pas dans le total dépensé.'});
+  }catch(error){console.error('Erreur /api/admin/customers/:id:',error);return res.status(500).json({success:false,error:'Impossible de charger la fiche utilisateur.'});}
 });
 
 function escapeHtmlEmail(value) {
