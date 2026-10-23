@@ -3349,6 +3349,44 @@ adminRouter.post('/gifts/:id/status', async (req, res) => {
   }
 });
 
+const ADMIN_ORDER_COLLECTIONS = [
+  'autoOrders',
+  'commandes',
+  'orders',
+  'orders_automatique',
+  'orders_avancee',
+  'orders_standard_revendeur',
+];
+
+// The existing order flows increment counters/{collectionName}.lastId.
+// Read only these six counter documents for the global order total.
+async function readOrderCounters() {
+  const snapshots = await Promise.all(
+    ADMIN_ORDER_COLLECTIONS.map(name => db.collection('counters').doc(name).get())
+  );
+  const counts = {};
+  let total = 0;
+  snapshots.forEach((snap, index) => {
+    const name = ADMIN_ORDER_COLLECTIONS[index];
+    const d = snap.exists ? (snap.data() || {}) : {};
+    const value = Number(d.lastId ?? d.total ?? d.count ?? d.totalOrders ?? 0);
+    counts[name] = Number.isFinite(value) && value > 0 ? value : 0;
+    total += counts[name];
+  });
+  return { total, counts };
+}
+
+function normalizeProvider(value) {
+  const p = String(value || '').trim().toLowerCase().replace(/[ _-]+/g, '');
+  if (!p) return 'inconnu';
+  if (p.includes('mtp') || p.includes('morethanpanel')) return 'MTP';
+  if (p.includes('exo')) return 'EXO';
+  if (p.includes('afriqueboost') || p === 'afb') return 'AfriqueBoost';
+  if (p.includes('smmwiz')) return 'SMMWiz';
+  if (p.includes('smmgen')) return 'SMMGen';
+  return String(value).trim();
+}
+
 adminRouter.get('/overview', async (req, res) => {
   try {
     const forceRefresh = String(req.query.refresh || '') === '1';
@@ -3369,32 +3407,33 @@ adminRouter.get('/overview', async (req, res) => {
     const giftsRef = db.collection('welcomeGiftClaims');
 
     const [
-      usersCount, newUsersCount, autoOrdersCount, legacyOrdersCount,
+      usersCount, newUsersCount, orderCounters,
       autoPendingCount, legacyPendingCount, giftsPendingCount, giftsLateCount,
       autoSalesAgg, autoRefundAgg
     ] = await Promise.all([
       db.collection('users').count().get(),
       countCreatedBetween(db.collection('users'), new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), new Date()),
-      autoRef.count().get(),
-      legacyRef.count().get(),
-      autoRef.where('status', 'in', ['En attente', 'pending', 'Pending']).count().get(),
-      legacyRef.where('status', 'in', ['En attente', 'pending', 'Pending']).count().get(),
+      readOrderCounters(),
+      autoRef.where('status', 'in', ['En attente', 'en attente', 'pending', 'Pending']).count().get(),
+      legacyRef.where('status', 'in', ['En attente', 'en attente', 'pending', 'Pending']).count().get(),
       giftsRef.where('status', '==', 'pending').count().get(),
       giftsRef.where('status', '==', 'pending').where('createdAt', '<', oneDayAgo).count().get(),
       autoRef.aggregate({ total: admin.firestore.AggregateField.sum('priceXAF') }).get(),
       autoRef.aggregate({ total: admin.firestore.AggregateField.sum('refundedAmount') }).get(),
     ]);
 
-    const totalAutoOrders = autoOrdersCount.data().count || 0;
-    const totalLegacyOrders = legacyOrdersCount.data().count || 0;
+    const totalAutoOrders = orderCounters.counts.autoOrders || 0;
+    const totalLegacyOrders = orderCounters.counts.commandes || 0;
     const autoGrossSales = Number(autoSalesAgg.data().total || 0);
     const autoRefunds = Number(autoRefundAgg.data().total || 0);
     const data = {
       totalUsers: usersCount.data().count || 0,
       newUsers7d: newUsersCount || 0,
-      totalOrders: totalAutoOrders + totalLegacyOrders,
+      totalOrders: orderCounters.total,
       totalAutoOrders,
       totalLegacyOrders,
+      otherOrderCollectionsTotal: Math.max(0, orderCounters.total - totalAutoOrders - totalLegacyOrders),
+      orderCountsByCollection: orderCounters.counts,
       pendingOrders: (autoPendingCount.data().count || 0) + (legacyPendingCount.data().count || 0),
       // Revenus calculables sans lire tous les documents : uniquement autoOrders,
       // dont le montant client est conservé dans priceXAF. Les commandes classiques
@@ -3415,7 +3454,7 @@ adminRouter.get('/overview', async (req, res) => {
 
     memCacheSet(adminMemoryCache.overview, data, 15 * 60 * 1000);
     await setSharedAdminCache('overview', data, 15 * 60 * 1000);
-    res.json({ success: true, data, cached: false, aggregateQueries: 11 });
+    res.json({ success: true, data, cached: false, counterDocumentsRead: 6, cacheTtlMinutes: 15 });
   } catch (error) {
     console.error('Erreur /overview:', error);
     return res.status(500).json({ success: false, error: 'Impossible de calculer les statistiques. Les zéros ne sont pas présentés comme des données valides.' });
@@ -3529,93 +3568,144 @@ adminRouter.get('/orders-summary', async (req, res) => {
     const buckets = {
       pending: ['En attente', 'en attente', 'pending', 'Pending'],
       inProgress: ['En cours', 'en cours', 'In progress', 'in progress', 'Processing', 'processing'],
-      completed: ['Terminé', 'Terminée', 'Completed', 'completed', 'Done', 'done', 'Delivered', 'delivered'],
-      cancelled: ['Annulé', 'Annulée', 'Canceled', 'Cancelled', 'canceled', 'cancelled'],
-      failed: ['Échouée', 'Echouée', 'failed', 'Failed', 'error', 'Erreur'],
+      completed: ['Terminé', 'Terminée', 'Terminee', 'completed', 'Completed', 'Done', 'done', 'Delivered', 'delivered'],
+      cancelled: ['Annulé', 'Annulée', 'Annule', 'Canceled', 'Cancelled', 'canceled', 'cancelled'],
+      failed: ['Échouée', 'Echouée', 'failed', 'Failed', 'error', 'Erreur', 'failed'],
     };
-    const readCollection = async (name) => {
-      const ref = db.collection(name);
-      const [total, ...states] = await Promise.all([
-        ref.count().get(),
-        ...Object.entries(buckets).map(([key, values]) => ref.where('status', 'in', values).count().get()),
-      ]);
-      const result = { total: total.data().count || 0 };
-      Object.keys(buckets).forEach((key, index) => { result[key] = states[index].data().count || 0; });
-      return result;
-    };
-    const [auto, legacy] = await Promise.all([readCollection('autoOrders'), readCollection('commandes')]);
-    const data = { total: auto.total + legacy.total, sources: { autoOrders: auto, commandes: legacy } };
-    for (const key of Object.keys(buckets)) data[key] = auto[key] + legacy[key];
+    // Status totals are computed with aggregate queries and cached for 15 minutes.
+    // Global total comes from the six existing counters, not from a partial collection scan.
+    const [counterTotals, ...collectionStatuses] = await Promise.all([
+      readOrderCounters(),
+      ...ADMIN_ORDER_COLLECTIONS.map(async collectionName => {
+        const ref = db.collection(collectionName);
+        const values = await Promise.all(Object.entries(buckets).map(async ([key, variants]) => {
+          const snap = await ref.where('status', 'in', variants).count().get();
+          return [key, snap.data().count || 0];
+        }));
+        return Object.fromEntries(values);
+      }),
+    ]);
+    const data = { total: counterTotals.total, sources: counterTotals.counts, byCollection: {}, ...Object.fromEntries(Object.keys(buckets).map(k => [k, 0])) };
+    ADMIN_ORDER_COLLECTIONS.forEach((name, i) => {
+      data.byCollection[name] = { total: counterTotals.counts[name] || 0, ...collectionStatuses[i] };
+      for (const key of Object.keys(buckets)) data[key] += Number(collectionStatuses[i][key] || 0);
+    });
     data.other = Math.max(0, data.total - Object.keys(buckets).reduce((sum, key) => sum + data[key], 0));
+    data.note = 'Total global issu des documents counters/{collection}.lastId; statuts agrégés par collection. Cache 15 minutes.';
     memCacheSet(adminMemoryCache.orderSummary, data, 15 * 60 * 1000);
     await setSharedAdminCache('orderSummary', data, 15 * 60 * 1000);
-    return res.json({ success: true, data, cached: false, aggregateQueries: 12 });
+    return res.json({ success: true, data, cached: false, counterDocumentsRead: 6, statusAggregates: 30 });
   } catch (error) {
     console.error('Erreur /api/admin/orders-summary:', error);
-    return res.status(500).json({ success: false, error: 'Impossible de charger les compteurs de statut des commandes.' });
+    return res.status(500).json({ success: false, error: 'Impossible de charger les compteurs de commandes.' });
   }
 });
 
 adminRouter.get('/orders', async (req, res) => {
   try {
-    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 5), 50);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 5, 3), 10); // per collection
     const userId = String(req.query.userId || '').trim();
     const status = String(req.query.status || '').trim();
-    const makeQuery = async (collectionName, cursorId) => {
+    const provider = String(req.query.provider || '').trim().toLowerCase();
+    const statusFilter = String(req.query.status || '').trim().toLowerCase();
+    const statusAliases = {
+      'en attente': ['En attente', 'en attente', 'pending', 'Pending'],
+      'en cours': ['En cours', 'en cours', 'In progress', 'in progress', 'Processing', 'processing'],
+      'terminé': ['Terminé', 'Terminée', 'Terminee', 'Completed', 'completed', 'Done', 'done', 'Delivered', 'delivered'],
+      'annulé': ['Annulé', 'Annulée', 'Annule', 'Canceled', 'Cancelled', 'canceled', 'cancelled'],
+      'partiel': ['Partiel', 'Partial', 'partial'],
+      'échouée': ['Échouée', 'Echouée', 'failed', 'Failed', 'error', 'Erreur'],
+    };
+    const cursorMap = {};
+    try { Object.assign(cursorMap, JSON.parse(String(req.query.cursors || '{}'))); } catch (_) {}
+    const providerAliases = {
+      mtp: ['mtp', 'MTP', 'morethanpanel'], exo: ['exo', 'EXO'],
+      afriqueboost: ['afriqueboost', 'AfriqueBoost', 'afb'],
+      smmwiz: ['smmwiz', 'SMMWiz'], smmgen: ['smmgen', 'SMMGen'],
+    };
+    const collectionsToRead = ADMIN_ORDER_COLLECTIONS;
+    const results = await Promise.all(collectionsToRead.map(async collectionName => {
       const collectionRef = db.collection(collectionName);
       let query = collectionRef;
       if (userId) query = query.where('userId', '==', userId);
-      if (status) query = query.where('status', '==', status);
-      if (!userId && !status) {
-        query = query.orderBy('createdAt', 'desc');
-        if (cursorId) {
-          const cursorDoc = await collectionRef.doc(cursorId).get();
-          if (cursorDoc.exists) query = query.startAfter(cursorDoc);
-        }
+      if (statusFilter && statusFilter !== 'all') {
+        const variants = statusAliases[statusFilter] || [statusFilter];
+        query = variants.length === 1 ? query.where('status', '==', variants[0]) : query.where('status', 'in', variants.slice(0, 10));
+      }
+      if (provider) {
+        const aliases = providerAliases[provider] || [provider];
+        // Provider field values are normalized at display time; querying exact aliases avoids reading unrelated providers.
+        query = query.where('provider', 'in', aliases.slice(0, 10));
+      }
+      query = query.orderBy('createdAt', 'desc');
+      const cursorId = cursorMap[collectionName];
+      if (cursorId) {
+        const cursorDoc = await collectionRef.doc(String(cursorId)).get();
+        if (cursorDoc.exists) query = query.startAfter(cursorDoc);
       }
       const snapshot = await query.limit(limit).get();
       const items = snapshot.docs.map(doc => {
         const d = doc.data() || {};
-        const amount = d.priceXAF ?? d.totalCost ?? d.finalCost ?? d.cost ?? d.amount ?? 0;
+        const rawProvider = d.provider || d.fournisseur || d.providerName || d.supplier || null;
         return {
-          id: doc.id,
-          source: collectionName,
-          orderId: d.orderId || d.reference || doc.id,
-          userId: d.userId || d.uid || null,
-          provider: d.provider || d.fournisseur || null,
-          serviceId: d.serviceId ?? d.service ?? null,
-          serviceName: d.serviceName || d.service_name || d.name || 'Service',
-          platform: d.platform || null,
-          link: d.link || d.targetLink || null,
+          id: doc.id, collection: collectionName,
+          orderId: d.orderId || d.reference || d.order_id || doc.id,
+          userId: d.userId || d.uid || d.user_id || null,
+          provider: normalizeProvider(rawProvider), providerRaw: rawProvider,
+          serviceId: d.serviceId ?? d.service_id ?? d.service ?? null,
+          serviceName: d.serviceName || d.service_name || d.name || d.serviceTitle || 'Service',
+          platform: d.platform || null, link: d.link || d.targetLink || d.target || null,
           quantity: Number(d.quantity || d.qty || 0),
-          amount: Number(amount || 0),
-          status: d.status || 'Inconnu',
-          refunded: Boolean(d.refunded || d.isRefunded),
+          amount: Number(d.priceXAF ?? d.totalCost ?? d.finalCost ?? d.cost ?? d.amount ?? d.total ?? 0),
+          status: d.status || d.orderStatus || d.state || 'Inconnu',
+          refunded: Boolean(d.refunded || d.isRefunded || d.refund),
           refundedAmount: Number(d.refundedAmount || d.refundAmount || 0),
-          createdAt: d.createdAt || d.dateCreated || d.timestamp || null,
-          updatedAt: d.updatedAt || null,
+          createdAt: d.createdAt || d.dateCreated || d.created_at || d.timestamp || null,
         };
       });
-      items.sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt));
-      const nextCursor = !userId && !status && snapshot.size === limit ? snapshot.docs[snapshot.docs.length - 1].id : null;
-      return { items, nextCursor };
-    };
-
-    const [auto, legacy] = await Promise.all([
-      makeQuery('autoOrders', String(req.query.cursorAuto || '')),
-      makeQuery('commandes', String(req.query.cursorLegacy || '')),
-    ]);
-    const orders = [...auto.items, ...legacy.items].sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt));
-    res.json({
-      success: true,
-      orders,
-      nextCursors: { autoOrders: auto.nextCursor, commandes: legacy.nextCursor },
-      pageSizePerCollection: limit,
-      sources: ['autoOrders', 'commandes'],
-    });
+      const nextCursor = snapshot.size === limit ? snapshot.docs[snapshot.docs.length - 1].id : null;
+      return { collectionName, items, nextCursor };
+    }));
+    const orders = results.flatMap(r => r.items).sort((x, y) => getTimestampMs(y.createdAt) - getTimestampMs(x.createdAt));
+    const nextCursors = Object.fromEntries(results.map(r => [r.collectionName, r.nextCursor]));
+    return res.json({ success: true, orders, nextCursors, pageSizePerCollection: limit, collections: collectionsToRead, providerFilter: provider || null });
   } catch (error) {
     console.error('Erreur /api/admin/orders:', error);
     res.status(500).json({ success: false, error: 'Impossible de charger les commandes. Vérifiez les index Firestore et les champs createdAt.' });
+  }
+});
+
+// Boutiques : lecture paginée de la collection confirmée `stores`.
+adminRouter.get('/stores', async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 10), 50);
+    const cursorId = String(req.query.cursor || '');
+    const country = String(req.query.country || '').trim();
+    let query = db.collection('stores').orderBy('createdAt', 'desc');
+    if (country) query = db.collection('stores').where('country', '==', country).orderBy('createdAt', 'desc');
+    if (cursorId) {
+      const cursor = await db.collection('stores').doc(cursorId).get();
+      if (cursor.exists) query = query.startAfter(cursor);
+    }
+    const snap = await query.limit(limit).get();
+    const stores = snap.docs.map(doc => {
+      const d = doc.data() || {};
+      const ownerId = d.userId || d.ownerId || d.uid || d.createdBy || null;
+      return {
+        id: doc.id, name: d.name || d.storeName || d.title || 'Boutique sans nom',
+        slug: d.slug || d.username || d.storeSlug || null,
+        url: d.url || d.storeUrl || d.publicUrl || d.customDomain || (d.slug ? `https://${d.slug}` : null),
+        logo: d.logo || d.logoUrl || d.image || null,
+        ownerId, ownerName: d.ownerName || d.userName || d.displayName || null,
+        ownerEmail: d.email || d.ownerEmail || null, country: d.country || null,
+        status: d.status || (d.active === false ? 'inactive' : 'active'),
+        createdAt: d.createdAt || d.created_at || null,
+      };
+    });
+    return res.json({ success: true, stores, nextCursor: snap.size === limit ? snap.docs[snap.docs.length - 1].id : null, pageSize: limit });
+  } catch (error) {
+    console.error('Erreur /api/admin/stores:', error);
+    return res.status(500).json({ success: false, error: 'Impossible de charger les boutiques. Vérifiez le champ createdAt et les index Firestore.' });
   }
 });
 
@@ -3624,6 +3714,9 @@ adminRouter.get('/customers', async (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 10), 50);
     const search = String(req.query.q || '').trim();
+    const country = String(req.query.country || '').trim();
+    const segment = String(req.query.segment || 'all').trim();
+    const sort = String(req.query.sort || 'recent').trim();
     let snapshot;
 
     if (search && search.includes('@')) {
@@ -3640,7 +3733,10 @@ adminRouter.get('/customers', async (req, res) => {
         }
       }
     } else {
-      let query = db.collection('users').orderBy('createdAt', 'desc');
+      let query = db.collection('users');
+      if (country) query = query.where('country', '==', country);
+      const sortField = sort === 'balance' ? 'balance' : sort === 'orders' ? 'totalOrders' : 'createdAt';
+      query = query.orderBy(sortField, sort === 'recent' ? 'desc' : 'desc');
       if (req.query.cursor) {
         const cursor = await db.collection('users').doc(String(req.query.cursor)).get();
         if (cursor.exists) query = query.startAfter(cursor);
@@ -3648,7 +3744,7 @@ adminRouter.get('/customers', async (req, res) => {
       snapshot = await query.limit(limit).get();
     }
 
-    const customers = snapshot.docs.map(doc => {
+    let customers = snapshot.docs.map(doc => {
       const u = doc.data() || {};
       return {
         id: doc.id,
@@ -3663,12 +3759,53 @@ adminRouter.get('/customers', async (req, res) => {
         lastSignIn: u.lastSignIn || u.lastLoginAt || null,
         lastActivityAt: u.lastActivityAt || u.lastSeenAt || u.lastDashboardVisit || null,
         resellerLevel: u.resellerLevel || null,
+        hasOrdered: Number(u.totalOrders || 0) > 0,
+        orderStatsSource: 'users.totalOrders/users.totalSpent (cache métier; fiche détaillée vérifie les collections)',
       };
     });
-    res.json({ success: true, customers, nextCursor: !search && snapshot.size === limit ? snapshot.docs[snapshot.docs.length - 1].id : null });
+    if (segment === 'neverOrdered') customers = customers.filter(u => !u.hasOrdered);
+    else if (segment === 'ordered') customers = customers.filter(u => u.hasOrdered);
+    else if (segment === 'highBalance') customers.sort((x, y) => y.balance - x.balance);
+    else if (segment === 'highOrders') customers.sort((x, y) => y.totalOrders - x.totalOrders);
+    res.json({ success: true, customers, nextCursor: !search && snapshot.size === limit ? snapshot.docs[snapshot.docs.length - 1].id : null, pageSize: limit, filteredPageOnly: ['neverOrdered','ordered','highBalance','highOrders'].includes(segment), note: 'Les segments sont appliqués à la page lue pour préserver les quotas; le classement global nécessite des agrégats maintenus lors des commandes.' });
   } catch (error) {
     console.error('Erreur /api/admin/customers:', error);
     res.status(500).json({ success: false, error: 'Impossible de charger les utilisateurs.' });
+  }
+});
+
+adminRouter.post('/customers/:id/email', async (req, res) => {
+  try {
+    if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
+      return res.status(503).json({ success: false, error: 'RESEND_API_KEY et RESEND_FROM_EMAIL doivent être configurés.' });
+    }
+    const userId = String(req.params.id || '').trim();
+    const userSnap = await db.collection('users').doc(userId).get();
+    if (!userSnap.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
+    const user = userSnap.data() || {};
+    const email = String(user.email || '').trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, error: 'Cet utilisateur ne possède pas d’adresse email valide.' });
+    }
+    const subject = String(req.body?.subject || '').trim().slice(0, 180);
+    const message = String(req.body?.message || '').trim().slice(0, 8000);
+    if (!subject || !message) return res.status(400).json({ success: false, error: 'Objet et message obligatoires.' });
+    const safe = value => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    const name = String(user.displayName || user.username || user.name || 'cher client').slice(0, 120);
+    const html = `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#1f2937;line-height:1.7"><p>Bonjour ${safe(name)},</p><div>${safe(message).replace(/\n/g, '<br>')}</div><hr style="border:0;border-top:1px solid #e5e7eb;margin:24px 0"><p style="font-size:13px;color:#6b7280">L’équipe Social Boost Horizon<br><a href="https://socialboosthorizon.com/">socialboosthorizon.com</a></p></div>`;
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: process.env.RESEND_FROM_EMAIL, to: [email], subject, html, text: `Bonjour ${name},\n\n${message}\n\nL’équipe Social Boost Horizon` }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      console.error('Resend client email error:', response.status, result);
+      return res.status(502).json({ success: false, error: 'Le fournisseur email a refusé l’envoi.' });
+    }
+    return res.json({ success: true, status: 'accepted', providerId: result.id || null, recipient: email.replace(/^(.).+(@.*)$/, '$1***$2') });
+  } catch (error) {
+    console.error('Erreur /api/admin/customers/:id/email:', error);
+    return res.status(500).json({ success: false, error: 'Impossible d’envoyer cet email.' });
   }
 });
 
@@ -3680,14 +3817,18 @@ adminRouter.get('/customers/:id', async (req, res) => {
     const userDoc = await userRef.get();
     if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
     const u = userDoc.data() || {};
-    const [autoCountSnap, legacyCountSnap, autoSnap, legacySnap] = await Promise.all([
-      db.collection('autoOrders').where('userId', '==', userId).count().get(),
-      db.collection('commandes').where('userId', '==', userId).count().get(),
-      db.collection('autoOrders').where('userId', '==', userId).limit(15).get(),
-      db.collection('commandes').where('userId', '==', userId).limit(15).get(),
-    ]);
-    const orders = [...autoSnap.docs.map(doc => ({ id: doc.id, source: 'autoOrders', ...doc.data() })),
-      ...legacySnap.docs.map(doc => ({ id: doc.id, source: 'commandes', ...doc.data() }))]
+    const perCollection = await Promise.all(ADMIN_ORDER_COLLECTIONS.map(async collectionName => {
+      const ref = db.collection(collectionName).where('userId', '==', userId);
+      const [countSnap, sampleSnap, spentSnap] = await Promise.all([
+        ref.count().get(),
+        ref.orderBy('createdAt', 'desc').limit(8).get().catch(() => ref.limit(8).get()),
+        ref.aggregate({ total: admin.firestore.AggregateField.sum('priceXAF') }).get().catch(() => ({ data: () => ({ total: 0 }) })),
+      ]);
+      return { collectionName, count: countSnap.data().count || 0, sample: sampleSnap.docs, priceXAF: Number(spentSnap.data().total || 0) };
+    }));
+    const exactOrderCount = perCollection.reduce((sum, x) => sum + x.count, 0);
+    const derivedSpendPriceXAF = perCollection.reduce((sum, x) => sum + x.priceXAF, 0);
+    const orders = perCollection.flatMap(source => source.sample.map(doc => ({ id: doc.id, source: source.collectionName, ...doc.data() })))
       .sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt))
       .slice(0, 50)
       .map(o => ({
@@ -3703,9 +3844,12 @@ adminRouter.get('/customers/:id', async (req, res) => {
       balance: Number(u.balance || 0), totalOrders: Number(u.totalOrders || 0), totalSpent: Number(u.totalSpent || 0),
       createdAt: u.createdAt || null, lastSignIn: u.lastSignIn || u.lastLoginAt || null,
       lastActivityAt: u.lastActivityAt || u.lastSeenAt || u.lastDashboardVisit || u.lastSignIn || u.lastLoginAt || null, resellerLevel: u.resellerLevel || null,
-    }, orders, exactOrderCount: (autoCountSnap.data().count || 0) + (legacyCountSnap.data().count || 0),
-    countsByCollection: { autoOrders: autoCountSnap.data().count || 0, commandes: legacyCountSnap.data().count || 0 },
-    ordersReturned: orders.length, capped: (autoCountSnap.data().count || 0) > orders.length });
+    }, orders, exactOrderCount,
+    derivedSpendPriceXAF,
+    storedTotalSpent: Number(u.totalSpent || 0),
+    countsByCollection: Object.fromEntries(perCollection.map(x => [x.collectionName, x.count])),
+    ordersReturned: orders.length, capped: exactOrderCount > orders.length,
+    spendNote: 'derivedSpendPriceXAF additionne uniquement le champ priceXAF; les autres schémas de montant ne sont pas ajoutés automatiquement pour éviter les doubles comptes.' });
   } catch (error) {
     console.error('Erreur /api/admin/customers/:id:', error);
     res.status(500).json({ success: false, error: 'Impossible de charger la fiche utilisateur.' });
