@@ -228,10 +228,13 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
     if (!service) return res.status(400).json({ success: false, error: 'Service introuvable ou expiré.' });
 
     const rate = parseFloat(service.rate) || 0;
+    const providerPricePer1000XAF = Math.round(rate * MTP_USD_TO_XAF);
     const priceXAF = Math.round(rate * MTP_USD_TO_XAF * MTP_MULTIPLIER);
     const qty = parseInt(quantity);
     const isPackage = (service.type || '').toLowerCase().includes('package');
     const cost = isPackage ? priceXAF : Math.round((priceXAF / 1000) * qty);
+    const providerCostXAF = isPackage ? providerPricePer1000XAF : Math.round((providerPricePer1000XAF / 1000) * qty);
+    const estimatedProfitXAF = cost - providerCostXAF;
 
     const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
@@ -277,8 +280,10 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
       transaction.set(orderRef, {
         orderId: finalOrderId, userId: uid, provider: 'mtp', providerOrderId: orderResult.order,
         serviceId: parseInt(serviceId), serviceName: service.name, platform, link, quantity: qty,
-        priceXAF: cost, status: 'En attente', createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        providerStartCount: 0, providerRemains: qty, refunded: false,
+        priceXAF: cost, providerCostXAF, estimatedProfitXAF,
+        providerMultiplier: MTP_MULTIPLIER, profitCalculationVersion: 1,
+        status: 'En attente', createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        providerStartCount: 0, providerRemains: qty, refunded: false, refundedAmount: 0,
       });
     });
     res.json({ success: true, orderId: finalOrderId, newBalance });
@@ -677,10 +682,13 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
     if (!service) return res.status(400).json({ success: false, error: 'Service AfriqueBoost introuvable.' });
 
     const rateXAF = parseFloat(service.rate) || 0;
+    const providerPricePer1000XAF = Math.round(rateXAF);
     const priceXAF = Math.round(rateXAF * AFB_MULTIPLIER);
     const qty = parseInt(quantity);
     const isPackage = (service.type || '').toLowerCase().includes('package');
     const cost = isPackage ? priceXAF : Math.round((priceXAF / 1000) * qty);
+    const providerCostXAF = isPackage ? providerPricePer1000XAF : Math.round((providerPricePer1000XAF / 1000) * qty);
+    const estimatedProfitXAF = cost - providerCostXAF;
 
     const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
@@ -726,8 +734,10 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
       transaction.set(orderRef, {
         orderId: finalOrderId, userId: uid, provider: 'afriqueboost', providerOrderId: orderResult.order,
         serviceId: parseInt(serviceId), serviceName: service.name, platform, link, quantity: qty,
-        priceXAF: cost, status: 'En attente', createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        providerStartCount: 0, providerRemains: qty, refunded: false,
+        priceXAF: cost, providerCostXAF, estimatedProfitXAF,
+        providerMultiplier: AFB_MULTIPLIER, profitCalculationVersion: 1,
+        status: 'En attente', createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        providerStartCount: 0, providerRemains: qty, refunded: false, refundedAmount: 0,
       });
     });
 
@@ -1007,6 +1017,13 @@ app.post('/api/smmwiz/order', checkAuth, async (req, res) => {
     }
 
     const cost = computeSmmWizCost(service, qty, pricingMode);
+    const providerRateXAF = Math.round((parseFloat(service.rate) || 0) * SMMWIZ_USD_TO_XAF);
+    const providerCostXAF = pricingMode === 'package'
+      ? providerRateXAF
+      : pricingMode === 'per_unit'
+        ? Math.round(providerRateXAF * qty)
+        : Math.round((providerRateXAF / 1000) * qty);
+    const estimatedProfitXAF = cost - providerCostXAF;
 
     const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) {
@@ -1072,6 +1089,10 @@ app.post('/api/smmwiz/order', checkAuth, async (req, res) => {
         link: link,
         quantity: qty,
         priceXAF: cost,
+        providerCostXAF,
+        estimatedProfitXAF,
+        providerMultiplier: SMMWIZ_MULTIPLIER,
+        profitCalculationVersion: 1,
         status: 'En attente',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         providerStartCount: 0,
@@ -3026,11 +3047,48 @@ app.post('/api/app-review-reaction', async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 // ADMIN API
 // ═══════════════════════════════════════════════════════════════
-const ADMIN_PASSWORD = '209644209644';
+// Authentification admin : le mot de passe et la clé de signature sont
+// exclusivement des variables d'environnement Vercel, jamais dans le HTML.
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || '';
+const ADMIN_SESSION_TTL_SECONDS = 4 * 60 * 60;
+
+function constantTimeEqual(a, b) {
+  const left = Buffer.from(String(a || ''), 'utf8');
+  const right = Buffer.from(String(b || ''), 'utf8');
+  if (!left.length || left.length !== right.length) return false;
+  return crypto.timingSafeEqual(left, right);
+}
+
+function signAdminSession(payload) {
+  const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = crypto.createHmac('sha256', ADMIN_SESSION_SECRET).update(encoded).digest('base64url');
+  return `${encoded}.${signature}`;
+}
+
+function verifyAdminSession(token) {
+  if (!token || !ADMIN_SESSION_SECRET) return false;
+  const parts = String(token).split('.');
+  if (parts.length !== 2) return false;
+  const [encoded, suppliedSignature] = parts;
+  const expectedSignature = crypto.createHmac('sha256', ADMIN_SESSION_SECRET).update(encoded).digest('base64url');
+  if (!constantTimeEqual(suppliedSignature, expectedSignature)) return false;
+  try {
+    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
+    return payload.role === 'admin' && Number.isFinite(payload.exp) && payload.exp > Math.floor(Date.now() / 1000);
+  } catch (_) {
+    return false;
+  }
+}
+
 function checkAdminPassword(req, res, next) {
-  const pass = req.headers['x-admin-password'];
-  if (!pass || pass !== ADMIN_PASSWORD) {
-    return res.status(403).json({ success: false, error: 'Accès refusé. Clé invalide.' });
+  res.set('Cache-Control', 'no-store, private');
+  const match = String(req.headers.authorization || '').match(/^Bearer\s+(.+)$/i);
+  if (!ADMIN_SESSION_SECRET || ADMIN_SESSION_SECRET.length < 32) {
+    return res.status(503).json({ success: false, error: 'ADMIN_SESSION_SECRET doit contenir au moins 32 caractères et être configurée dans Vercel.' });
+  }
+  if (!match || !verifyAdminSession(match[1])) {
+    return res.status(401).json({ success: false, error: 'Session administrateur absente ou expirée.' });
   }
   next();
 }
@@ -3137,6 +3195,8 @@ const adminMemoryCache = {
   overview:   { data: null, expires: 0 },
   topUsers:   { data: null, expires: 0 },
   usersStats: { data: null, expires: 0 },
+  financialsMap: new Map(),
+  orderSummary: { data: null, expires: 0 },
   giftsMap:   new Map(),
 };
 
@@ -3149,9 +3209,53 @@ function memCacheSet(entry, data, ttlMs) {
   entry.expires = Date.now() + ttlMs;
   return data;
 }
+
+// Shared TTL cache: Vercel may route requests to different serverless instances,
+// so an in-memory cache alone does not prevent repeated aggregate reads.
+async function getSharedAdminCache(key) {
+  try {
+    const snap = await db.collection('adminDashboardCache').doc(key).get();
+    if (!snap.exists) return null;
+    const row = snap.data() || {};
+    const expiresAtMs = getTimestampMs(row.expiresAt);
+    if (!row.payload || !expiresAtMs || expiresAtMs <= Date.now()) return null;
+    return { payload: row.payload, expiresAtMs };
+  } catch (error) {
+    console.warn('Cache admin partagé indisponible:', error.message);
+    return null;
+  }
+}
+async function setSharedAdminCache(key, payload, ttlMs) {
+  try {
+    await db.collection('adminDashboardCache').doc(key).set({
+      payload,
+      expiresAt: admin.firestore.Timestamp.fromMillis(Date.now() + ttlMs),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    // The dashboard still works if the optimization cache cannot be written.
+    console.warn('Écriture cache admin partagé impossible:', error.message);
+  }
+}
 function clearGiftsCache() { adminMemoryCache.giftsMap.clear(); }
 
 const adminRouter = express.Router();
+
+// Route de connexion publique, mais protégée par un secret serveur et une session signée.
+adminRouter.post('/login', (req, res) => {
+  res.set('Cache-Control', 'no-store, private');
+  if (!ADMIN_PASSWORD || !ADMIN_SESSION_SECRET || ADMIN_SESSION_SECRET.length < 32) {
+    return res.status(503).json({ success: false, error: 'Configurez ADMIN_PASSWORD et une ADMIN_SESSION_SECRET d’au moins 32 caractères dans Vercel.' });
+  }
+  const submitted = req.body && req.body.password;
+  if (!constantTimeEqual(submitted, ADMIN_PASSWORD)) {
+    return res.status(401).json({ success: false, error: 'Identifiants administrateur incorrects.' });
+  }
+  const now = Math.floor(Date.now() / 1000);
+  const token = signAdminSession({ role: 'admin', iat: now, exp: now + ADMIN_SESSION_TTL_SECONDS });
+  return res.json({ success: true, token, expiresAt: new Date((now + ADMIN_SESSION_TTL_SECONDS) * 1000).toISOString() });
+});
+
 adminRouter.use(checkAdminPassword);
 
 adminRouter.get('/ping', (req, res) => res.json({ success: true, message: 'Admin API accessible' }));
@@ -3247,30 +3351,60 @@ adminRouter.post('/gifts/:id/status', async (req, res) => {
 
 adminRouter.get('/overview', async (req, res) => {
   try {
-    const cached = memCacheGet(adminMemoryCache.overview);
-    if (cached) return res.json({ success: true, data: cached, cached: true });
+    const forceRefresh = String(req.query.refresh || '') === '1';
+    const cached = !forceRefresh ? memCacheGet(adminMemoryCache.overview) : null;
+    if (cached) return res.json({ success: true, data: cached, cached: true, cacheScope: 'instance' });
+    if (!forceRefresh) {
+      const shared = await getSharedAdminCache('overview');
+      if (shared) {
+        memCacheSet(adminMemoryCache.overview, shared.payload, Math.max(1000, shared.expiresAtMs - Date.now()));
+        return res.json({ success: true, data: shared.payload, cached: true, cacheScope: 'shared' });
+      }
+    }
+
+    const sevenDaysAgo = admin.firestore.Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+    const oneDayAgo = admin.firestore.Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
+    const autoRef = db.collection('autoOrders');
+    const legacyRef = db.collection('commandes');
+    const giftsRef = db.collection('welcomeGiftClaims');
 
     const [
-      usersCount, ordersCount, pendingOrdersCount, giftsPendingCount,
-      revenueAgg, newUsersAgg, giftsLateAgg
+      usersCount, newUsersCount, autoOrdersCount, legacyOrdersCount,
+      autoPendingCount, legacyPendingCount, giftsPendingCount, giftsLateCount,
+      autoSalesAgg, autoRefundAgg
     ] = await Promise.all([
       db.collection('users').count().get(),
-      db.collection('autoOrders').count().get(),
-      db.collection('autoOrders').where('status', '==', 'En attente').count().get(),
-      db.collection('welcomeGiftClaims').where('status', '==', 'pending').count().get(),
-      db.collection('autoOrders').aggregate({ total: admin.firestore.AggregateField.sum('priceXAF') }).get(),
-      db.collection('users').where('createdAt', '>=', admin.firestore.Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))).count().get(),
-      db.collection('welcomeGiftClaims').where('status', '==', 'pending').where('createdAt', '<', admin.firestore.Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000))).count().get(),
+      countCreatedBetween(db.collection('users'), new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), new Date()),
+      autoRef.count().get(),
+      legacyRef.count().get(),
+      autoRef.where('status', 'in', ['En attente', 'pending', 'Pending']).count().get(),
+      legacyRef.where('status', 'in', ['En attente', 'pending', 'Pending']).count().get(),
+      giftsRef.where('status', '==', 'pending').count().get(),
+      giftsRef.where('status', '==', 'pending').where('createdAt', '<', oneDayAgo).count().get(),
+      autoRef.aggregate({ total: admin.firestore.AggregateField.sum('priceXAF') }).get(),
+      autoRef.aggregate({ total: admin.firestore.AggregateField.sum('refundedAmount') }).get(),
     ]);
 
+    const totalAutoOrders = autoOrdersCount.data().count || 0;
+    const totalLegacyOrders = legacyOrdersCount.data().count || 0;
+    const autoGrossSales = Number(autoSalesAgg.data().total || 0);
+    const autoRefunds = Number(autoRefundAgg.data().total || 0);
     const data = {
-      totalUsers:    usersCount.data().count,
-      newUsers7d:    newUsersAgg.data().count,
-      totalOrders:   ordersCount.data().count,
-      pendingOrders: pendingOrdersCount.data().count,
-      totalRevenue:  revenueAgg.data().total || 0,
-      giftsPending:  giftsPendingCount.data().count,
-      giftsLate:     giftsLateAgg.data().count,
+      totalUsers: usersCount.data().count || 0,
+      newUsers7d: newUsersCount || 0,
+      totalOrders: totalAutoOrders + totalLegacyOrders,
+      totalAutoOrders,
+      totalLegacyOrders,
+      pendingOrders: (autoPendingCount.data().count || 0) + (legacyPendingCount.data().count || 0),
+      // Revenus calculables sans lire tous les documents : uniquement autoOrders,
+      // dont le montant client est conservé dans priceXAF. Les commandes classiques
+      // sont comptées mais leur schéma financier doit être normalisé séparément.
+      totalRevenue: Math.max(0, autoGrossSales - autoRefunds),
+      revenueScope: 'autoOrders uniquement; commandes comptées séparément, revenus non agrégés tant que leur schéma financier n’est pas normalisé.',
+      autoOrdersGrossSales: autoGrossSales,
+      autoOrdersRefunds: autoRefunds,
+      giftsPending: giftsPendingCount.data().count || 0,
+      giftsLate: giftsLateCount.data().count || 0,
       multipliers: {
         MTP: MTP_MULTIPLIER, EXO: EXO_MULTIPLIER,
         AfriqueBoost: AFB_MULTIPLIER, SMMGen: SMMGEN_MULTIPLIER,
@@ -3280,25 +3414,26 @@ adminRouter.get('/overview', async (req, res) => {
     };
 
     memCacheSet(adminMemoryCache.overview, data, 15 * 60 * 1000);
-    res.json({ success: true, data, cached: false, reads: 7 });
+    await setSharedAdminCache('overview', data, 15 * 60 * 1000);
+    res.json({ success: true, data, cached: false, aggregateQueries: 11 });
   } catch (error) {
     console.error('Erreur /overview:', error);
-    res.json({
-      success: true,
-      data: {
-        totalUsers: 0, newUsers7d: 0, totalOrders: 0, pendingOrders: 0,
-        totalRevenue: 0, giftsPending: 0, giftsLate: 0,
-        multipliers: { MTP: MTP_MULTIPLIER, EXO: EXO_MULTIPLIER, AfriqueBoost: AFB_MULTIPLIER, SMMGen: SMMGEN_MULTIPLIER, SMMWiz: SMMWIZ_MULTIPLIER },
-      },
-      cached: false,
-    });
+    return res.status(500).json({ success: false, error: 'Impossible de calculer les statistiques. Les zéros ne sont pas présentés comme des données valides.' });
   }
 });
 
 adminRouter.get('/top-users', async (req, res) => {
   try {
-    const cached = memCacheGet(adminMemoryCache.topUsers);
+    const forceRefresh = String(req.query.refresh || '') === '1';
+    const cached = !forceRefresh ? memCacheGet(adminMemoryCache.topUsers) : null;
     if (cached) return res.json({ success: true, users: cached, cached: true });
+    if (!forceRefresh) {
+      const shared = await getSharedAdminCache('topUsers');
+      if (shared) {
+        memCacheSet(adminMemoryCache.topUsers, shared.payload, Math.max(1000, shared.expiresAtMs - Date.now()));
+        return res.json({ success: true, users: shared.payload, cached: true, cacheScope: 'shared' });
+      }
+    }
 
     let usersSnap;
     try {
@@ -3324,22 +3459,34 @@ adminRouter.get('/top-users', async (req, res) => {
     users.sort((a, b) => (b.orderCount - a.orderCount) || (b.totalSpent - a.totalSpent));
 
     memCacheSet(adminMemoryCache.topUsers, users, 60 * 60 * 1000);
+    await setSharedAdminCache('topUsers', users, 60 * 60 * 1000);
     res.json({ success: true, users, cached: false, reads: usersSnap.size });
   } catch (error) {
     console.error('Erreur /top-users:', error);
-    res.json({ success: true, users: [] });
+    res.status(500).json({ success: false, error: 'Impossible de charger le classement des utilisateurs.' });
   }
 });
 
 adminRouter.get('/users-stats', async (req, res) => {
   try {
-    const cached = memCacheGet(adminMemoryCache.usersStats);
+    const forceRefresh = String(req.query.refresh || '') === '1';
+    const cached = !forceRefresh ? memCacheGet(adminMemoryCache.usersStats) : null;
     if (cached) return res.json({ success: true, ...cached, cached: true });
+    if (!forceRefresh) {
+      const shared = await getSharedAdminCache('usersStats');
+      if (shared) {
+        memCacheSet(adminMemoryCache.usersStats, shared.payload, Math.max(1000, shared.expiresAtMs - Date.now()));
+        return res.json({ success: true, ...shared.payload, cached: true, cacheScope: 'shared' });
+      }
+    }
 
-    const [totalRes, newRes, balanceAgg] = await Promise.all([
+    const sevenDaysAgoDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = admin.firestore.Timestamp.fromDate(sevenDaysAgoDate);
+    const [totalRes, newUsers7d, balanceAgg, dashboardVisitorsRes] = await Promise.all([
       db.collection('users').count().get(),
-      db.collection('users').where('createdAt', '>=', admin.firestore.Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))).count().get(),
+      countCreatedBetween(db.collection('users'), sevenDaysAgoDate, new Date()),
       db.collection('users').aggregate({ total: admin.firestore.AggregateField.sum('balance') }).get(),
+      db.collection('users').where('lastDashboardVisit', '>=', sevenDaysAgo).count().get(),
     ]);
 
     const totalUsers = totalRes.data().count;
@@ -3349,17 +3496,502 @@ adminRouter.get('/users-stats', async (req, res) => {
     const payload = {
       stats: {
         totalUsers,
-        newUsers7d: newRes.data().count,
+        newUsers7d: newUsers7d,
+        dashboardVisitors7d: dashboardVisitorsRes.data().count || 0,
         totalBalance,
         avgBalance,
       },
     };
 
     memCacheSet(adminMemoryCache.usersStats, payload, 60 * 60 * 1000);
-    res.json({ success: true, ...payload, cached: false, reads: 3 });
+    await setSharedAdminCache('usersStats', payload, 60 * 60 * 1000);
+    res.json({ success: true, ...payload, cached: false, firestoreQueries: 5 });
   } catch (error) {
     console.error('Erreur /users-stats:', error);
-    res.json({ success: true, stats: { totalUsers: 0, newUsers7d: 0, totalBalance: 0, avgBalance: 0 } });
+    res.status(500).json({ success: false, error: 'Impossible de calculer les statistiques utilisateurs.' });
+  }
+});
+
+// Liste paginée des deux collections de commandes existantes. Chaque source est
+// paginée séparément pour ne pas charger l'historique complet. Maximum 50 docs/source.
+adminRouter.get('/orders-summary', async (req, res) => {
+  try {
+    const forceRefresh = String(req.query.refresh || '') === '1';
+    const cached = !forceRefresh ? memCacheGet(adminMemoryCache.orderSummary) : null;
+    if (cached) return res.json({ success: true, data: cached, cached: true });
+    if (!forceRefresh) {
+      const shared = await getSharedAdminCache('orderSummary');
+      if (shared) {
+        memCacheSet(adminMemoryCache.orderSummary, shared.payload, Math.max(1000, shared.expiresAtMs - Date.now()));
+        return res.json({ success: true, data: shared.payload, cached: true, cacheScope: 'shared' });
+      }
+    }
+    const buckets = {
+      pending: ['En attente', 'en attente', 'pending', 'Pending'],
+      inProgress: ['En cours', 'en cours', 'In progress', 'in progress', 'Processing', 'processing'],
+      completed: ['Terminé', 'Terminée', 'Completed', 'completed', 'Done', 'done', 'Delivered', 'delivered'],
+      cancelled: ['Annulé', 'Annulée', 'Canceled', 'Cancelled', 'canceled', 'cancelled'],
+      failed: ['Échouée', 'Echouée', 'failed', 'Failed', 'error', 'Erreur'],
+    };
+    const readCollection = async (name) => {
+      const ref = db.collection(name);
+      const [total, ...states] = await Promise.all([
+        ref.count().get(),
+        ...Object.entries(buckets).map(([key, values]) => ref.where('status', 'in', values).count().get()),
+      ]);
+      const result = { total: total.data().count || 0 };
+      Object.keys(buckets).forEach((key, index) => { result[key] = states[index].data().count || 0; });
+      return result;
+    };
+    const [auto, legacy] = await Promise.all([readCollection('autoOrders'), readCollection('commandes')]);
+    const data = { total: auto.total + legacy.total, sources: { autoOrders: auto, commandes: legacy } };
+    for (const key of Object.keys(buckets)) data[key] = auto[key] + legacy[key];
+    data.other = Math.max(0, data.total - Object.keys(buckets).reduce((sum, key) => sum + data[key], 0));
+    memCacheSet(adminMemoryCache.orderSummary, data, 15 * 60 * 1000);
+    await setSharedAdminCache('orderSummary', data, 15 * 60 * 1000);
+    return res.json({ success: true, data, cached: false, aggregateQueries: 12 });
+  } catch (error) {
+    console.error('Erreur /api/admin/orders-summary:', error);
+    return res.status(500).json({ success: false, error: 'Impossible de charger les compteurs de statut des commandes.' });
+  }
+});
+
+adminRouter.get('/orders', async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 5), 50);
+    const userId = String(req.query.userId || '').trim();
+    const status = String(req.query.status || '').trim();
+    const makeQuery = async (collectionName, cursorId) => {
+      const collectionRef = db.collection(collectionName);
+      let query = collectionRef;
+      if (userId) query = query.where('userId', '==', userId);
+      if (status) query = query.where('status', '==', status);
+      if (!userId && !status) {
+        query = query.orderBy('createdAt', 'desc');
+        if (cursorId) {
+          const cursorDoc = await collectionRef.doc(cursorId).get();
+          if (cursorDoc.exists) query = query.startAfter(cursorDoc);
+        }
+      }
+      const snapshot = await query.limit(limit).get();
+      const items = snapshot.docs.map(doc => {
+        const d = doc.data() || {};
+        const amount = d.priceXAF ?? d.totalCost ?? d.finalCost ?? d.cost ?? d.amount ?? 0;
+        return {
+          id: doc.id,
+          source: collectionName,
+          orderId: d.orderId || d.reference || doc.id,
+          userId: d.userId || d.uid || null,
+          provider: d.provider || d.fournisseur || null,
+          serviceId: d.serviceId ?? d.service ?? null,
+          serviceName: d.serviceName || d.service_name || d.name || 'Service',
+          platform: d.platform || null,
+          link: d.link || d.targetLink || null,
+          quantity: Number(d.quantity || d.qty || 0),
+          amount: Number(amount || 0),
+          status: d.status || 'Inconnu',
+          refunded: Boolean(d.refunded || d.isRefunded),
+          refundedAmount: Number(d.refundedAmount || d.refundAmount || 0),
+          createdAt: d.createdAt || d.dateCreated || d.timestamp || null,
+          updatedAt: d.updatedAt || null,
+        };
+      });
+      items.sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt));
+      const nextCursor = !userId && !status && snapshot.size === limit ? snapshot.docs[snapshot.docs.length - 1].id : null;
+      return { items, nextCursor };
+    };
+
+    const [auto, legacy] = await Promise.all([
+      makeQuery('autoOrders', String(req.query.cursorAuto || '')),
+      makeQuery('commandes', String(req.query.cursorLegacy || '')),
+    ]);
+    const orders = [...auto.items, ...legacy.items].sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt));
+    res.json({
+      success: true,
+      orders,
+      nextCursors: { autoOrders: auto.nextCursor, commandes: legacy.nextCursor },
+      pageSizePerCollection: limit,
+      sources: ['autoOrders', 'commandes'],
+    });
+  } catch (error) {
+    console.error('Erreur /api/admin/orders:', error);
+    res.status(500).json({ success: false, error: 'Impossible de charger les commandes. Vérifiez les index Firestore et les champs createdAt.' });
+  }
+});
+
+// Répertoire utilisateurs paginé; seules les informations nécessaires au suivi client sont exposées.
+adminRouter.get('/customers', async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 10), 50);
+    const search = String(req.query.q || '').trim();
+    let snapshot;
+
+    if (search && search.includes('@')) {
+      snapshot = await db.collection('users').where('email', '==', search.toLowerCase()).limit(limit).get();
+    } else if (search) {
+      // Une recherche UID est une lecture directe, pas une lecture complète de la collection.
+      const direct = await db.collection('users').doc(search).get();
+      if (direct.exists) snapshot = { docs: [direct], size: 1 };
+      else {
+        const prefix = search;
+        snapshot = await db.collection('users').orderBy('displayName').startAt(prefix).endAt(prefix + '\uf8ff').limit(limit).get();
+        if (snapshot.empty) {
+          snapshot = await db.collection('users').orderBy('username').startAt(prefix).endAt(prefix + '\uf8ff').limit(limit).get();
+        }
+      }
+    } else {
+      let query = db.collection('users').orderBy('createdAt', 'desc');
+      if (req.query.cursor) {
+        const cursor = await db.collection('users').doc(String(req.query.cursor)).get();
+        if (cursor.exists) query = query.startAfter(cursor);
+      }
+      snapshot = await query.limit(limit).get();
+    }
+
+    const customers = snapshot.docs.map(doc => {
+      const u = doc.data() || {};
+      return {
+        id: doc.id,
+        name: u.displayName || u.username || u.name || 'Utilisateur',
+        email: u.email || null,
+        phone: u.phone || u.whatsapp || null,
+        country: u.country || null,
+        balance: Number(u.balance || 0),
+        totalOrders: Number(u.totalOrders || 0),
+        totalSpent: Number(u.totalSpent || 0),
+        createdAt: u.createdAt || null,
+        lastSignIn: u.lastSignIn || u.lastLoginAt || null,
+        lastActivityAt: u.lastActivityAt || u.lastSeenAt || u.lastDashboardVisit || null,
+        resellerLevel: u.resellerLevel || null,
+      };
+    });
+    res.json({ success: true, customers, nextCursor: !search && snapshot.size === limit ? snapshot.docs[snapshot.docs.length - 1].id : null });
+  } catch (error) {
+    console.error('Erreur /api/admin/customers:', error);
+    res.status(500).json({ success: false, error: 'Impossible de charger les utilisateurs.' });
+  }
+});
+
+adminRouter.get('/customers/:id', async (req, res) => {
+  try {
+    const userId = String(req.params.id || '').trim();
+    if (!userId) return res.status(400).json({ success: false, error: 'Identifiant utilisateur requis.' });
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
+    const u = userDoc.data() || {};
+    const [autoCountSnap, legacyCountSnap, autoSnap, legacySnap] = await Promise.all([
+      db.collection('autoOrders').where('userId', '==', userId).count().get(),
+      db.collection('commandes').where('userId', '==', userId).count().get(),
+      db.collection('autoOrders').where('userId', '==', userId).limit(15).get(),
+      db.collection('commandes').where('userId', '==', userId).limit(15).get(),
+    ]);
+    const orders = [...autoSnap.docs.map(doc => ({ id: doc.id, source: 'autoOrders', ...doc.data() })),
+      ...legacySnap.docs.map(doc => ({ id: doc.id, source: 'commandes', ...doc.data() }))]
+      .sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt))
+      .slice(0, 50)
+      .map(o => ({
+        id: o.id, source: o.source, orderId: o.orderId || o.id,
+        serviceName: o.serviceName || o.service_name || o.name || 'Service',
+        provider: o.provider || null, status: o.status || 'Inconnu',
+        amount: Number(o.priceXAF ?? o.totalCost ?? o.finalCost ?? o.cost ?? 0),
+        createdAt: o.createdAt || o.dateCreated || null,
+      }));
+    res.json({ success: true, customer: {
+      id: userDoc.id, name: u.displayName || u.username || u.name || 'Utilisateur',
+      email: u.email || null, phone: u.phone || u.whatsapp || null, country: u.country || null,
+      balance: Number(u.balance || 0), totalOrders: Number(u.totalOrders || 0), totalSpent: Number(u.totalSpent || 0),
+      createdAt: u.createdAt || null, lastSignIn: u.lastSignIn || u.lastLoginAt || null,
+      lastActivityAt: u.lastActivityAt || u.lastSeenAt || u.lastDashboardVisit || u.lastSignIn || u.lastLoginAt || null, resellerLevel: u.resellerLevel || null,
+    }, orders, exactOrderCount: (autoCountSnap.data().count || 0) + (legacyCountSnap.data().count || 0),
+    countsByCollection: { autoOrders: autoCountSnap.data().count || 0, commandes: legacyCountSnap.data().count || 0 },
+    ordersReturned: orders.length, capped: (autoCountSnap.data().count || 0) > orders.length });
+  } catch (error) {
+    console.error('Erreur /api/admin/customers/:id:', error);
+    res.status(500).json({ success: false, error: 'Impossible de charger la fiche utilisateur.' });
+  }
+});
+
+function escapeHtmlEmail(value) {
+  return String(value == null ? '' : value).slice(0, 5000)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Résout l'adresse email d'un cadeau à la demande, sans lire tous les comptes
+// lors du chargement de la liste des cadeaux.
+adminRouter.get('/gifts/:id/recipient', async (req, res) => {
+  try {
+    const giftDoc = await db.collection('welcomeGiftClaims').doc(String(req.params.id)).get();
+    if (!giftDoc.exists) return res.status(404).json({ success: false, error: 'Demande de cadeau introuvable.' });
+    const gift = giftDoc.data() || {};
+    let email = String(gift.email || '').trim();
+    if (!email && gift.userId) {
+      const userDoc = await db.collection('users').doc(String(gift.userId)).get();
+      if (userDoc.exists) email = String(userDoc.data().email || '').trim();
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(404).json({ success: false, error: 'Aucune adresse email valide associée à ce cadeau.' });
+    }
+    return res.json({ success: true, email, userName: gift.userName || null });
+  } catch (error) {
+    console.error('Erreur /api/admin/gifts/:id/recipient:', error);
+    return res.status(500).json({ success: false, error: 'Impossible de résoudre le destinataire.' });
+  }
+});
+
+// Emails de suivi des cadeaux. Cette route est distincte de sendPartnershipEmail
+// et ne modifie aucun modèle de bienvenue ou de partenariat.
+adminRouter.post('/gifts/:id/email', async (req, res) => {
+  try {
+    const { type, customMessage } = req.body || {};
+    const validTypes = ['confirmation', 'launched', 'delay', 'custom'];
+    if (!validTypes.includes(type)) return res.status(400).json({ success: false, error: 'Type de message invalide.' });
+    if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
+      return res.status(503).json({ success: false, error: 'Configurez RESEND_API_KEY et RESEND_FROM_EMAIL avant l’envoi.' });
+    }
+    const giftRef = db.collection('welcomeGiftClaims').doc(String(req.params.id));
+    const giftDoc = await giftRef.get();
+    if (!giftDoc.exists) return res.status(404).json({ success: false, error: 'Demande de cadeau introuvable.' });
+    const gift = giftDoc.data() || {};
+    let email = String(gift.email || '').trim();
+    if (!email && gift.userId) {
+      const userDoc = await db.collection('users').doc(String(gift.userId)).get();
+      if (userDoc.exists) email = String(userDoc.data().email || '').trim();
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, error: 'Aucune adresse email valide associée à ce cadeau.' });
+    }
+    const name = String(gift.userName || 'cher client').slice(0, 120);
+    const appName = 'Social Boost Horizon';
+    const titles = {
+      confirmation: 'Confirmation de votre cadeau de bienvenue',
+      launched: 'Votre cadeau de bienvenue est en cours',
+      delay: 'Nos excuses concernant votre cadeau de bienvenue',
+      custom: 'Message de Social Boost Horizon',
+    };
+    let bodyText;
+    if (type === 'confirmation') bodyText = `Bonjour ${name}, nous avons bien reçu votre demande de cadeau de bienvenue. Merci de confirmer que le lien fourni est correct : ${gift.link || 'aucun lien indiqué'}.`;
+    else if (type === 'launched') bodyText = `Bonjour ${name}, votre cadeau de bienvenue (${gift.giftType || 'cadeau'}) est en cours de traitement. Merci pour votre patience.`;
+    else if (type === 'delay') bodyText = `Bonjour ${name}, nous vous présentons nos excuses pour le retard dans le traitement de votre cadeau de bienvenue. Notre équipe reprend le suivi de votre demande.`;
+    else bodyText = String(customMessage || '').trim();
+    if (!bodyText) return res.status(400).json({ success: false, error: 'Le message personnalisé est vide.' });
+
+    const html = `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#1f2937;line-height:1.6"><h2>${escapeHtmlEmail(titles[type])}</h2><p>${escapeHtmlEmail(bodyText).replace(/\n/g, '<br>')}</p><hr><p style="font-size:12px;color:#6b7280">${appName} — équipe assistance</p></div>`;
+    const resendResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: process.env.RESEND_FROM_EMAIL, to: [email], subject: titles[type], html }),
+    });
+    const resendBody = await resendResponse.json().catch(() => ({}));
+    if (!resendResponse.ok) {
+      console.error('Resend cadeau erreur:', resendResponse.status, resendBody);
+      return res.status(502).json({ success: false, error: 'Le fournisseur email a refusé l’envoi.' });
+    }
+    await giftRef.update({
+      lastEmailAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastEmailType: type,
+      lastEmailStatus: 'accepted',
+      lastEmailProviderId: resendBody.id || null,
+    });
+    clearGiftsCache();
+    res.json({ success: true, email: email.replace(/^(.).+(@.*)$/, '$1***$2'), providerId: resendBody.id || null, status: 'accepted' });
+  } catch (error) {
+    console.error('Erreur /api/admin/gifts/:id/email:', error);
+    res.status(500).json({ success: false, error: 'Erreur pendant l’envoi du message.' });
+  }
+});
+
+function financialWindow(range) {
+  const now = new Date();
+  const dayMs = 24 * 60 * 60 * 1000;
+  // Social Boost Horizon est exploité au Cameroun (Africa/Douala, UTC+1).
+  // On construit les limites des jours/mois/années sur le calendrier local,
+  // puis on les convertit en instants UTC pour les requêtes Firestore.
+  const businessOffsetMs = 60 * 60 * 1000;
+  const localNow = new Date(now.getTime() + businessOffsetMs);
+  const startOfToday = new Date(Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate()) - businessOffsetMs);
+  if (range === 'all') return { start: null, end: null, previousStart: null, previousEnd: null };
+  if (range === 'today') {
+    return { start: startOfToday, end: now, previousStart: new Date(startOfToday.getTime() - dayMs), previousEnd: new Date(now.getTime() - dayMs) };
+  }
+  if (range === 'yesterday') {
+    const start = new Date(startOfToday.getTime() - dayMs);
+    return { start, end: startOfToday, previousStart: new Date(start.getTime() - dayMs), previousEnd: start };
+  }
+  if (range === 'dayBefore') {
+    const start = new Date(startOfToday.getTime() - 2 * dayMs);
+    const end = new Date(startOfToday.getTime() - dayMs);
+    return { start, end, previousStart: new Date(start.getTime() - dayMs), previousEnd: start };
+  }
+  if (range === 'year') {
+    const start = new Date(Date.UTC(localNow.getUTCFullYear(), 0, 1) - businessOffsetMs);
+    const previousStart = new Date(Date.UTC(localNow.getUTCFullYear() - 1, 0, 1) - businessOffsetMs);
+    const previousEnd = new Date(Date.UTC(localNow.getUTCFullYear() - 1, localNow.getUTCMonth(), localNow.getUTCDate(), localNow.getUTCHours(), localNow.getUTCMinutes(), localNow.getUTCSeconds()) - businessOffsetMs);
+    return { start, end: now, previousStart, previousEnd };
+  }
+  if (range === 'month') {
+    const start = new Date(Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), 1) - businessOffsetMs);
+    const elapsed = now.getTime() - start.getTime();
+    return { start, end: now, previousStart: new Date(start.getTime() - elapsed), previousEnd: start };
+  }
+  const durationDays = range === '7d' ? 7 : range === '90d' ? 90 : 30;
+  const durationMs = durationDays * 24 * 60 * 60 * 1000;
+  return { start: new Date(now.getTime() - durationMs), end: now, previousStart: new Date(now.getTime() - 2 * durationMs), previousEnd: new Date(now.getTime() - durationMs) };
+}
+
+function applyTimeWindow(query, start, end) {
+  if (start) query = query.where('createdAt', '>=', admin.firestore.Timestamp.fromDate(start));
+  if (end) query = query.where('createdAt', '<', admin.firestore.Timestamp.fromDate(end));
+  return query;
+}
+
+// Certaines données historiques stockent createdAt comme Timestamp et d'autres
+// comme une chaîne ISO. Requêtes séparées évitent de confondre ces deux types,
+// sans parcourir les documents individuellement.
+function applyIsoTimeWindow(query, start, end) {
+  if (start) query = query.where('createdAt', '>=', start.toISOString());
+  if (end) query = query.where('createdAt', '<', end.toISOString());
+  return query;
+}
+
+async function countInWindow(collectionRef, start, end) {
+  if (!start && !end) {
+    const result = await collectionRef.count().get();
+    return result.data().count || 0;
+  }
+  const [timestampResult, isoResult] = await Promise.all([
+    applyTimeWindow(collectionRef, start, end).count().get(),
+    applyIsoTimeWindow(collectionRef, start, end).count().get(),
+  ]);
+  return (timestampResult.data().count || 0) + (isoResult.data().count || 0);
+}
+
+async function aggregateInWindow(collectionRef, start, end, fields) {
+  if (!start && !end) {
+    const result = await collectionRef.aggregate(fields).get();
+    return result.data() || {};
+  }
+  const [timestampResult, isoResult] = await Promise.all([
+    applyTimeWindow(collectionRef, start, end).aggregate(fields).get(),
+    applyIsoTimeWindow(collectionRef, start, end).aggregate(fields).get(),
+  ]);
+  const timestampData = timestampResult.data() || {};
+  const isoData = isoResult.data() || {};
+  const merged = {};
+  for (const key of Object.keys(fields)) {
+    merged[key] = Number(timestampData[key] || 0) + Number(isoData[key] || 0);
+  }
+  return merged;
+}
+
+async function countCreatedBetween(collectionRef, start, end) {
+  return countInWindow(collectionRef, start, end);
+}
+
+const FINANCIAL_AGGREGATES = {
+  sales: admin.firestore.AggregateField.sum('priceXAF'),
+  refunds: admin.firestore.AggregateField.sum('refundedAmount'),
+  supplierCost: admin.firestore.AggregateField.sum('providerCostXAF'),
+  recordedGrossProfit: admin.firestore.AggregateField.sum('estimatedProfitXAF'),
+};
+
+async function readFinancialPeriod(range) {
+  const bounds = financialWindow(range);
+  const autoBase = db.collection('autoOrders');
+  const legacyBase = db.collection('commandes');
+  const [autoCount, legacyCount, d] = await Promise.all([
+    countInWindow(autoBase, bounds.start, bounds.end),
+    countInWindow(legacyBase, bounds.start, bounds.end),
+    aggregateInWindow(autoBase, bounds.start, bounds.end, FINANCIAL_AGGREGATES),
+  ]);
+  const sales = Number(d.sales || 0);
+  const refunds = Number(d.refunds || 0);
+  return {
+    range,
+    start: bounds.start ? bounds.start.toISOString() : null,
+    end: bounds.end ? bounds.end.toISOString() : new Date().toISOString(),
+    autoOrdersCount: autoCount,
+    legacyOrdersCount: legacyCount,
+    totalOrders: autoCount + legacyCount,
+    autoOrdersGrossSales: sales,
+    autoOrdersRefunds: refunds,
+    autoOrdersNetSales: Math.max(0, sales - refunds),
+    supplierCostWithSnapshots: Number(d.supplierCost || 0),
+    recordedGrossProfitBeforeRefunds: Number(d.recordedGrossProfit || 0),
+    financialScope: 'Les ventes et les coûts calculés concernent autoOrders. Les commandes classiques sont comptées, mais leurs champs financiers ne sont pas encore normalisés. Les filtres de période prennent en charge les createdAt stockés en Timestamp ou en chaîne ISO.',
+  };
+}
+
+adminRouter.get('/financials', async (req, res) => {
+  try {
+    const acceptedRanges = ['today', 'yesterday', 'dayBefore', '7d', '30d', '90d', 'month', 'year', 'all'];
+    const range = acceptedRanges.includes(String(req.query.range || '30d')) ? String(req.query.range || '30d') : '30d';
+    const cacheKey = `financials:${range}`;
+    const sharedKey = `financials-${range}`;
+    const cached = adminMemoryCache.financialsMap.get(cacheKey);
+    const forceRefresh = String(req.query.refresh || '') === '1';
+    if (!forceRefresh && cached && Date.now() < cached.expires) return res.json({ success: true, data: cached.data, previous: cached.previous, cached: true, cacheScope: 'instance' });
+    if (!forceRefresh) {
+      const shared = await getSharedAdminCache(sharedKey);
+      if (shared) {
+        const ttl = Math.max(1000, shared.expiresAtMs - Date.now());
+        adminMemoryCache.financialsMap.set(cacheKey, { ...shared.payload, expires: Date.now() + ttl });
+        return res.json({ success: true, data: shared.payload.data, previous: shared.payload.previous, cached: true, cacheScope: 'shared' });
+      }
+    }
+
+    const bounds = financialWindow(range);
+    const current = await readFinancialPeriod(range);
+    let previous = null;
+    if (bounds.previousStart && bounds.previousEnd) {
+      // Comparaison sur une période précédente de même durée, sauf year qui compare à la même période de l'année passée.
+      const startIso = bounds.previousStart.toISOString();
+      const endIso = bounds.previousEnd.toISOString();
+      const autoBase = db.collection('autoOrders');
+      const legacyBase = db.collection('commandes');
+      const [autoCount, legacyCount, v] = await Promise.all([
+        countInWindow(autoBase, bounds.previousStart, bounds.previousEnd),
+        countInWindow(legacyBase, bounds.previousStart, bounds.previousEnd),
+        aggregateInWindow(autoBase, bounds.previousStart, bounds.previousEnd, FINANCIAL_AGGREGATES),
+      ]);
+      const sales = Number(v.sales || 0), refunds = Number(v.refunds || 0);
+      previous = {
+        start: startIso, end: endIso,
+        autoOrdersCount: autoCount,
+        legacyOrdersCount: legacyCount,
+        totalOrders: autoCount + legacyCount,
+        autoOrdersGrossSales: sales, autoOrdersRefunds: refunds,
+        autoOrdersNetSales: Math.max(0, sales - refunds),
+        supplierCostWithSnapshots: Number(v.supplierCost || 0),
+        recordedGrossProfitBeforeRefunds: Number(v.recordedGrossProfit || 0),
+      };
+    }
+
+    const [allAutoOrders, marginSnapshotOrders] = await Promise.all([
+      db.collection('autoOrders').count().get(),
+      db.collection('autoOrders').where('profitCalculationVersion', '==', 1).count().get(),
+    ]);
+    current.profitSnapshotOrdersAllTime = marginSnapshotOrders.data().count || 0;
+    current.autoOrdersAllTime = allAutoOrders.data().count || 0;
+    current.profitSnapshotCoveragePctAllTime = current.autoOrdersAllTime
+      ? Math.round(current.profitSnapshotOrdersAllTime / current.autoOrdersAllTime * 1000) / 10
+      : 0;
+    const salesBase = previous && previous.autoOrdersNetSales > 0 ? previous.autoOrdersNetSales : 0;
+    current.netSalesChangePct = previous && salesBase > 0
+      ? Math.round(((current.autoOrdersNetSales - previous.autoOrdersNetSales) / salesBase) * 1000) / 10
+      : null;
+    const orderBase = previous && previous.totalOrders > 0 ? previous.totalOrders : 0;
+    current.ordersChangePct = previous && orderBase > 0
+      ? Math.round(((current.totalOrders - previous.totalOrders) / orderBase) * 1000) / 10
+      : null;
+
+    adminMemoryCache.financialsMap.set(cacheKey, { data: current, previous, expires: Date.now() + 15 * 60 * 1000 });
+    await setSharedAdminCache(sharedKey, { data: current, previous }, 15 * 60 * 1000);
+    res.json({ success: true, data: current, previous, cached: false });
+  } catch (error) {
+    console.error('Erreur /api/admin/financials:', error);
+    res.status(500).json({ success: false, error: 'Impossible de charger les données financières. Vérifiez les index Firestore et les données de commandes.' });
   }
 });
 
@@ -3367,6 +3999,8 @@ adminRouter.post('/cache/clear', (req, res) => {
   adminMemoryCache.overview.data = null;   adminMemoryCache.overview.expires = 0;
   adminMemoryCache.topUsers.data = null;   adminMemoryCache.topUsers.expires = 0;
   adminMemoryCache.usersStats.data = null; adminMemoryCache.usersStats.expires = 0;
+  adminMemoryCache.financialsMap.clear();
+  adminMemoryCache.orderSummary.data = null; adminMemoryCache.orderSummary.expires = 0;
   adminMemoryCache.giftsMap.clear();
   res.json({ success: true, message: 'Cache vidé.' });
 });
