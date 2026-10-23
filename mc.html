@@ -136,6 +136,10 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
 .btn-wa-primary:hover{background:#1eb856;transform:translateY(-1px)}
 .footer{text-align:center;padding:24px 0;color:var(--text-dim);font-size:.8rem;border-top:1px solid var(--border);margin-top:32px}
 .footer strong{color:var(--gold)}
+.action-row{display:flex;gap:5px;flex-wrap:wrap}
+.kpi-warning{color:#fbbf24!important}
+#emailCustomText{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:14px;border-radius:var(--radius-sm);font-family:inherit;font-size:.84rem;line-height:1.6;resize:vertical;min-height:130px;display:none}
+#emailPreview{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:14px;border-radius:var(--radius-sm);font-family:inherit;font-size:.84rem;line-height:1.6;resize:vertical;min-height:130px}
 .mobile-toggle{display:none;position:fixed;top:16px;left:16px;z-index:200;width:42px;height:42px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border);color:var(--text);font-size:1.1rem;cursor:pointer;align-items:center;justify-content:center}
 @media(max-width:1024px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.main-content{margin-left:0;padding:20px}.mobile-toggle{display:flex}}
 @media(max-width:640px){.kpi-grid{grid-template-columns:1fr}.filter-bar{flex-direction:column;align-items:stretch}.filter-bar select,.filter-bar input{width:100%}.main-content{padding:16px}.top-bar{flex-direction:column;align-items:flex-start}}
@@ -165,6 +169,9 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
     <nav class="sidebar-nav">
       <div class="nav-section">Tableau de bord</div>
       <button class="nav-item active" data-view="overview" onclick="switchView('overview')"><i class="fas fa-chart-pie"></i> Vue d'ensemble</button>
+      <button class="nav-item" data-view="finances" onclick="switchView('finances')"><i class="fas fa-chart-line"></i> Finances & marges</button>
+      <button class="nav-item" data-view="orders" onclick="switchView('orders')"><i class="fas fa-cart-shopping"></i> Commandes</button>
+      <button class="nav-item" data-view="customers" onclick="switchView('customers')"><i class="fas fa-users"></i> Clients & utilisateurs</button>
       <button class="nav-item" data-view="services" onclick="switchView('services')"><i class="fas fa-layer-group"></i> Services & Prix</button>
       <div class="nav-section">Gestion</div>
       <button class="nav-item" data-view="gifts" onclick="switchView('gifts')"><i class="fas fa-gift"></i> Cadeaux <span class="badge-count" id="navGiftCount" style="display:none;">0</span></button>
@@ -204,9 +211,15 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
           <div class="kpi-value" id="kpiTotalOrders">—</div>
           <div class="kpi-sub" id="kpiPendingOrders">—</div>
         </div>
+        <div class="kpi-card" style="--accent:var(--purple);--accent-dim:var(--purple-dim);">
+          <div class="kpi-icon"><i class="fas fa-boxes-stacked"></i></div>
+          <div class="kpi-label">Commandes classiques</div>
+          <div class="kpi-value" id="kpiLegacyOrders">—</div>
+          <div class="kpi-sub">Collection commandes</div>
+        </div>
         <div class="kpi-card" style="--accent:var(--green);--accent-dim:var(--green-dim);">
           <div class="kpi-icon"><i class="fas fa-coins"></i></div>
-          <div class="kpi-label">Revenus totaux</div>
+          <div class="kpi-label">Ventes nettes (autoOrders)</div>
           <div class="kpi-value" id="kpiRevenue">—</div>
           <div class="kpi-sub" id="kpiRevenueSub">—</div>
         </div>
@@ -221,7 +234,7 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
       <div class="section">
         <div class="section-header">
           <div class="section-title"><i class="fas fa-trophy"></i> Top utilisateurs (sur demande)</div>
-          <button class="btn btn-outline btn-sm" onclick="loadTopUsers()"><i class="fas fa-sync-alt"></i> Charger</button>
+          <button class="btn btn-outline btn-sm" onclick="loadTopUsers(true)"><i class="fas fa-sync-alt"></i> Actualiser</button>
         </div>
         <div class="table-wrap">
           <table>
@@ -237,8 +250,79 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
           <div style="background:var(--bg);padding:16px;border-radius:10px;border:1px solid var(--border);text-align:center;"><div style="font-size:.72rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;margin-bottom:6px;">MTP</div><div style="font-size:1.4rem;font-weight:800;color:var(--blue);" id="multMTP">–</div></div>
           <div style="background:var(--bg);padding:16px;border-radius:10px;border:1px solid var(--border);text-align:center;"><div style="font-size:.72rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;margin-bottom:6px;">EXO</div><div style="font-size:1.4rem;font-weight:800;color:var(--gold);" id="multEXO">–</div></div>
           <div style="background:var(--bg);padding:16px;border-radius:10px;border:1px solid var(--border);text-align:center;"><div style="font-size:.72rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;margin-bottom:6px;">AfriqueBoost</div><div style="font-size:1.4rem;font-weight:800;color:#ff8888;" id="multAFB">–</div></div>
-          <div style="background:var(--bg);padding:16px;border-radius:10px;border:1px solid var(--border);text-align:center;"><div style="font-size:.72rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;margin-bottom:6px;">SMMGen</div><div style="font-size:1.4rem;font-weight:800;color:var(--purple);" id="multSMMGen">–</div></div>
+          <div style="background:var(--bg);padding:16px;border-radius:10px;border:1px solid var(--border);text-align:center;"><div style="font-size:.72rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;margin-bottom:6px;">SMMWiz</div><div style="font-size:1.4rem;font-weight:800;color:var(--purple);" id="multSMMWiz">–</div></div>
+          <div style="background:var(--bg);padding:16px;border-radius:10px;border:1px solid var(--border);text-align:center;"><div style="font-size:.72rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;margin-bottom:6px;">SMMGen historique</div><div style="font-size:1.4rem;font-weight:800;color:var(--purple);" id="multSMMGen">–</div></div>
         </div>
+      </div>
+    </div>
+
+    <!-- ═══ FINANCES ═══ -->
+    <div id="view-finances" class="view" style="display:none;">
+      <div class="top-bar">
+        <div><div class="page-title">Finances & rentabilité</div><div class="page-subtitle">Comparaison de périodes, ventes nettes et marges enregistrées</div></div>
+        <div class="top-actions">
+          <div class="filter-group"><label for="financialRange">Période</label><select id="financialRange" onchange="loadFinancials()"><option value="today">Aujourd’hui</option><option value="yesterday">Hier</option><option value="dayBefore">Avant-hier</option><option value="7d">7 derniers jours</option><option value="30d" selected>30 derniers jours</option><option value="90d">90 derniers jours</option><option value="month">Mois en cours</option><option value="year">Année en cours vs année précédente</option><option value="all">Depuis le début</option></select></div>
+          <button class="btn btn-outline" onclick="loadFinancials(true)"><i class="fas fa-sync-alt"></i> Actualiser</button>
+        </div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card" style="--accent:var(--blue);--accent-dim:var(--blue-dim);"><div class="kpi-icon"><i class="fas fa-box"></i></div><div class="kpi-label">Commandes sur la période</div><div class="kpi-value" id="finOrders">—</div><div class="kpi-sub" id="finOrdersCompare">Comparaison indisponible</div></div>
+        <div class="kpi-card" style="--accent:var(--green);--accent-dim:var(--green-dim);"><div class="kpi-icon"><i class="fas fa-coins"></i></div><div class="kpi-label">Ventes nettes automatisées</div><div class="kpi-value" id="finSales">—</div><div class="kpi-sub" id="finSalesCompare">Comparaison indisponible</div></div>
+        <div class="kpi-card" style="--accent:var(--red);--accent-dim:var(--red-dim);"><div class="kpi-icon"><i class="fas fa-rotate-left"></i></div><div class="kpi-label">Remboursements enregistrés</div><div class="kpi-value" id="finRefunds">—</div><div class="kpi-sub">autoOrders uniquement</div></div>
+        <div class="kpi-card" style="--accent:var(--purple);--accent-dim:var(--purple-dim);"><div class="kpi-icon"><i class="fas fa-truck"></i></div><div class="kpi-label">Coût fournisseur enregistré</div><div class="kpi-value" id="finSupplierCost">—</div><div class="kpi-sub">Commandes avec instantané de coût</div></div>
+        <div class="kpi-card" style="--accent:var(--gold);--accent-dim:var(--gold-dim);"><div class="kpi-icon"><i class="fas fa-chart-pie"></i></div><div class="kpi-label">Marge brute estimée enregistrée</div><div class="kpi-value" id="finGrossProfit">—</div><div class="kpi-sub">Avant remboursements et frais variables</div></div>
+        <div class="kpi-card" style="--accent:var(--blue);--accent-dim:var(--blue-dim);"><div class="kpi-icon"><i class="fas fa-database"></i></div><div class="kpi-label">Couverture des coûts enregistrés</div><div class="kpi-value" id="finCoverage">—</div><div class="kpi-sub" id="finCoverageSub">Historique autoOrders</div></div>
+      </div>
+      <div class="section">
+        <div class="section-header"><div class="section-title"><i class="fas fa-scale-balanced"></i> Comparaison avec la période précédente</div><span class="cache-info" id="financialCacheInfo" style="display:none;"><i class="fas fa-shield-halved"></i><span id="financialCacheText">—</span></span></div>
+        <div class="table-wrap"><table><thead><tr><th>Indicateur</th><th>Période sélectionnée</th><th>Période précédente</th><th>Évolution</th></tr></thead><tbody id="financialComparisonBody"><tr><td colspan="4" class="loading">Sélectionnez une période pour calculer la comparaison.</td></tr></tbody></table></div>
+        <div id="financialScopeNote" style="margin-top:16px;padding:14px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-muted);font-size:.82rem;line-height:1.65;">Les marges seront affichées seulement lorsque le coût fournisseur est enregistré pour les commandes concernées.</div>
+      </div>
+    </div>
+
+    <!-- ═══ ORDERS ═══ -->
+    <div id="view-orders" class="view" style="display:none;">
+      <div class="top-bar">
+        <div><div class="page-title">Commandes</div><div class="page-subtitle">Historique paginé des commandes automatisées et classiques</div></div>
+        <div class="top-actions"><button class="btn btn-outline" onclick="refreshOrdersView()"><i class="fas fa-sync-alt"></i> Actualiser</button></div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card" style="--accent:var(--blue);--accent-dim:var(--blue-dim);"><div class="kpi-icon"><i class="fas fa-boxes-stacked"></i></div><div class="kpi-label">Toutes les commandes</div><div class="kpi-value" id="orderStatTotal">—</div><div class="kpi-sub">Les deux collections connues</div></div>
+        <div class="kpi-card" style="--accent:var(--gold);--accent-dim:var(--gold-dim);"><div class="kpi-icon"><i class="fas fa-clock"></i></div><div class="kpi-label">En attente</div><div class="kpi-value" id="orderStatPending">—</div></div>
+        <div class="kpi-card" style="--accent:var(--purple);--accent-dim:var(--purple-dim);"><div class="kpi-icon"><i class="fas fa-spinner"></i></div><div class="kpi-label">En cours</div><div class="kpi-value" id="orderStatInProgress">—</div></div>
+        <div class="kpi-card" style="--accent:var(--green);--accent-dim:var(--green-dim);"><div class="kpi-icon"><i class="fas fa-check-circle"></i></div><div class="kpi-label">Terminées</div><div class="kpi-value" id="orderStatCompleted">—</div></div>
+        <div class="kpi-card" style="--accent:var(--red);--accent-dim:var(--red-dim);"><div class="kpi-icon"><i class="fas fa-ban"></i></div><div class="kpi-label">Annulées</div><div class="kpi-value" id="orderStatCancelled">—</div></div>
+        <div class="kpi-card" style="--accent:var(--red);--accent-dim:var(--red-dim);"><div class="kpi-icon"><i class="fas fa-triangle-exclamation"></i></div><div class="kpi-label">Échouées</div><div class="kpi-value" id="orderStatFailed">—</div></div>
+      </div>
+      <div class="section">
+        <div class="filter-bar">
+          <div class="filter-group"><label>Recherche</label><input id="orderSearch" type="text" placeholder="ID, service, UID, fournisseur…" oninput="filterOrders()" style="min-width:220px;"></div>
+          <div class="filter-group"><label>Statut</label><select id="orderStatusFilter" onchange="filterOrders()"><option value="all">Tous</option><option>En attente</option><option>En cours</option><option>Terminé</option><option>Terminée</option><option>Annulé</option><option>Annulée</option><option>Partiel</option><option>Échouée</option></select></div>
+          <div class="filter-group"><label>Source</label><select id="orderSourceFilter" onchange="filterOrders()"><option value="all">Toutes</option><option value="autoOrders">Commandes automatisées</option><option value="commandes">Commandes classiques</option></select></div>
+          <div class="cache-info" id="ordersInfo" style="display:flex;"><i class="fas fa-shield-halved"></i><span id="ordersInfoText">Chargement limité par page</span></div>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>Date</th><th>Référence</th><th>Client (UID)</th><th>Source</th><th>Service</th><th>Montant</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="ordersBody"><tr><td colspan="8" class="loading">Ouvrez cette vue pour charger les commandes.</td></tr></tbody></table></div>
+        <div class="stats-bar" id="ordersStats"></div>
+        <div style="display:flex;justify-content:center;margin-top:16px;"><button class="btn btn-outline" id="ordersMoreBtn" onclick="loadMoreOrders()" style="display:none;"><i class="fas fa-chevron-down"></i> Charger la suite</button></div>
+        <p style="font-size:.75rem;color:var(--text-dim);margin-top:12px;line-height:1.6;">Les compteurs de statut couvrent les deux collections connues et sont mis en cache 15 minutes. Le tableau est paginé; ses filtres de texte s'appliquent aux commandes déjà chargées. Pour chercher l'historique d'une personne, utilisez « Clients & utilisateurs ». Le montant affiché est le champ financier disponible, pas un bénéfice.</p>
+      </div>
+    </div>
+
+    <!-- ═══ CUSTOMERS ═══ -->
+    <div id="view-customers" class="view" style="display:none;">
+      <div class="top-bar">
+        <div><div class="page-title">Clients & utilisateurs</div><div class="page-subtitle">Recherche, activité disponible, historique et contact direct</div></div>
+        <div class="top-actions"><button class="btn btn-outline" onclick="loadCustomers(true)"><i class="fas fa-sync-alt"></i> Actualiser</button></div>
+      </div>
+      <div class="section">
+        <div class="filter-bar">
+          <div class="filter-group"><label>Recherche</label><input id="customerSearch" type="text" placeholder="Nom, début du nom, email exact ou UID" onkeydown="if(event.key==='Enter')loadCustomers(true)" style="min-width:280px;"></div>
+          <button class="btn btn-gold" onclick="loadCustomers(true)"><i class="fas fa-search"></i> Rechercher</button>
+          <div class="cache-info"><i class="fas fa-shield-halved"></i> <span>25 utilisateurs/page; pas de lecture globale</span></div>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>Inscription</th><th>Utilisateur</th><th>Pays</th><th>Commandes</th><th>Total dépensé</th><th>Solde</th><th>Dernière activité</th><th>Contacter</th></tr></thead><tbody id="customersBody"><tr><td colspan="8" class="loading">Ouvrez cette vue pour charger les utilisateurs.</td></tr></tbody></table></div>
+        <div class="stats-bar" id="customersStats"></div>
+        <div style="display:flex;justify-content:center;margin-top:16px;"><button class="btn btn-outline" id="customersMoreBtn" onclick="loadMoreCustomers()" style="display:none;"><i class="fas fa-chevron-down"></i> Charger la suite</button></div>
       </div>
     </div>
 
@@ -257,7 +341,7 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
           <div class="filter-group"><label>Fournisseur</label>
             <select id="serviceFilter" onchange="filterServices()">
               <option value="all">Tous</option><option value="MTP">MTP</option><option value="EXO">EXO</option>
-              <option value="AfriqueBoost">AfriqueBoost</option><option value="SMMGen">SMMGen</option>
+              <option value="AfriqueBoost">AfriqueBoost</option><option value="SMMWiz">SMMWiz</option><option value="SMMGen">SMMGen (ancien)</option>
             </select>
           </div>
           <div class="filter-group"><label>Nom</label><input type="text" id="serviceSearch" placeholder="Rechercher…" oninput="filterServices()" style="min-width:180px;"></div>
@@ -345,7 +429,7 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
         <div><div class="page-title">👥 Statistiques utilisateurs</div><div class="page-subtitle">Agrégats Firestore — lecture minimale</div></div>
         <div class="top-actions">
           <div class="cache-info" id="usersCacheInfo" style="display:none;"><i class="fas fa-shield-halved"></i> <span id="usersCacheText">—</span></div>
-          <button class="btn btn-outline" onclick="loadUsersStats()"><i class="fas fa-sync-alt"></i> Recharger</button>
+          <button class="btn btn-outline" onclick="loadUsersStats(true)"><i class="fas fa-sync-alt"></i> Recharger</button>
         </div>
       </div>
 
@@ -354,6 +438,7 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
         <div class="kpi-card" style="--accent:var(--blue);--accent-dim:var(--blue-dim);"><div class="kpi-icon"><i class="fas fa-user-plus"></i></div><div class="kpi-label">Nouveaux (7 jours)</div><div class="kpi-value" id="usersNew7d">—</div></div>
         <div class="kpi-card" style="--accent:var(--green);--accent-dim:var(--green-dim);"><div class="kpi-icon"><i class="fas fa-wallet"></i></div><div class="kpi-label">Solde total plateforme</div><div class="kpi-value" id="usersTotalBalance">—</div></div>
         <div class="kpi-card" style="--accent:var(--purple);--accent-dim:var(--purple-dim);"><div class="kpi-icon"><i class="fas fa-chart-line"></i></div><div class="kpi-label">Solde moyen</div><div class="kpi-value" id="usersAvgBalance">—</div></div>
+        <div class="kpi-card" style="--accent:var(--blue);--accent-dim:var(--blue-dim);"><div class="kpi-icon"><i class="fas fa-eye"></i></div><div class="kpi-label">Visites de dashboard (7j)</div><div class="kpi-value" id="usersDashboardVisits7d">—</div><div class="kpi-sub">Visites enregistrées, pas nécessairement des achats</div></div>
       </div>
 
       <div class="section">
@@ -362,8 +447,8 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
           Ces statistiques utilisent <strong style="color:var(--green);">uniquement</strong> des agrégats Firestore
           (<code style="background:var(--bg);padding:2px 8px;border-radius:4px;color:var(--gold);">count()</code> et
           <code style="background:var(--bg);padding:2px 8px;border-radius:4px;color:var(--gold);">sum()</code>).
-          <br>Chaque appel consomme <strong>~3 lectures</strong>, quelle que soit la taille de votre base.
-          <br>Le résultat est <strong>mis en cache 60 minutes</strong> — les refresh répétés sont gratuits.
+          <br>Le calcul utilise <strong>5 requêtes Firestore</strong> au maximum sur un cache expiré; la date d'inscription est lue en chargeant séparément les formats Timestamp et chaîne ISO.
+          <br>Les résultats sont mis en cache côté serveur et dans Firestore pendant <strong>60 minutes</strong> pour réduire les recalculs entre instances Vercel.
         </p>
       </div>
     </div>
@@ -396,8 +481,35 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
   </div>
 </div>
 
+<!-- Email gift modal -->
+<div id="emailModal" class="wa-modal-overlay" onclick="if(event.target===this)closeGiftEmailModal()">
+  <div class="wa-modal">
+    <div class="wa-modal-header"><h3><i class="fas fa-envelope"></i> Envoyer un email de suivi</h3><button class="wa-modal-close" onclick="closeGiftEmailModal()">&times;</button></div>
+    <div class="wa-modal-body">
+      <div class="wa-recipient" id="emailRecipientInfo" style="background:var(--blue-dim);"><div class="name" style="color:var(--blue);">Destinataire</div></div>
+      <label class="wa-preview-label" for="giftEmailType">Modèle de message</label>
+      <select id="giftEmailType" onchange="updateGiftEmailPreview()" style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;margin-bottom:14px;font-family:inherit;">
+        <option value="confirmation">Confirmer le lien du cadeau</option><option value="launched">Cadeau en cours de traitement</option><option value="delay">Excuses pour le retard</option><option value="custom">Message personnalisé</option>
+      </select>
+      <div class="wa-preview-label"><i class="fas fa-eye"></i> Aperçu du message</div>
+      <textarea id="emailPreview" readonly></textarea>
+      <textarea id="emailCustomText" placeholder="Rédigez votre message personnalisé…" oninput="updateGiftEmailPreview()"></textarea>
+      <p style="font-size:.75rem;color:var(--text-dim);margin-top:10px;">L’API confirme l’acceptation par le fournisseur email; cela ne garantit pas la délivrance dans la boîte de réception.</p>
+    </div>
+    <div class="wa-modal-footer"><button class="btn btn-outline" onclick="closeGiftEmailModal()">Annuler</button><button class="btn btn-gold" id="sendGiftEmailBtn" onclick="sendGiftEmail()"><i class="fas fa-paper-plane"></i> Envoyer l’email</button></div>
+  </div>
+</div>
+
+<!-- Customer details modal -->
+<div id="customerModal" class="wa-modal-overlay" onclick="if(event.target===this)closeCustomerModal()">
+  <div class="wa-modal">
+    <div class="wa-modal-header"><h3><i class="fas fa-user-circle"></i> Fiche client</h3><button class="wa-modal-close" onclick="closeCustomerModal()">&times;</button></div>
+    <div class="wa-modal-body" id="customerDetailBody"><div class="loading">Chargement…</div></div>
+    <div class="wa-modal-footer"><button class="btn btn-outline" onclick="closeCustomerModal()">Fermer</button></div>
+  </div>
+</div>
+
 <script>
-const ADMIN_PASS='209644209644';
 let token=sessionStorage.getItem('sbh_admin_token');
 let allServices=[];
 let allGifts=[];
@@ -407,15 +519,29 @@ let giftsLoaded=false;
 
 if(token){document.getElementById('authOverlay').style.display='none';document.getElementById('app').style.display='block';loadOverview();}
 
-function unlock(){const p=document.getElementById('adminPass').value;if(p===ADMIN_PASS){sessionStorage.setItem('sbh_admin_token',p);token=p;document.getElementById('authOverlay').style.display='none';document.getElementById('app').style.display='block';loadOverview();}else document.getElementById('loginError').style.display='block';}
-function logout(){sessionStorage.removeItem('sbh_admin_token');location.reload();}
-function showError(m){const b=document.getElementById('errorBanner');b.innerHTML='<i class="fas fa-exclamation-circle"></i> '+m;b.style.display='flex';setTimeout(()=>b.style.display='none',8000);}
+async function unlock(){
+  const input=document.getElementById('adminPass');const btn=document.querySelector('.auth-box .btn-primary');
+  const p=input.value;const err=document.getElementById('loginError');err.style.display='none';
+  if(!p){err.textContent='Saisissez le mot de passe administrateur.';err.style.display='block';return;}
+  btn.disabled=true;btn.textContent='Vérification…';
+  try{
+    const res=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:p})});
+    const d=await res.json().catch(()=>({}));
+    if(!res.ok||!d.success||!d.token)throw new Error(d.error||'Identifiants incorrects.');
+    token=d.token;sessionStorage.setItem('sbh_admin_token',token);
+    document.getElementById('authOverlay').style.display='none';document.getElementById('app').style.display='block';loadOverview();
+  }catch(e){err.textContent=e.message||'Connexion impossible.';err.style.display='block';}
+  finally{btn.disabled=false;btn.textContent='Déverrouiller';input.value='';}
+}
+function logout(){sessionStorage.removeItem('sbh_admin_token');token=null;location.reload();}
+function showError(m){const b=document.getElementById('errorBanner');b.textContent='';const i=document.createElement('i');i.className='fas fa-exclamation-circle';b.appendChild(i);b.appendChild(document.createTextNode(' '+m));b.style.display='flex';setTimeout(()=>b.style.display='none',10000);}
 
 async function fetchAdmin(ep,opts={}){
-  const res=await fetch(`/api/admin${ep}`,{...opts,headers:{'x-admin-password':token,'Content-Type':'application/json',...(opts.headers||{})}});
-  if(res.status===403){logout();throw new Error('Session expirée.');}
-  if(!res.ok)throw new Error(`Erreur ${res.status}`);
-  return res.json();
+  const res=await fetch(`/api/admin${ep}`,{...opts,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json',...(opts.headers||{})}});
+  if(res.status===401||res.status===403){logout();throw new Error('Session administrateur expirée.');}
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok||data.success===false)throw new Error(data.error||`Erreur ${res.status}`);
+  return data;
 }
 
 function switchView(view){
@@ -424,29 +550,37 @@ function switchView(view){
   document.getElementById('view-'+view).style.display='block';
   document.querySelector(`.nav-item[data-view="${view}"]`).classList.add('active');
   if(view==='services'&&allServices.length===0)loadServices();
+  if(view==='finances'&&!financialsLoaded)loadFinancials();
   if(view==='gifts'&&!giftsLoaded){giftsLoaded=true;loadGifts();}
   if(view==='users')loadUsersStats();
+  if(view==='orders'){if(allOrders.length===0)loadOrders(true);if(!orderSummaryLoaded)loadOrderSummary();}
+  if(view==='customers'&&allCustomers.length===0)loadCustomers(true);
+  document.querySelector('.sidebar').classList.remove('open');
 }
 
 async function forceRefresh(){
-  try{await fetchAdmin('/cache/clear',{method:'POST'});showToast('Cache vidé — rechargement…');}catch(e){}
+  try{await fetchAdmin('/cache/clear',{method:'POST'});showToast('Actualisation forcée…');}catch(e){}
   loadOverview(true);
+  if(document.getElementById('view-finances')?.style.display!=='none')loadFinancials(true);
+  if(document.getElementById('view-orders')?.style.display!=='none'){loadOrders(true);loadOrderSummary(true);}
 }
 
 function showToast(msg){const t=document.createElement('div');t.textContent='✅ '+msg;t.style.cssText='position:fixed;bottom:24px;right:24px;background:var(--green);color:white;padding:12px 22px;border-radius:10px;z-index:9999;font-weight:600;font-size:.85rem;box-shadow:0 8px 24px rgba(0,0,0,.5);';document.body.appendChild(t);setTimeout(()=>t.remove(),2000);}
 
 // ═══ OVERVIEW ═══
-async function loadOverview(){
+async function loadOverview(force=false){
   try{
-    const d=await fetchAdmin('/overview');
+    const d=await fetchAdmin('/overview'+(force?'?refresh=1':''));
     if(d.success){
       const s=d.data;
       document.getElementById('kpiTotalUsers').textContent=(s.totalUsers||0).toLocaleString();
       document.getElementById('kpiNewUsers').textContent=`+${s.newUsers7d||0} cette semaine`;
-      document.getElementById('kpiTotalOrders').textContent=(s.totalOrders||0).toLocaleString();
-      document.getElementById('kpiPendingOrders').textContent=`${s.pendingOrders||0} en attente`;
-      document.getElementById('kpiRevenue').textContent=(s.totalRevenue||0).toLocaleString('fr-FR')+' FCFA';
-      document.getElementById('kpiRevenueSub').textContent=`${s.totalOrders||0} commandes`;
+      document.getElementById('kpiTotalOrders').textContent=(s.totalOrders??'—').toLocaleString('fr-FR');
+      document.getElementById('kpiPendingOrders').textContent=`${s.pendingOrders??0} en attente`;
+      document.getElementById('kpiLegacyOrders').textContent=(s.totalLegacyOrders??'—').toLocaleString('fr-FR');
+      document.getElementById('kpiRevenue').textContent=(s.totalRevenue??0).toLocaleString('fr-FR')+' FCFA';
+      document.getElementById('kpiRevenueSub').textContent=`${(s.totalAutoOrders||0).toLocaleString('fr-FR')} commandes automatisées · remboursements déduits`;
+      if(s.totalLegacyOrders>0)showError('Le chiffre d’affaires affiché couvre autoOrders uniquement. Les commandes classiques sont comptées mais leur schéma financier doit être normalisé avant de les additionner.');
       document.getElementById('kpiGiftsPending').textContent=s.giftsPending||0;
       document.getElementById('kpiGiftsLate').textContent=s.giftsLate?`🔴 ${s.giftsLate} en retard`:'Aucun retard';
       if(s.giftsPending>0){const b=document.getElementById('navGiftCount');b.textContent=s.giftsPending;b.style.display='inline-block';}
@@ -455,19 +589,20 @@ async function loadOverview(){
         document.getElementById('multEXO').textContent='×'+(s.multipliers.EXO??'–');
         document.getElementById('multAFB').textContent='×'+(s.multipliers.AfriqueBoost??'–');
         document.getElementById('multSMMGen').textContent='×'+(s.multipliers.SMMGen??'–');
+        const wiz=document.getElementById('multSMMWiz');if(wiz)wiz.textContent='×'+(s.multipliers.SMMWiz??'–');
       }
       const ci=document.getElementById('overviewCacheInfo'),ct=document.getElementById('overviewCacheText');
       ci.style.display='flex';
-      ct.textContent=d.cached?'Données en cache (15 min)':'7 lectures — cache 15 min';
+      ct.textContent=d.cached?(d.cacheScope==='shared'?'Cache Firestore partagé (15 min)':'Cache mémoire (15 min)'):'11 requêtes Firestore — cache partagé (15 min)';
     }
-  }catch(e){console.warn('Overview:',e);}
+  }catch(e){console.warn('Overview:',e);showError('Impossible de charger les statistiques : '+e.message);}
 }
 
-async function loadTopUsers(){
+async function loadTopUsers(force=false){
   const tb=document.getElementById('topUsersBody');
   tb.innerHTML='<tr><td colspan="6" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';
   try{
-    const d=await fetchAdmin('/top-users');
+    const d=await fetchAdmin('/top-users'+(force?'?refresh=1':''));
     if(d.success&&d.users){
       tb.innerHTML='';
       if(!d.users.length){tb.innerHTML='<tr><td colspan="6" class="loading">Aucune donnée</td></tr>';return;}
@@ -483,6 +618,183 @@ async function loadTopUsers(){
       });
     }else tb.innerHTML='<tr><td colspan="6" class="loading">Erreur</td></tr>';
   }catch(e){tb.innerHTML=`<tr><td colspan="6" class="loading">Erreur : ${e.message}</td></tr>`;}
+}
+
+// ═══ FINANCES ═══
+let financialsLoaded=false;
+let financialsLoadedAt=0;
+let financialsLoadedRange=null;
+function fcfa(value){return `${Number(value||0).toLocaleString('fr-FR')} FCFA`;}
+function compareLabel(value){if(value===null||value===undefined)return 'Comparaison indisponible';if(value>0)return `+${value}% vs période précédente`;if(value<0)return `${value}% vs période précédente`;return 'Stable vs période précédente';}
+function comparisonCell(value){if(value===null||value===undefined)return '—';const n=Number(value);return `${n>0?'+':''}${n.toLocaleString('fr-FR')}%`;}
+function percentChange(current,previous){if(previous===null||previous===undefined||Number(previous)===0)return null;return Math.round(((Number(current||0)-Number(previous))/Number(previous))*1000)/10;}
+async function loadFinancials(force=false){
+  const range=document.getElementById('financialRange')?.value||'30d';
+  if(!force&&financialsLoaded&&financialsLoadedRange===range&&Date.now()-financialsLoadedAt<60*1000)return;
+  const body=document.getElementById('financialComparisonBody');
+  body.innerHTML='<tr><td colspan="4" class="loading"><i class="fas fa-circle-notch"></i> Calcul des agrégats…</td></tr>';
+  try{
+    const d=await fetchAdmin('/financials?range='+encodeURIComponent(range)+(force?'&refresh=1':''));
+    const c=d.data||{};const p=d.previous||null;
+    document.getElementById('finOrders').textContent=Number(c.totalOrders||0).toLocaleString('fr-FR');
+    document.getElementById('finOrdersCompare').textContent=compareLabel(c.ordersChangePct);
+    document.getElementById('finSales').textContent=fcfa(c.autoOrdersNetSales);
+    document.getElementById('finSalesCompare').textContent=compareLabel(c.netSalesChangePct);
+    document.getElementById('finRefunds').textContent=fcfa(c.autoOrdersRefunds);
+    document.getElementById('finSupplierCost').textContent=fcfa(c.supplierCostWithSnapshots);
+    document.getElementById('finGrossProfit').textContent=fcfa(c.recordedGrossProfitBeforeRefunds);
+    document.getElementById('finCoverage').textContent=`${Number(c.profitSnapshotCoveragePctAllTime||0).toLocaleString('fr-FR')}%`;
+    document.getElementById('finCoverageSub').textContent=`${Number(c.profitSnapshotOrdersAllTime||0).toLocaleString('fr-FR')} / ${Number(c.autoOrdersAllTime||0).toLocaleString('fr-FR')} commandes automatisées`;
+    const rows=[
+      ['Commandes (les deux collections)',Number(c.totalOrders||0),p?Number(p.totalOrders||0):null,c.ordersChangePct],
+      ['Ventes nettes automatisées',fcfa(c.autoOrdersNetSales),p?fcfa(p.autoOrdersNetSales):null,c.netSalesChangePct],
+      ['Remboursements automatisés',fcfa(c.autoOrdersRefunds),p?fcfa(p.autoOrdersRefunds):null,p?percentChange(c.autoOrdersRefunds,p.autoOrdersRefunds):null],
+      ['Coût fournisseur enregistré',fcfa(c.supplierCostWithSnapshots),p?fcfa(p.supplierCostWithSnapshots):null,p?percentChange(c.supplierCostWithSnapshots,p.supplierCostWithSnapshots):null],
+      ['Marge brute estimée enregistrée',fcfa(c.recordedGrossProfitBeforeRefunds),p?fcfa(p.recordedGrossProfitBeforeRefunds):null,p?percentChange(c.recordedGrossProfitBeforeRefunds,p.recordedGrossProfitBeforeRefunds):null]
+    ];
+    body.innerHTML='';
+    rows.forEach(r=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${esc(r[0])}</td><td><strong>${typeof r[1]==='number'?r[1].toLocaleString('fr-FR'):esc(r[1])}</strong></td><td>${r[2]===null?'—':(typeof r[2]==='number'?r[2].toLocaleString('fr-FR'):esc(r[2]))}</td><td>${comparisonCell(r[3])}</td>`;body.appendChild(tr);});
+    const note=document.getElementById('financialScopeNote');
+    note.textContent=(c.financialScope||'Les ventes nettes et les coûts enregistrés couvrent uniquement autoOrders.')+' Les commandes classiques sont comptées pour la période quand elles possèdent createdAt, mais leur chiffre d’affaires et leur coût ne sont pas encore normalisés. La marge affichée est un instantané estimatif avant remboursements et frais de paiement; les anciennes commandes sans instantané fournisseur ne sont pas couvertes. Les indicateurs de période utilisent les dates createdAt enregistrées.';
+    const ci=document.getElementById('financialCacheInfo'),ct=document.getElementById('financialCacheText');ci.style.display='flex';ct.textContent=d.cached?'Cache actif (15 min)':'Agrégats Firestore · cache 15 min';
+    financialsLoaded=true;financialsLoadedAt=Date.now();financialsLoadedRange=range;
+  }catch(e){body.innerHTML=`<tr><td colspan="4" class="loading">Erreur de chargement : ${esc(e.message)}</td></tr>`;showError('Finances : '+e.message);}
+}
+
+let orderSummaryLoaded=false;let orderSummaryLoadedAt=0;let orderSummaryLoading=false;
+async function loadOrderSummary(force=false){
+  if(orderSummaryLoading)return;
+  if(!force&&orderSummaryLoaded&&Date.now()-orderSummaryLoadedAt<60*1000)return;
+  orderSummaryLoading=true;
+  try{
+    const d=await fetchAdmin('/orders-summary'+(force?'?refresh=1':''));const x=d.data||{};
+    const ids={total:'orderStatTotal',pending:'orderStatPending',inProgress:'orderStatInProgress',completed:'orderStatCompleted',cancelled:'orderStatCancelled',failed:'orderStatFailed'};
+    Object.entries(ids).forEach(([key,id])=>{const el=document.getElementById(id);if(el)el.textContent=Number(x[key]||0).toLocaleString('fr-FR');});
+    const other=Number(x.other||0);document.getElementById('ordersInfoText').textContent=`Statuts mis en cache · ${other} autre(s) statut(s) non classé(s)`;
+    orderSummaryLoaded=true;orderSummaryLoadedAt=Date.now();
+  }catch(e){showError('Compteurs de commandes : '+e.message);}
+  finally{orderSummaryLoading=false;}
+}
+function refreshOrdersView(){allOrders=[];orderCursors={autoOrders:null,commandes:null};loadOrders(true);loadOrderSummary(true);}
+
+// ═══ ORDERS ═══
+let allOrders=[];let orderCursors={autoOrders:null,commandes:null};let ordersLoading=false;
+async function loadOrders(reset=false){
+  if(ordersLoading)return;ordersLoading=true;
+  const tb=document.getElementById('ordersBody');
+  if(reset){allOrders=[];orderCursors={autoOrders:null,commandes:null};tb.innerHTML='<tr><td colspan="8" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';}
+  try{
+    const params=new URLSearchParams({limit:'20'});
+    if(orderCursors.autoOrders)params.set('cursorAuto',orderCursors.autoOrders);
+    if(orderCursors.commandes)params.set('cursorLegacy',orderCursors.commandes);
+    const d=await fetchAdmin('/orders?'+params.toString());
+    allOrders=reset?(d.orders||[]):allOrders.concat(d.orders||[]);orderCursors=d.nextCursors||orderCursors;
+    renderOrders();
+    document.getElementById('ordersMoreBtn').style.display=(orderCursors.autoOrders||orderCursors.commandes)?'inline-flex':'none';
+    document.getElementById('ordersInfoText').textContent=`${allOrders.length} commandes chargées · pagination séparée par collection`;
+  }catch(e){tb.innerHTML=`<tr><td colspan="8" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Commandes : '+e.message);}
+  finally{ordersLoading=false;}
+}
+function loadMoreOrders(){loadOrders(false);}
+function filterOrders(){renderOrders();}
+function renderOrders(){
+  const q=(document.getElementById('orderSearch')?.value||'').toLowerCase().trim();
+  const st=document.getElementById('orderStatusFilter')?.value||'all';
+  const source=document.getElementById('orderSourceFilter')?.value||'all';
+  const list=allOrders.filter(o=>{
+    if(st!=='all'&&String(o.status||'').toLowerCase()!==st.toLowerCase())return false;
+    if(source!=='all'&&o.source!==source)return false;
+    if(q&&!([o.orderId,o.userId,o.serviceName,o.provider,o.source,o.status].filter(Boolean).join(' ').toLowerCase().includes(q)))return false;
+    return true;
+  });
+  const tb=document.getElementById('ordersBody');tb.innerHTML='';
+  if(!list.length){tb.innerHTML='<tr><td colspan="8" class="loading">Aucune commande dans les résultats chargés. Utilisez la recherche client pour rechercher un compte précis.</td></tr>';}
+  list.forEach(o=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="white-space:nowrap;font-size:.78rem;color:var(--text-muted);">${esc(formatDate(o.createdAt))}</td>
+      <td><strong>${esc(o.orderId||o.id)}</strong></td>
+      <td style="font-size:.75rem;word-break:break-all;">${esc(o.userId||'—')}</td>
+      <td><span class="badge ${o.source==='autoOrders'?'badge-mtp':'badge-exo'}">${o.source==='autoOrders'?'Automatisée':'Classique'}</span><br><small style="color:var(--text-dim);">${esc(o.provider||'')}</small></td>
+      <td>${esc(o.serviceName||'Service')}<br><small style="color:var(--text-dim);">${esc(o.platform||'')}</small></td>
+      <td style="white-space:nowrap;font-weight:700;">${Number(o.amount||0).toLocaleString('fr-FR')} FCFA${o.refunded?'<br><small class="kpi-warning">Remboursée partiellement/totalement</small>':''}</td>
+      <td>${esc(o.status||'Inconnu')}</td>
+      <td><div class="action-row"><button class="btn btn-outline btn-sm" title="Ouvrir la fiche client" ${!o.userId?'disabled':''} onclick="openCustomerDetail('${escAttr(o.userId||'')}')"><i class="fas fa-user"></i></button>${o.link?`<a class="btn btn-outline btn-sm" href="${escAttr(o.link)}" target="_blank" rel="noopener" title="Ouvrir le lien"><i class="fas fa-arrow-up-right-from-square"></i></a>`:''}</div></td>`;
+    tb.appendChild(tr);
+  });
+  const total=list.reduce((sum,o)=>sum+Number(o.amount||0),0);
+  document.getElementById('ordersStats').innerHTML=`<div class="stat-item">Résultats chargés : <strong>${list.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Montant des lignes affichées : <strong>${total.toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-sep"></div><div class="stat-item">Ce total n'est pas un bénéfice.</div>`;
+}
+
+// ═══ CUSTOMERS ═══
+let allCustomers=[];let customerCursor=null;let customersLoading=false;
+async function loadCustomers(reset=false){
+  if(customersLoading)return;customersLoading=true;
+  const tb=document.getElementById('customersBody');
+  const q=(document.getElementById('customerSearch')?.value||'').trim();
+  if(reset){allCustomers=[];customerCursor=null;tb.innerHTML='<tr><td colspan="8" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';}
+  try{
+    const params=new URLSearchParams({limit:'25'});if(q)params.set('q',q);if(!q&&customerCursor)params.set('cursor',customerCursor);
+    const d=await fetchAdmin('/customers?'+params.toString());
+    allCustomers=reset?(d.customers||[]):allCustomers.concat(d.customers||[]);customerCursor=d.nextCursor||null;
+    renderCustomers();document.getElementById('customersMoreBtn').style.display=(!q&&customerCursor)?'inline-flex':'none';
+  }catch(e){tb.innerHTML=`<tr><td colspan="8" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Utilisateurs : '+e.message);}
+  finally{customersLoading=false;}
+}
+function loadMoreCustomers(){loadCustomers(false);}
+function renderCustomers(){
+  const tb=document.getElementById('customersBody');tb.innerHTML='';
+  if(!allCustomers.length){tb.innerHTML='<tr><td colspan="8" class="loading">Aucun utilisateur trouvé.</td></tr>';}
+  allCustomers.forEach(u=>{
+    const last=u.lastActivityAt||u.lastSignIn;
+    const phone=String(u.phone||'').replace(/[^0-9]/g,'');
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="white-space:nowrap;font-size:.78rem;color:var(--text-muted);">${esc(formatDate(u.createdAt))}</td>
+      <td><strong>${esc(u.name||'Utilisateur')}</strong><br><small style="color:var(--text-dim);">${esc(u.email||u.id)}</small><br><small style="color:var(--text-dim);font-size:.7rem;">UID: ${esc(u.id)}</small></td>
+      <td>${esc(u.country||'—')}</td><td>${Number(u.totalOrders||0).toLocaleString('fr-FR')}</td>
+      <td style="color:var(--green);font-weight:600;white-space:nowrap;">${Number(u.totalSpent||0).toLocaleString('fr-FR')} FCFA</td>
+      <td style="white-space:nowrap;">${Number(u.balance||0).toLocaleString('fr-FR')} FCFA</td>
+      <td style="font-size:.78rem;white-space:nowrap;">${last?esc(formatDate(last)):'Non tracée'}</td>
+      <td><div class="action-row"><button class="btn btn-outline btn-sm" title="Historique et fiche" onclick="openCustomerDetail('${escAttr(u.id)}')"><i class="fas fa-eye"></i></button>${u.email?`<a class="btn btn-gold btn-sm" title="Email" href="mailto:${escAttr(u.email)}"><i class="fas fa-envelope"></i></a>`:''}${phone?`<a class="btn btn-wa btn-sm" title="WhatsApp" href="https://wa.me/${escAttr(phone)}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i></a>`:''}</div></td>`;
+    tb.appendChild(tr);
+  });
+  document.getElementById('customersStats').innerHTML=`<div class="stat-item">Utilisateurs chargés : <strong>${allCustomers.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Page limitée : <strong>25 par appel</strong></div>`;
+}
+async function openCustomerDetail(id){
+  if(!id)return;document.getElementById('customerDetailBody').innerHTML='<div class="loading"><i class="fas fa-circle-notch"></i> Chargement de la fiche et d’un échantillon de l’historique…</div>';document.getElementById('customerModal').classList.add('active');
+  try{
+    const d=await fetchAdmin('/customers/'+encodeURIComponent(id));if(!d.success)throw new Error(d.error||'Fiche indisponible');
+    const c=d.customer;const phone=String(c.phone||'').replace(/[^0-9]/g,'');
+    const links=`<div class="action-row" style="margin:12px 0;">${c.email?`<a class="btn btn-gold btn-sm" href="mailto:${escAttr(c.email)}"><i class="fas fa-envelope"></i> Contacter par email</a>`:''}${phone?`<a class="btn btn-wa btn-sm" href="https://wa.me/${escAttr(phone)}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> WhatsApp</a>`:''}</div>`;
+    const orders=(d.orders||[]).map(o=>`<tr><td>${esc(formatDate(o.createdAt))}</td><td>${esc(o.orderId||o.id)}</td><td>${esc(o.serviceName||'Service')}</td><td>${Number(o.amount||0).toLocaleString('fr-FR')} FCFA</td><td>${esc(o.status||'Inconnu')}</td></tr>`).join('');
+    document.getElementById('customerDetailBody').innerHTML=`<h3 style="font-size:1.15rem;margin-bottom:6px;">${esc(c.name||'Utilisateur')}</h3><p style="color:var(--text-muted);word-break:break-all;">${esc(c.email||'Aucun email')} · ${esc(c.country||'Pays non indiqué')}</p><p style="font-size:.75rem;color:var(--text-dim);word-break:break-all;margin-top:6px;">UID : ${esc(c.id)}</p>${links}<div class="stats-bar"><div class="stat-item">Commandes du profil : <strong>${Number(c.totalOrders||0)}</strong></div><div class="stat-item">Dépenses déclarées : <strong>${Number(c.totalSpent||0).toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-item">Solde : <strong>${Number(c.balance||0).toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-item">Total commandes trouvées : <strong>${Number(d.exactOrderCount||0)}</strong></div></div><p style="margin:14px 0 8px;font-weight:700;">Historique d'exemple (jusqu'à 15 par collection)</p><div class="table-wrap"><table><thead><tr><th>Date</th><th>Référence</th><th>Service</th><th>Montant</th><th>Statut</th></tr></thead><tbody>${orders||'<tr><td colspan="5" class="loading">Aucune commande trouvée dans les deux collections suivies.</td></tr>'}</tbody></table></div><p style="color:var(--text-dim);font-size:.75rem;margin-top:8px;">Le total est calculé séparément avec deux agrégations. Le tableau montre un échantillon limité pour préserver le quota Firestore; il ne représente pas nécessairement les toutes dernières commandes.</p>`;
+  }catch(e){document.getElementById('customerDetailBody').innerHTML=`<p class="error-msg" style="display:block;">${esc(e.message)}</p>`;showError('Fiche client : '+e.message);}
+}
+function closeCustomerModal(){document.getElementById('customerModal').classList.remove('active');}
+
+// ═══ EMAIL CADEAUX ═══
+let currentEmailGift=null;let emailSending=false;
+async function openGiftEmailModal(giftId){
+  const g=allGifts.find(x=>x.id===giftId);if(!g)return;
+  currentEmailGift=g;
+  if(!g.email&&g.userId){
+    try{const recipient=await fetchAdmin(`/gifts/${encodeURIComponent(g.id)}/recipient`);g.email=recipient.email||'';if(recipient.userName&&!g.userName)g.userName=recipient.userName;}
+    catch(e){currentEmailGift=null;alert(e.message||'Aucune adresse email disponible pour ce bénéficiaire.');return;}
+  }
+  if(!g.email){currentEmailGift=null;alert('Aucune adresse email disponible pour ce bénéficiaire.');return;}
+  document.getElementById('emailRecipientInfo').innerHTML=`<div class="name" style="color:var(--blue);">${esc(g.userName||'Utilisateur')}</div><div>${esc(g.email)}</div><div style="color:var(--text-dim);font-size:.8rem;">${esc(giftTypePlain(g))} · ${esc(formatDate(g.createdAt))}</div>`;
+  document.getElementById('giftEmailType').value='confirmation';document.getElementById('emailCustomText').value='';updateGiftEmailPreview();document.getElementById('emailModal').classList.add('active');
+}
+function closeGiftEmailModal(){if(emailSending)return;document.getElementById('emailModal').classList.remove('active');currentEmailGift=null;}
+function buildGiftEmailText(g,type){const n=g.userName||'cher client';if(type==='confirmation')return `Bonjour ${n}, nous avons bien reçu votre demande de cadeau de bienvenue. Merci de confirmer que le lien suivant est correct : ${g.link||'aucun lien indiqué'}.`;if(type==='launched')return `Bonjour ${n}, votre cadeau de bienvenue (${giftTypePlain(g)}) est en cours de traitement. Merci pour votre patience.`;if(type==='delay')return `Bonjour ${n}, nous vous présentons nos excuses pour le retard dans le traitement de votre cadeau de bienvenue. Notre équipe reprend le suivi de votre demande.`;return document.getElementById('emailCustomText').value.trim();}
+function updateGiftEmailPreview(){if(!currentEmailGift)return;const type=document.getElementById('giftEmailType').value;const c=document.getElementById('emailCustomText');const preview=document.getElementById('emailPreview');if(type==='custom'){c.style.display='block';preview.value='Le message personnalisé sera envoyé tel qu’il est saisi ci-dessous.';}else{c.style.display='none';preview.value=buildGiftEmailText(currentEmailGift,type);}}
+async function sendGiftEmail(){
+  if(!currentEmailGift||emailSending)return;const type=document.getElementById('giftEmailType').value;const customMessage=type==='custom'?document.getElementById('emailCustomText').value.trim():'';
+  if(type==='custom'&&!customMessage)return alert('Rédigez d’abord le message personnalisé.');
+  if(!confirm(`Envoyer cet email à ${currentEmailGift.email} ?`))return;
+  emailSending=true;const btn=document.getElementById('sendGiftEmailBtn');btn.disabled=true;btn.innerHTML='<i class="fas fa-circle-notch fa-spin"></i> Envoi…';
+  try{const d=await fetchAdmin(`/gifts/${encodeURIComponent(currentEmailGift.id)}/email`,{method:'POST',body:JSON.stringify({type,customMessage})});if(!d.success)throw new Error(d.error||'Échec de l’envoi.');showToast('Email accepté par le fournisseur.');closeGiftEmailModal();}
+  catch(e){alert('Email non envoyé : '+e.message);}
+  finally{emailSending=false;btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i> Envoyer l’email';}
 }
 
 // ═══ SERVICES ═══
@@ -520,7 +832,7 @@ function filterServices(){
 function renderServices(list){
   const tb=document.getElementById('servicesBody');tb.innerHTML='';
   if(!list.length){tb.innerHTML='<tr><td colspan="7" class="loading">Aucun service</td></tr>';updateServiceStats([]);return;}
-  const bm={MTP:'badge-mtp',EXO:'badge-exo',AfriqueBoost:'badge-afb',SMMGen:'badge-smg'};
+  const bm={MTP:'badge-mtp',EXO:'badge-exo',AfriqueBoost:'badge-afb',SMMWiz:'badge-smg',SMMGen:'badge-smg'};
   list.forEach(s=>{
     const tr=document.createElement('tr');
     tr.innerHTML=`<td style="color:var(--text-dim);font-size:.78rem;">${s.id}</td>
@@ -591,11 +903,12 @@ function renderGifts(list){
     if(g.link)links.push(`<a href="${escAttr(g.link)}" target="_blank" rel="noopener" style="color:var(--blue);word-break:break-all;font-size:.78rem;">${esc(g.link)}</a>`);
     if(g.whatsapp)links.push(`<div style="margin-top:4px;font-size:.78rem;color:var(--text-dim);">📱 +${esc(g.whatsapp)} <button class="btn btn-outline btn-sm" style="padding:2px 6px;" onclick="copyText('${escAttr(g.whatsapp)}')"><i class="fas fa-copy"></i></button></div>`);
     const waBtn=`<button class="btn btn-wa btn-sm" ${!g.whatsapp?'disabled title="Aucun WhatsApp"':''} onclick="${g.whatsapp?"openWaModal('"+escAttr(g.id)+"')":''}"><i class="fab fa-whatsapp"></i></button>`;
+    const emailBtn='<button class="btn btn-outline btn-sm" '+(!(g.email||g.userId)?'disabled title="Aucun compte email associé"':'')+' onclick="'+((g.email||g.userId)?"openGiftEmailModal('"+escAttr(g.id)+"')":'')+'" title="Envoyer un email"><i class="fas fa-envelope"></i></button>';
     const tr=document.createElement('tr');
     tr.innerHTML=`<td style="font-size:.78rem;color:var(--text-dim);white-space:nowrap;">${formatDate(g.createdAt)}${ageBadge}</td>
       <td style="font-size:.85rem;">${user}</td><td>${esc(g.country||'–')}</td><td>${giftTypeLabel(g)}</td>
       <td>${links.length?links.join(''):'–'}</td><td>${statusLabel(g.status)}</td>
-      <td><div style="display:flex;gap:5px;flex-wrap:wrap;">${waBtn}
+      <td><div style="display:flex;gap:5px;flex-wrap:wrap;">${waBtn}${emailBtn}
       ${g.link?`<button class="btn btn-outline btn-sm" onclick="copyText('${escAttr(g.link)}')"><i class="fas fa-copy"></i></button>`:''}
       ${g.status==='pending'?`<button class="btn btn-green btn-sm" onclick="setGiftStatus('${escAttr(g.id)}','delivered')"><i class="fas fa-check"></i></button>
       <button class="btn btn-red btn-sm" onclick="setGiftStatus('${escAttr(g.id)}','rejected')"><i class="fas fa-xmark"></i></button>`:
@@ -631,18 +944,19 @@ async function setGiftStatus(id,status){
 }
 
 // ═══ USERS STATS ═══
-async function loadUsersStats(){
+async function loadUsersStats(force=false){
   try{
-    const d=await fetchAdmin('/users-stats');
+    const d=await fetchAdmin('/users-stats'+(force?'?refresh=1':''));
     if(d.success&&d.stats){
       document.getElementById('usersTotal').textContent=(d.stats.totalUsers||0).toLocaleString();
       document.getElementById('usersNew7d').textContent=(d.stats.newUsers7d||0).toLocaleString();
       document.getElementById('usersTotalBalance').textContent=(d.stats.totalBalance||0).toLocaleString('fr-FR')+' FCFA';
       document.getElementById('usersAvgBalance').textContent=(d.stats.avgBalance||0).toLocaleString('fr-FR')+' FCFA';
+      document.getElementById('usersDashboardVisits7d').textContent=(d.stats.dashboardVisitors7d||0).toLocaleString('fr-FR');
       const ci=document.getElementById('usersCacheInfo'),ct=document.getElementById('usersCacheText');
-      ci.style.display='flex';ct.textContent=d.cached?'Cache actif (60 min)':'3 lectures — cache 60 min';
+      ci.style.display='flex';ct.textContent=d.cached?'Cache actif (60 min)':'4 agrégations — cache partagé 60 min';
     }
-  }catch(e){console.warn(e);}
+  }catch(e){showError('Statistiques utilisateurs : '+e.message);}
 }
 
 // ═══ WHATSAPP ═══
