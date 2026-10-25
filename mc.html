@@ -60,6 +60,7 @@ a{color:inherit}
 .nav-item.active{background:rgba(201,169,97,.05);color:var(--gold);border-left-color:var(--gold);font-weight:600}
 .nav-item i{width:16px;text-align:center;font-size:.85rem}
 .nav-item .badge-count{margin-left:auto;background:var(--red);color:#fff;font-size:.62rem;padding:1px 6px;border-radius:8px;font-weight:700;min-width:16px;text-align:center}
+.nav-item .badge-late{background:var(--warning);color:var(--bg);font-size:.6rem;padding:1px 6px;border-radius:8px;font-weight:700;margin-left:4px;min-width:16px;text-align:center;display:none;}
 .sidebar-footer{padding:14px 12px;border-top:1px solid var(--border)}
 .btn-logout{width:100%;padding:9px;border-radius:6px;background:transparent;border:1px solid var(--border);color:var(--text-muted);font-weight:600;font-size:.78rem;cursor:pointer;transition:var(--transition);display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit}
 .btn-logout:hover{border-color:var(--red);color:var(--red)}
@@ -193,6 +194,7 @@ tbody tr:hover{background:rgba(255,255,255,.015)}
 .type-opt:hover{border-color:var(--border-strong)}
 .type-opt.selected{border-color:var(--gold);background:rgba(201,169,97,.04)}
 .type-opt input[type="radio"]{margin-top:3px;accent-color:var(--gold);transform:scale(1.1);cursor:pointer}
+.type-opt input[type="checkbox"]{margin-top:3px;accent-color:var(--gold);transform:scale(1.1);cursor:pointer}
 .type-opt strong{display:block;font-size:.86rem;margin-bottom:3px;color:var(--text);font-weight:600}
 .type-opt small{color:var(--text-muted);font-size:.78rem;line-height:1.5}
 
@@ -229,6 +231,14 @@ textarea.msg-area:focus{border-color:var(--gold)}
 .footer strong{color:var(--gold);font-weight:600}
 .action-row{display:flex;gap:5px;flex-wrap:wrap}
 .kpi-warning{color:var(--warning)!important}
+
+/* Bulk processing */
+.bulk-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;font-size:.84rem;transition:var(--transition);}
+.bulk-row:hover{background:rgba(255,255,255,.02);}
+.bulk-row:last-child{border-bottom:none;}
+.bulk-row input[type="checkbox"]{accent-color:var(--gold);transform:scale(1.1);cursor:pointer;}
+.bulk-progress-bar{height:6px;background:var(--bg);border-radius:3px;overflow:hidden;margin-top:12px;}
+.bulk-progress-fill{height:100%;background:var(--green);width:0%;transition:width .2s;}
 
 .mobile-toggle{display:none;position:fixed;top:14px;left:14px;z-index:200;width:40px;height:40px;border-radius:6px;background:var(--bg-card);border:1px solid var(--border-strong);color:var(--text);font-size:1rem;cursor:pointer;align-items:center;justify-content:center}
 
@@ -288,7 +298,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
       <button class="nav-item" data-view="stores" onclick="switchView('stores')"><i class="fas fa-store"></i> Boutiques</button>
       <button class="nav-item" data-view="services" onclick="switchView('services')"><i class="fas fa-layer-group"></i> Services & Prix</button>
       <div class="nav-section">Gestion</div>
-      <button class="nav-item" data-view="gifts" onclick="switchView('gifts')"><i class="fas fa-gift"></i> Cadeaux <span class="badge-count" id="navGiftCount" style="display:none;">0</span></button>
+      <button class="nav-item" data-view="gifts" onclick="switchView('gifts')"><i class="fas fa-gift"></i> Cadeaux <span class="badge-count" id="navGiftCount" style="display:none;">0</span><span class="badge-late" id="navGiftLateCount" title="En retard (+24h)">0</span></button>
     </nav>
     <div class="sidebar-footer">
       <button class="btn-logout" onclick="logout()"><i class="fas fa-lock"></i> Verrouiller</button>
@@ -371,7 +381,6 @@ textarea.msg-area:focus{border-color:var(--gold)}
         </div>
       </section>
 
-      <!-- ═══ NOUVEAU : RECHARGES & VISITES PAR JOUR ═══ -->
       <section class="section">
         <div class="section-head">
           <div>
@@ -408,7 +417,6 @@ textarea.msg-area:focus{border-color:var(--gold)}
         </div>
       </section>
 
-      <!-- ═══ NOUVEAU : COMMANDES PAR DATE ═══ -->
       <section class="section">
         <div class="section-head">
           <div>
@@ -777,6 +785,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
         </div>
         <div class="top-actions">
           <div class="cache-info" id="giftsCacheInfo" style="display:none;"><i class="fas fa-shield-halved"></i> <span id="giftsCacheText">—</span></div>
+          <button class="btn btn-green" onclick="bulkProcessPendingGifts()" title="Traiter plusieurs cadeaux en masse"><i class="fas fa-bolt"></i> Traiter tous</button>
           <button class="btn btn-gold" onclick="exportGiftsPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
         </div>
       </div>
@@ -785,6 +794,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
           <div class="filter-group"><label>Statut</label>
             <select id="giftStatusFilter" onchange="loadGifts()">
               <option value="pending" selected>En attente</option>
+              <option value="late">⏰ En retard (+24h)</option>
               <option value="delivered">Livrés</option>
               <option value="rejected">Rejetés</option>
               <option value="all">Tous</option>
@@ -871,7 +881,41 @@ textarea.msg-area:focus{border-color:var(--gold)}
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeGiftEmailModal()">Annuler</button>
+      <button class="btn btn-green" id="sendGiftEmailAndMarkBtn" onclick="sendGiftEmailAndMark()" style="display:none;"><i class="fas fa-check-double"></i> Envoyer + Marquer livré</button>
       <button class="btn btn-gold" id="sendGiftEmailBtn" onclick="sendGiftEmail()"><i class="fas fa-paper-plane"></i> Envoyer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk Gifts Modal -->
+<div id="bulkGiftModal" class="modal-overlay" onclick="if(event.target===this)closeBulkGiftModal()">
+  <div class="modal" style="max-width:720px;">
+    <div class="modal-header">
+      <h3><i class="fas fa-bolt"></i> Traitement en masse des cadeaux</h3>
+      <button class="modal-close" onclick="closeBulkGiftModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="bulkGiftSummary" style="margin-bottom:16px;font-size:.86rem;color:var(--text-muted);line-height:1.6;"></div>
+      <div id="bulkGiftList" style="max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;background:var(--bg);"></div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="btn btn-outline btn-sm" onclick="bulkSelectAll(true)"><i class="fas fa-check-square"></i> Tout cocher</button>
+        <button class="btn btn-outline btn-sm" onclick="bulkSelectAll(false)"><i class="fas fa-square"></i> Tout décocher</button>
+      </div>
+      <div class="type-options" style="margin-top:16px;">
+        <label class="type-opt selected" style="cursor:pointer;">
+          <input type="checkbox" id="bulkSendEmails" style="margin-top:3px;accent-color:var(--gold);transform:scale(1.1);cursor:pointer;">
+          <div>
+            <strong>Envoyer automatiquement les emails de livraison</strong>
+            <small>Chaque client sélectionné recevra un email « cadeau livré » personnalisé.</small>
+          </div>
+        </label>
+      </div>
+      <div class="bulk-progress-bar" id="bulkProgressBar" style="display:none;"><div class="bulk-progress-fill" id="bulkProgressFill"></div></div>
+      <p id="bulkProgressText" style="font-size:.76rem;color:var(--text-dim);margin-top:8px;display:none;"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeBulkGiftModal()">Annuler</button>
+      <button class="btn btn-green" id="bulkProcessConfirmBtn" onclick="confirmBulkProcess()"><i class="fas fa-check-double"></i> Traiter</button>
     </div>
   </div>
 </div>
@@ -933,6 +977,7 @@ let currentMultipliers=null;
 let currentWaGift=null;
 let giftsLoaded=false;
 let giftEmailPreviewEdited=false;
+let autoRefreshInterval=null;
 
 /* ═══════════ UTILITAIRES DATE / TYPE / TRI ═══════════ */
 function timestampToMs(ts){
@@ -959,6 +1004,51 @@ function giftPlainLabel(giftType){
 const SBH_COUNTRY_CODES = 'AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW'.split(/\s+/);
 function populateCountryFilters(){const labels=new Intl.DisplayNames(['fr'],{type:'region'});for(const id of ['customerCountryFilter','storeCountryFilter']){const select=document.getElementById(id);if(!select)continue;const first=select.options[0];select.innerHTML='';select.appendChild(first);const rows=SBH_COUNTRY_CODES.map(code=>({code,label:labels.of(code)||code})).sort((a,b)=>a.label.localeCompare(b.label,'fr'));for(const row of rows){const opt=document.createElement('option');opt.value=row.code;opt.textContent=row.label+' ('+row.code+')';select.appendChild(opt);}}}
 function formatCountryLabel(raw){const v=String(raw||'').trim();if(!v)return '—';if(/^[a-z]{2}$/i.test(v)){try{return new Intl.DisplayNames(['fr'],{type:'region'}).of(v.toUpperCase())+' ('+v.toUpperCase()+')';}catch(_){return v.toUpperCase();}}return v;}
+
+/* ═══════════ AUTO-REFRESH 60s ═══════════ */
+function updateGiftBadges(pendingCount, lateCount){
+  const b = document.getElementById('navGiftCount');
+  const l = document.getElementById('navGiftLateCount');
+  if(b){
+    const n = Number(pendingCount || 0);
+    if(n > 0){ b.textContent = n; b.style.display = 'inline-block'; }
+    else { b.style.display = 'none'; }
+  }
+  if(l){
+    const n = Number(lateCount || 0);
+    if(n > 0){ l.textContent = n; l.style.display = 'inline-block'; }
+    else { l.style.display = 'none'; }
+  }
+}
+
+function startAutoRefresh(){
+  if(autoRefreshInterval) clearInterval(autoRefreshInterval);
+  autoRefreshInterval = setInterval(async () => {
+    if(!token) return;
+    if(document.visibilityState !== 'visible') return;
+    if(document.getElementById('app')?.style.display !== 'block') return;
+    if(document.querySelector('.modal-overlay.active')) return;
+    try{
+      const activeView = document.querySelector('.nav-item.active')?.dataset?.view;
+      if(activeView === 'overview'){
+        const d = await fetchAdmin('/overview');
+        const s = d.data || {};
+        updateGiftBadges(s.giftsPending, s.giftsLate);
+        renderOverviewData(s);
+      } else if(activeView === 'gifts'){
+        const d = await fetchAdmin('/overview');
+        const s = d.data || {};
+        updateGiftBadges(s.giftsPending, s.giftsLate);
+        await loadGifts();
+      } else {
+        // Juste les badges en arrière-plan
+        const d = await fetchAdmin('/overview');
+        const s = d.data || {};
+        updateGiftBadges(s.giftsPending, s.giftsLate);
+      }
+    }catch(e){ console.warn('Auto-refresh silencieux:', e.message); }
+  }, 60000);
+}
 
 /* ═══════════ OVERVIEW DATE PICKER ═══════════ */
 async function loadOrdersForDate(){
@@ -1012,10 +1102,10 @@ async function loadDeposits(reset=false){if(depositsLoading)return;depositsLoadi
 function loadMoreDeposits(){loadDeposits(false);}
 populateCountryFilters();
 
-if(token){document.getElementById('authOverlay').style.display='none';document.getElementById('app').style.display='block';loadOverview();}
+if(token){document.getElementById('authOverlay').style.display='none';document.getElementById('app').style.display='block';loadOverview();startAutoRefresh();}
 
-async function unlock(){const input=document.getElementById('adminPass');const btn=document.querySelector('.auth-box .btn-primary');const p=input.value;const err=document.getElementById('loginError');err.style.display='none';if(!p){err.textContent='Saisissez le mot de passe.';err.style.display='block';return;}btn.disabled=true;btn.textContent='Vérification…';try{const res=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:p})});const d=await res.json().catch(()=>({}));if(!res.ok||!d.success||!d.token)throw new Error(d.error||'Identifiants incorrects.');token=d.token;sessionStorage.setItem('sbh_admin_token',token);document.getElementById('authOverlay').style.display='none';document.getElementById('app').style.display='block';loadOverview();}catch(e){err.textContent=e.message||'Connexion impossible.';err.style.display='block';}finally{btn.disabled=false;btn.textContent='Déverrouiller';input.value='';}}
-function logout(){sessionStorage.removeItem('sbh_admin_token');token=null;location.reload();}
+async function unlock(){const input=document.getElementById('adminPass');const btn=document.querySelector('.auth-box .btn-primary');const p=input.value;const err=document.getElementById('loginError');err.style.display='none';if(!p){err.textContent='Saisissez le mot de passe.';err.style.display='block';return;}btn.disabled=true;btn.textContent='Vérification…';try{const res=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:p})});const d=await res.json().catch(()=>({}));if(!res.ok||!d.success||!d.token)throw new Error(d.error||'Identifiants incorrects.');token=d.token;sessionStorage.setItem('sbh_admin_token',token);document.getElementById('authOverlay').style.display='none';document.getElementById('app').style.display='block';loadOverview();startAutoRefresh();}catch(e){err.textContent=e.message||'Connexion impossible.';err.style.display='block';}finally{btn.disabled=false;btn.textContent='Déverrouiller';input.value='';}}
+function logout(){if(autoRefreshInterval){clearInterval(autoRefreshInterval);autoRefreshInterval=null;}sessionStorage.removeItem('sbh_admin_token');token=null;location.reload();}
 function showError(m){const b=document.getElementById('errorBanner');b.textContent='';const i=document.createElement('i');i.className='fas fa-exclamation-circle';b.appendChild(i);b.appendChild(document.createTextNode(' '+m));b.style.display='flex';setTimeout(()=>b.style.display='none',10000);}
 
 async function fetchAdmin(ep,opts={}){const res=await fetch(`/api/admin${ep}`,{...opts,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json',...(opts.headers||{})}});if(res.status===401||res.status===403){logout();throw new Error('Session administrateur expirée.');}const data=await res.json().catch(()=>({}));if(!res.ok||data.success===false)throw new Error(data.error||`Erreur ${res.status}`);return data;}
@@ -1045,44 +1135,44 @@ async function forceRefresh(){
 function showToast(msg){const t=document.createElement('div');t.innerHTML='<i class="fas fa-check-circle" style="margin-right:8px;"></i>'+msg;t.style.cssText='position:fixed;bottom:24px;right:24px;background:var(--green);color:#0a0e17;padding:12px 20px;border-radius:6px;z-index:9999;font-weight:600;font-size:.84rem;box-shadow:0 8px 24px rgba(0,0,0,.4);max-width:calc(100vw - 48px);word-break:break-word;';document.body.appendChild(t);setTimeout(()=>t.remove(),2400);}
 
 /* ═══════════ OVERVIEW ═══════════ */
+function renderOverviewData(s){
+  const put=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
+  put('kpiTotalUsers',Number(s.totalUsers||0).toLocaleString('fr-FR'));
+  put('kpiNewUsers',`+${Number(s.newUsers7d||0).toLocaleString('fr-FR')} cette semaine`);
+  put('kpiTotalOrders',Number(s.totalOrders||0).toLocaleString('fr-FR'));
+  put('kpiPendingOrders',`${Number(s.pendingOrders||0).toLocaleString('fr-FR')} en attente`);
+  put('kpiOrdersToday',Number(s.ordersToday||0).toLocaleString('fr-FR'));
+  put('kpiOrdersYesterday',Number(s.ordersYesterday||0).toLocaleString('fr-FR'));
+  put('kpiOrdersDayBefore',Number(s.ordersDayBefore||0).toLocaleString('fr-FR'));
+  put('kpiUsersToday',Number(s.newUsersToday||0).toLocaleString('fr-FR'));
+  put('kpiUsersYesterday',Number(s.newUsersYesterday||0).toLocaleString('fr-FR'));
+  put('kpiUsersDayBefore',Number(s.newUsersDayBefore||0).toLocaleString('fr-FR'));
+  put('kpiDashboardVisits',Number(s.dashboardVisitsRecorded||0).toLocaleString('fr-FR'));
+  put('kpiDashboardActive',`${Number(s.activeDashboardUsers7d||0).toLocaleString('fr-FR')} actifs sur 7 jours`);
+  put('kpiTotalBalance',Number(s.totalBalance||0).toLocaleString('fr-FR')+' FCFA');
+  put('kpiAverageBalance',Number(s.averageBalance||0).toLocaleString('fr-FR')+' FCFA de solde moyen');
+  put('kpiDepositsToday',Number(s.depositsToday ?? 0).toLocaleString('fr-FR'));
+  put('kpiDepositsYesterday',Number(s.depositsYesterday ?? 0).toLocaleString('fr-FR'));
+  put('kpiDepositsDayBefore',Number(s.depositsDayBefore ?? 0).toLocaleString('fr-FR'));
+  put('kpiVisitsToday',Number(s.dashboardVisitsToday ?? 0).toLocaleString('fr-FR'));
+  put('kpiVisitsYesterday',Number(s.dashboardVisitsYesterday ?? 0).toLocaleString('fr-FR'));
+  put('kpiVisitsDayBefore',Number(s.dashboardVisitsDayBefore ?? 0).toLocaleString('fr-FR'));
+  if(s.multipliers){
+    put('multMTP','×'+(s.multipliers.MTP??'—'));
+    put('multEXO','×'+(s.multipliers.EXO??'—'));
+    put('multAFB','×'+(s.multipliers.AfriqueBoost??'—'));
+    put('multSMMGen','×'+(s.multipliers.SMMGen??'—'));
+    put('multSMMWiz','×'+(s.multipliers.SMMWiz??'—'));
+  }
+  updateGiftBadges(s.giftsPending || 0, s.giftsLate || 0);
+}
+
 async function loadOverview(force=false){
   try{
     const d=await fetchAdmin('/overview'+(force?'?refresh=1':''));
     if(!d.success)throw new Error('Statistiques indisponibles');
-    const s=d.data||{};
-    const put=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
-    put('kpiTotalUsers',Number(s.totalUsers||0).toLocaleString('fr-FR'));
-    put('kpiNewUsers',`+${Number(s.newUsers7d||0).toLocaleString('fr-FR')} cette semaine`);
-    put('kpiTotalOrders',Number(s.totalOrders||0).toLocaleString('fr-FR'));
-    put('kpiPendingOrders',`${Number(s.pendingOrders||0).toLocaleString('fr-FR')} en attente`);
-    put('kpiOrdersToday',Number(s.ordersToday||0).toLocaleString('fr-FR'));
-    put('kpiOrdersYesterday',Number(s.ordersYesterday||0).toLocaleString('fr-FR'));
-    put('kpiOrdersDayBefore',Number(s.ordersDayBefore||0).toLocaleString('fr-FR'));
-    put('kpiUsersToday',Number(s.newUsersToday||0).toLocaleString('fr-FR'));
-    put('kpiUsersYesterday',Number(s.newUsersYesterday||0).toLocaleString('fr-FR'));
-    put('kpiUsersDayBefore',Number(s.newUsersDayBefore||0).toLocaleString('fr-FR'));
-    put('kpiDashboardVisits',Number(s.dashboardVisitsRecorded||0).toLocaleString('fr-FR'));
-    put('kpiDashboardActive',`${Number(s.activeDashboardUsers7d||0).toLocaleString('fr-FR')} actifs sur 7 jours`);
-    put('kpiTotalBalance',Number(s.totalBalance||0).toLocaleString('fr-FR')+' FCFA');
-    put('kpiAverageBalance',Number(s.averageBalance||0).toLocaleString('fr-FR')+' FCFA de solde moyen');
-
-    /* NOUVEAUX KPIs : dépôts + visites par jour */
-    put('kpiDepositsToday',Number(s.depositsToday ?? 0).toLocaleString('fr-FR'));
-    put('kpiDepositsYesterday',Number(s.depositsYesterday ?? 0).toLocaleString('fr-FR'));
-    put('kpiDepositsDayBefore',Number(s.depositsDayBefore ?? 0).toLocaleString('fr-FR'));
-    put('kpiVisitsToday',Number(s.dashboardVisitsToday ?? 0).toLocaleString('fr-FR'));
-    put('kpiVisitsYesterday',Number(s.dashboardVisitsYesterday ?? 0).toLocaleString('fr-FR'));
-    put('kpiVisitsDayBefore',Number(s.dashboardVisitsDayBefore ?? 0).toLocaleString('fr-FR'));
-
+    renderOverviewData(d.data || {});
     loadTopUsers();
-    if(s.giftsPending>0){const b=document.getElementById('navGiftCount');b.textContent=s.giftsPending;b.style.display='inline-block';}else{const b=document.getElementById('navGiftCount');if(b)b.style.display='none';}
-    if(s.multipliers){
-      put('multMTP','×'+(s.multipliers.MTP??'—'));
-      put('multEXO','×'+(s.multipliers.EXO??'—'));
-      put('multAFB','×'+(s.multipliers.AfriqueBoost??'—'));
-      put('multSMMGen','×'+(s.multipliers.SMMGen??'—'));
-      put('multSMMWiz','×'+(s.multipliers.SMMWiz??'—'));
-    }
   }catch(e){
     console.warn('Vue d\'ensemble:',e);
     showError('Impossible de charger la vue d\'ensemble : '+e.message);
@@ -1280,7 +1370,6 @@ Merci de votre confiance et à très bientôt.
 Cordialement,
 L'équipe Social Boost Horizon`;
 
-  // general
   return `Bonjour ${n},
 
 Nous espérons sincèrement que vous allez bien et que vous profitez pleinement de votre expérience sur Social Boost Horizon.
@@ -1501,10 +1590,13 @@ function copyAllStoreLinks(){
   navigator.clipboard.writeText(links.join('\n')).then(()=>showToast(`${links.length} lien(s) copié(s).`)).catch(()=>alert('Copie impossible.'));
 }
 
-/* ═══════════ GIFT EMAIL — CORRIGÉ ═══════════ */
+/* ═══════════ GIFT EMAIL ═══════════ */
 let currentEmailGift=null;let emailSending=false;
 async function openGiftEmailModal(giftId){
   const g=allGifts.find(x=>x.id===giftId);if(!g)return;
+  if(g.status==='rejected'){
+    return openGiftEmailModalForStatus(giftId, 'rejected', g.adminNote || 'Les informations fournies ne nous ont pas permis de valider votre demande.');
+  }
   currentEmailGift=g;
   if(!g.email&&g.userId){
     try{const recipient=await fetchAdmin(`/gifts/${encodeURIComponent(g.id)}/recipient`);g.email=recipient.email||'';if(recipient.userName&&!g.userName)g.userName=recipient.userName;}
@@ -1512,15 +1604,63 @@ async function openGiftEmailModal(giftId){
   }
   if(!g.email){currentEmailGift=null;alert('Aucune adresse email disponible.');return;}
   document.getElementById('emailRecipientInfo').innerHTML=`<div class="name">${esc(g.userName||'Utilisateur')}</div><div class="meta">${esc(g.email)}</div><div class="meta">${esc(giftTypePlain(g))} · ${esc(formatDate(g.createdAt))}</div>`;
-  // Suggérer le type selon l'état et le type de cadeau
   let rec='confirmation';
   const age=getGiftAgeDays(g.createdAt)||0;
   if(g.status==='delivered') rec='delivered';
   else if(g.status==='pending'&&age>=1) rec='delay';
   document.getElementById('giftEmailType').value=rec;
   updateGiftEmailPreview();
+  // Montrer "Envoyer + Marquer" si pending
+  const combineBtn = document.getElementById('sendGiftEmailAndMarkBtn');
+  if(combineBtn) combineBtn.style.display = (g.status === 'pending') ? 'inline-flex' : 'none';
   document.getElementById('emailModal').classList.add('active');
 }
+
+async function openGiftEmailModalForStatus(giftId, forcedType, rejectionReason){
+  const g=allGifts.find(x=>x.id===giftId);
+  if(!g)return;
+  currentEmailGift=g;
+
+  if(!g.email && g.userId){
+    try{
+      const recipient=await fetchAdmin(`/gifts/${encodeURIComponent(g.id)}/recipient`);
+      g.email=recipient.email||'';
+      if(recipient.userName && !g.userName) g.userName=recipient.userName;
+    }catch(e){
+      alert(e.message||'Aucune adresse email disponible pour ce client.');
+      return;
+    }
+  }
+  if(!g.email){
+    alert('Aucune adresse email disponible pour ce client.');
+    return;
+  }
+
+  document.getElementById('emailRecipientInfo').innerHTML=
+    `<div class="name">${esc(g.userName||'Utilisateur')}</div>
+     <div class="meta">${esc(g.email)}</div>
+     <div class="meta">${esc(giftTypePlain(g))} · ${esc(formatDate(g.createdAt))}</div>`;
+
+  const combineBtn = document.getElementById('sendGiftEmailAndMarkBtn');
+  if(combineBtn) combineBtn.style.display = (g.status === 'pending') ? 'inline-flex' : 'none';
+
+  if(forcedType==='rejected'){
+    document.getElementById('giftEmailType').value='custom';
+    const preview=document.getElementById('emailPreview');
+    preview.value=buildGiftRejectionText(g, rejectionReason);
+    preview.placeholder='Message de rejet (modifiable avant envoi)';
+    giftEmailPreviewEdited=true;
+  } else if(forcedType==='delivered'){
+    document.getElementById('giftEmailType').value='delivered';
+    updateGiftEmailPreview();
+  } else {
+    document.getElementById('giftEmailType').value='confirmation';
+    updateGiftEmailPreview();
+  }
+
+  document.getElementById('emailModal').classList.add('active');
+}
+
 function closeGiftEmailModal(){if(emailSending)return;document.getElementById('emailModal').classList.remove('active');currentEmailGift=null;}
 
 function buildGiftEmailSubject(g,type){
@@ -1530,6 +1670,39 @@ function buildGiftEmailSubject(g,type){
   if(type==='delay') return needsLink ? 'Nos excuses pour le retard + confirmation requise — Social Boost Horizon' : 'Nos excuses pour le retard — Social Boost Horizon';
   if(type==='delivered') return needsLink ? 'Votre cadeau a été livré avec succès — Social Boost Horizon' : 'Votre solde a été crédité avec succès — Social Boost Horizon';
   return 'Message de Social Boost Horizon';
+}
+
+function buildGiftRejectionText(g, reason){
+  const n = g.userName || 'cher client';
+  const dateStr = formatDate(g.createdAt);
+  const gt = giftPlainLabel(g.giftType);
+  const waLine = `💬 Besoin d'aide ? Contactez-nous sur WhatsApp : ${SBH_WA_DISPLAY}\n   ${SBH_WA_LINK}`;
+  const siteLine = `🌐 Site : ${SBH_SITE_URL}`;
+  const dashLine = `🔗 Tableau de bord : ${SBH_DASHBOARD_URL}`;
+
+  return `Bonjour ${n},
+
+Nous vous contactons au sujet de votre demande de cadeau de bienvenue enregistrée le ${dateStr}.
+
+Après examen attentif de votre dossier, nous sommes au regret de vous informer que nous ne sommes pas en mesure de donner une suite favorable à votre demande.
+
+🎁 Cadeau concerné : ${gt}
+📅 Demandé le : ${dateStr}
+
+RAISON COMMUNIQUÉE
+${reason || 'Les informations fournies ne nous ont pas permis de valider votre demande.'}
+
+Si vous pensez qu'il s'agit d'une erreur ou si vous souhaitez discuter de votre situation, notre équipe reste à votre entière disposition sur WhatsApp. Nous pourrons examiner ensemble les options possibles.
+
+${dashLine}
+${siteLine}
+
+${waLine}
+
+Nous vous remercions de votre compréhension.
+
+Cordialement,
+L'équipe Social Boost Horizon`;
 }
 
 function buildGiftEmailText(g,type){
@@ -1776,8 +1949,6 @@ async function sendGiftEmail(){
   if(!preview)return alert('Le message est vide.');
   if(!confirm(`Envoyer cet email à ${currentEmailGift.email} ?`))return;
 
-  // ✅ CORRECTION MAJEURE : TOUJOURS envoyer le texte complet
-  // (que l'utilisateur ait édité ou non). Le backend utilisera ce texte verbatim.
   const sendType = (type === 'custom') ? 'custom' : type;
   const customMessage = preview;
 
@@ -1793,156 +1964,262 @@ async function sendGiftEmail(){
   finally{emailSending=false;btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i> Envoyer';}
 }
 
-/* ═══════════ SERVICES ═══════════ */
-async function loadServices(){
-  const tb=document.getElementById('servicesBody');
-  tb.innerHTML='<tr><td colspan="7" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';
-  try{
-    const d=await fetchAdmin('/services');
-    if(d.success){
-      allServices=d.data.services||[];
-      currentMultipliers=d.data.multipliers;
-      const ci=document.getElementById('servicesCacheInfo'),ct=document.getElementById('servicesCacheText');
-      if(ci)ci.style.display='flex';if(ct)ct.textContent='Cache 30 min';
-      updateProviderStats();
-      filterServices();
-    }
-  }catch(e){tb.innerHTML=`<tr><td colspan="7" class="loading">Erreur : ${e.message}</td></tr>`;}
-}
-function updateProviderStats(){
-  const container=document.getElementById('providerStatsBadges');
-  const totalEl=document.getElementById('servicesTotalText');
-  if(!container)return;
-  const byProvider={};
-  allServices.forEach(s=>{byProvider[s.provider]=(byProvider[s.provider]||0)+1;});
-  const sorted=Object.entries(byProvider).sort((a,b)=>b[1]-a[1]);
-  container.innerHTML=sorted.map(([p,c])=>`<span class="provider-badge"><strong>${esc(p)}</strong><span class="provider-badge-count">${c}</span></span>`).join('');
-  if(totalEl)totalEl.textContent=`${allServices.length} service(s) au total, répartis sur ${sorted.length} fournisseur(s)`;
-}
-function filterServices(){
-  const prov=document.getElementById('serviceFilter').value;
-  const search=document.getElementById('serviceSearch').value.toLowerCase();
-  const idSearch=document.getElementById('serviceIdSearch').value.trim();
-  const sort=document.getElementById('serviceSort').value;
-  const limit=document.getElementById('serviceLimit').value;
-  let f=allServices;
-  if(prov!=='all')f=f.filter(s=>s.provider===prov);
-  if(search)f=f.filter(s=>s.name.toLowerCase().includes(search));
-  if(idSearch)f=f.filter(s=>String(s.id).includes(idSearch));
-  const [field,dir]=sort.split('-');
-  f.sort((a,b)=>{const va=a[field]??'',vb=b[field]??'';if(typeof va==='string')return dir==='asc'?va.localeCompare(vb):vb.localeCompare(va);return dir==='asc'?va-vb:vb-va;});
-  if(limit!=='all')f=f.slice(0,parseInt(limit));
-  renderServices(f);
-}
-function renderServices(list){
-  const tb=document.getElementById('servicesBody');tb.innerHTML='';
-  if(!list.length){tb.innerHTML='<tr><td colspan="7" class="loading">Aucun service</td></tr>';updateServiceStats([]);return;}
-  const bm={MTP:'badge-mtp',EXO:'badge-exo',AfriqueBoost:'badge-afb',SMMWiz:'badge-smg',SMMGen:'badge-smg'};
-  list.forEach(s=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td style="color:var(--text-dim);font-size:.78rem;">${s.id}</td>
-      <td><span class="badge ${bm[s.provider]||''}">${s.provider}</span></td>
-      <td title="${esc(s.name)}">${esc(s.name.substring(0,45))}${s.name.length>45?'…':''}</td>
-      <td>${(s.providerCost||0).toLocaleString()} FCFA</td>
-      <td style="font-weight:700;color:var(--accent);">${(s.finalPrice||0).toLocaleString()} FCFA</td>
-      <td style="color:var(--green);font-weight:600;">+${(s.profit||0).toLocaleString()}</td>
-      <td><span class="badge" style="background:${s.profitMargin>50?'var(--green-dim)':'var(--gold-dim)'};color:${s.profitMargin>50?'var(--green)':'var(--gold)'};">${s.profitMargin}%</span></td>`;
-    tb.appendChild(tr);
-  });
-  updateServiceStats(list);
-}
-function updateServiceStats(list){
-  if(!list.length){document.getElementById('serviceStatsBar').innerHTML='';return;}
-  const prices=list.map(s=>s.finalPrice);
-  const avg=Math.round(prices.reduce((a,b)=>a+b,0)/prices.length);
-  document.getElementById('serviceStatsBar').innerHTML=`
-    <div class="stat-item"><i class="fas fa-cube" style="color:var(--gold);"></i> Affichés : <strong>${list.length}</strong></div>
-    <div class="stat-sep"></div>
-    <div class="stat-item"><i class="fas fa-arrow-down" style="color:var(--green);"></i> Min : <strong>${Math.min(...prices).toLocaleString()} FCFA</strong></div>
-    <div class="stat-sep"></div>
-    <div class="stat-item"><i class="fas fa-arrow-up" style="color:var(--red);"></i> Max : <strong>${Math.max(...prices).toLocaleString()} FCFA</strong></div>
-    <div class="stat-sep"></div>
-    <div class="stat-item"><i class="fas fa-chart-bar" style="color:var(--accent);"></i> Moyenne : <strong>${avg.toLocaleString()} FCFA</strong></div>`;
-}
-function sortServices(field){const sel=document.getElementById('serviceSort');const cur=sel.value.split('-');const newDir=(cur[0]===field&&cur[1]==='asc')?'desc':'asc';sel.value=field+'-'+newDir;filterServices();}
-function resetServiceFilters(){document.getElementById('serviceFilter').value='all';document.getElementById('serviceSearch').value='';document.getElementById('serviceIdSearch').value='';document.getElementById('serviceSort').value='finalPrice-asc';document.getElementById('serviceLimit').value='25';filterServices();}
+/* ✅ NEW : Envoi email + marquage livré en un seul clic */
+async function sendGiftEmailAndMark(){
+  if(!currentEmailGift||emailSending)return;
+  const g = currentEmailGift;
+  const type = document.getElementById('giftEmailType').value;
+  const preview = document.getElementById('emailPreview').value.trim();
+  if(!preview) return alert('Le message est vide.');
+  if(g.status !== 'pending'){
+    return alert('Ce cadeau n\'est plus en attente.');
+  }
+  if(!confirm(`Envoyer l'email ET marquer ce cadeau comme LIVRÉ ?\n\nDestinataire : ${g.email}\nType : ${type}`)) return;
 
-/* ═══════════ GIFTS ═══════════ */
-async function loadGifts(){
-  const tb=document.getElementById('giftsBody');
-  tb.innerHTML='<tr><td colspan="7" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';
-  const status=document.getElementById('giftStatusFilter').value;
-  const limit=document.getElementById('giftLimit').value;
-  try{
-    const d=await fetchAdmin(`/gifts?status=${status}&limit=${limit}`);
-    if(d.success){
-      allGifts=d.claims||[];
-      allGifts=sortByDateDesc(allGifts);
-      const ci=document.getElementById('giftsCacheInfo'),ct=document.getElementById('giftsCacheText');
-      if(ci)ci.style.display='flex';
-      if(ct)ct.textContent=d.cached?`Cache actif — ${d.ttl||0}s restant`:`Cache actif · 5 min`;
-      filterGifts();
-    }
-  }catch(e){tb.innerHTML=`<tr><td colspan="7" class="loading">Erreur : ${e.message}</td></tr>`;}
-}
-function filterGifts(){
-  const tF=document.getElementById('giftTypeFilter').value;
-  const q=document.getElementById('giftSearch').value.toLowerCase().trim();
-  let f=allGifts;
-  if(tF!=='all')f=f.filter(g=>g.giftType===tF);
-  if(q)f=f.filter(g=>[g.userName,g.email,g.whatsapp,g.userId,g.link,g.country].filter(Boolean).join(' ').toLowerCase().includes(q));
-  renderGifts(f);
-}
-function resetGiftFilters(){document.getElementById('giftStatusFilter').value='pending';document.getElementById('giftTypeFilter').value='all';document.getElementById('giftSearch').value='';loadGifts();}
+  emailSending = true;
+  const combineBtn = document.getElementById('sendGiftEmailAndMarkBtn');
+  const sendBtn = document.getElementById('sendGiftEmailBtn');
+  if(combineBtn){ combineBtn.disabled = true; combineBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Traitement…'; }
+  if(sendBtn) sendBtn.disabled = true;
 
-function renderGifts(list){
-  const tb=document.getElementById('giftsBody');tb.innerHTML='';
-  if(!list.length){tb.innerHTML='<tr><td colspan="7" class="loading">Aucune demande</td></tr>';updateGiftStats([]);return;}
-  list.forEach(g=>{
-    const age=getGiftAgeDays(g.createdAt);const ageL=shortAge(g.createdAt);
-    const isLate=g.status==='pending'&&age!==null&&age>=1;
-    const ageBadge=ageL?`<span class="age-badge ${isLate?'old':''}" title="${isLate?'En retard de '+age+'j':'Âge'}">${ageL}</span>`:'';
-    const user=g.userName?`<strong>${esc(g.userName)}</strong>${g.email?'<br><small style="color:var(--text-dim);">'+esc(g.email)+'</small>':''}`:esc(g.email||g.userId||'Inconnu');
-    const links=[];
-    if(g.link)links.push(`<a href="${escAttr(g.link)}" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all;font-size:.78rem;">${esc(g.link)}</a>`);
-    if(g.whatsapp)links.push(`<div style="margin-top:4px;font-size:.78rem;color:var(--text-dim);">+${esc(g.whatsapp)} <button class="btn btn-outline btn-sm" style="padding:2px 6px;" onclick="copyText('${escAttr(g.whatsapp)}')"><i class="fas fa-copy"></i></button></div>`);
-    const waBtn=`<button class="btn btn-wa btn-sm" ${!g.whatsapp?'disabled title="Aucun WhatsApp"':''} onclick="${g.whatsapp?"openWaModal('"+escAttr(g.id)+"')":''}"><i class="fab fa-whatsapp"></i></button>`;
-    const emailBtn='<button class="btn btn-outline btn-sm" '+(!(g.email||g.userId)?'disabled title="Aucun compte email associé"':'')+' onclick="'+((g.email||g.userId)?"openGiftEmailModal('"+escAttr(g.id)+"')":'')+'" title="Envoyer un email"><i class="fas fa-envelope"></i></button>';
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td style="font-size:.78rem;color:var(--text-dim);white-space:nowrap;">${formatDate(g.createdAt)}${ageBadge}</td>
-      <td style="font-size:.84rem;">${user}</td><td>${esc(g.country||'–')}</td><td>${giftTypeLabel(g)}</td>
-      <td>${links.length?links.join(''):'–'}</td><td>${statusLabel(g.status)}</td>
-      <td><div class="action-row">${waBtn}${emailBtn}
-      ${g.link?`<button class="btn btn-outline btn-sm" onclick="copyText('${escAttr(g.link)}')"><i class="fas fa-copy"></i></button>`:''}
-      ${g.status==='pending'?`<button class="btn btn-green btn-sm" onclick="setGiftStatus('${escAttr(g.id)}','delivered')" title="Marquer livré"><i class="fas fa-check"></i></button>
-      <button class="btn btn-red btn-sm" onclick="setGiftStatus('${escAttr(g.id)}','rejected')" title="Rejeter"><i class="fas fa-xmark"></i></button>`:
-      `<button class="btn btn-outline btn-sm" onclick="setGiftStatus('${escAttr(g.id)}','pending')" title="Réouvrir"><i class="fas fa-rotate-left"></i></button>`}
-      </div></td>`;
-    tb.appendChild(tr);
-  });
-  updateGiftStats(list);
-}
-function updateGiftStats(list){
-  const p=list.filter(g=>g.status==='pending').length,d=list.filter(g=>g.status==='delivered').length,r=list.filter(g=>g.status==='rejected').length;
-  const late=list.filter(g=>g.status==='pending'&&(getGiftAgeDays(g.createdAt)||0)>=1).length;
-  document.getElementById('giftStatsBar').innerHTML=`
-    <div class="stat-item"><i class="fas fa-list" style="color:var(--gold);"></i> Affichés : <strong>${list.length}</strong></div>
-    <div class="stat-sep"></div>
-    <div class="stat-item"><i class="fas fa-clock" style="color:var(--warning);"></i> En attente : <strong>${p}</strong></div>
-    <div class="stat-sep"></div>
-    <div class="stat-item"><i class="fas fa-check-circle" style="color:var(--green);"></i> Livrés : <strong>${d}</strong></div>
-    <div class="stat-sep"></div>
-    <div class="stat-item"><i class="fas fa-xmark-circle" style="color:var(--red);"></i> Rejetés : <strong>${r}</strong></div>
-    ${late?`<div class="stat-sep"></div><div class="stat-item"><i class="fas fa-exclamation-triangle" style="color:var(--red);"></i> En retard : <strong>${late}</strong></div>`:''}`;
-}
-async function setGiftStatus(id,status){
-  const labels={delivered:'marquer comme LIVRÉ',rejected:'REJETER',pending:'réouvrir'};
-  if(!confirm(`Confirmer : ${labels[status]} ce cadeau ?`))return;
   try{
-    const r=await fetchAdmin(`/gifts/${id}/status`,{method:'POST',body:JSON.stringify({status})});
-    if(r.success){const g=allGifts.find(x=>x.id===id);if(g)g.status=status;filterGifts();}
-    else alert('Erreur : '+(r.error||'Inconnue'));
-  }catch(e){alert('Erreur réseau : '+e.message);}
+    // 1) Envoi email
+    const sendType = (type === 'custom') ? 'custom' : type;
+    const d = await fetchAdmin(`/gifts/${encodeURIComponent(g.id)}/email`, {
+      method: 'POST',
+      body: JSON.stringify({ type: sendType, customMessage: preview })
+    });
+    if(!d.success) throw new Error(d.error || 'Envoi email refusé');
+
+    // 2) Marquage livré
+    const r = await fetchAdmin(`/gifts/${encodeURIComponent(g.id)}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status: 'delivered' })
+    });
+    if(!r.success) throw new Error(r.error || 'Statut non mis à jour');
+
+    // 3) Mise à jour locale + badge instantanée
+    g.status = 'delivered';
+    filterGifts();
+    const badge = document.getElementById('navGiftCount');
+    if(badge){
+      const cur = Number(badge.textContent || 0);
+      const nw = Math.max(0, cur - 1);
+      if(nw > 0){ badge.textContent = nw; badge.style.display = 'inline-block'; }
+      else { badge.style.display = 'none'; }
+    }
+
+    // 4) Refresh en arrière-plan
+    loadOverview(true).catch(()=>{});
+
+    showToast('✓ Email envoyé + cadeau livré');
+    closeGiftEmailModal();
+  }catch(e){
+    alert('Erreur : ' + e.message);
+  }finally{
+    emailSending = false;
+    if(combineBtn){ combineBtn.disabled = false; combineBtn.innerHTML = '<i class="fas fa-check-double"></i> Envoyer + Marquer livré'; }
+    if(sendBtn) sendBtn.disabled = false;
+  }
+}
+
+/* ═══════════ AUTOMATISATION STATUT + EMAIL ═══════════ */
+async function setGiftStatus(id, status){
+  const g = allGifts.find(x => x.id === id);
+  if(!g) return;
+  const previousStatus = g.status;
+
+  if(status === 'delivered'){
+    if(!confirm('Marquer ce cadeau comme LIVRÉ ?\n\nL\'email de confirmation sera préparé automatiquement.')) return;
+  } else if(status === 'rejected'){
+    if(!confirm('Rejeter cette demande de cadeau ?\n\nL\'email de refus sera préparé automatiquement.')) return;
+  } else {
+    if(!confirm('Réouvrir cette demande de cadeau ?')) return;
+  }
+
+  let rejectionReason = null;
+  if(status === 'rejected'){
+    rejectionReason = prompt(
+      'Raison du rejet (sera incluse dans l\'email au client) :',
+      'Les informations fournies ne nous ont pas permis de valider votre demande.'
+    );
+    if(rejectionReason === null) return;
+    rejectionReason = rejectionReason.trim();
+    if(!rejectionReason){ alert('La raison du rejet est obligatoire.'); return; }
+  }
+
+  try{
+    const body = { status };
+    if(rejectionReason) body.note = rejectionReason;
+    const r = await fetchAdmin(`/gifts/${id}/status`, { method: 'POST', body: JSON.stringify(body) });
+    if(!r.success){ alert('Erreur : ' + (r.error || 'Inconnue')); return; }
+
+    g.status = status;
+    if(rejectionReason) g.adminNote = rejectionReason;
+    filterGifts();
+
+    const badge = document.getElementById('navGiftCount');
+    if(badge){
+      const wasPending = previousStatus === 'pending';
+      const isPending = status === 'pending';
+      let current = Number(badge.textContent || 0);
+      if(wasPending && !isPending){ current = Math.max(0, current - 1); }
+      else if(!wasPending && isPending){ current = current + 1; }
+      if(current > 0){ badge.textContent = current; badge.style.display = 'inline-block'; }
+      else { badge.style.display = 'none'; }
+    }
+
+    loadOverview(true).catch(err => console.warn('Refresh overview:', err));
+
+    if(status === 'delivered'){
+      setTimeout(() => {
+        openGiftEmailModalForStatus(id, 'delivered')
+          .catch(err => console.warn('Auto email (delivered) :', err));
+      }, 250);
+      showToast('Cadeau livré ✓ Email de confirmation prêt à envoyer.');
+    } else if(status === 'rejected'){
+      setTimeout(() => {
+        openGiftEmailModalForStatus(id, 'rejected', rejectionReason)
+          .catch(err => console.warn('Auto email (rejected) :', err));
+      }, 250);
+      showToast('Cadeau rejeté ✓ Email de refus prêt à envoyer.');
+    } else {
+      showToast('Cadeau réouvert.');
+    }
+  }catch(e){
+    alert('Erreur réseau : ' + e.message);
+  }
+}
+
+/* ═══════════ BULK PROCESSING ═══════════ */
+let bulkCurrentList = [];
+
+async function bulkProcessPendingGifts(){
+  // Forcer le filtre "pending" pour la cohérence
+  const filterSel = document.getElementById('giftStatusFilter');
+  if(filterSel && filterSel.value !== 'pending'){
+    filterSel.value = 'pending';
+    await loadGifts();
+  }
+  try{
+    const d = await fetchAdmin('/gifts?status=pending&limit=100');
+    const list = (d.claims || []).filter(g => g.status === 'pending');
+    if(!list.length){
+      alert('Aucun cadeau en attente à traiter.');
+      return;
+    }
+    bulkCurrentList = list;
+    renderBulkGiftList(list);
+    const summary = document.getElementById('bulkGiftSummary');
+    const lateCount = list.filter(g => (getGiftAgeDays(g.createdAt) || 0) >= 1).length;
+    summary.innerHTML = `<strong>${list.length}</strong> cadeau(x) en attente${lateCount ? ` · <span style="color:var(--warning);">${lateCount} en retard (+24h)</span>` : ''}.<br><small style="color:var(--text-dim);">Cochez ceux à marquer comme livrés.</small>`;
+    // Reset progress
+    document.getElementById('bulkProgressBar').style.display = 'none';
+    document.getElementById('bulkProgressFill').style.width = '0%';
+    document.getElementById('bulkProgressText').style.display = 'none';
+    const btn = document.getElementById('bulkProcessConfirmBtn');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check-double"></i> Traiter';
+    document.getElementById('bulkGiftModal').classList.add('active');
+  }catch(e){
+    alert('Erreur chargement : ' + e.message);
+  }
+}
+
+function renderBulkGiftList(list){
+  const container = document.getElementById('bulkGiftList');
+  container.innerHTML = '';
+  list.forEach(g => {
+    const age = getGiftAgeDays(g.createdAt) || 0;
+    const ageBadge = age >= 1
+      ? `<span class="age-badge old">${age}j</span>`
+      : `<span class="age-badge">auj.</span>`;
+    const row = document.createElement('label');
+    row.className = 'bulk-row';
+    row.innerHTML = `
+      <input type="checkbox" checked data-bulk-id="${escAttr(g.id)}" style="accent-color:var(--gold);transform:scale(1.1);cursor:pointer;">
+      <div style="flex:1;min-width:0;">
+        <strong style="color:var(--text);">${esc(g.userName || g.email || 'Client')}</strong> ${ageBadge}<br>
+        <small style="color:var(--text-dim);">${esc(giftTypePlain(g))} · ${esc(formatDate(g.createdAt))}</small>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function bulkSelectAll(checked){
+  document.querySelectorAll('input[data-bulk-id]').forEach(cb => { cb.checked = checked; });
+}
+
+function closeBulkGiftModal(){
+  document.getElementById('bulkGiftModal').classList.remove('active');
+  bulkCurrentList = [];
+}
+
+async function confirmBulkProcess(){
+  const checks = document.querySelectorAll('input[data-bulk-id]:checked');
+  const ids = Array.from(checks).map(c => c.dataset.bulkId);
+  if(!ids.length){ alert('Aucun cadeau sélectionné.'); return; }
+  const shouldSendEmails = document.getElementById('bulkSendEmails').checked;
+
+  if(!confirm(`Traiter ${ids.length} cadeau(x) comme LIVRÉS${shouldSendEmails ? ' ET envoyer les emails ?' : ' ?'}`)) return;
+
+  const btn = document.getElementById('bulkProcessConfirmBtn');
+  btn.disabled = true;
+  const progressBar = document.getElementById('bulkProgressBar');
+  const progressFill = document.getElementById('bulkProgressFill');
+  const progressText = document.getElementById('bulkProgressText');
+  progressBar.style.display = 'block';
+  progressText.style.display = 'block';
+  progressFill.style.width = '0%';
+  progressText.textContent = `Traitement 0/${ids.length}…`;
+
+  let success = 0, failed = 0, emailsSent = 0, emailsFailed = 0;
+
+  for(let i = 0; i < ids.length; i++){
+    const gid = ids[i];
+    const g = allGifts.find(x => x.id === gid);
+    progressText.textContent = `Traitement ${i + 1}/${ids.length}…`;
+    progressFill.style.width = Math.round(((i + 1) / ids.length) * 100) + '%';
+    btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> ${i + 1}/${ids.length}…`;
+
+    // 1) Envoi email si demandé
+    if(shouldSendEmails && g){
+      try{
+        const preview = buildGiftEmailText(g, 'delivered');
+        const e = await fetchAdmin(`/gifts/${encodeURIComponent(gid)}/email`, {
+          method: 'POST',
+          body: JSON.stringify({ type: 'delivered', customMessage: preview })
+        });
+        if(e.success) emailsSent++; else emailsFailed++;
+      }catch(err){ emailsFailed++; console.warn('Email failed:', gid, err); }
+    }
+
+    // 2) Marquage livré
+    try{
+      const r = await fetchAdmin(`/gifts/${gid}/status`, {
+        method: 'POST',
+        body: JSON.stringify({ status: 'delivered' })
+      });
+      if(r.success) success++; else failed++;
+    }catch(err){ failed++; console.warn('Bulk process failed:', gid, err); }
+  }
+
+  // Rafraîchir
+  await loadGifts();
+  loadOverview(true).catch(()=>{});
+
+  progressText.textContent = `Terminé : ${success} livré(s)${failed ? ` · ${failed} échec(s)` : ''}${shouldSendEmails ? ` · ${emailsSent} email(s) envoyé(s)` : ''}${emailsFailed ? ` · ${emailsFailed} email(s) échoué(s)` : ''}`;
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-check-double"></i> Traiter';
+
+  let msg = `✓ ${success} livré(s)`;
+  if(failed) msg += ` · ${failed} échec(s)`;
+  if(shouldSendEmails) msg += ` · ${emailsSent} email(s)`;
+  if(emailsFailed) msg += ` · ${emailsFailed} email(s) échoué(s)`;
+  showToast(msg);
+
+  setTimeout(() => { closeBulkGiftModal(); }, 1500);
 }
 
 /* ═══════════ WHATSAPP ═══════════ */
@@ -1979,7 +2256,8 @@ function buildWaMessage(g,type){
   const age=getGiftAgeDays(g.createdAt)||0;
   const ageLabel=age===0?'aujourd\'hui':(age===1?'hier':`il y a ${age} jours`);
   const waLine=`💬 Besoin d'aide ? Contactez-nous : ${SBH_WA_DISPLAY}\n   ${SBH_WA_LINK}`;
-  const siteLine=`🌐 Site : ${SBH_SITE_URL}\n🔗 Tableau de bord : ${SBH_DASHBOARD_URL}`;
+  const siteLine=`🌐 Site : ${SBH_SITE_URL}`;
+  const dashLine=`🔗 Tableau de bord : ${SBH_DASHBOARD_URL}`;
 
   const baseRecap=`🎁 Cadeau : ${gt}\n📅 Demandé le : ${d} (${ageLabel})\n${countryLine}`;
   const linkLine=needsLink?`🔗 Lien à créditer : ${link}\n`:'';
@@ -1997,6 +2275,7 @@ Aucune action n'est requise de votre part. Nous finalisons actuellement le créd
 
 ✨ Découvrez aussi nos services : boost réseaux sociaux, création de boutique en ligne, accompagnement digital et bien plus encore !
 
+${dashLine}
 ${siteLine}
 
 ${waLine}
@@ -2016,6 +2295,7 @@ Répondez simplement *OUI* à ce message pour confirmer, ou envoyez-nous le bon 
 
 Une fois confirmé, votre cadeau sera traité en priorité par notre équipe.
 
+${dashLine}
 ${siteLine}
 
 ${waLine}
@@ -2033,7 +2313,7 @@ Bonne nouvelle ! Votre cadeau de bienvenue a été *traité avec succès* par no
 ${baseRecap}
 VÉRIFIEZ VOTRE SOLDE MAINTENANT : votre crédit a été ajouté à votre compte. Rendez-vous sur votre tableau de bord :
 
-${dashLine = SBH_DASHBOARD_URL}
+${dashLine}
 
 ✨ Découvrez aussi nos services : boost réseaux sociaux, création de boutique en ligne, accompagnement digital et bien plus encore !
 
@@ -2051,6 +2331,7 @@ Notre équipe met tout en œuvre pour finaliser votre commande dans les meilleur
 
 ✨ *Découvrez nos nouveautés :* boost réseaux sociaux, création de boutique en ligne, accompagnement digital et bien plus encore !
 
+${dashLine}
 ${siteLine}
 
 ${waLine}
@@ -2070,6 +2351,7 @@ Nous tenons à vous présenter nos plus sincères excuses pour ce retard. Nous c
 ${baseRecap}
 BONNE NOUVELLE : Aucune action n'est requise de votre part. Notre équipe traite votre demande en *PRIORITÉ* et votre crédit sera automatiquement ajouté à votre compte. Vous pourrez vérifier votre solde depuis votre tableau de bord.
 
+${dashLine}
 ${siteLine}
 
 ${waLine}
@@ -2091,6 +2373,7 @@ Merci de répondre *OUI* à ce message pour confirmer, ou de nous envoyer le bon
 
 Dès réception de votre confirmation, votre demande sera traitée en *PRIORITÉ ABSOLUE* par notre équipe.
 
+${dashLine}
 ${siteLine}
 
 ${waLine}
@@ -2108,7 +2391,7 @@ C'est avec plaisir que nous vous confirmons que votre cadeau de bienvenue a ét�
 ${baseRecap}
 VÉRIFIEZ MAINTENANT : votre crédit a bien été ajouté à votre solde. Connectez-vous à votre tableau de bord pour confirmer votre nouveau solde :
 
-${dashLine = SBH_DASHBOARD_URL}
+${dashLine}
 
 ET MAINTENANT, PLACE À L'ACTION !
 • Recharger votre solde pour passer plus de commandes
@@ -2134,6 +2417,7 @@ ET MAINTENANT, PLACE À L'ACTION !
 • Créer votre propre boutique en ligne
 • Profiter de notre accompagnement digital
 
+${dashLine}
 ${siteLine}
 
 ${waLine}
@@ -2197,8 +2481,84 @@ function exportGiftsPDF(){if(!allGifts.length)return alert('Aucune demande.');co
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&document.getElementById('waModal').classList.contains('active'))closeWaModal();
   if(e.key==='Escape'&&document.getElementById('emailModal').classList.contains('active'))closeGiftEmailModal();
+  if(e.key==='Escape'&&document.getElementById('bulkGiftModal').classList.contains('active'))closeBulkGiftModal();
   if(e.key==='Escape'&&document.getElementById('customerEmailModal').classList.contains('active'))closeCustomerEmailModal();
 });
+
+/* ═══════════ GIFTS (avec filtre En retard) ═══════════ */
+async function loadGifts(){
+  const tb=document.getElementById('giftsBody');
+  tb.innerHTML='<tr><td colspan="7" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';
+  const statusFilter=document.getElementById('giftStatusFilter').value;
+  const backendStatus = statusFilter === 'late' ? 'pending' : statusFilter;
+  const limit=document.getElementById('giftLimit').value;
+  try{
+    const d=await fetchAdmin(`/gifts?status=${backendStatus}&limit=${limit}`);
+    if(d.success){
+      allGifts=d.claims||[];
+      allGifts=sortByDateDesc(allGifts);
+      const ci=document.getElementById('giftsCacheInfo'),ct=document.getElementById('giftsCacheText');
+      if(ci)ci.style.display='flex';
+      if(ct)ct.textContent=d.cached?`Cache actif — ${d.ttl||0}s restant`:`Cache actif · 5 min`;
+      filterGifts();
+    }
+  }catch(e){tb.innerHTML=`<tr><td colspan="7" class="loading">Erreur : ${e.message}</td></tr>`;}
+}
+function filterGifts(){
+  const tF=document.getElementById('giftTypeFilter').value;
+  const q=document.getElementById('giftSearch').value.toLowerCase().trim();
+  const statusFilter = document.getElementById('giftStatusFilter').value;
+  let f=allGifts;
+  // Filtre "En retard"
+  if(statusFilter === 'late'){
+    f = f.filter(g => g.status === 'pending' && (getGiftAgeDays(g.createdAt) || 0) >= 1);
+  }
+  if(tF!=='all')f=f.filter(g=>g.giftType===tF);
+  if(q)f=f.filter(g=>[g.userName,g.email,g.whatsapp,g.userId,g.link,g.country].filter(Boolean).join(' ').toLowerCase().includes(q));
+  renderGifts(f);
+}
+function resetGiftFilters(){document.getElementById('giftStatusFilter').value='pending';document.getElementById('giftTypeFilter').value='all';document.getElementById('giftSearch').value='';loadGifts();}
+
+function renderGifts(list){
+  const tb=document.getElementById('giftsBody');tb.innerHTML='';
+  if(!list.length){tb.innerHTML='<tr><td colspan="7" class="loading">Aucune demande</td></tr>';updateGiftStats([]);return;}
+  list.forEach(g=>{
+    const age=getGiftAgeDays(g.createdAt);const ageL=shortAge(g.createdAt);
+    const isLate=g.status==='pending'&&age!==null&&age>=1;
+    const ageBadge=ageL?`<span class="age-badge ${isLate?'old':''}" title="${isLate?'En retard de '+age+'j':'Âge'}">${ageL}</span>`:'';
+    const user=g.userName?`<strong>${esc(g.userName)}</strong>${g.email?'<br><small style="color:var(--text-dim);">'+esc(g.email)+'</small>':''}`:esc(g.email||g.userId||'Inconnu');
+    const links=[];
+    if(g.link)links.push(`<a href="${escAttr(g.link)}" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all;font-size:.78rem;">${esc(g.link)}</a>`);
+    if(g.whatsapp)links.push(`<div style="margin-top:4px;font-size:.78rem;color:var(--text-dim);">+${esc(g.whatsapp)} <button class="btn btn-outline btn-sm" style="padding:2px 6px;" onclick="copyText('${escAttr(g.whatsapp)}')"><i class="fas fa-copy"></i></button></div>`);
+    const waBtn=`<button class="btn btn-wa btn-sm" ${!g.whatsapp?'disabled title="Aucun WhatsApp"':''} onclick="${g.whatsapp?"openWaModal('"+escAttr(g.id)+"')":''}"><i class="fab fa-whatsapp"></i></button>`;
+    const emailBtn='<button class="btn btn-outline btn-sm" '+(!(g.email||g.userId)?'disabled title="Aucun compte email associé"':'')+' onclick="'+((g.email||g.userId)?"openGiftEmailModal('"+escAttr(g.id)+"')":'')+'" title="Envoyer un email"><i class="fas fa-envelope"></i></button>';
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="font-size:.78rem;color:var(--text-dim);white-space:nowrap;">${formatDate(g.createdAt)}${ageBadge}</td>
+      <td style="font-size:.84rem;">${user}</td><td>${esc(g.country||'–')}</td><td>${giftTypeLabel(g)}</td>
+      <td>${links.length?links.join(''):'–'}</td><td>${statusLabel(g.status)}</td>
+      <td><div class="action-row">${waBtn}${emailBtn}
+      ${g.link?`<button class="btn btn-outline btn-sm" onclick="copyText('${escAttr(g.link)}')"><i class="fas fa-copy"></i></button>`:''}
+      ${g.status==='pending'?`<button class="btn btn-green btn-sm" onclick="setGiftStatus('${escAttr(g.id)}','delivered')" title="Marquer livré + email auto"><i class="fas fa-check"></i></button>
+      <button class="btn btn-red btn-sm" onclick="setGiftStatus('${escAttr(g.id)}','rejected')" title="Rejeter + email auto"><i class="fas fa-xmark"></i></button>`:
+      `<button class="btn btn-outline btn-sm" onclick="setGiftStatus('${escAttr(g.id)}','pending')" title="Réouvrir"><i class="fas fa-rotate-left"></i></button>`}
+      </div></td>`;
+    tb.appendChild(tr);
+  });
+  updateGiftStats(list);
+}
+function updateGiftStats(list){
+  const p=list.filter(g=>g.status==='pending').length,d=list.filter(g=>g.status==='delivered').length,r=list.filter(g=>g.status==='rejected').length;
+  const late=list.filter(g=>g.status==='pending'&&(getGiftAgeDays(g.createdAt)||0)>=1).length;
+  document.getElementById('giftStatsBar').innerHTML=`
+    <div class="stat-item"><i class="fas fa-list" style="color:var(--gold);"></i> Affichés : <strong>${list.length}</strong></div>
+    <div class="stat-sep"></div>
+    <div class="stat-item"><i class="fas fa-clock" style="color:var(--warning);"></i> En attente : <strong>${p}</strong></div>
+    <div class="stat-sep"></div>
+    <div class="stat-item"><i class="fas fa-check-circle" style="color:var(--green);"></i> Livrés : <strong>${d}</strong></div>
+    <div class="stat-sep"></div>
+    <div class="stat-item"><i class="fas fa-xmark-circle" style="color:var(--red);"></i> Rejetés : <strong>${r}</strong></div>
+    ${late?`<div class="stat-sep"></div><div class="stat-item"><i class="fas fa-exclamation-triangle" style="color:var(--red);"></i> En retard : <strong>${late}</strong></div>`:''}`;
+}
 </script>
 </body>
 </html>
