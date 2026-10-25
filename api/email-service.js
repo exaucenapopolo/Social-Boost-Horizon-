@@ -537,6 +537,102 @@ async function sendPartnershipEmail({ name, email, whatsapp, type, message, requ
 }
 
 // ═══════════════════════════════════════════════════════════════
+// 8. MESSAGE ADMIN → UTILISATEUR (cadeaux, suivi client)
+// Reçoit un texte brut (déjà rédigé côté dashboard) et le rend
+// en HTML professionnel en réutilisant userTemplate, header,
+// partnersBlock, footer et ctaButton ci-dessus.
+// ═══════════════════════════════════════════════════════════════
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function renderInline(text) {
+  let safe = escapeHtml(text);
+  safe = safe.replace(
+    /(https?:\/\/[^\s<]+)/g,
+    '<a href="$1" style="color:#C9A961;text-decoration:none;font-weight:600;">$1</a>'
+  );
+  return safe;
+}
+
+function looksLikeHeader(line) {
+  const trimmed = line.trim();
+  if (trimmed.length < 5 || trimmed.length > 90) return false;
+  const cleaned = trimmed.replace(/^[^\p{L}]+/u, '').trim();
+  if (cleaned.length < 4) return false;
+  const upper = (cleaned.match(/[A-ZÀ-Ü]/g) || []).length;
+  const lower = (cleaned.match(/[a-zà-ü]/g) || []).length;
+  return upper >= 4 && lower === 0;
+}
+
+function renderBodyToHtml(bodyText) {
+  const lines = String(bodyText || '').split('\n');
+  const out = [];
+  let bullets = [];
+  const flushBullets = () => {
+    if (!bullets.length) return;
+    out.push(
+      `<ul style="margin:6px 0 20px;padding-left:22px;color:#c3c9d6;font-family:Arial,sans-serif;font-size:14px;line-height:1.8;">${bullets.join('')}</ul>`
+    );
+    bullets = [];
+  };
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/, '');
+    if (!line.trim()) { flushBullets(); continue; }
+    if (/^[•·\-*]\s+/.test(line.trim())) {
+      const content = line.trim().replace(/^[•·\-*]\s+/, '');
+      bullets.push(`<li style="margin:0 0 6px;padding-left:4px;">${renderInline(content)}</li>`);
+      continue;
+    }
+    flushBullets();
+    if (looksLikeHeader(line)) {
+      out.push(
+        `<div style="font-size:11px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;color:#C9A961;margin:26px 0 12px;font-family:Arial,sans-serif;">${renderInline(line.trim())}</div>`
+      );
+    } else {
+      out.push(
+        `<p style="color:#c3c9d6;font-size:14px;line-height:1.8;margin:0 0 14px;font-family:Arial,sans-serif;">${renderInline(line)}</p>`
+      );
+    }
+  }
+  flushBullets();
+  return out.join('');
+}
+
+async function sendAdminUserMessage({ to, subject, bodyText, ctaLabel, ctaUrl, previewText }) {
+  if (!resend) {
+    console.warn('sendAdminUserMessage : RESEND_API_KEY non défini — email non envoyé.');
+    return { success: false, error: 'RESEND_API_KEY non définie.' };
+  }
+  if (!to || !subject || !bodyText) {
+    return { success: false, error: 'Paramètres to/subject/bodyText requis.' };
+  }
+
+  const content = `
+    <div style="font-size:19px;color:#e8eaf0;font-weight:700;margin:0 0 24px;font-family:Arial,sans-serif;line-height:1.35;">${escapeHtml(subject)}</div>
+    ${renderBodyToHtml(bodyText)}
+    ${ctaUrl ? ctaButton(ctaLabel || 'Accéder à mon tableau de bord', ctaUrl) : ''}
+  `;
+
+  const preview = (previewText || String(bodyText).split('\n').map(l => l.trim()).find(Boolean) || subject).substring(0, 140);
+
+  const result = await resend.emails.send({
+    from: FROM,
+    to,
+    reply_to: REPLY_TO,
+    subject,
+    html: userTemplate(subject, preview, content),
+  });
+
+  console.log(`Email admin→user envoyé à ${to} — id: ${result.id || 'n/a'}`);
+  return { success: true, id: result.id };
+}
+
+// ═══════════════════════════════════════════════════════════════
 // EXPORTS
 // ═══════════════════════════════════════════════════════════════
 module.exports = {
@@ -547,4 +643,5 @@ module.exports = {
   sendWithdrawalApprovedEmail,
   sendWithdrawalRejectedEmail,
   sendPartnershipEmail,
+  sendAdminUserMessage,
 };

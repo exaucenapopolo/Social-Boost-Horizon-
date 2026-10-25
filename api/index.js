@@ -3,7 +3,7 @@ const cors    = require('cors');
 const admin   = require('firebase-admin');
 const crypto  = require('crypto');
 
-const { sendWelcomeEmail, sendPartnershipEmail } = require('./email-service.js');
+const { sendWelcomeEmail, sendPartnershipEmail, sendAdminUserMessage } = require('./email-service.js');
 
 const app = express();
 
@@ -29,7 +29,6 @@ function getTimestampMs(val) {
   return isNaN(parsed) ? 0 : parsed;
 }
 
-// ── Firebase Admin ──────────────────────────────────────────────
 if (!admin.apps.length) {
   try {
     const privateKey = process.env.FIREBASE_PRIVATE_KEY
@@ -56,7 +55,41 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-// ── Middleware d'authentification ───────────────────────────────
+const SBH_WA_DISPLAY = '+1 (423) 675-2034';
+const SBH_WA_LINK    = 'https://wa.me/14236752034';
+const SBH_SITE_URL   = 'https://socialboosthorizon.com/';
+const SBH_DASHBOARD  = 'https://socialboosthorizon.com/tableau-de-bord.html';
+
+function giftNeedsLinkConfirmation(giftType) {
+  return giftType === 'likes' || giftType === 'tiktok';
+}
+function giftPlainLabel(giftType) {
+  if (giftType === 'money')  return '25 FCFA crédités sur votre solde';
+  if (giftType === 'likes')  return '25 Likes offerts';
+  if (giftType === 'tiktok') return '1000 Vues TikTok offertes';
+  return 'cadeau de bienvenue';
+}
+function giftAgeInDays(createdAtValue) {
+  const ms = getTimestampMs(createdAtValue);
+  if (!ms) return null;
+  return Math.max(0, Math.floor((Date.now() - ms) / (24 * 60 * 60 * 1000)));
+}
+function giftAgeLabel(createdAtValue) {
+  const d = giftAgeInDays(createdAtValue);
+  if (d === null) return 'récemment';
+  if (d === 0) return "aujourd'hui";
+  if (d === 1) return 'hier';
+  return `il y a ${d} jours`;
+}
+
+function localDateKey(date = new Date()) {
+  const shifted = new Date(date.getTime() + 60 * 60 * 1000);
+  const y = shifted.getUTCFullYear();
+  const m = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(shifted.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 async function checkAuth(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -71,14 +104,10 @@ async function checkAuth(req, res, next) {
   }
 }
 
-// ── Health check ────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// ═══════════════════════════════════════════════════════════════
-// CONFIGURATIONS FOURNISSEURS GLOBALES (MTP, EXO, AFB, SMMWiz)
-// ═══════════════════════════════════════════════════════════════
 const MTP_API_URL    = 'https://morethanpanel.com/api/v2';
 const MTP_USD_TO_XAF = 650;
 const MTP_MULTIPLIER = 2.5;
@@ -90,12 +119,10 @@ const EXO_MULTIPLIER = 1.51;
 const AFRIQUEBOOST_API_URL = 'https://afriqueboost.com/api/v2';
 const AFB_MULTIPLIER       = 2.5;
 
-// ── SMMWiz (remplace SMMGen) ────────────────────────────────────
 const SMMWIZ_API_URL      = 'https://smmwiz.com/api/v2';
 const SMMWIZ_USD_TO_XAF   = 650;
 const SMMWIZ_MULTIPLIER   = 3.5;
 
-// Ancien fournisseur SMMGen — conservé uniquement pour compatibilité des routes
 const SMMGEN_API_URL      = 'https://my.smmgen.com/api/v2';
 const SMMGEN_USD_TO_XAF   = 650;
 const SMMGEN_MULTIPLIER   = 3.5;
@@ -164,7 +191,6 @@ async function callAfriqueBoost(params) {
   return res.json();
 }
 
-// ── Appel SMMWiz ───────────────────────────────────────────────
 async function callSmmWiz(params) {
   if (!process.env.SMMWIZ_API_KEY) throw new Error('SMMWIZ_API_KEY non définie.');
   const body = new URLSearchParams({ key: process.env.SMMWIZ_API_KEY, ...params });
@@ -175,7 +201,6 @@ async function callSmmWiz(params) {
   return res.json();
 }
 
-// ── Appel SMMGen (conservé pour compatibilité des anciennes routes) ──
 async function callSmmGen(params) {
   if (!process.env.SMMGEN_API_KEY) throw new Error('SMMGEN_API_KEY non définie.');
   const body = new URLSearchParams({ key: process.env.SMMGEN_API_KEY, ...params });
@@ -186,9 +211,6 @@ async function callSmmGen(params) {
   return res.json();
 }
 
-// ═══════════════════════════════════════════════════════════════
-// MTP API
-// ═══════════════════════════════════════════════════════════════
 let _mtpServicesCache     = null;
 let _mtpServicesCacheTime = 0;
 const MTP_CACHE_TTL = 10 * 60 * 1000;
@@ -434,9 +456,6 @@ app.post('/api/mtp/cancel', checkAuth, async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// EXO API
-// ═══════════════════════════════════════════════════════════════
 app.post('/api/exo/cancel', checkAuth, async (req, res) => {
     try {
         const uid = req.user.uid;
@@ -640,9 +659,6 @@ app.post('/api/exo-status', checkAuth, async (req, res) => {
     }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// AfriqueBoost API
-// ═══════════════════════════════════════════════════════════════
 let _afbServicesCache     = null;
 let _afbServicesCacheTime = 0;
 
@@ -831,9 +847,6 @@ app.post('/api/afriqueboost/refill', checkAuth, async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// SMMWiz API (remplace SMMGen)
-// ═══════════════════════════════════════════════════════════════
 let _smmwizServicesCache     = null;
 let _smmwizServicesCacheTime = 0;
 const SMMWIZ_CACHE_TTL = 10 * 60 * 1000;
@@ -931,7 +944,6 @@ function computeSmmWizCost(service, qty, pricingMode) {
   }
 }
 
-// ── Route catalogue SMMWiz ─────────────────────────────────────
 app.get('/api/smmwiz/services', async (req, res) => {
   try {
     const now = Date.now();
@@ -973,7 +985,6 @@ app.get('/api/smmwiz/services', async (req, res) => {
   }
 });
 
-// ── Création commande SMMWiz ───────────────────────────────────
 app.post('/api/smmwiz/order', checkAuth, async (req, res) => {
   const uid = req.user.uid;
   const { serviceId, link } = req.body;
@@ -1120,7 +1131,6 @@ app.post('/api/smmwiz/order', checkAuth, async (req, res) => {
   }
 });
 
-// ── Statut commande SMMWiz ─────────────────────────────────────
 app.get('/api/smmwiz/order-status/:orderId', checkAuth, async (req, res) => {
   const { orderId } = req.params;
   const uid = req.user.uid;
@@ -1216,7 +1226,6 @@ app.get('/api/smmwiz/order-status/:orderId', checkAuth, async (req, res) => {
   }
 });
 
-// ── Refill SMMWiz ──────────────────────────────────────────────
 app.post('/api/smmwiz/refill', checkAuth, async (req, res) => {
   const { orderId } = req.body;
   const uid = req.user.uid;
@@ -1274,7 +1283,6 @@ app.post('/api/smmwiz/refill', checkAuth, async (req, res) => {
   }
 });
 
-// ── Statut refill SMMWiz ───────────────────────────────────────
 app.post('/api/smmwiz/refill-status', checkAuth, async (req, res) => {
   const { refillId, orderId } = req.body;
   const uid = req.user.uid;
@@ -1313,7 +1321,6 @@ app.post('/api/smmwiz/refill-status', checkAuth, async (req, res) => {
   }
 });
 
-// ── Annulation SMMWiz ──────────────────────────────────────────
 app.post('/api/smmwiz/cancel', checkAuth, async (req, res) => {
   const { orderId } = req.body;
   const uid = req.user.uid;
@@ -1369,10 +1376,6 @@ app.post('/api/smmwiz/cancel', checkAuth, async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
-
-// ═══════════════════════════════════════════════════════════════
-// ROUTES DE COMPATIBILITÉ SMMGen → SMMWiz
-// ═══════════════════════════════════════════════════════════════
 
 app.get('/api/smmgen/services', async (req, res) => {
   return res.redirect(307, '/api/smmwiz/services');
@@ -1636,9 +1639,6 @@ app.post('/api/smmgen/cancel', checkAuth, async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// Routes utilisateur
-// ═══════════════════════════════════════════════════════════════
 app.post('/api/register', checkAuth, async (req, res) => {
   try {
     const { displayName, username, email, country } = req.body;
@@ -1769,10 +1769,6 @@ app.post('/api/user/settings', checkAuth, async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// Clé API développeur — INFO, GÉNÉRATION, RÉVOCATION
-// ═══════════════════════════════════════════════════════════════
-
 app.get('/api/user/api-key-info', checkAuth, async (req, res) => {
   try {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -1852,9 +1848,6 @@ app.post('/api/user/revoke-api-key', checkAuth, async (req, res) => {
     res.status(500).json({ success: false, error: 'Erreur lors de la révocation de la clé API.' });
   }
 });
-// ── Révélation de la clé API pour usages internes authentifiés ──
-// Utilisé par services-catalog.html pour charger automatiquement le catalogue
-// sans que l'utilisateur ait à recopier sa clé manuellement.
 app.get('/api/user/reveal-api-key', checkAuth, async (req, res) => {
   try {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -1872,9 +1865,15 @@ app.get('/api/user/reveal-api-key', checkAuth, async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// Fapshi – Paiement Mobile Money
-// ═══════════════════════════════════════════════════════════════
+async function bumpDailyCounter(field, date = new Date()) {
+  try {
+    await db.collection('dailyCounters').doc(localDateKey(date)).set({
+      [field]: admin.firestore.FieldValue.increment(1),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  } catch (e) { console.warn('bumpDailyCounter error:', e.message); }
+}
+
 app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
   const uid = req.user.uid;
   const { amount, currency, description, redirectUrl, phone } = req.body;
@@ -1933,6 +1932,7 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
       fapshiTransId: fapshiTransId, userId: uid, amount: amountNum, currency: currency || 'XAF',
       description: payload.description, phone: phone || null, status: 'PENDING',
       dateInitiated: admin.firestore.FieldValue.serverTimestamp(), checkoutUrl,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     return res.json({ success: true, checkoutUrl });
@@ -1962,6 +1962,7 @@ app.post('/api/fapshi-webhook', async (req, res) => {
       if (!userDoc.exists) t.set(userRef, { balance: amountNum });
       else t.update(userRef, { balance: (userDoc.data().balance || 0) + amountNum });
     });
+    await bumpDailyCounter('deposits');
     return res.status(200).json({ message: 'Webhook traité.' });
   } catch (err) {
     return res.status(500).json({ error: 'Erreur webhook.' });
@@ -2039,6 +2040,7 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
               dateConfirmed: admin.firestore.FieldValue.serverTimestamp()
             });
           });
+          await bumpDailyCounter('deposits');
           credited = true;
           updatedStatus = 'CONFIRMED';
         } else {
@@ -2073,9 +2075,6 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// NelsiusPay – Paiement par carte bancaire Visa/Mastercard
-// ═══════════════════════════════════════════════════════════════
 const NELSIUSPAY_API_URL          = 'https://api.nelsiuspay.com/api/v1';
 const NELSIUSPAY_MIN_AMOUNT_XAF   = 1380;
 const NELSIUSPAY_MAX_AMOUNT_XAF   = 10000000;
@@ -2414,7 +2413,8 @@ app.post('/api/nelsiuspay/status', checkAuth, async (req, res) => {
     }
 
     if (internalStatus === 'CONFIRMED') {
-      await creditUserIfNeeded(reference, uid, transData);
+      const wasCredited = await creditUserIfNeeded(reference, uid, transData);
+      if (wasCredited) await bumpDailyCounter('deposits');
       const userDoc = await db.collection('users').doc(uid).get();
       const newBalance = userDoc.exists ? (userDoc.data().balance || 0) : 0;
       return res.json({
@@ -2526,7 +2526,8 @@ app.post('/api/nelsiuspay/webhook', async (req, res) => {
     });
 
     if (finalStatus === 'CONFIRMED') {
-      await creditUserIfNeeded(reference, transData.userId, transData);
+      const wasCredited = await creditUserIfNeeded(reference, transData.userId, transData);
+      if (wasCredited) await bumpDailyCounter('deposits');
     }
 
     console.log(`[NelsiusPay Webhook] Traité: ${reference} → ${finalStatus}`);
@@ -2541,6 +2542,7 @@ app.post('/api/nelsiuspay/webhook', async (req, res) => {
 async function creditUserIfNeeded(reference, userId, transData) {
   const transRef = db.collection('paymentTransactions').doc(reference);
   const userRef = db.collection('users').doc(userId);
+  let creditedNow = false;
 
   await db.runTransaction(async (t) => {
     const freshTrans = await t.get(transRef);
@@ -2574,13 +2576,13 @@ async function creditUserIfNeeded(reference, userId, transData) {
       newBalanceAfterCredit: newBalance,
     });
 
+    creditedNow = true;
     console.log(`[NelsiusPay] Crédit effectué: +${amountToCredit} XAF → ${userId} (solde: ${currentBalance} → ${newBalance})`);
   });
+
+  return creditedNow;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Suivi visites dashboard + Gestion sécurisée cadeaux de bienvenue
-// ═══════════════════════════════════════════════════════════════
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
   if (typeof forwarded === 'string' && forwarded.length) {
@@ -2619,6 +2621,8 @@ app.post('/api/track-dashboard-visit', async (req, res) => {
       dashboardVisitCount: visitCount + 1,
       lastDashboardVisit: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
+
+    await bumpDailyCounter('dashboardVisits');
 
     return res.json({ success: true, shouldShowPromo });
   } catch (error) {
@@ -2797,23 +2801,17 @@ app.post('/api/claim-welcome-gift', checkAuth, async (req, res) => {
     return res.status(500).json({ success: false, error: 'Erreur lors de la réclamation du cadeau.' });
   }
 });
-// ═══════════════════════════════════════════════════════════════
-// HORIZON STORE APP — Téléchargements, Avis et Notes
-// ═══════════════════════════════════════════════════════════════
 
 const STORE_ALLOWED_APPS = ['sbh', 'kdo', 'trixhub'];
 const STORE_DL_BASE      = { sbh: 15847, kdo: 4123, trixhub: 6891 };
 
 const storeReviewsCache = new Map();
-const STORE_REVIEWS_CACHE_TTL = 60 * 1000; // 60s
+const STORE_REVIEWS_CACHE_TTL = 60 * 1000;
 
 function isValidStoreApp(appId) {
   return STORE_ALLOWED_APPS.includes(appId);
 }
 
-// ───────────────────────────────────────────────
-// POST /api/app-download  — incrémente le compteur
-// ───────────────────────────────────────────────
 app.post('/api/app-download', async (req, res) => {
   try {
     const { app: appId } = req.body || {};
@@ -2839,9 +2837,6 @@ app.post('/api/app-download', async (req, res) => {
   }
 });
 
-// ───────────────────────────────────────────────
-// GET /api/app-download-count?app=xxx — lecture seule
-// ───────────────────────────────────────────────
 app.get('/api/app-download-count', async (req, res) => {
   try {
     const appId = req.query.app;
@@ -2862,9 +2857,6 @@ app.get('/api/app-download-count', async (req, res) => {
   }
 });
 
-// ───────────────────────────────────────────────
-// GET /api/app-reviews?app=xxx — avis + stats
-// ───────────────────────────────────────────────
 app.get('/api/app-reviews', async (req, res) => {
   try {
     const appId = req.query.app;
@@ -2874,13 +2866,11 @@ app.get('/api/app-reviews', async (req, res) => {
 
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 
-    // Cache en mémoire côté serveur
     const cached = storeReviewsCache.get(appId);
     if (cached && Date.now() < cached.expires) {
       return res.json({ success: true, reviews: cached.reviews, stats: cached.stats, cached: true });
     }
 
-    // Récupération sans composite index (filtre simple + tri JS)
     const snapshot = await db.collection('appReviews')
       .where('app', '==', appId)
       .limit(200)
@@ -2899,11 +2889,9 @@ app.get('/api/app-reviews', async (req, res) => {
       };
     });
 
-    // Tri : plus récents d'abord
     reviews.sort((a, b) => b.createdAt - a.createdAt);
     if (reviews.length > 100) reviews = reviews.slice(0, 100);
 
-    // Statistiques
     const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     let sum = 0;
     reviews.forEach(r => {
@@ -2915,7 +2903,6 @@ app.get('/api/app-reviews', async (req, res) => {
     const average = total > 0 ? (sum / total) : 0;
     const stats = { total, average, distribution };
 
-    // Mise en cache serveur
     storeReviewsCache.set(appId, {
       reviews,
       stats,
@@ -2929,9 +2916,6 @@ app.get('/api/app-reviews', async (req, res) => {
   }
 });
 
-// ───────────────────────────────────────────────
-// POST /api/app-review — publier un avis (public)
-// ───────────────────────────────────────────────
 app.post('/api/app-review', async (req, res) => {
   try {
     const { app: appId, name, rating, comment } = req.body || {};
@@ -2948,7 +2932,6 @@ app.post('/api/app-review', async (req, res) => {
     const cleanName    = (name || '').toString().trim().slice(0, 40) || 'Utilisateur';
     const cleanComment = (comment || '').toString().trim().slice(0, 500);
 
-    // Anti-spam léger : une IP ne peut pas publier 2 avis en moins de 20s sur la même app
     const ip     = getClientIp(req);
     const ipHash = sha256Short('review:' + appId + ':' + ip);
 
@@ -2980,7 +2963,6 @@ app.post('/api/app-review', async (req, res) => {
       userId: null,
     });
 
-    // Invalide le cache
     storeReviewsCache.delete(appId);
 
     return res.json({ success: true, reviewId: docRef.id });
@@ -2990,10 +2972,6 @@ app.post('/api/app-review', async (req, res) => {
   }
 });
 
-// ───────────────────────────────────────────────
-// POST /api/app-review-reaction — like / dislike
-// Anti double-réaction par hash IP via collection
-// ───────────────────────────────────────────────
 app.post('/api/app-review-reaction', async (req, res) => {
   try {
     const { reviewId, reaction, app: appId } = req.body || {};
@@ -3022,7 +3000,6 @@ app.post('/api/app-review-reaction', async (req, res) => {
       const previous    = reactionDoc.exists ? reactionDoc.data().reaction : null;
 
       if (previous === reaction) {
-        // Rien à faire, déjà enregistré
         return;
       }
 
@@ -3050,11 +3027,6 @@ app.post('/api/app-review-reaction', async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// ADMIN API
-// ═══════════════════════════════════════════════════════════════
-// Authentification admin : le mot de passe et la clé de signature sont
-// exclusivement des variables d'environnement Vercel, jamais dans le HTML.
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || '';
 const ADMIN_SESSION_TTL_SECONDS = 4 * 60 * 60;
@@ -3216,8 +3188,6 @@ function memCacheSet(entry, data, ttlMs) {
   return data;
 }
 
-// Shared TTL cache: Vercel may route requests to different serverless instances,
-// so an in-memory cache alone does not prevent repeated aggregate reads.
 async function getSharedAdminCache(key) {
   try {
     const snap = await db.collection('adminDashboardCache').doc(key).get();
@@ -3239,7 +3209,6 @@ async function setSharedAdminCache(key, payload, ttlMs) {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   } catch (error) {
-    // The dashboard still works if the optimization cache cannot be written.
     console.warn('Écriture cache admin partagé impossible:', error.message);
   }
 }
@@ -3247,7 +3216,6 @@ function clearGiftsCache() { adminMemoryCache.giftsMap.clear(); }
 
 const adminRouter = express.Router();
 
-// Route de connexion publique, mais protégée par un secret serveur et une session signée.
 adminRouter.post('/login', (req, res) => {
   res.set('Cache-Control', 'no-store, private');
   if (!ADMIN_PASSWORD || !ADMIN_SESSION_SECRET || ADMIN_SESSION_SECRET.length < 32) {
@@ -3364,8 +3332,6 @@ const ADMIN_ORDER_COLLECTIONS = [
   'orders_standard_revendeur',
 ];
 
-// Les compteurs globaux sont calculés sur les collections de commandes elles-mêmes.
-// On ne suppose pas l'existence de counters/{collection} pour les collections historiques.
 async function readOrderCounters() {
   const snapshots = await Promise.all(ADMIN_ORDER_COLLECTIONS.map(name => db.collection(name).count().get()));
   const counts = {}; let total = 0;
@@ -3388,8 +3354,6 @@ function getCountryAliases(value) {
 }
 
 function getOrderAmountXAF(d = {}, collectionName = '') {
-  // Prefer unambiguous customer-charge fields. `cost` is accepted only for
-  // `commandes`, where the existing EXO cancellation flow uses it as refund basis.
   const keys = ['priceXAF','chargedAmountXAF','paidAmountXAF','amountXAF','finalPriceXAF','orderPriceXAF','totalPriceXAF','totalAmountXAF'];
   if (collectionName === 'commandes') keys.push('totalCost','finalCost','cost');
   keys.push('amount','totalAmount','total');
@@ -3442,7 +3406,6 @@ adminRouter.get('/overview', async (req, res) => {
       const shared = await getSharedAdminCache('overview');
       if (shared) { memCacheSet(adminMemoryCache.overview, shared.payload, Math.max(1000, shared.expiresAtMs - Date.now())); return res.json({ success: true, data: shared.payload, cached: true, cacheScope: 'shared' }); }
     }
-    // Cameroon uses UTC+1; daily windows must follow the local calendar, not a rolling 24h window.
     const now = new Date();
     const local = new Date(now.getTime() + 60 * 60 * 1000);
     const todayStart = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) - 60 * 60 * 1000);
@@ -3451,8 +3414,16 @@ adminRouter.get('/overview', async (req, res) => {
     const dayBeforeStart = new Date(todayStart.getTime() - 48 * 60 * 60 * 1000);
     const sevenDaysStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const usersRef = db.collection('users'); const giftsRef = db.collection('welcomeGiftClaims');
+
+    const todayKey = localDateKey(todayStart);
+    const yesterdayKey = localDateKey(yesterdayStart);
+    const dayBeforeKey = localDateKey(dayBeforeStart);
+    const dayKeys = [todayKey, yesterdayKey, dayBeforeKey];
+
     const [usersCount, newUsers7d, newUsersToday, newUsersYesterday, newUsersDayBefore, orderCounters,
-      ordersTodayCounts, ordersYesterdayCounts, ordersDayBeforeCounts, pendingOrdersCount, giftsPending, giftsLate, autoFinancials, visitAgg, activeVisitors7d, balanceAgg] = await Promise.all([
+      ordersTodayCounts, ordersYesterdayCounts, ordersDayBeforeCounts, pendingOrdersCount, giftsPending, giftsLate, autoFinancials, visitAgg, activeVisitors7d, balanceAgg,
+      counterDocs,
+      depositsToday, depositsYesterday, depositsDayBefore] = await Promise.all([
       usersRef.count().get(),
       countCreatedBetween(usersRef, sevenDaysStart, now),
       countCreatedBetween(usersRef, todayStart, now),
@@ -3469,10 +3440,17 @@ adminRouter.get('/overview', async (req, res) => {
       usersRef.aggregate({ total: admin.firestore.AggregateField.sum('dashboardVisitCount') }).get(),
       usersRef.where('lastDashboardVisit', '>=', admin.firestore.Timestamp.fromDate(sevenDaysStart)).count().get(),
       usersRef.aggregate({ total: admin.firestore.AggregateField.sum('balance') }).get(),
+      Promise.all(dayKeys.map(k => db.collection('dailyCounters').doc(k).get().catch(() => null))),
+      countDepositsInRange(todayStart, tomorrowStart),
+      countDepositsInRange(yesterdayStart, todayStart),
+      countDepositsInRange(dayBeforeStart, yesterdayStart),
     ]);
+
     const autoGrossSales = Number(autoFinancials.data().sales || 0); const autoRefunds = Number(autoFinancials.data().refunds || 0);
     const counts = orderCounters.counts; const totalOrders = orderCounters.total;
     const totalBalance = Number(balanceAgg.data().total || 0); const totalUsers = Number(usersCount.data().count || 0);
+    const visitsByDay = counterDocs.map(d => (d && d.exists ? Number((d.data() || {}).dashboardVisits || 0) : 0));
+
     const data = {
       totalUsers, newUsers7d: Number(newUsers7d || 0), newUsersToday: Number(newUsersToday || 0),
       newUsersYesterday: Number(newUsersYesterday || 0), newUsersDayBefore: Number(newUsersDayBefore || 0),
@@ -3483,10 +3461,17 @@ adminRouter.get('/overview', async (req, res) => {
       totalRevenue: Math.max(0, autoGrossSales - autoRefunds), autoOrdersGrossSales: autoGrossSales, autoOrdersRefunds: autoRefunds,
       totalBalance, averageBalance: totalUsers ? Math.round(totalBalance / totalUsers) : 0,
       dashboardVisitsRecorded: Number(visitAgg.data().total || 0), activeDashboardUsers7d: Number(activeVisitors7d.data().count || 0),
+      dashboardVisitsToday: visitsByDay[0],
+      dashboardVisitsYesterday: visitsByDay[1],
+      dashboardVisitsDayBefore: visitsByDay[2],
+      depositsToday,
+      depositsYesterday,
+      depositsDayBefore,
       giftsPending: Number(giftsPending.data().count || 0), giftsLate: Number(giftsLate.data().count || 0),
       multipliers: { MTP: MTP_MULTIPLIER, EXO: EXO_MULTIPLIER, AfriqueBoost: AFB_MULTIPLIER, SMMGen: SMMGEN_MULTIPLIER, SMMWiz: SMMWIZ_MULTIPLIER },
       generatedAt: now.toISOString(),
-      revenueScope: 'Les ventes nettes visibles ici sont celles de autoOrders. Les autres collections sont comptées, mais leurs montants n’ont pas tous un schéma financier vérifié.'
+      revenueScope: 'Les ventes nettes visibles ici sont celles de autoOrders. Les autres collections sont comptées, mais leurs montants n’ont pas tous un schéma financier vérifié.',
+      dailyVisitsNote: 'Les visites par jour sont comptées depuis le déploiement du compteur dailyCounters. Les jours antérieurs restent à 0.',
     };
     memCacheSet(adminMemoryCache.overview, data, 15 * 60 * 1000); await setSharedAdminCache('overview', data, 15 * 60 * 1000);
     res.json({ success: true, data, cached: false });
@@ -3496,6 +3481,16 @@ adminRouter.get('/overview', async (req, res) => {
   }
 });
 
+async function countDepositsInRange(start, end) {
+  try {
+    const [fapshiCount, nelsiusCount] = await Promise.all([
+      db.collection('fapshiTransactions').where('createdAt', '>=', admin.firestore.Timestamp.fromDate(start)).where('createdAt', '<', admin.firestore.Timestamp.fromDate(end)).count().get().catch(() => null),
+      db.collection('paymentTransactions').where('createdAt', '>=', admin.firestore.Timestamp.fromDate(start)).where('createdAt', '<', admin.firestore.Timestamp.fromDate(end)).count().get().catch(() => null),
+    ]);
+    return Number(fapshiCount?.data()?.count || 0) + Number(nelsiusCount?.data()?.count || 0);
+  } catch (_) { return 0; }
+}
+
 adminRouter.get('/top-users', async (req, res) => {
   try {
     const forceRefresh = String(req.query.refresh || '') === '1';
@@ -3503,10 +3498,7 @@ adminRouter.get('/top-users', async (req, res) => {
     if (cached) return res.json({ success: true, users: cached, cached: true });
     if (!forceRefresh) {
       const shared = await getSharedAdminCache('topUsers');
-      if (shared) {
-        memCacheSet(adminMemoryCache.topUsers, shared.payload, Math.max(1000, shared.expiresAtMs - Date.now()));
-        return res.json({ success: true, users: shared.payload, cached: true, cacheScope: 'shared' });
-      }
+      if (shared) { memCacheSet(adminMemoryCache.topUsers, shared.payload, Math.max(1000, shared.expiresAtMs - Date.now())); return res.json({ success: true, users: shared.payload, cached: true, cacheScope: 'shared' }); }
     }
 
     let usersSnap;
@@ -3522,6 +3514,7 @@ adminRouter.get('/top-users', async (req, res) => {
         id: d.id,
         name: u.displayName || u.username || u.name || 'Anonyme',
         email: u.email || null,
+        phone: u.phone || u.whatsapp || null,
         balance: u.balance || 0,
         country: u.country || null,
         createdAt: u.createdAt || null,
@@ -3586,8 +3579,6 @@ adminRouter.get('/users-stats', async (req, res) => {
   }
 });
 
-// Liste paginée des deux collections de commandes existantes. Chaque source est
-// paginée séparément pour ne pas charger l'historique complet. Maximum 50 docs/source.
 adminRouter.get('/orders-summary', async (req, res) => {
   try {
     const forceRefresh = String(req.query.refresh || '') === '1';
@@ -3607,8 +3598,6 @@ adminRouter.get('/orders-summary', async (req, res) => {
       cancelled: ['Annulé', 'Annulée', 'Annule', 'Canceled', 'Cancelled', 'canceled', 'cancelled'],
       failed: ['Échouée', 'Echouée', 'failed', 'Failed', 'error', 'Erreur', 'failed'],
     };
-    // Status totals are computed with aggregate queries and cached for 15 minutes.
-    // Global total comes from the six existing counters, not from a partial collection scan.
     const [counterTotals, ...collectionStatuses] = await Promise.all([
       readOrderCounters(),
       ...ADMIN_ORDER_COLLECTIONS.map(async collectionName => {
@@ -3651,8 +3640,6 @@ adminRouter.get('/orders', async (req, res) => {
     const cursorMap = {}; try { Object.assign(cursorMap, JSON.parse(String(req.query.cursors || '{}'))); } catch (_) {}
     const results = await Promise.all(ADMIN_ORDER_COLLECTIONS.map(async collectionName => {
       const ref = db.collection(collectionName); let query = ref.orderBy(admin.firestore.FieldPath.documentId());
-      // Only filter user ID server-side; status/provider aliases are filtered after reading a small page
-      // so legacy spellings/capitalization are not silently excluded.
       if (userId) {
         const [a,b,c] = await Promise.all([ref.where('userId','==',userId).limit(limit+1).get(),ref.where('uid','==',userId).limit(limit+1).get(),ref.where('user_id','==',userId).limit(limit+1).get()]);
         const seen = new Set(); const docs = [...a.docs,...b.docs,...c.docs].filter(doc=>!seen.has(doc.id) && seen.add(doc.id)).sort((x,y)=>getTimestampMs((y.data()||{}).createdAt || (y.data()||{}).created_at)-getTimestampMs((x.data()||{}).createdAt || (x.data()||{}).created_at)).slice(0,limit);
@@ -3662,7 +3649,6 @@ adminRouter.get('/orders', async (req, res) => {
       const cursorId = cursorMap[collectionName]; if (cursorId) { const cursor = await ref.doc(String(cursorId)).get(); if (cursor.exists) query = query.startAfter(cursor); }
       const snap = await query.limit(limit).get();
       let items = snap.docs.map(doc => normalizeAdminOrder(doc, collectionName));
-      // Filters operate on current pages, preserving stable pagination and covering historic variants.
       if (statusFilter && statusFilter !== 'all') { const wanted = (statusAliases[statusFilter] || [statusFilter]).map(s=>s.toLowerCase()); items = items.filter(o => wanted.includes(String(o.status||'').toLowerCase())); }
       if (providerFilter && providerFilter !== 'all') { const wanted = providerAliases[providerFilter] || [providerFilter]; items = items.filter(o => wanted.includes(String(o.provider||'').toLowerCase())); }
       return { collectionName, items, nextCursor: snap.size === limit ? snap.docs[snap.docs.length-1].id : null };
@@ -3681,8 +3667,8 @@ async function enrichAdminOrderUsers(orders) {
   const ids=[...new Set(orders.map(o=>o.userId).filter(Boolean))];
   const now=Date.now(); const missing=ids.filter(id=>{const v=adminOrderUserCache.get(id);return !v||v.expires<now;});
   const snapshots=await Promise.all(missing.map(id=>db.collection('users').doc(id).get()));
-  snapshots.forEach(s=>{const u=s.exists?(s.data()||{}):{};adminOrderUserCache.set(s.id,{name:u.displayName||u.username||u.name||u.fullName||null,email:u.email||null,expires:now+5*60*1000});});
-  return orders.map(o=>{const u=adminOrderUserCache.get(o.userId)||{};return {...o,userName:u.name||null,userEmail:u.email||null};});
+  snapshots.forEach(s=>{const u=s.exists?(s.data()||{}):{};adminOrderUserCache.set(s.id,{name:u.displayName||u.username||u.name||u.fullName||null,email:u.email||null,phone:u.phone||u.whatsapp||null,expires:now+5*60*1000});});
+  return orders.map(o=>{const u=adminOrderUserCache.get(o.userId)||{};return {...o,userName:u.name||null,userEmail:u.email||null,userPhone:u.phone||null};});
 }
 
 function normalizeAdminOrder(doc, collectionName) {
@@ -3698,7 +3684,6 @@ function normalizeAdminOrder(doc, collectionName) {
     createdAt:d.createdAt||d.dateCreated||d.created_at||d.timestamp||null };
 }
 
-// Boutiques : lecture paginée de la collection confirmée `stores`.
 adminRouter.get('/stores', async (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 10), 50);
@@ -3729,7 +3714,7 @@ adminRouter.get('/deposits', async (req,res)=>{
     const statusVariants={CONFIRMED:['CONFIRMED','confirmed','SUCCESS','success','SUCCEEDED','succeeded','PAID','paid','SUCCESSFUL','successful'],PENDING:['PENDING','pending','PROCESSING','processing'],FAILED:['FAILED','failed','FAILURE','failure','CANCELLED','cancelled','REJECTED','rejected']};
     const results=await Promise.all(sources.map(async source=>{
       let q=db.collection(source.name).orderBy(admin.firestore.FieldPath.documentId());const cursorId=String(cursors[source.name]||'');if(cursorId){const cursor=await db.collection(source.name).doc(cursorId).get();if(cursor.exists)q=q.startAfter(cursor);}
-      const snap=await q.limit(limit).get();const items=snap.docs.map(doc=>{const d=doc.data()||{};const pick=keys=>{for(const k of keys)if(d[k]!==undefined&&d[k]!==null&&d[k]!=='')return d[k];return null;};const rawStatus=String(d.status||d.paymentStatus||d.state||'UNKNOWN');const amount=Number(pick(source.amountKeys)||0);return{id:doc.id,source:source.name,reference:d.reference||d.transId||d.fapshiTransId||d.transactionId||doc.id,userId:d.userId||d.uid||d.user_id||null,userName:d.userName||d.displayName||d.name||null,userEmail:d.email||d.userEmail||null,provider:d.provider||d.paymentProvider||source.providerFallback,status:rawStatus,requestedAmount:amount,requestedCurrency:pick(source.currencyKeys)||'XAF',creditedAmountXAF:pick(source.creditKeys)===null?null:Number(pick(source.creditKeys)),createdAt:d.createdAt||d.created_at||d.dateCreated||d.timestamp||null,completedAt:d.completedAt||d.creditedAt||d.updatedAt||null,failureReason:d.failureReason||d.error||d.message||null};});
+      const snap=await q.limit(limit).get();const items=snap.docs.map(doc=>{const d=doc.data()||{};const pick=keys=>{for(const k of keys)if(d[k]!==undefined&&d[k]!==null&&d[k]!=='')return d[k];return null;};const rawStatus=String(d.status||d.paymentStatus||d.state||'UNKNOWN');const amount=Number(pick(source.amountKeys)||0);return{id:doc.id,source:source.name,reference:d.reference||d.transId||d.fapshiTransId||d.transactionId||doc.id,userId:d.userId||d.uid||d.user_id||null,userName:d.userName||d.displayName||d.name||null,userEmail:d.email||d.userEmail||null,provider:d.provider||d.paymentProvider||source.providerFallback,status:rawStatus,requestedAmount:amount,requestedCurrency:pick(source.currencyKeys)||'XAF',creditedAmountXAF:pick(source.creditKeys)===null?null:Number(pick(source.creditKeys)),createdAt:d.createdAt||d.dateInitiated||d.created_at||d.dateCreated||d.timestamp||null,completedAt:d.completedAt||d.dateConfirmed||d.creditedAt||d.updatedAt||null,failureReason:d.failureReason||d.error||d.message||null};});
       return {source:source.name,items,nextCursor:snap.size===limit?snap.docs[snap.docs.length-1].id:null};
     }));
     let transactions=results.flatMap(r=>r.items);
@@ -3741,7 +3726,6 @@ adminRouter.get('/deposits', async (req,res)=>{
   }catch(error){console.error('Erreur /api/admin/deposits:',error);return res.status(500).json({success:false,error:'Impossible de charger les recharges.'});}
 });
 
-// Répertoire utilisateurs paginé; seules les informations nécessaires au suivi client sont exposées.
 adminRouter.get('/customers', async (req, res) => {
   try {
     const limit=Math.min(Math.max(parseInt(req.query.limit,10)||25,10),50); const search=String(req.query.q||'').trim();
@@ -3774,8 +3758,6 @@ adminRouter.get('/customers', async (req, res) => {
   } catch(error) { console.error('Erreur /api/admin/customers:',error); return res.status(500).json({success:false,error:'Impossible de charger les utilisateurs.'}); }
 });
 
-// Recalcul explicite, à effectuer une fois après déploiement : 6 scans de collections + lecture users.
-// Aucun scan historique n'est exécuté automatiquement lors de l'ouverture du dashboard.
 adminRouter.post('/customers/rebuild-order-metrics', async (req,res)=>{
   try {
     if (req.body?.confirm !== true) return res.status(400).json({success:false,error:'Confirmation explicite requise.'});
@@ -3820,21 +3802,28 @@ adminRouter.post('/customers/:id/email', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Cet utilisateur ne possède pas d’adresse email valide.' });
     }
     const subject = String(req.body?.subject || '').trim().slice(0, 180);
-    const message = String(req.body?.message || '').trim().slice(0, 8000);
+    const message = String(req.body?.message || '').trim().slice(0, 12000);
     if (!subject || !message) return res.status(400).json({ success: false, error: 'Objet et message obligatoires.' });
-    const safe = value => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-    const name = String(user.displayName || user.username || user.name || 'cher client').slice(0, 120);
-    const html = `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#1f2937;line-height:1.7"><p>Bonjour ${safe(name)},</p><div>${safe(message).replace(/\n/g, '<br>')}</div><hr style="border:0;border-top:1px solid #e5e7eb;margin:24px 0"><p style="font-size:13px;color:#6b7280">L’équipe Social Boost Horizon<br><a href="https://socialboosthorizon.com/">socialboosthorizon.com</a></p></div>`;
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: process.env.RESEND_FROM_EMAIL, to: [email], subject, html, text: `Bonjour ${name},\n\n${message}\n\nL’équipe Social Boost Horizon` }),
+
+    // Envoi via le template premium SBH (rendu HTML professionnel)
+    const result = await sendAdminUserMessage({
+      to: email,
+      subject,
+      bodyText: message,
+      ctaLabel: 'Accéder à mon tableau de bord',
+      ctaUrl: SBH_DASHBOARD,
     });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      console.error('Resend client email error:', response.status, result);
-      return res.status(502).json({ success: false, error: 'Le fournisseur email a refusé l’envoi.' });
+
+    if (!result.success) {
+      return res.status(502).json({ success: false, error: result.error || 'Le fournisseur email a refusé l’envoi.' });
     }
-    return res.json({ success: true, status: 'accepted', providerId: result.id || null, recipient: email.replace(/^(.).+(@.*)$/, '$1***$2') });
+
+    return res.json({
+      success: true,
+      status: 'accepted',
+      providerId: result.id || null,
+      recipient: email.replace(/^(.).+(@.*)$/, '$1***$2'),
+    });
   } catch (error) {
     console.error('Erreur /api/admin/customers/:id/email:', error);
     return res.status(500).json({ success: false, error: 'Impossible d’envoyer cet email.' });
@@ -3847,7 +3836,6 @@ adminRouter.get('/customers/:id', async (req,res)=>{
     const userDoc=await db.collection('users').doc(userId).get();if(!userDoc.exists)return res.status(404).json({success:false,error:'Utilisateur introuvable.'}); const u=userDoc.data()||{};
     const all=[]; const countsByCollection={}; let derivedSpendPriceXAF=0, exactOrderCount=0, unattributedAmountCount=0;
     for(const collectionName of ADMIN_ORDER_COLLECTIONS){
-      // Detail is an explicit user action; queries are bounded by the user's own UID and do not scan whole collections.
       const [a,b,c,d,e]=await Promise.all([db.collection(collectionName).where('userId','==',userId).get(),db.collection(collectionName).where('uid','==',userId).get(),db.collection(collectionName).where('user_id','==',userId).get(),db.collection(collectionName).where('customerId','==',userId).get(),db.collection(collectionName).where('customerUid','==',userId).get()]);
       const docsMap=new Map();[...a.docs,...b.docs,...c.docs,...d.docs,...e.docs].forEach(doc=>docsMap.set(doc.id,doc));const docs=[...docsMap.values()];
       countsByCollection[collectionName]=docs.length; exactOrderCount+=docs.length;
@@ -3867,8 +3855,6 @@ function escapeHtmlEmail(value) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// Résout l'adresse email d'un cadeau à la demande, sans lire tous les comptes
-// lors du chargement de la liste des cadeaux.
 adminRouter.get('/gifts/:id/recipient', async (req, res) => {
   try {
     const giftDoc = await db.collection('welcomeGiftClaims').doc(String(req.params.id)).get();
@@ -3889,12 +3875,239 @@ adminRouter.get('/gifts/:id/recipient', async (req, res) => {
   }
 });
 
-// Emails de suivi des cadeaux. Cette route est distincte de sendPartnershipEmail
-// et ne modifie aucun modèle de bienvenue ou de partenariat.
+// ⚠️ FALLBACK SERVEUR : utilisé uniquement si le frontend n'envoie pas customMessage.
+// En pratique, le dashboard envoie TOUJOURS le texte complet via customMessage.
+function buildGiftEmailServerTemplate(gift, type) {
+  const name = String(gift.userName || 'cher client').slice(0, 120);
+  const gt = giftPlainLabel(gift.giftType);
+  const createdAtFormatted = gift.createdAt
+    ? new Date(getTimestampMs(gift.createdAt)).toLocaleString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+    : 'date récente';
+  const ageLabel = giftAgeLabel(gift.createdAt);
+  const needsLink = giftNeedsLinkConfirmation(gift.giftType);
+  const link = gift.link || '(non fourni)';
+  const country = gift.country ? `🌍 Pays : ${gift.country}\n` : '';
+  const dashboardLine = `🔗 Votre tableau de bord : ${SBH_DASHBOARD}`;
+  const waLine = `💬 Besoin d'aide ? Contactez-nous sur WhatsApp : ${SBH_WA_DISPLAY}\n   ${SBH_WA_LINK}`;
+
+  if (type === 'confirmation') {
+    if (!needsLink) {
+      return `Bonjour ${name},
+
+Nous espérons sincèrement que vous allez bien et que vous profitez pleinement de votre expérience sur Social Boost Horizon.
+
+NOUS AVONS UNE BONNE NOUVELLE POUR VOUS !
+Votre cadeau de bienvenue a bien été enregistré :
+
+🎁 Cadeau : ${gt}
+📅 Demandé le : ${createdAtFormatted} (${ageLabel})
+${country}
+Nous avons bien noté votre demande et notre équipe est en train de finaliser le crédit sur votre compte. Aucune action n'est requise de votre part — nous nous occupons de tout.
+
+UNE FOIS LE CRÉDIT EFFECTUÉ
+• Votre solde sera automatiquement mis à jour
+• Vous pourrez consulter votre nouveau solde en vous connectant à votre tableau de bord
+• Vous pourrez utiliser ce crédit pour passer des commandes ou recharger davantage
+
+${dashboardLine}
+
+DÉCOUVREZ NOS NOUVEAUTÉS
+Boost de vos réseaux sociaux (Instagram, TikTok, Facebook, YouTube…), création de boutique en ligne personnalisée, accompagnement digital et bien plus encore. Notre équipe est là pour vous accompagner dans tous vos projets digitaux.
+
+${waLine}
+
+Merci de votre confiance et à très bientôt sur Social Boost Horizon.
+
+Cordialement,
+L'équipe Social Boost Horizon`;
+    }
+    return `Bonjour ${name},
+
+Nous espérons sincèrement que vous allez bien. Nous vous contactons au sujet de votre demande de cadeau de bienvenue enregistrée le ${createdAtFormatted}.
+
+RÉCAPITULATIF DE VOTRE DEMANDE :
+• Type de cadeau : ${gt}
+• Date de la demande : ${createdAtFormatted} (${ageLabel})
+${gift.country ? `• Pays : ${gift.country}\n` : ''}• Lien à créditer : ${link}
+
+⚠️ ACTION REQUISE : Nous avons besoin que vous CONFIRMIEZ le lien ci-dessus avant de pouvoir lancer votre cadeau. Sans cette confirmation, nous ne serons pas en mesure de procéder à la livraison.
+
+Merci de répondre simplement à cet email avec « OUI » pour confirmer, ou de nous envoyer le bon lien si celui-ci est incorrect.
+
+Une fois votre confirmation reçue, votre cadeau sera traité en PRIORITÉ par notre équipe.
+
+${dashboardLine}
+
+DÉCOUVREZ NOS NOUVEAUTÉS
+Boost réseaux sociaux, création de boutique en ligne, accompagnement digital… Il y a beaucoup à découvrir sur Social Boost Horizon. Nous serions ravis de vous y retrouver.
+
+${waLine}
+
+Merci de votre confiance et à très bientôt sur Social Boost Horizon.
+
+Cordialement,
+L'équipe Social Boost Horizon`;
+  }
+
+  if (type === 'launched') {
+    if (!needsLink) {
+      return `Bonjour ${name},
+
+Bonne nouvelle ! Votre cadeau de bienvenue a été TRAITÉ avec succès par notre équipe.
+
+🎁 Cadeau : ${gt}
+📅 Demandé le : ${createdAtFormatted} (${ageLabel})
+${country}
+VÉRIFIEZ VOTRE SOLDE MAINTENANT
+Votre crédit a été ajouté à votre compte. Rendez-vous sur votre tableau de bord pour vérifier votre nouveau solde et commencer à passer vos commandes :
+
+${dashboardLine}
+
+VOUS AVEZ BESOIN D'AUTRE CHOSE ?
+• Recharger votre solde pour commander davantage
+• Découvrir nos services de boost réseaux sociaux (Instagram, TikTok, Facebook, YouTube…)
+• Créer votre boutique en ligne personnalisée
+• Profiter de notre accompagnement digital
+
+${waLine}
+
+Merci de votre confiance et à très bientôt sur Social Boost Horizon.
+
+Cordialement,
+L'équipe Social Boost Horizon`;
+    }
+    return `Bonjour ${name},
+
+Nous avons le plaisir de vous informer que votre cadeau de bienvenue est désormais en cours de traitement par notre équipe.
+
+RÉCAPITULATIF :
+• Cadeau : ${gt}
+• Demandé le : ${createdAtFormatted} (${ageLabel})
+${country}• Lien crédité : ${link}
+
+Notre équipe met tout en œuvre pour finaliser votre commande dans les meilleurs délais. Vous recevrez votre cadeau très prochainement.
+
+DÉCOUVREZ NOS NOUVEAUTÉS
+Boost réseaux sociaux, création de boutique en ligne, accompagnement digital et bien plus encore. Nous serions ravis de vous accompagner dans tous vos projets digitaux.
+
+${waLine}
+
+Merci de votre patience et de votre confiance.
+
+Cordialement,
+L'équipe Social Boost Horizon`;
+  }
+
+  if (type === 'delay') {
+    if (!needsLink) {
+      return `Bonjour ${name},
+
+Nous vous contactons concernant votre demande de cadeau de bienvenue effectuée le ${createdAtFormatted}, soit ${ageLabel}.
+
+Nous tenons à vous présenter nos plus sincères excuses pour ce retard. Nous comprenons parfaitement votre impatience et nous mettons tout en œuvre pour résoudre cette situation dans les plus brefs délais.
+
+RÉCAPITULATIF DE VOTRE DEMANDE :
+• Cadeau : ${gt}
+• Demandé le : ${createdAtFormatted} (${ageLabel})
+${country}
+BONNE NOUVELLE : Aucune action n'est requise de votre part. Notre équipe traite votre demande en PRIORITÉ et votre crédit sera automatiquement ajouté à votre compte. Vous pourrez vérifier votre solde depuis votre tableau de bord :
+
+${dashboardLine}
+
+${waLine}
+
+Merci de votre compréhension et de votre patience.
+
+Cordialement,
+L'équipe Social Boost Horizon`;
+    }
+    return `Bonjour ${name},
+
+Nous vous contactons concernant votre demande de cadeau de bienvenue effectuée le ${createdAtFormatted}, soit ${ageLabel}.
+
+Nous tenons à vous présenter nos plus sincères excuses pour ce retard. Nous comprenons parfaitement votre impatience et nous mettons tout en œuvre pour résoudre cette situation dans les plus brefs délais.
+
+RÉCAPITULATIF :
+• Cadeau : ${gt}
+• Demandé le : ${createdAtFormatted} (${ageLabel})
+${country}• Lien à créditer : ${link}
+
+⚠️ ACTION REQUISE : Pour que nous puissions lancer immédiatement votre cadeau, nous avons besoin que vous CONFIRMIEZ que le lien suivant est bien celui à créditer :
+${link}
+
+Merci de répondre à cet email avec « OUI » pour confirmer, ou de nous envoyer le bon lien si celui-ci n'est pas correct. Sans cette confirmation, nous ne serons pas en mesure de finaliser votre cadeau.
+
+Dès réception de votre confirmation, votre demande sera traitée en PRIORITÉ ABSOLUE par notre équipe.
+
+${waLine}
+
+Nous vous remercions de votre compréhension et de votre patience.
+
+Cordialement,
+L'équipe Social Boost Horizon`;
+  }
+
+  if (type === 'delivered') {
+    if (!needsLink) {
+      return `Bonjour ${name},
+
+C'est avec plaisir que nous vous confirmons que votre cadeau de bienvenue a été LIVRÉ AVEC SUCCÈS.
+
+🎁 Cadeau : ${gt}
+📅 Demandé le : ${createdAtFormatted} (${ageLabel})
+${country}
+VÉRIFIEZ MAINTENANT
+Votre crédit a bien été ajouté à votre solde. Connectez-vous à votre tableau de bord pour confirmer votre nouveau solde :
+
+${dashboardLine}
+
+ET MAINTENANT, PLACE À L'ACTION !
+• Recharger votre solde pour passer plus de commandes
+• Commander du boost pour vos réseaux sociaux (Instagram, TikTok, Facebook, YouTube…)
+• Créer votre propre boutique en ligne personnalisée
+• Bénéficier de notre accompagnement digital
+
+${waLine}
+
+Merci de votre confiance et à très bientôt sur Social Boost Horizon.
+
+Cordialement,
+L'équipe Social Boost Horizon`;
+    }
+    return `Bonjour ${name},
+
+C'est avec plaisir que nous vous confirmons que votre cadeau de bienvenue a été LIVRÉ AVEC SUCCÈS.
+
+🎁 Cadeau : ${gt}
+📅 Demandé le : ${createdAtFormatted} (${ageLabel})
+${country}• Lien crédité : ${link}
+
+VÉRIFIEZ MAINTENANT
+Votre cadeau a bien été appliqué sur le lien fourni. Nous vous invitons à vérifier votre compte concerné pour constater le résultat :
+
+${dashboardLine}
+
+ET MAINTENANT, PLACE À L'ACTION !
+• Recharger votre solde pour passer plus de commandes
+• Découvrir nos services de boost réseaux sociaux
+• Créer votre propre boutique en ligne
+• Profiter de notre accompagnement digital
+
+${waLine}
+
+Merci de votre confiance et à très bientôt sur Social Boost Horizon.
+
+Cordialement,
+L'équipe Social Boost Horizon`;
+  }
+
+  return '';
+}
+
 adminRouter.post('/gifts/:id/email', async (req, res) => {
   try {
     const { type, customMessage } = req.body || {};
-    const validTypes = ['confirmation', 'launched', 'delay', 'custom'];
+    const validTypes = ['confirmation', 'launched', 'delay', 'delivered', 'custom'];
     if (!validTypes.includes(type)) return res.status(400).json({ success: false, error: 'Type de message invalide.' });
     if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
       return res.status(503).json({ success: false, error: 'Configurez RESEND_API_KEY et RESEND_FROM_EMAIL avant l’envoi.' });
@@ -3911,40 +4124,63 @@ adminRouter.post('/gifts/:id/email', async (req, res) => {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ success: false, error: 'Aucune adresse email valide associée à ce cadeau.' });
     }
-    const name = String(gift.userName || 'cher client').slice(0, 120);
-    const appName = 'Social Boost Horizon';
-    const titles = {
-      confirmation: 'Confirmation de votre cadeau de bienvenue',
-      launched: 'Votre cadeau de bienvenue est en cours',
-      delay: 'Nos excuses concernant votre cadeau de bienvenue',
+
+    // Le frontend envoie TOUJOURS le texte complet dans customMessage
+    let bodyText;
+    if (customMessage && String(customMessage).trim().length > 0) {
+      bodyText = String(customMessage).trim();
+    } else {
+      bodyText = buildGiftEmailServerTemplate(gift, type);
+      if (!bodyText) {
+        return res.status(400).json({ success: false, error: 'Le message est vide et aucun template n\'a pu être généré.' });
+      }
+    }
+
+    const subjectBase = {
+      confirmation: giftNeedsLinkConfirmation(gift.giftType)
+        ? 'Confirmation requise : votre cadeau de bienvenue — Social Boost Horizon'
+        : 'Votre cadeau de bienvenue a bien été enregistré — Social Boost Horizon',
+      launched: giftNeedsLinkConfirmation(gift.giftType)
+        ? 'Bonne nouvelle : votre cadeau est en cours de traitement — Social Boost Horizon'
+        : 'Bonne nouvelle : votre cadeau a été traité — Social Boost Horizon',
+      delay: giftNeedsLinkConfirmation(gift.giftType)
+        ? 'Nos excuses pour le retard + confirmation requise — Social Boost Horizon'
+        : 'Nos excuses pour le retard — Social Boost Horizon',
+      delivered: giftNeedsLinkConfirmation(gift.giftType)
+        ? 'Votre cadeau a été livré avec succès — Social Boost Horizon'
+        : 'Votre solde a été crédité avec succès — Social Boost Horizon',
       custom: 'Message de Social Boost Horizon',
     };
-    let bodyText;
-    if (type === 'confirmation') bodyText = `Bonjour ${name}, nous avons bien reçu votre demande de cadeau de bienvenue. Merci de confirmer que le lien fourni est correct : ${gift.link || 'aucun lien indiqué'}.`;
-    else if (type === 'launched') bodyText = `Bonjour ${name}, votre cadeau de bienvenue (${gift.giftType || 'cadeau'}) est en cours de traitement. Merci pour votre patience.`;
-    else if (type === 'delay') bodyText = `Bonjour ${name}, nous vous présentons nos excuses pour le retard dans le traitement de votre cadeau de bienvenue. Notre équipe reprend le suivi de votre demande.`;
-    else bodyText = String(customMessage || '').trim();
-    if (!bodyText) return res.status(400).json({ success: false, error: 'Le message personnalisé est vide.' });
+    const subject = subjectBase[type] || 'Message de Social Boost Horizon';
 
-    const html = `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#1f2937;line-height:1.6"><h2>${escapeHtmlEmail(titles[type])}</h2><p>${escapeHtmlEmail(bodyText).replace(/\n/g, '<br>')}</p><hr><p style="font-size:12px;color:#6b7280">${appName} — équipe assistance</p></div>`;
-    const resendResponse = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: process.env.RESEND_FROM_EMAIL, to: [email], subject: titles[type], html }),
+    // Envoi via le template premium SBH (rendu HTML professionnel)
+    const result = await sendAdminUserMessage({
+      to: email,
+      subject,
+      bodyText,
+      ctaLabel: 'Accéder à mon tableau de bord',
+      ctaUrl: SBH_DASHBOARD,
     });
-    const resendBody = await resendResponse.json().catch(() => ({}));
-    if (!resendResponse.ok) {
-      console.error('Resend cadeau erreur:', resendResponse.status, resendBody);
-      return res.status(502).json({ success: false, error: 'Le fournisseur email a refusé l’envoi.' });
+
+    if (!result.success) {
+      return res.status(502).json({ success: false, error: result.error || 'Le fournisseur email a refusé l’envoi.' });
     }
+
     await giftRef.update({
       lastEmailAt: admin.firestore.FieldValue.serverTimestamp(),
       lastEmailType: type,
       lastEmailStatus: 'accepted',
-      lastEmailProviderId: resendBody.id || null,
+      lastEmailProviderId: result.id || null,
     });
     clearGiftsCache();
-    res.json({ success: true, email: email.replace(/^(.).+(@.*)$/, '$1***$2'), providerId: resendBody.id || null, status: 'accepted' });
+
+    res.json({
+      success: true,
+      email: email.replace(/^(.).+(@.*)$/, '$1***$2'),
+      providerId: result.id || null,
+      status: 'accepted',
+      messageLength: bodyText.length,
+    });
   } catch (error) {
     console.error('Erreur /api/admin/gifts/:id/email:', error);
     res.status(500).json({ success: false, error: 'Erreur pendant l’envoi du message.' });
@@ -3954,16 +4190,11 @@ adminRouter.post('/gifts/:id/email', async (req, res) => {
 function financialWindow(range) {
   const now = new Date();
   const dayMs = 24 * 60 * 60 * 1000;
-  // Social Boost Horizon est exploité au Cameroun (Africa/Douala, UTC+1).
-  // On construit les limites des jours/mois/années sur le calendrier local,
-  // puis on les convertit en instants UTC pour les requêtes Firestore.
   const businessOffsetMs = 60 * 60 * 1000;
   const localNow = new Date(now.getTime() + businessOffsetMs);
   const startOfToday = new Date(Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate()) - businessOffsetMs);
   if (range === 'all') return { start: null, end: null, previousStart: null, previousEnd: null };
-  if (range === 'today') {
-    return { start: startOfToday, end: now, previousStart: new Date(startOfToday.getTime() - dayMs), previousEnd: new Date(now.getTime() - dayMs) };
-  }
+  if (range === 'today') return { start: startOfToday, end: now, previousStart: new Date(startOfToday.getTime() - dayMs), previousEnd: new Date(now.getTime() - dayMs) };
   if (range === 'yesterday') {
     const start = new Date(startOfToday.getTime() - dayMs);
     return { start, end: startOfToday, previousStart: new Date(start.getTime() - dayMs), previousEnd: start };
@@ -3994,16 +4225,11 @@ function applyTimeWindow(query, start, end) {
   if (end) query = query.where('createdAt', '<', admin.firestore.Timestamp.fromDate(end));
   return query;
 }
-
-// Certaines données historiques stockent createdAt comme Timestamp et d'autres
-// comme une chaîne ISO. Requêtes séparées évitent de confondre ces deux types,
-// sans parcourir les documents individuellement.
 function applyIsoTimeWindow(query, start, end) {
   if (start) query = query.where('createdAt', '>=', start.toISOString());
   if (end) query = query.where('createdAt', '<', end.toISOString());
   return query;
 }
-
 async function countInWindow(collectionRef, start, end) {
   if (!start && !end) {
     const result = await collectionRef.count().get();
@@ -4094,7 +4320,6 @@ adminRouter.get('/financials', async (req, res) => {
     const current = await readFinancialPeriod(range);
     let previous = null;
     if (bounds.previousStart && bounds.previousEnd) {
-      // Comparaison sur une période précédente de même durée, sauf year qui compare à la même période de l'année passée.
       const startIso = bounds.previousStart.toISOString();
       const endIso = bounds.previousEnd.toISOString();
       const autoBase = db.collection('autoOrders');
@@ -4156,12 +4381,6 @@ adminRouter.post('/cache/clear', (req, res) => {
 
 app.use('/api/admin', adminRouter);
 
-// ═══════════════════════════════════════════════════════════════
-// API PUBLIQUE DÉVELOPPEUR (/api/v1/*)
-// Routeur isolé, monté ici volontairement APRÈS toutes les routes
-// internes et AVANT le handler 404 global.
-// Les helpers sont injectés via factory — aucune duplication de code.
-// ═══════════════════════════════════════════════════════════════
 try {
   const createPublicRouter = require('./server.js');
   const publicRouter = createPublicRouter({
@@ -4185,9 +4404,7 @@ try {
 } catch (err) {
   console.error('❌ Erreur chargement routeur public :', err.message);
 }
-// ═══════════════════════════════════════════════════════════════
-// Partenariat — Formulaire public (page partenaire.html)
-// ═══════════════════════════════════════════════════════════════
+
 app.post('/api/partenariat', async (req, res) => {
   try {
     const { name, email, whatsapp, type, message } = req.body || {};
@@ -4211,7 +4428,6 @@ app.post('/api/partenariat', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Merci de détailler davantage votre projet (20 caractères minimum).' });
     }
 
-    // Anti-spam : 1 candidature par 60s par IP
     const ip = getClientIp(req);
     const ipHash = sha256Short('partner:' + ip);
     const rateRef = db.collection('partnerRequestRateLimits').doc(ipHash);
@@ -4224,7 +4440,6 @@ app.post('/api/partenariat', async (req, res) => {
       });
     }
 
-    // Enregistrement Firestore
     const docRef = await db.collection('partnerRequests').add({
       name: cleanName,
       email: cleanEmail,
@@ -4239,7 +4454,6 @@ app.post('/api/partenariat', async (req, res) => {
 
     await rateRef.set({ lastAt: admin.firestore.FieldValue.serverTimestamp() });
 
-    // Envoi email à l'équipe admin (non bloquant pour la réponse utilisateur)
     let emailSent = false;
     try {
       await sendPartnershipEmail({
@@ -4253,7 +4467,6 @@ app.post('/api/partenariat', async (req, res) => {
       emailSent = true;
     } catch (emailErr) {
       console.error('❌ Erreur envoi email partenariat:', emailErr.message);
-      // La candidature reste enregistrée même si l'email échoue
     }
 
     console.log(`📥 Nouvelle candidature partenariat [${docRef.id}] — ${cleanName} (${cleanType}) — email ${emailSent ? 'envoyé' : 'échoué'}`);
