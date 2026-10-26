@@ -348,7 +348,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
         </div>
       </div>
 
-      <!-- ✅ NOUVEAU : Répartition des commandes par collection -->
+      <!-- ✅ Répartition des commandes par collection -->
       <section class="section">
         <div class="section-head">
           <div>
@@ -395,7 +395,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
         </div>
       </section>
 
-      <!-- ✅ NOUVEAU : Ventes et marges consolidées -->
+      <!-- ✅ Ventes et marges consolidées -->
       <section class="section">
         <div class="section-head">
           <div>
@@ -431,7 +431,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
           <div>
             <span class="section-label">Recharges & visites</span>
             <h2 class="section-title">Dépôts et visites du tableau de bord</h2>
-            <p class="section-sub">Suivi journalier des recharges (NelsiusPay + Fapshi + Swychr) et de la fréquentation du dashboard.</p>
+            <p class="section-sub">Suivi journalier des recharges (NelsiusPay + Fapshi + Swychr + autres) et de la fréquentation du dashboard.</p>
           </div>
         </div>
         <div class="stats-strip" style="margin-bottom:0;">
@@ -650,7 +650,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
       <div class="top-bar">
         <div>
           <div class="page-title">Recharges clients</div>
-          <div class="page-subtitle">Transactions de paiement (NelsiusPay + Fapshi + Swychr)</div>
+          <div class="page-subtitle">Transactions de paiement (NelsiusPay + Fapshi + Swychr + autres collections)</div>
         </div>
         <div class="top-actions">
           <button class="btn btn-outline" onclick="loadDeposits(true)"><i class="fas fa-sync-alt"></i> Actualiser</button>
@@ -1086,6 +1086,7 @@ function startAutoRefresh(){
         updateGiftBadges(s.giftsPending, s.giftsLate);
         await loadGifts();
       } else {
+        // Juste les badges en arrière-plan
         const d = await fetchAdmin('/overview');
         const s = d.data || {};
         updateGiftBadges(s.giftsPending, s.giftsLate);
@@ -1134,21 +1135,21 @@ function exportCustomersVCF(mode){if(!allCustomers.length){alert('Aucun client c
 function exportCustomersCSV(){if(!allCustomers.length){alert('Aucun client chargé.');return;}const head=['Nom','Email','Téléphone','UID','Pays','Commandes','Total dépensé (FCFA)','Marge (FCFA)','Solde (FCFA)','Inscription','Dernière activité'];const rows=allCustomers.map(c=>[c.name||c.username||'',c.email||'',c.phone||'',c.id,formatCountryLabel(c.country),c.metricsReady?(c.totalOrders||0):'',c.metricsReady?(c.totalSpent||0):'',c.metricsReady?(c.totalProfit||0):'',c.balance||0,formatDate(c.createdAt),formatDate(c.lastActivityAt||c.lastSignIn)]);const csv=[head,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');const ts=new Date().toISOString().slice(0,10);downloadBlob('\ufeff'+csv,`clients_sbh_${ts}.csv`,'text/csv;charset=utf-8');showToast(`${allCustomers.length} client(s) exporté(s) en CSV.`);}
 function exportCustomersPDF(mode){if(!allCustomers.length){alert('Aucun client chargé.');return;}const list=allCustomers;const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape'});doc.setFontSize(18);doc.setTextColor(201,169,97);doc.text('Rapport Clients — Social Boost Horizon',14,18);doc.setFontSize(9);doc.setTextColor(120);doc.text(`Généré le ${new Date().toLocaleString('fr-FR')} · ${list.length} client(s)`,14,25);doc.autoTable({head:[['Nom','Email','UID','Pays','Commandes','Total dépensé','Marge','Solde','Inscription']],body:list.map(c=>[c.name||c.username||'—',c.email||'—',c.id.substring(0,10)+'…',formatCountryLabel(c.country),c.metricsReady?(c.totalOrders||0):'—',c.metricsReady?Number(c.totalSpent||0).toLocaleString('fr-FR')+' FCFA':'—',c.metricsReady?Number(c.totalProfit||0).toLocaleString('fr-FR')+' FCFA':'—',Number(c.balance||0).toLocaleString('fr-FR')+' FCFA',formatDate(c.createdAt)]),startY:30,theme:'striped',headStyles:{fillColor:[201,169,97],textColor:[10,14,23]},styles:{fontSize:8,cellPadding:2.5}});addFooter(doc);doc.save(`clients_sbh_${new Date().toISOString().slice(0,10)}.pdf`);showToast('PDF clients généré.');}
 function exportOrdersPDF(){if(!allOrders.length){alert('Aucune commande chargée.');return;}const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape'});doc.setFontSize(18);doc.setTextColor(201,169,97);doc.text('Rapport Commandes — SBH (toutes collections)',14,18);doc.setFontSize(9);doc.setTextColor(120);doc.text(`Généré le ${new Date().toLocaleString('fr-FR')} · ${allOrders.length} commande(s)`,14,25);doc.autoTable({head:[['Date','Référence','Client','Fournisseur','Service','Qté','Montant','Coût','Marge','Statut']],body:allOrders.map(o=>[formatDate(o.createdAt),o.orderId||o.id||'—',o.userName||o.userEmail||'—',o.provider||'—',(o.serviceName||'—').substring(0,35),Number(o.quantity||0).toLocaleString('fr-FR'),o.amount==null?'—':Number(o.amount).toLocaleString('fr-FR'),o.providerCostXAF==null?'—':Number(o.providerCostXAF).toLocaleString('fr-FR'),o.grossProfitXAF==null?'—':Number(o.grossProfitXAF).toLocaleString('fr-FR'),o.status||'—']),startY:30,theme:'striped',headStyles:{fillColor:[201,169,97],textColor:[10,14,23]},styles:{fontSize:7.5,cellPadding:2}});addFooter(doc);doc.save(`commandes_sbh_${new Date().toISOString().slice(0,10)}.pdf`);showToast('PDF commandes généré.');}
-function exportDepositsPDF(){if(!allDeposits.length){alert('Aucune recharge chargée.');return;}const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape'});doc.setFontSize(18);doc.setTextColor(201,169,97);doc.text('Rapport Recharges — SBH (NelsiusPay + Fapshi + Swychr)',14,18);doc.setFontSize(9);doc.setTextColor(120);doc.text(`Généré le ${new Date().toLocaleString('fr-FR')} · ${allDeposits.length} recharge(s)`,14,25);doc.autoTable({head:[['Date','Référence','Client','Fournisseur','Montant demandé','Montant crédité','Statut']],body:allDeposits.map(t=>[formatDate(t.createdAt),t.reference||'—',t.userName||t.userEmail||'—',t.provider||'—',Number(t.requestedAmount||0).toLocaleString('fr-FR')+' '+(t.requestedCurrency||''),t.creditedAmountXAF==null?'—':Number(t.creditedAmountXAF).toLocaleString('fr-FR')+' FCFA',(t.status||'—').toUpperCase()]),startY:30,theme:'striped',headStyles:{fillColor:[201,169,97],textColor:[10,14,23]},styles:{fontSize:8,cellPadding:2.5}});addFooter(doc);doc.save(`recharges_sbh_${new Date().toISOString().slice(0,10)}.pdf`);showToast('PDF recharges généré.');}
+function exportDepositsPDF(){if(!allDeposits.length){alert('Aucune recharge chargée.');return;}const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape'});doc.setFontSize(18);doc.setTextColor(201,169,97);doc.text('Rapport Recharges — SBH (NelsiusPay + Fapshi + Swychr + autres)',14,18);doc.setFontSize(9);doc.setTextColor(120);doc.text(`Généré le ${new Date().toLocaleString('fr-FR')} · ${allDeposits.length} recharge(s)`,14,25);doc.autoTable({head:[['Date','Référence','Client','Fournisseur','Montant demandé','Montant crédité','Statut']],body:allDeposits.map(t=>[formatDate(t.createdAt),t.reference||'—',t.userName||t.userEmail||'—',t.provider||'—',Number(t.requestedAmount||0).toLocaleString('fr-FR')+' '+(t.requestedCurrency||''),t.creditedAmountXAF==null?'—':Number(t.creditedAmountXAF).toLocaleString('fr-FR')+' FCFA',(t.status||'—').toUpperCase()]),startY:30,theme:'striped',headStyles:{fillColor:[201,169,97],textColor:[10,14,23]},styles:{fontSize:8,cellPadding:2.5}});addFooter(doc);doc.save(`recharges_sbh_${new Date().toISOString().slice(0,10)}.pdf`);showToast('PDF recharges généré.');}
 function exportFinancialsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();const range=document.getElementById('financialRange')?.value||'30d';doc.setFontSize(18);doc.setTextColor(201,169,97);doc.text('Rapport Finances — SBH (toutes collections)',14,18);doc.setFontSize(9);doc.setTextColor(120);doc.text(`Généré le ${new Date().toLocaleString('fr-FR')} · Période : ${range}`,14,25);doc.autoTable({head:[['Indicateur','Valeur']],body:[['Commandes sur la période',document.getElementById('finOrders')?.textContent||'—'],['Ventes nettes (toutes collections)',document.getElementById('finSales')?.textContent||'—'],['Remboursements',document.getElementById('finRefunds')?.textContent||'—'],['Coût fournisseur',document.getElementById('finSupplierCost')?.textContent||'—'],['Marge brute estimée',document.getElementById('finGrossProfit')?.textContent||'—'],['Couverture snapshots autoOrders',document.getElementById('finCoverage')?.textContent||'—']],startY:30,theme:'striped',headStyles:{fillColor:[201,169,97],textColor:[10,14,23]},styles:{fontSize:10,cellPadding:3}});addFooter(doc);doc.save(`finances_sbh_${new Date().toISOString().slice(0,10)}.pdf`);showToast('PDF finances généré.');}
 
 let metricsRebuildRunning=false;
 async function rebuildCustomerMetrics(){if(metricsRebuildRunning)return;if(!confirm('Recalculer les commandes et dépenses historiques ?'))return;metricsRebuildRunning=true;const btn=[...document.querySelectorAll('button')].find(b=>b.textContent.includes('Recalculer'));if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-circle-notch fa-spin"></i> Recalcul…';}try{const d=await fetchAdmin('/customers/rebuild-order-metrics',{method:'POST',body:JSON.stringify({confirm:true})});showToast(`Historique recalculé : ${Number(d.ordersRead||0).toLocaleString('fr-FR')} commandes lues`);allCustomers=[];customerCursor=null;await loadCustomers(true);await loadOverview(true);}catch(e){showError('Recalcul impossible : '+e.message);}finally{metricsRebuildRunning=false;if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-calculator"></i> Recalculer';}}}
 
-/* ═══════════ DEPOSITS — Swychr intégré ═══════════ */
-let allDeposits=[];let depositCursors={paymentTransactions:null,fapshiTransactions:null,transactions:null};let depositsLoading=false;
+/* ═══════════ DEPOSITS — multi-sources ═══════════ */
+let allDeposits=[];let depositCursors={paymentTransactions:null,fapshiTransactions:null,payments:null,rechargements:null,recharges:null,transactions:null};let depositsLoading=false;
 async function loadDeposits(reset=false){
   if(depositsLoading)return;
   depositsLoading=true;
   const tb=document.getElementById('depositsBody');
   if(reset){
     allDeposits=[];
-    depositCursors={paymentTransactions:null,fapshiTransactions:null,transactions:null};
+    depositCursors={paymentTransactions:null,fapshiTransactions:null,payments:null,rechargements:null,recharges:null,transactions:null};
     tb.innerHTML='<tr><td colspan="8" class="loading">Chargement…</td></tr>';
   }
   try{
@@ -1237,7 +1238,7 @@ function renderOverviewData(s){
   put('kpiVisitsYesterday',Number(s.dashboardVisitsYesterday ?? 0).toLocaleString('fr-FR'));
   put('kpiVisitsDayBefore',Number(s.dashboardVisitsDayBefore ?? 0).toLocaleString('fr-FR'));
 
-  // Ventes / marges consolidées
+  // Ventes / marges consolidées (nouvelles clés renvoyées par /overview)
   const salesNet = Number(s.allCollectionsGrossSales||0) - Number(s.allCollectionsRefunds||0);
   put('kpiAllSales', Math.max(0, salesNet).toLocaleString('fr-FR')+' FCFA');
   put('kpiAllRefunds', Number(s.allCollectionsRefunds||0).toLocaleString('fr-FR')+' FCFA');
@@ -1559,7 +1560,7 @@ async function submitCustomerEmail(){
 
 /* ═══════════ CUSTOMERS ═══════════ */
 let allCustomers=[];let customerCursor=null;let customersLoading=false;
-async function loadCustomers(reset=false){if(customersLoading)return;customersLoading=true;const tb=document.getElementById('customersBody');const q=(document.getElementById('customerSearch')?.value||'').trim();if(reset){allCustomers=[];customerCursor=null;tb.innerHTML='<tr><td colspan="9" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';}try{const params=new URLSearchParams({limit:'25'});if(q)params.set('q',q);const country=document.getElementById('customerCountryFilter')?.value||'';const segment=document.getElementById('customerSegmentFilter')?.value||'all';const sort=document.getElementById('customerSortFilter')?.value||'recent';if(country)params.set('country',country);params.set('segment',segment);params.set('sort',sort);if(!q&&customerCursor)params.set('cursor',customerCursor);const d=await fetchAdmin('/customers?'+params.toString());allCustomers=reset?(d.customers||[]):allCustomers.concat(d.customers||[]);allCustomers=sortByDateDesc(allCustomers);customerCursor=d.nextCursor||null;const metricsNote=document.getElementById('customerMetricsStatus');if(metricsNote){metricsNote.style.display='block';metricsNote.style.color=d.metricsReady?'var(--text-dim)':'var(--gold)';metricsNote.textContent=d.metricsReady?`Historique calculé le ${d.metricsAsOf?formatDate(d.metricsAsOf):'date inconnue'}.`:'Les statistiques de commandes historiques ne sont pas synchronisées. Cliquez sur « Recalculer » avant de vous fier aux segments.';}renderCustomers();document.getElementById('customersMoreBtn').style.display=(!q&&customerCursor)?'inline-flex':'none';}catch(e){tb.innerHTML=`<tr><td colspan="9" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Utilisateurs : '+e.message);}finally{customersLoading=false;}}
+async function loadCustomers(reset=false){if(customersLoading)return;customersLoading=true;const tb=document.getElementById('customersBody');const q=(document.getElementById('customerSearch')?.value||'').trim();if(reset){allCustomers=[];customerCursor=null;tb.innerHTML='<tr><td colspan="9" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';}try{const params=new URLSearchParams({limit:'25'});if(q)params.set('q',q);const country=document.getElementById('customerCountryFilter')?.value||'';const segment=document.getElementById('customerSegmentFilter')?.value||'all';const sort=document.getElementById('customerSortFilter')?.value||'recent';if(country)params.set('country',country);params.set('segment',segment);params.set('sort',sort);if(!q&&customerCursor)params.set('cursor',customerCursor);const d=await fetchAdmin('/customers?'+params.toString());allCustomers=reset?(d.customers||[]):allCustomers.concat(d.customers||[]);allCustomers=sortByDateDesc(allCustomers);customerCursor=d.nextCursor||null;const metricsNote=document.getElementById('customerMetricsStatus');if(metricsNote){metricsNote.style.display='block';metricsNote.style.color=d.metricsReady?'var(--text-dim)':'var(--gold)';metricsNote.textContent=d.metricsReady?`Historique calculé le ${d.metricsAsOf?formatDate(d.metricsAsOf):'date inconnue'}. Total : ${d.total||allCustomers.length} utilisateur(s).`:`Les statistiques de commandes historiques ne sont pas synchronisées. Cliquez sur « Recalculer » avant de vous fier aux segments.`;}renderCustomers();document.getElementById('customersMoreBtn').style.display=(!q&&customerCursor)?'inline-flex':'none';}catch(e){tb.innerHTML=`<tr><td colspan="9" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Utilisateurs : '+e.message);}finally{customersLoading=false;}}
 function loadMoreCustomers(){loadCustomers(false);}
 function renderCustomers(){
   const tb=document.getElementById('customersBody');tb.innerHTML='';
