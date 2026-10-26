@@ -3260,7 +3260,9 @@ adminRouter.get('/gifts', async (req, res) => {
       return res.json({ success: true, claims: cached.data, cached: true, ttl: Math.round((cached.expires - Date.now()) / 1000) });
     }
 
-    let query = db.collection('welcomeGiftClaims').orderBy('createdAt', 'desc');
+    // ✅ Détecte le champ date (createdAt, date, created_at, timestamp…)
+    const giftsDateField = await detectDateField('welcomeGiftClaims');
+    let query = db.collection('welcomeGiftClaims').orderBy(giftsDateField, 'desc');
     if (useStatus !== 'all') query = query.where('status', '==', useStatus);
     const snapshot = await query.limit(limit).get();
 
@@ -3278,7 +3280,7 @@ adminRouter.get('/gifts', async (req, res) => {
         whatsapp: data.whatsapp || null,
         status: data.status || 'pending',
         adminNote: data.adminNote || null,
-        createdAt: data.createdAt || null,
+        createdAt: data[giftsDateField] || data.createdAt || null,
       };
     });
 
@@ -3351,6 +3353,9 @@ const PAYMENT_COLLECTIONS = [
 const allUsersCache = { data: null, expires: 0, lastRefresh: 0 };
 const ALL_USERS_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
+const topUsersTodayCache = { data: null, expires: 0, lastRefresh: 0 };
+const TOP_USERS_TODAY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 const depositsCache = { data: null, expires: 0 };
 const DEPOSITS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -3377,6 +3382,9 @@ async function detectDateField(collectionName) {
   return 'createdAt';
 }
 
+// Charge TOUS les utilisateurs triés par date de création décroissante.
+// Gère les deux formats (Timestamp + string ISO).
+// Cache 30 min → n'exécute le scan complet qu'une fois par 30 min maximum.
 async function getAllUsersSorted(forceRefresh = false) {
   const now = Date.now();
   if (!forceRefresh && allUsersCache.data && now < allUsersCache.expires) {
@@ -3409,7 +3417,6 @@ async function getAllUsersSorted(forceRefresh = false) {
 }
 
 // Compte les utilisateurs créés entre deux dates (Timestamp OU string ISO).
-// Coût : 2 lectures par période. PAS de scan.
 async function countUsersInWindow(start, end) {
   try {
     const [tsCount, isoCount] = await Promise.all([
@@ -3427,7 +3434,6 @@ async function countUsersInWindow(start, end) {
 }
 
 // Compte les commandes dans une collection sur une fenêtre temporelle.
-// Coût : 2 count() maximum. PAS de scan.
 async function countOrdersInWindow(collectionName, start, end) {
   if (!start && !end) {
     try {
@@ -3450,8 +3456,7 @@ async function countOrdersInWindow(collectionName, start, end) {
   } catch (_) { return 0; }
 }
 
-// Agrégation financière via les agrégats natifs Firestore (1 lecture par 1000 docs scannés).
-// Pas de scan, pas de fallback coûteux.
+// Agrégation financière via les agrégats natifs Firestore.
 async function getFinancialsAllCollections(start, end) {
   let totalSales = 0, totalRefunds = 0, totalSupplierCost = 0, totalProfit = 0, totalOrders = 0;
 
@@ -3462,12 +3467,12 @@ async function getFinancialsAllCollections(start, end) {
       if (start) baseQ = baseQ.where(dateField, '>=', admin.firestore.Timestamp.fromDate(start));
       if (end) baseQ = baseQ.where(dateField, '<', admin.firestore.Timestamp.fromDate(end));
 
-      // Agrégation multi-champs. On prend le "meilleur" champ par collection.
       const agg = await baseQ.aggregate({
         salesPrice:     admin.firestore.AggregateField.sum('priceXAF'),
         salesTotalCost: admin.firestore.AggregateField.sum('totalCost'),
         salesFinalCost: admin.firestore.AggregateField.sum('finalCost'),
         salesCost:      admin.firestore.AggregateField.sum('cost'),
+        salesAmount:    admin.firestore.AggregateField.sum('amount'),
         supplierCost:   admin.firestore.AggregateField.sum('providerCostXAF'),
         supplierCostAlt: admin.firestore.AggregateField.sum('supplierCostXAF'),
         grossProfit:    admin.firestore.AggregateField.sum('estimatedProfitXAF'),
@@ -3481,7 +3486,8 @@ async function getFinancialsAllCollections(start, end) {
       const salesTotalCost = Number(d.salesTotalCost || 0);
       const salesFinalCost = Number(d.salesFinalCost || 0);
       const salesCost      = Number(d.salesCost || 0);
-      const sales          = Math.max(salesPrice, salesTotalCost, salesFinalCost, salesCost);
+      const salesAmount    = Number(d.salesAmount || 0);
+      const sales          = Math.max(salesPrice, salesTotalCost, salesFinalCost, salesCost, salesAmount);
       const supplierCost   = Number(d.supplierCost || 0) || Number(d.supplierCostAlt || 0);
       const grossProfit    = Number(d.grossProfit || 0);
       const refunds        = Number(d.refunds || 0);
@@ -3514,6 +3520,172 @@ async function countDepositsAllCollections(start, end) {
     try { total += await countOrdersInWindow(colName, start, end); } catch (_) {}
   }
   return total;
+}
+
+// ✅ Dépôts détaillés : total / success / pending / failed + montant XAF des réussis + top déposant.
+// Coût : 4 count() par collection + lecture des docs réussis (limité 500 par collection).
+async function getDepositsStatsAllCollections(start, end) {
+  let total = 0, success = 0, pending = 0, failed = 0;
+  let totalCreditedXAF = 0;
+  const successByUser = new Map();
+
+  const successVariants = ['CONFIRMED','confirmed','SUCCESS','success','SUCCEEDED','succeeded','PAID','paid','SUCCESSFUL','successful','completed','COMPLETED'];
+  const pendingVariants = ['PENDING','pending','PROCESSING','processing','INITIATED','initiated','WAITING','waiting'];
+  const failedVariants  = ['FAILED','failed','FAILURE','failure','CANCELLED','cancelled','REJECTED','rejected','EXPIRED','expired'];
+
+  for (const colName of PAYMENT_COLLECTIONS) {
+    try {
+      const dateField = await detectDateField(colName);
+      let baseQ = db.collection(colName);
+      if (start) baseQ = baseQ.where(dateField, '>=', admin.firestore.Timestamp.fromDate(start));
+      if (end)   baseQ = baseQ.where(dateField, '<', admin.firestore.Timestamp.fromDate(end));
+
+      const [totalSnap, successSnap, pendingSnap, failedSnap] = await Promise.all([
+        baseQ.count().get().catch(() => null),
+        baseQ.where('status', 'in', successVariants).count().get().catch(() => null),
+        baseQ.where('status', 'in', pendingVariants).count().get().catch(() => null),
+        baseQ.where('status', 'in', failedVariants).count().get().catch(() => null),
+      ]);
+
+      total += Number(totalSnap?.data()?.count || 0);
+      success += Number(successSnap?.data()?.count || 0);
+      pending += Number(pendingSnap?.data()?.count || 0);
+      failed += Number(failedSnap?.data()?.count || 0);
+
+      if (success > 0) {
+        const successDocs = await baseQ.where('status', 'in', successVariants).limit(500).get().catch(() => null);
+        if (successDocs) {
+          successDocs.forEach(doc => {
+            const d = doc.data() || {};
+            const pick = keys => { for (const k of keys) if (d[k] !== undefined && d[k] !== null && d[k] !== '') return d[k]; return null; };
+            const amount = Number(
+              pick(['creditedAmountXAF','amountCredited','amount','amountXAF','total','montant','requestedAmount']) || 0
+            );
+            totalCreditedXAF += amount;
+            const uid = d.userId || d.uid || d.user_id || null;
+            if (uid) {
+              const cur = successByUser.get(uid) || { amount: 0, count: 0, lastAt: null };
+              cur.amount += amount;
+              cur.count++;
+              cur.lastAt = d[dateField] || d.createdAt || d.created_at || null;
+              successByUser.set(uid, cur);
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.warn(`DepositsStats ${colName}:`, e.message);
+    }
+  }
+
+  let topDepositor = null;
+  if (successByUser.size > 0) {
+    const sorted = [...successByUser.entries()].sort((a, b) => b[1].amount - a[1].amount);
+    const [uid, stats] = sorted[0];
+    try {
+      const userDoc = await db.collection('users').doc(uid).get();
+      if (userDoc.exists) {
+        const u = userDoc.data();
+        topDepositor = {
+          userId: uid,
+          name: u.displayName || u.username || u.name || 'Anonyme',
+          email: u.email || null,
+          phone: u.phone || u.whatsapp || null,
+          country: u.country || null,
+          amount: stats.amount,
+          count: stats.count,
+          lastAt: stats.lastAt,
+        };
+      }
+    } catch (_) {}
+  }
+
+  return { total, success, pending, failed, totalCreditedXAF, topDepositor };
+}
+
+// ✅ Classement des clients du jour (marge incluse).
+async function getTopUsersToday(forceRefresh = false) {
+  const now = Date.now();
+  if (!forceRefresh && topUsersTodayCache.data && now < topUsersTodayCache.expires) {
+    return topUsersTodayCache.data;
+  }
+
+  const local = new Date(now + 60 * 60 * 1000);
+  const todayStart = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) - 60 * 60 * 1000);
+  const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  const userAgg = new Map();
+
+  for (const colName of ADMIN_ORDER_COLLECTIONS) {
+    try {
+      const dateField = await detectDateField(colName);
+      let q = db.collection(colName)
+        .where(dateField, '>=', admin.firestore.Timestamp.fromDate(todayStart))
+        .where(dateField, '<', admin.firestore.Timestamp.fromDate(tomorrowStart))
+        .limit(500);
+      const snap = await q.get().catch(() => null);
+      if (!snap) continue;
+
+      snap.forEach(doc => {
+        const d = doc.data() || {};
+        const uid = d.userId || d.uid || d.user_id || d.customerId || null;
+        if (!uid) return;
+
+        const f = getOrderFinancials(d, null, colName);
+        const cur = userAgg.get(uid) || { count: 0, totalPaid: 0, totalProfit: 0, orders: [] };
+        cur.count++;
+        cur.totalPaid += f.amount || 0;
+        cur.totalProfit += f.grossProfitXAF || 0;
+        cur.orders.push({
+          orderId: d.orderId || d.reference || d.order_id || doc.id,
+          serviceName: d.serviceName || d.service_name || d.name || 'Service',
+          provider: f.provider,
+          amount: f.amount,
+          profit: f.grossProfitXAF,
+          createdAt: d[dateField] || d.createdAt || d.created_at || null,
+        });
+        userAgg.set(uid, cur);
+      });
+    } catch (e) {
+      console.warn(`TopUsersToday ${colName}:`, e.message);
+    }
+  }
+
+  const userIds = [...userAgg.keys()];
+  const userSnaps = await Promise.all(userIds.map(id => db.collection('users').doc(id).get()));
+  const usersMap = new Map();
+  userSnaps.forEach(s => {
+    if (s.exists) {
+      const u = s.data() || {};
+      usersMap.set(s.id, {
+        name: u.displayName || u.username || u.name || 'Client',
+        email: u.email || null,
+        phone: u.phone || u.whatsapp || null,
+        country: u.country || null,
+        balance: Number(u.balance || 0),
+      });
+    }
+  });
+
+  const result = [...userAgg.entries()].map(([uid, stats]) => {
+    const u = usersMap.get(uid) || {};
+    return {
+      id: uid,
+      name: u.name || 'Client',
+      email: u.email || null,
+      phone: u.phone || null,
+      country: u.country || null,
+      balance: u.balance || 0,
+      orderCount: stats.count,
+      totalPaid: stats.totalPaid,
+      totalProfit: stats.totalProfit,
+      orders: stats.orders.slice(0, 10),
+    };
+  }).sort((a, b) => b.totalProfit - a.totalProfit);
+
+  topUsersTodayCache.data = result;
+  topUsersTodayCache.expires = now + TOP_USERS_TODAY_CACHE_TTL_MS;
+  return result;
 }
 
 async function readOrderCounters() {
@@ -3581,7 +3753,7 @@ async function countPendingAdminOrders() {
   return snapshots.reduce((sum, snap) => sum + Number(snap.data()?.count || 0), 0);
 }
 
-// ✅ /overview — optimisé : utilise les counts, PAS getAllUsersSorted
+// ✅ /overview — utilise getDepositsStatsAllCollections + newUsersThisWeek + newUsersLastWeek
 adminRouter.get('/overview', async (req, res) => {
   try {
     const forceRefresh = String(req.query.refresh || '') === '1';
@@ -3598,7 +3770,13 @@ adminRouter.get('/overview', async (req, res) => {
     const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
     const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
     const dayBeforeStart = new Date(todayStart.getTime() - 48 * 60 * 60 * 1000);
-    const sevenDaysStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Semaine courante : lundi 00:00 (UTC+1) → maintenant
+    const dayOfWeek = local.getUTCDay(); // 0 = dimanche
+    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const startOfThisWeek = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() - daysFromMonday) - 60 * 60 * 1000);
+    const startOfLastWeek = new Date(startOfThisWeek.getTime() - 7 * 24 * 60 * 60 * 1000);
+
     const usersRef = db.collection('users'); const giftsRef = db.collection('welcomeGiftClaims');
 
     const todayKey = localDateKey(todayStart);
@@ -3607,29 +3785,17 @@ adminRouter.get('/overview', async (req, res) => {
     const dayKeys = [todayKey, yesterdayKey, dayBeforeKey];
 
     const [
-      totalUsersResult,
-      newUsers7d,
-      newUsersToday,
-      newUsersYesterday,
-      newUsersDayBefore,
+      usersCount, newUsersThisWeek, newUsersLastWeek, newUsersToday, newUsersYesterday, newUsersDayBefore,
       orderCounters,
-      ordersTodayCounts,
-      ordersYesterdayCounts,
-      ordersDayBeforeCounts,
-      pendingOrdersCount,
-      giftsPending,
-      giftsLate,
+      ordersTodayCounts, ordersYesterdayCounts, ordersDayBeforeCounts, pendingOrdersCount, giftsPending, giftsLate,
       finToday,
-      visitAgg,
-      activeVisitors7d,
-      balanceAgg,
+      visitAgg, activeVisitors7d, balanceAgg,
       counterDocs,
-      depositsToday,
-      depositsYesterday,
-      depositsDayBefore
+      depositsTodayStats, depositsYesterdayStats, depositsDayBeforeStats,
     ] = await Promise.all([
-      usersRef.count().get().catch(() => ({ data: () => ({ count: 0 }) })),
-      countUsersInWindow(sevenDaysStart, now),
+      usersRef.count().get(),
+      countUsersInWindow(startOfThisWeek, now),
+      countUsersInWindow(startOfLastWeek, startOfThisWeek),
       countUsersInWindow(todayStart, tomorrowStart),
       countUsersInWindow(yesterdayStart, todayStart),
       countUsersInWindow(dayBeforeStart, yesterdayStart),
@@ -3638,19 +3804,19 @@ adminRouter.get('/overview', async (req, res) => {
       Promise.all(ADMIN_ORDER_COLLECTIONS.map(name => countOrdersInWindow(name, yesterdayStart, todayStart))),
       Promise.all(ADMIN_ORDER_COLLECTIONS.map(name => countOrdersInWindow(name, dayBeforeStart, yesterdayStart))),
       countPendingAdminOrders(),
-      giftsRef.where('status', '==', 'pending').count().get().catch(() => ({ data: () => ({ count: 0 }) })),
-      giftsRef.where('status', '==', 'pending').where('createdAt', '<', admin.firestore.Timestamp.fromDate(new Date(now.getTime() - 24 * 60 * 60 * 1000))).count().get().catch(() => ({ data: () => ({ count: 0 }) })),
+      giftsRef.where('status', '==', 'pending').count().get(),
+      giftsRef.where('status', '==', 'pending').where('createdAt', '<', admin.firestore.Timestamp.fromDate(new Date(now.getTime() - 24 * 60 * 60 * 1000))).count().get(),
       getFinancialsAllCollections(todayStart, tomorrowStart),
-      usersRef.aggregate({ total: admin.firestore.AggregateField.sum('dashboardVisitCount') }).get().catch(() => ({ data: () => ({ total: 0 }) })),
-      usersRef.where('lastDashboardVisit', '>=', admin.firestore.Timestamp.fromDate(sevenDaysStart)).count().get().catch(() => ({ data: () => ({ count: 0 }) })),
-      usersRef.aggregate({ total: admin.firestore.AggregateField.sum('balance') }).get().catch(() => ({ data: () => ({ total: 0 }) })),
+      usersRef.aggregate({ total: admin.firestore.AggregateField.sum('dashboardVisitCount') }).get(),
+      usersRef.where('lastDashboardVisit', '>=', admin.firestore.Timestamp.fromDate(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000))).count().get(),
+      usersRef.aggregate({ total: admin.firestore.AggregateField.sum('balance') }).get(),
       Promise.all(dayKeys.map(k => db.collection('dailyCounters').doc(k).get().catch(() => null))),
-      countDepositsAllCollections(todayStart, tomorrowStart),
-      countDepositsAllCollections(yesterdayStart, todayStart),
-      countDepositsAllCollections(dayBeforeStart, yesterdayStart),
+      getDepositsStatsAllCollections(todayStart, tomorrowStart),
+      getDepositsStatsAllCollections(yesterdayStart, todayStart),
+      getDepositsStatsAllCollections(dayBeforeStart, yesterdayStart),
     ]);
 
-    const totalUsers = Number(totalUsersResult.data().count || 0);
+    const totalUsers = Number(usersCount.data().count || 0);
     const totalBalance = Number(balanceAgg.data().total || 0);
     const counts = orderCounters.counts; const totalOrders = orderCounters.total;
     const visitsByDay = counterDocs.map(d => (d && d.exists ? Number((d.data() || {}).dashboardVisits || 0) : 0));
@@ -3659,7 +3825,9 @@ adminRouter.get('/overview', async (req, res) => {
 
     const data = {
       totalUsers,
-      newUsers7d: Number(newUsers7d || 0),
+      newUsersThisWeek: Number(newUsersThisWeek || 0),
+      newUsersLastWeek: Number(newUsersLastWeek || 0),
+      newUsers7d: Number(newUsersThisWeek || 0), // rétrocompat
       newUsersToday: Number(newUsersToday || 0),
       newUsersYesterday: Number(newUsersYesterday || 0),
       newUsersDayBefore: Number(newUsersDayBefore || 0),
@@ -3676,6 +3844,7 @@ adminRouter.get('/overview', async (req, res) => {
       allCollectionsRefunds: autoRefunds,
       allCollectionsSupplierCost: finToday.totalSupplierCost,
       allCollectionsGrossProfit: finToday.totalProfit,
+      allCollectionsNetSales: finToday.netSales,
       totalBalance,
       averageBalance: totalUsers ? Math.round(totalBalance / totalUsers) : 0,
       dashboardVisitsRecorded: Number(visitAgg.data().total || 0),
@@ -3683,15 +3852,40 @@ adminRouter.get('/overview', async (req, res) => {
       dashboardVisitsToday: visitsByDay[0],
       dashboardVisitsYesterday: visitsByDay[1],
       dashboardVisitsDayBefore: visitsByDay[2],
-      depositsToday,
-      depositsYesterday,
-      depositsDayBefore,
+      depositsToday: {
+        total: depositsTodayStats.total,
+        success: depositsTodayStats.success,
+        pending: depositsTodayStats.pending,
+        failed: depositsTodayStats.failed,
+        totalCreditedXAF: depositsTodayStats.totalCreditedXAF,
+        topDepositor: depositsTodayStats.topDepositor,
+      },
+      depositsYesterday: {
+        total: depositsYesterdayStats.total,
+        success: depositsYesterdayStats.success,
+        pending: depositsYesterdayStats.pending,
+        failed: depositsYesterdayStats.failed,
+        totalCreditedXAF: depositsYesterdayStats.totalCreditedXAF,
+      },
+      depositsDayBefore: {
+        total: depositsDayBeforeStats.total,
+        success: depositsDayBeforeStats.success,
+        pending: depositsDayBeforeStats.pending,
+        failed: depositsDayBeforeStats.failed,
+        totalCreditedXAF: depositsDayBeforeStats.totalCreditedXAF,
+      },
+      // Rétrocompat : anciens champs plats
+      depositsSuccessToday: depositsTodayStats.success,
+      depositsPendingToday: depositsTodayStats.pending,
+      depositsFailedToday: depositsTodayStats.failed,
+      depositsCreditedXAFToday: depositsTodayStats.totalCreditedXAF,
       giftsPending: Number(giftsPending.data().count || 0),
       giftsLate: Number(giftsLate.data().count || 0),
       multipliers: { MTP: MTP_MULTIPLIER, EXO: EXO_MULTIPLIER, AfriqueBoost: AFB_MULTIPLIER, SMMGen: SMMGEN_MULTIPLIER, SMMWiz: SMMWIZ_MULTIPLIER },
       generatedAt: now.toISOString(),
       revenueScope: 'Les ventes, coûts et marges couvrent toutes les collections de commandes (autoOrders, commandes EXO, etc.).',
       dailyVisitsNote: 'Les visites par jour sont comptées depuis le déploiement du compteur dailyCounters. Les jours antérieurs restent à 0.',
+      weekScope: 'newUsersThisWeek = lundi 00:00 (UTC+1) → maintenant. newUsersLastWeek = lundi précédent → lundi de cette semaine.',
     };
     memCacheSet(adminMemoryCache.overview, data, 15 * 60 * 1000);
     await setSharedAdminCache('overview', data, 15 * 60 * 1000);
@@ -3712,15 +3906,22 @@ async function countDepositsInRange(start, end) {
   } catch (_) { return 0; }
 }
 
-// ✅ /top-users — optimisé : requête ciblée limit 20, PAS getAllUsersSorted
+// ✅ /top-users — classement global + `?period=today` pour le classement du jour
 adminRouter.get('/top-users', async (req, res) => {
   try {
     const forceRefresh = String(req.query.refresh || '') === '1';
+    const period = String(req.query.period || 'all').toLowerCase();
+
+    if (period === 'today') {
+      const users = await getTopUsersToday(forceRefresh);
+      return res.json({ success: true, period: 'today', users, cached: !forceRefresh && topUsersTodayCache.data !== null });
+    }
+
     const cached = !forceRefresh ? memCacheGet(adminMemoryCache.topUsers) : null;
-    if (cached) return res.json({ success: true, users: cached, cached: true });
+    if (cached) return res.json({ success: true, period: 'all', users: cached, cached: true });
     if (!forceRefresh) {
       const shared = await getSharedAdminCache('topUsers');
-      if (shared) { memCacheSet(adminMemoryCache.topUsers, shared.payload, Math.max(1000, shared.expiresAtMs - Date.now())); return res.json({ success: true, users: shared.payload, cached: true, cacheScope: 'shared' }); }
+      if (shared) { memCacheSet(adminMemoryCache.topUsers, shared.payload, Math.max(1000, shared.expiresAtMs - Date.now())); return res.json({ success: true, period: 'all', users: shared.payload, cached: true, cacheScope: 'shared' }); }
     }
 
     let usersSnap;
@@ -3750,7 +3951,7 @@ adminRouter.get('/top-users', async (req, res) => {
 
     memCacheSet(adminMemoryCache.topUsers, users, 60 * 60 * 1000);
     await setSharedAdminCache('topUsers', users, 60 * 60 * 1000);
-    res.json({ success: true, users, cached: false, reads: usersSnap.size });
+    res.json({ success: true, period: 'all', users, cached: false, reads: usersSnap.size });
   } catch (error) {
     console.error('Erreur /top-users:', error);
     res.status(500).json({ success: false, error: 'Impossible de charger le classement des utilisateurs.' });
@@ -3848,7 +4049,6 @@ adminRouter.get('/orders-summary', async (req, res) => {
   }
 });
 
-// ✅ /orders — cache 5 min
 adminRouter.get('/orders', async (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 5, 3), 10);
@@ -3925,13 +4125,17 @@ adminRouter.get('/stores', async (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 10), 50);
     const cursorId = String(req.query.cursor || ''); const country = String(req.query.country || '').trim();
+
+    // ✅ Utilise le champ date détecté (createdAt, date, created_at, timestamp…)
+    const storesDateField = await detectDateField('stores');
+
     let query = db.collection('stores');
     if (country) { const aliases = getCountryAliases(country); if (aliases.length) query = query.where('country','in',aliases.slice(0,10)); }
-    query = query.orderBy(admin.firestore.FieldPath.documentId());
+    query = query.orderBy(storesDateField, 'desc');
     if (cursorId) { const cursor = await db.collection('stores').doc(cursorId).get(); if (cursor.exists) query = query.startAfter(cursor); }
     const snap = await query.limit(limit).get();
     const stores = snap.docs.map(doc => { const d=doc.data()||{}; const ownerId=d.userId||d.ownerId||d.uid||d.createdBy||d.ownerUid||null; const slug=d.slug||d.username||d.storeSlug||null;
-      return { id:doc.id, name:d.name||d.storeName||d.title||d.businessName||'Boutique sans nom', slug, url:d.url||d.storeUrl||d.publicUrl||d.customDomain||null, logo:d.logo||d.logoUrl||d.image||d.photo||null, ownerId, ownerName:d.ownerName||d.userName||d.displayName||d.owner||null, ownerEmail:d.email||d.ownerEmail||null, country:d.country||null, status:d.status||(d.active===false?'inactive':'active'), createdAt:d.createdAt||d.created_at||d.creationDate||d.dateCreated||null }; });
+      return { id:doc.id, name:d.name||d.storeName||d.title||d.businessName||'Boutique sans nom', slug, url:d.url||d.storeUrl||d.publicUrl||d.customDomain||null, logo:d.logo||d.logoUrl||d.image||d.photo||null, ownerId, ownerName:d.ownerName||d.userName||d.displayName||d.owner||null, ownerEmail:d.email||d.ownerEmail||null, country:d.country||null, status:d.status||(d.active===false?'inactive':'active'), createdAt:d[storesDateField]||d.createdAt||d.created_at||d.creationDate||d.dateCreated||null }; });
     const ownerIds=[...new Set(stores.map(s=>s.ownerId).filter(Boolean))];
     const ownerSnaps=await Promise.all(ownerIds.map(id=>db.collection('users').doc(id).get()));
     const owners=new Map(ownerSnaps.filter(s=>s.exists).map(s=>{const u=s.data()||{};return [s.id,{name:u.displayName||u.username||u.name||u.fullName||null,email:u.email||null,country:u.country||u.countryCode||u.country_code||null,phone:u.phone||u.whatsapp||null,balance:Number(u.balance||0),createdAt:u.createdAt||u.created_at||null}];}));
@@ -3940,15 +4144,17 @@ adminRouter.get('/stores', async (req, res) => {
   } catch (error) { console.error('Erreur /api/admin/stores:',error); return res.status(500).json({success:false,error:'Impossible de charger les boutiques.'}); }
 });
 
-// ✅ /deposits — CORRIGÉ : pas d'await dans .map(), cache 5 min
+// ✅ /deposits — 6 sources + filtre fournisseur + cache 5 min
 adminRouter.get('/deposits', async (req, res) => {
   try {
-    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 10), 50);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 10), 100);
     const status = String(req.query.status || 'all').toUpperCase();
+    const providerFilter = String(req.query.provider || 'all').toLowerCase();
     const forceRefresh = String(req.query.refresh || '') === '1';
 
-    if (!forceRefresh && status === 'ALL' && depositsCache.data && Date.now() < depositsCache.expires) {
-      return res.json({ success: true, transactions: depositsCache.data, cached: true, sources: PAYMENT_COLLECTIONS });
+    const cacheKey = `deposits:${status}:${providerFilter}`;
+    if (!forceRefresh && depositsCache.data && depositsCache.data[cacheKey] && Date.now() < depositsCache.data[cacheKey].expires) {
+      return res.json({ success: true, transactions: depositsCache.data[cacheKey].transactions, cached: true, sources: PAYMENT_COLLECTIONS });
     }
 
     const sources = [
@@ -3968,21 +4174,23 @@ adminRouter.get('/deposits', async (req, res) => {
 
     const results = [];
     for (const source of sources) {
+      // Filtre fournisseur
+      if (providerFilter !== 'all') {
+        const srcName = source.providerFallback.toLowerCase();
+        const srcId = source.name.toLowerCase();
+        if (!srcName.includes(providerFilter) && !srcId.includes(providerFilter)) continue;
+      }
       try {
-        // ⚠️ CORRECTION : detectDateField AVANT le .map(), pas dedans
         const dateField = await detectDateField(source.name).catch(() => 'createdAt');
         const snap = await db.collection(source.name).limit(limit * 2).get();
 
         const items = snap.docs.map(doc => {
           const d = doc.data() || {};
-          const pick = keys => {
-            for (const k of keys) if (d[k] !== undefined && d[k] !== null && d[k] !== '') return d[k];
-            return null;
-          };
+          const pick = keys => { for (const k of keys) if (d[k] !== undefined && d[k] !== null && d[k] !== '') return d[k]; return null; };
           const rawStatus = String(d.status || d.paymentStatus || d.state || 'UNKNOWN');
           const amount = Number(pick(source.amountKeys) || 0);
           const creditedRaw = pick(source.creditKeys);
-          const createdAtRaw = d.createdAt || d.dateInitiated || d.created_at || d.dateCreated || d.timestamp || d[dateField] || null;
+          const createdAtRaw = d[dateField] || d.createdAt || d.dateInitiated || d.created_at || d.dateCreated || d.timestamp || null;
           return {
             id: doc.id,
             source: source.name,
@@ -4009,7 +4217,6 @@ adminRouter.get('/deposits', async (req, res) => {
     }
 
     let transactions = results.flatMap(r => r.items);
-
     if (status !== 'ALL' && statusVariants[status]) {
       const allowed = statusVariants[status].map(s => s.toLowerCase());
       transactions = transactions.filter(t => allowed.includes(String(t.status).toLowerCase()));
@@ -4023,22 +4230,19 @@ adminRouter.get('/deposits', async (req, res) => {
     }
 
     transactions.sort((a, b) => b._createdMs - a._createdMs);
-    transactions = transactions.slice(0, limit);
-    transactions = transactions.map(t => { delete t._createdMs; return t; });
+    transactions = transactions.slice(0, limit).map(t => { delete t._createdMs; return t; });
 
-    if (status === 'ALL') {
-      depositsCache.data = transactions;
-      depositsCache.expires = Date.now() + DEPOSITS_CACHE_TTL_MS;
-    }
+    if (!depositsCache.data) depositsCache.data = {};
+    depositsCache.data[cacheKey] = { transactions, expires: Date.now() + DEPOSITS_CACHE_TTL_MS };
 
-    return res.json({ success: true, transactions, pageSize: limit, sources: sources.map(s => s.name) });
+    return res.json({ success: true, transactions, pageSize: limit, sources: results.map(s => s.source), providerFilter });
   } catch (error) {
     console.error('Erreur /api/admin/deposits:', error);
     return res.status(500).json({ success: false, error: 'Impossible de charger les recharges.' });
   }
 });
 
-// ✅ /customers — cache 30 min, recharge uniquement si refresh=1
+// ✅ /customers — utilise getAllUsersSorted() (cache 30 min) pour un vrai tri par date
 adminRouter.get('/customers', async (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 10), 100);
@@ -4160,7 +4364,7 @@ adminRouter.post('/customers/rebuild-order-metrics', async (req, res) => {
         if (page.size < 500) break;
       }
     }
-    let usersRead = 0, changed = 0, batches = 0, userLast = null;
+    let usersRead = 0, changed = 0, userLast = null;
     while (true) {
       let q = db.collection('users').orderBy(admin.firestore.FieldPath.documentId()).limit(500);
       if (userLast) q = q.startAfter(userLast);
@@ -4186,14 +4390,15 @@ adminRouter.post('/customers/rebuild-order-metrics', async (req, res) => {
           }, { merge: true });
           writes++; changed++;
         }
-        if (writes >= 400) { await batch.commit(); batches++; batch = db.batch(); writes = 0; }
+        if (writes >= 400) { await batch.commit(); batch = db.batch(); writes = 0; }
       }
-      if (writes) { await batch.commit(); batches++; }
+      if (writes) { await batch.commit(); }
       userLast = page.docs[page.docs.length - 1];
       if (page.size < 500) break;
     }
     const completedAt = new Date().toISOString();
     await setSharedAdminCache('customerOrderMetricsState', { completedAt, ordersRead, usersRead, changed, unattributedOrders, unattributedAmounts }, 60 * 60 * 24 * 365 * 1000);
+    // ✅ Vide aussi allUsersCache pour refléter adminTotalProfit
     allUsersCache.data = null;
     allUsersCache.expires = 0;
     for (const key of ['overview', 'topUsers', 'usersStats']) {
@@ -4746,6 +4951,7 @@ adminRouter.get('/financials', async (req, res) => {
   }
 });
 
+// ✅ /cache/clear — vide TOUS les caches
 adminRouter.post('/cache/clear', (req, res) => {
   adminMemoryCache.overview.data = null;   adminMemoryCache.overview.expires = 0;
   adminMemoryCache.topUsers.data = null;   adminMemoryCache.topUsers.expires = 0;
@@ -4755,6 +4961,8 @@ adminRouter.post('/cache/clear', (req, res) => {
   adminMemoryCache.giftsMap.clear();
   allUsersCache.data = null;
   allUsersCache.expires = 0;
+  topUsersTodayCache.data = null;
+  topUsersTodayCache.expires = 0;
   depositsCache.data = null;
   depositsCache.expires = 0;
   ordersCache.data = null;
