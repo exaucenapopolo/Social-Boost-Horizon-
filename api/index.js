@@ -22,9 +22,12 @@ app.use((req, res, next) => {
 
 function getTimestampMs(val) {
   if (!val) return 0;
-  if (typeof val.toDate === 'function') return val.toDate().getTime();
+  if (typeof val.toDate === 'function') { try { return val.toDate().getTime(); } catch(_){} }
   if (val instanceof Date) return val.getTime();
   if (typeof val === 'number') return val;
+  if (typeof val === 'object' && (val._seconds !== undefined || val.seconds !== undefined)) {
+    return Number(val._seconds !== undefined ? val._seconds : val.seconds) * 1000;
+  }
   const parsed = new Date(val).getTime();
   return isNaN(parsed) ? 0 : parsed;
 }
@@ -3260,7 +3263,6 @@ adminRouter.get('/gifts', async (req, res) => {
       return res.json({ success: true, claims: cached.data, cached: true, ttl: Math.round((cached.expires - Date.now()) / 1000) });
     }
 
-    // ✅ Détecte le champ date (createdAt, date, created_at, timestamp…)
     const giftsDateField = await detectDateField('welcomeGiftClaims');
     let query = db.collection('welcomeGiftClaims').orderBy(giftsDateField, 'desc');
     if (useStatus !== 'all') query = query.where('status', '==', useStatus);
@@ -3346,45 +3348,46 @@ const PAYMENT_COLLECTIONS = [
   'paymentTransactions',
 ];
 
-// ═══════════════════════════════════════════════════════════════
-// CACHES OPTIMISÉS POUR ÉCONOMISER LES LECTURES FIRESTORE
-// ═══════════════════════════════════════════════════════════════
-
 const allUsersCache = { data: null, expires: 0, lastRefresh: 0 };
-const ALL_USERS_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const ALL_USERS_CACHE_TTL_MS = 30 * 60 * 1000;
 
 const topUsersTodayCache = { data: null, expires: 0, lastRefresh: 0 };
-const TOP_USERS_TODAY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const TOP_USERS_TODAY_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const depositsCache = { data: null, expires: 0 };
-const DEPOSITS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const DEPOSITS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const ordersCache = { data: null, expires: 0 };
-const ORDERS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const ORDERS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const DATE_FIELD_CACHE = {};
 
 async function detectDateField(collectionName) {
   if (DATE_FIELD_CACHE[collectionName] !== undefined) return DATE_FIELD_CACHE[collectionName];
-  const candidates = ['createdAt', 'date', 'created_at', 'timestamp', 'dateCreated'];
+  const candidates = ['createdAt', 'date', 'created_at', 'timestamp', 'dateCreated', 'paidAt'];
   try {
-    const sample = await db.collection(collectionName).limit(1).get();
+    const sample = await db.collection(collectionName).limit(5).get();
     if (sample.empty) { DATE_FIELD_CACHE[collectionName] = 'createdAt'; return 'createdAt'; }
-    const data = sample.docs[0].data();
-    for (const field of candidates) {
-      if (data[field] !== undefined && data[field] !== null) {
-        DATE_FIELD_CACHE[collectionName] = field;
-        return field;
+    const counts = {};
+    for (const field of candidates) counts[field] = 0;
+    sample.forEach(doc => {
+      const data = doc.data() || {};
+      for (const field of candidates) {
+        if (data[field] !== undefined && data[field] !== null) counts[field]++;
       }
+    });
+    let bestField = 'createdAt';
+    let bestCount = 0;
+    for (const field of candidates) {
+      if (counts[field] > bestCount) { bestCount = counts[field]; bestField = field; }
     }
+    DATE_FIELD_CACHE[collectionName] = bestField;
+    return bestField;
   } catch (_) {}
   DATE_FIELD_CACHE[collectionName] = 'createdAt';
   return 'createdAt';
 }
 
-// Charge TOUS les utilisateurs triés par date de création décroissante.
-// Gère les deux formats (Timestamp + string ISO).
-// Cache 30 min → n'exécute le scan complet qu'une fois par 30 min maximum.
 async function getAllUsersSorted(forceRefresh = false) {
   const now = Date.now();
   if (!forceRefresh && allUsersCache.data && now < allUsersCache.expires) {
@@ -3416,7 +3419,6 @@ async function getAllUsersSorted(forceRefresh = false) {
   return allUsers;
 }
 
-// Compte les utilisateurs créés entre deux dates (Timestamp OU string ISO).
 async function countUsersInWindow(start, end) {
   try {
     const [tsCount, isoCount] = await Promise.all([
@@ -3433,7 +3435,6 @@ async function countUsersInWindow(start, end) {
   } catch (_) { return 0; }
 }
 
-// Compte les commandes dans une collection sur une fenêtre temporelle.
 async function countOrdersInWindow(collectionName, start, end) {
   if (!start && !end) {
     try {
@@ -3456,48 +3457,114 @@ async function countOrdersInWindow(collectionName, start, end) {
   } catch (_) { return 0; }
 }
 
-// Agrégation financière via les agrégats natifs Firestore.
+// ✅ VERSION ROBUSTE : double requête (Timestamp + ISO string), fallback en mémoire
+async function getFinancialsForCollection(colName, start, end) {
+  const dateField = await detectDateField(colName);
+  const ref = db.collection(colName);
+
+  const queries = [];
+  if (!start && !end) {
+    queries.push(ref);
+  } else {
+    let qTs = ref, qIso = ref;
+    if (start) {
+      qTs = qTs.where(dateField, '>=', admin.firestore.Timestamp.fromDate(start));
+      qIso = qIso.where(dateField, '>=', start.toISOString());
+    }
+    if (end) {
+      qTs = qTs.where(dateField, '<', admin.firestore.Timestamp.fromDate(end));
+      qIso = qIso.where(dateField, '<', end.toISOString());
+    }
+    queries.push(qTs, qIso);
+  }
+
+  const result = { ordersCount: 0, sales: 0, supplierCost: 0, grossProfit: 0, refunds: 0 };
+
+  // Count via .count().get() — TOUJOURS fiable
+  for (const q of queries) {
+    try {
+      const c = await q.count().get();
+      result.ordersCount += Number(c.data()?.count || 0);
+    } catch (_) {}
+  }
+
+  // Try aggregation
+  let aggSucceeded = false;
+  try {
+    const fields = {
+      a: admin.firestore.AggregateField.sum('priceXAF'),
+      b: admin.firestore.AggregateField.sum('totalCost'),
+      c: admin.firestore.AggregateField.sum('finalCost'),
+      d: admin.firestore.AggregateField.sum('cost'),
+      e: admin.firestore.AggregateField.sum('amount'),
+      f: admin.firestore.AggregateField.sum('providerCostXAF'),
+      g: admin.firestore.AggregateField.sum('supplierCostXAF'),
+      h: admin.firestore.AggregateField.sum('estimatedProfitXAF'),
+      i: admin.firestore.AggregateField.sum('refundedAmount'),
+    };
+
+    let allOk = true;
+    for (const q of queries) {
+      try {
+        const snap = await q.aggregate(fields).get();
+        const dd = snap.data() || {};
+        const sales = Math.max(
+          Number(dd.a || 0), Number(dd.b || 0), Number(dd.c || 0),
+          Number(dd.d || 0), Number(dd.e || 0)
+        );
+        result.sales += sales;
+        result.supplierCost += Math.max(Number(dd.f || 0), Number(dd.g || 0));
+        result.grossProfit += Number(dd.h || 0);
+        result.refunds += Number(dd.i || 0);
+      } catch (e) {
+        allOk = false;
+        break;
+      }
+    }
+    aggSucceeded = allOk;
+  } catch (e) {
+    console.warn(`[Fin] Aggregate indisponible pour ${colName}, fallback mémoire :`, e.message);
+  }
+
+  // Fallback : lecture en mémoire
+  if (!aggSucceeded) {
+    let memSales = 0, memCost = 0, memProfit = 0, memRefunds = 0;
+    for (const q of queries) {
+      try {
+        const docs = await q.limit(2000).get();
+        docs.forEach(doc => {
+          const data = doc.data() || {};
+          const amount = getOrderAmountXAF(data, colName);
+          const fin = getOrderFinancials(data, null, colName);
+          memSales += amount || 0;
+          memCost += fin.providerCostXAF || 0;
+          memProfit += fin.grossProfitXAF || 0;
+          memRefunds += fin.refundedAmount || 0;
+        });
+      } catch (e) {
+        console.warn(`[Fin] Fallback mémoire échoué pour ${colName}:`, e.message);
+      }
+    }
+    result.sales = memSales;
+    result.supplierCost = memCost;
+    result.grossProfit = memProfit;
+    result.refunds = memRefunds;
+  }
+
+  return result;
+}
+
 async function getFinancialsAllCollections(start, end) {
   let totalSales = 0, totalRefunds = 0, totalSupplierCost = 0, totalProfit = 0, totalOrders = 0;
 
   for (const colName of ADMIN_ORDER_COLLECTIONS) {
     try {
-      const dateField = await detectDateField(colName);
-      let baseQ = db.collection(colName);
-      if (start) baseQ = baseQ.where(dateField, '>=', admin.firestore.Timestamp.fromDate(start));
-      if (end) baseQ = baseQ.where(dateField, '<', admin.firestore.Timestamp.fromDate(end));
-
-      const agg = await baseQ.aggregate({
-        salesPrice:     admin.firestore.AggregateField.sum('priceXAF'),
-        salesTotalCost: admin.firestore.AggregateField.sum('totalCost'),
-        salesFinalCost: admin.firestore.AggregateField.sum('finalCost'),
-        salesCost:      admin.firestore.AggregateField.sum('cost'),
-        salesAmount:    admin.firestore.AggregateField.sum('amount'),
-        supplierCost:   admin.firestore.AggregateField.sum('providerCostXAF'),
-        supplierCostAlt: admin.firestore.AggregateField.sum('supplierCostXAF'),
-        grossProfit:    admin.firestore.AggregateField.sum('estimatedProfitXAF'),
-        refunds:        admin.firestore.AggregateField.sum('refundedAmount'),
-        count:          admin.firestore.AggregateField.count(),
-      }).get().catch(() => null);
-
-      if (!agg) continue;
-      const d = agg.data() || {};
-      const salesPrice     = Number(d.salesPrice || 0);
-      const salesTotalCost = Number(d.salesTotalCost || 0);
-      const salesFinalCost = Number(d.salesFinalCost || 0);
-      const salesCost      = Number(d.salesCost || 0);
-      const salesAmount    = Number(d.salesAmount || 0);
-      const sales          = Math.max(salesPrice, salesTotalCost, salesFinalCost, salesCost, salesAmount);
-      const supplierCost   = Number(d.supplierCost || 0) || Number(d.supplierCostAlt || 0);
-      const grossProfit    = Number(d.grossProfit || 0);
-      const refunds        = Number(d.refunds || 0);
-      const count          = Number(d.count || 0);
-
-      totalSales += sales;
-      totalRefunds += refunds;
-      totalSupplierCost += supplierCost;
-      totalProfit += grossProfit;
-      totalOrders += count;
+      const r = await getFinancialsForCollection(colName, start, end);
+      totalSales += r.sales;
+      totalRefunds += r.refunds;
+      totalSupplierCost += r.supplierCost;
+      totalProfit += r.grossProfit;
+      totalOrders += r.ordersCount;
     } catch (e) {
       console.warn(`Financials ${colName}:`, e.message);
     }
@@ -3513,7 +3580,6 @@ async function getFinancialsAllCollections(start, end) {
   };
 }
 
-// Compte les dépôts multi-sources. Coût : 12 count() maximum. PAS de scan.
 async function countDepositsAllCollections(start, end) {
   let total = 0;
   for (const colName of PAYMENT_COLLECTIONS) {
@@ -3522,8 +3588,6 @@ async function countDepositsAllCollections(start, end) {
   return total;
 }
 
-// ✅ Dépôts détaillés : total / success / pending / failed + montant XAF des réussis + top déposant.
-// Coût : 4 count() par collection + lecture des docs réussis (limité 500 par collection).
 async function getDepositsStatsAllCollections(start, end) {
   let total = 0, success = 0, pending = 0, failed = 0;
   let totalCreditedXAF = 0;
@@ -3547,12 +3611,17 @@ async function getDepositsStatsAllCollections(start, end) {
         baseQ.where('status', 'in', failedVariants).count().get().catch(() => null),
       ]);
 
-      total += Number(totalSnap?.data()?.count || 0);
-      success += Number(successSnap?.data()?.count || 0);
-      pending += Number(pendingSnap?.data()?.count || 0);
-      failed += Number(failedSnap?.data()?.count || 0);
+      const colTotal = Number(totalSnap?.data()?.count || 0);
+      const colSuccess = Number(successSnap?.data()?.count || 0);
+      const colPending = Number(pendingSnap?.data()?.count || 0);
+      const colFailed = Number(failedSnap?.data()?.count || 0);
 
-      if (success > 0) {
+      total += colTotal;
+      success += colSuccess;
+      pending += colPending;
+      failed += colFailed;
+
+      if (colSuccess > 0) {
         const successDocs = await baseQ.where('status', 'in', successVariants).limit(500).get().catch(() => null);
         if (successDocs) {
           successDocs.forEach(doc => {
@@ -3603,7 +3672,6 @@ async function getDepositsStatsAllCollections(start, end) {
   return { total, success, pending, failed, totalCreditedXAF, topDepositor };
 }
 
-// ✅ Classement des clients du jour (marge incluse).
 async function getTopUsersToday(forceRefresh = false) {
   const now = Date.now();
   if (!forceRefresh && topUsersTodayCache.data && now < topUsersTodayCache.expires) {
@@ -3753,7 +3821,6 @@ async function countPendingAdminOrders() {
   return snapshots.reduce((sum, snap) => sum + Number(snap.data()?.count || 0), 0);
 }
 
-// ✅ /overview — utilise getDepositsStatsAllCollections + newUsersThisWeek + newUsersLastWeek
 adminRouter.get('/overview', async (req, res) => {
   try {
     const forceRefresh = String(req.query.refresh || '') === '1';
@@ -3771,8 +3838,7 @@ adminRouter.get('/overview', async (req, res) => {
     const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
     const dayBeforeStart = new Date(todayStart.getTime() - 48 * 60 * 60 * 1000);
 
-    // Semaine courante : lundi 00:00 (UTC+1) → maintenant
-    const dayOfWeek = local.getUTCDay(); // 0 = dimanche
+    const dayOfWeek = local.getUTCDay();
     const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     const startOfThisWeek = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() - daysFromMonday) - 60 * 60 * 1000);
     const startOfLastWeek = new Date(startOfThisWeek.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -3827,7 +3893,7 @@ adminRouter.get('/overview', async (req, res) => {
       totalUsers,
       newUsersThisWeek: Number(newUsersThisWeek || 0),
       newUsersLastWeek: Number(newUsersLastWeek || 0),
-      newUsers7d: Number(newUsersThisWeek || 0), // rétrocompat
+      newUsers7d: Number(newUsersThisWeek || 0),
       newUsersToday: Number(newUsersToday || 0),
       newUsersYesterday: Number(newUsersYesterday || 0),
       newUsersDayBefore: Number(newUsersDayBefore || 0),
@@ -3874,7 +3940,6 @@ adminRouter.get('/overview', async (req, res) => {
         failed: depositsDayBeforeStats.failed,
         totalCreditedXAF: depositsDayBeforeStats.totalCreditedXAF,
       },
-      // Rétrocompat : anciens champs plats
       depositsSuccessToday: depositsTodayStats.success,
       depositsPendingToday: depositsTodayStats.pending,
       depositsFailedToday: depositsTodayStats.failed,
@@ -3906,7 +3971,6 @@ async function countDepositsInRange(start, end) {
   } catch (_) { return 0; }
 }
 
-// ✅ /top-users — classement global + `?period=today` pour le classement du jour
 adminRouter.get('/top-users', async (req, res) => {
   try {
     const forceRefresh = String(req.query.refresh || '') === '1';
@@ -4049,53 +4113,121 @@ adminRouter.get('/orders-summary', async (req, res) => {
   }
 });
 
+// ✅ ORDERS: chargement en mémoire, tri par date réelle, support dateStart/dateEnd, offset pagination
 adminRouter.get('/orders', async (req, res) => {
   try {
-    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 5, 3), 10);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 3), 50);
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
     const userId = String(req.query.userId || '').trim();
     const statusFilter = String(req.query.status || '').trim().toLowerCase();
     const providerFilter = String(req.query.provider || '').trim().toLowerCase();
+    const dateStartRaw = req.query.dateStart ? new Date(req.query.dateStart) : null;
+    const dateEndRaw = req.query.dateEnd ? new Date(req.query.dateEnd) : null;
+    const dateStart = dateStartRaw && !isNaN(dateStartRaw.getTime()) ? dateStartRaw : null;
+    const dateEnd = dateEndRaw && !isNaN(dateEndRaw.getTime()) ? dateEndRaw : null;
     const forceRefresh = String(req.query.refresh || '') === '1';
 
-    if (!userId && !forceRefresh && ordersCache.data && Date.now() < ordersCache.expires) {
-      return res.json({ success: true, orders: ordersCache.data.orders, cached: true, nextCursors: ordersCache.data.nextCursors });
+    const cacheKey = `orders|${userId}|${statusFilter}|${providerFilter}|${dateStart?.getTime() || 'x'}|${dateEnd?.getTime() || 'x'}`;
+    if (!forceRefresh && ordersCache.data && ordersCache.data[cacheKey] && Date.now() < ordersCache.data[cacheKey].expires) {
+      const cached = ordersCache.data[cacheKey].orders;
+      return res.json({
+        success: true,
+        orders: cached.slice(offset, offset + limit),
+        total: cached.length,
+        offset,
+        limit,
+        hasMore: offset + limit < cached.length,
+        cached: true,
+      });
     }
 
     const statusAliases = {
-      'en attente':['en attente','pending'], 'en cours':['en cours','in progress','processing'],
-      'terminé':['terminé','terminée','terminee','completed','done','delivered'],
-      'annulé':['annulé','annulée','annule','canceled','cancelled'], 'partiel':['partiel','partial'], 'échouée':['échouée','echouée','failed','error','erreur']
+      'en attente': ['en attente','pending'], 'en cours': ['en cours','in progress','processing'],
+      'terminé': ['terminé','terminée','terminee','completed','done','delivered'],
+      'annulé': ['annulé','annulée','annule','canceled','cancelled'], 'partiel': ['partiel','partial'],
+      'échouée': ['échouée','echouee','failed','error','erreur'],
     };
     const providerAliases = { mtp:['mtp','morethanpanel'], exo:['exo'], afriqueboost:['afriqueboost','afb'], smmwiz:['smmwiz'], smmgen:['smmgen'] };
-    const cursorMap = {}; try { Object.assign(cursorMap, JSON.parse(String(req.query.cursors || '{}'))); } catch (_) {}
-    const results = await Promise.all(ADMIN_ORDER_COLLECTIONS.map(async collectionName => {
-      const ref = db.collection(collectionName); let query = ref.orderBy(admin.firestore.FieldPath.documentId());
-      if (userId) {
-        const [a,b,c] = await Promise.all([ref.where('userId','==',userId).limit(limit+1).get(),ref.where('uid','==',userId).limit(limit+1).get(),ref.where('user_id','==',userId).limit(limit+1).get()]);
-        const seen = new Set(); const docs = [...a.docs,...b.docs,...c.docs].filter(doc=>!seen.has(doc.id) && seen.add(doc.id)).sort((x,y)=>getTimestampMs((y.data()||{}).createdAt || (y.data()||{}).created_at)-getTimestampMs((x.data()||{}).createdAt || (x.data()||{}).created_at)).slice(0,limit);
-        const items = docs.map(doc => normalizeAdminOrder(doc, collectionName));
-        return { collectionName, items, nextCursor: null };
-      }
-      const cursorId = cursorMap[collectionName]; if (cursorId) { const cursor = await ref.doc(String(cursorId)).get(); if (cursor.exists) query = query.startAfter(cursor); }
-      const snap = await query.limit(limit).get();
-      let items = snap.docs.map(doc => normalizeAdminOrder(doc, collectionName));
-      if (statusFilter && statusFilter !== 'all') { const wanted = (statusAliases[statusFilter] || [statusFilter]).map(s=>s.toLowerCase()); items = items.filter(o => wanted.includes(String(o.status||'').toLowerCase())); }
-      if (providerFilter && providerFilter !== 'all') { const wanted = providerAliases[providerFilter] || [providerFilter]; items = items.filter(o => wanted.includes(String(o.provider||'').toLowerCase())); }
-      return { collectionName, items, nextCursor: snap.size === limit ? snap.docs[snap.docs.length-1].id : null };
-    }));
-    const orders = results.flatMap(r=>r.items).sort((a,b)=>getTimestampMs(b.createdAt)-getTimestampMs(a.createdAt));
-    const ordersWithUsers = await enrichAdminOrderUsers(orders);
-    const nextCursors = Object.fromEntries(results.map(r=>[r.collectionName,r.nextCursor]));
 
-    if (!userId) {
-      ordersCache.data = { orders: ordersWithUsers, nextCursors };
-      ordersCache.expires = Date.now() + ORDERS_CACHE_TTL_MS;
+    const collected = [];
+
+    for (const collectionName of ADMIN_ORDER_COLLECTIONS) {
+      const ref = db.collection(collectionName);
+      const dateField = await detectDateField(collectionName);
+
+      try {
+        let docs = [];
+        if (userId) {
+          const [a, b, c] = await Promise.all([
+            ref.where('userId', '==', userId).limit(500).get(),
+            ref.where('uid', '==', userId).limit(500).get(),
+            ref.where('user_id', '==', userId).limit(500).get(),
+          ]);
+          const seen = new Set();
+          [...a.docs, ...b.docs, ...c.docs].forEach(d => {
+            if (!seen.has(d.id)) { seen.add(d.id); docs.push(d); }
+          });
+        } else {
+          // Tenter orderBy date, sinon fallback limit simple
+          let snap;
+          try {
+            snap = await ref.orderBy(dateField, 'desc').limit(500).get();
+          } catch (orderErr) {
+            console.warn(`[Orders] orderBy ${dateField} échoué sur ${collectionName}, fallback limit simple`);
+            snap = await ref.limit(500).get();
+          }
+          docs = snap.docs;
+        }
+
+        for (const doc of docs) {
+          const data = doc.data() || {};
+          const dateVal = data[dateField] || data.createdAt || data.created_at || data.timestamp || data.date || null;
+          const ts = getTimestampMs(dateVal);
+
+          if (dateStart && ts < dateStart.getTime()) continue;
+          if (dateEnd && ts >= dateEnd.getTime()) continue;
+
+          if (statusFilter && statusFilter !== 'all') {
+            const wanted = (statusAliases[statusFilter] || [statusFilter]).map(s => s.toLowerCase());
+            if (!wanted.includes(String(data.status || '').toLowerCase())) continue;
+          }
+
+          const o = normalizeAdminOrder(doc, collectionName);
+
+          if (providerFilter && providerFilter !== 'all') {
+            const wanted = providerAliases[providerFilter] || [providerFilter];
+            if (!wanted.includes(String(o.provider || '').toLowerCase())) continue;
+          }
+
+          collected.push(o);
+        }
+      } catch (e) {
+        console.warn(`[Orders] ${collectionName}:`, e.message);
+      }
     }
 
-    return res.json({ success:true, orders:ordersWithUsers, nextCursors, pageSizePerCollection:limit, collections:ADMIN_ORDER_COLLECTIONS, providerFilter:providerFilter||null });
+    collected.sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt));
+
+    if (!ordersCache.data) ordersCache.data = {};
+    ordersCache.data[cacheKey] = { orders: collected, expires: Date.now() + ORDERS_CACHE_TTL_MS };
+
+    const slice = collected.slice(offset, offset + limit);
+    const enriched = await enrichAdminOrderUsers(slice);
+
+    return res.json({
+      success: true,
+      orders: enriched,
+      total: collected.length,
+      offset,
+      limit,
+      hasMore: offset + limit < collected.length,
+      pageSizePerCollection: limit,
+      collections: ADMIN_ORDER_COLLECTIONS,
+      providerFilter: providerFilter || null,
+    });
   } catch (error) {
     console.error('Erreur /api/admin/orders:', error);
-    res.status(500).json({ success:false, error:'Impossible de charger les commandes.' });
+    res.status(500).json({ success: false, error: 'Impossible de charger les commandes.' });
   }
 });
 
@@ -4118,41 +4250,94 @@ function normalizeAdminOrder(doc, collectionName) {
     amount:financials.amount, providerCostXAF:financials.providerCostXAF, grossProfitXAF:financials.grossProfitXAF,
     profitMarginPct:financials.profitMarginPct, providerCostEstimated:financials.providerCostEstimated, profitEstimated:financials.profitEstimated, multiplier:financials.multiplier,
     status:d.status||d.orderStatus||d.state||'Inconnu', refunded:Boolean(d.refunded||d.isRefunded||d.refund), refundedAmount:financials.refundedAmount,
-    createdAt:d.createdAt||d.dateCreated||d.created_at||d.timestamp||null };
+    createdAt:d.createdAt||d.date||d.dateCreated||d.created_at||d.timestamp||null };
 }
 
+// ✅ STORES: ne force pas la date, tri en mémoire
 adminRouter.get('/stores', async (req, res) => {
   try {
-    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 10), 50);
-    const cursorId = String(req.query.cursor || ''); const country = String(req.query.country || '').trim();
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 10), 100);
+    const country = String(req.query.country || '').trim();
 
-    // ✅ Utilise le champ date détecté (createdAt, date, created_at, timestamp…)
-    const storesDateField = await detectDateField('stores');
+    const snap = await db.collection('stores').limit(500).get();
+    let stores = snap.docs.map(doc => {
+      const d = doc.data() || {};
+      const ownerId = d.userId || d.ownerId || d.uid || d.createdBy || d.ownerUid || null;
+      const slug = d.slug || d.username || d.storeSlug || null;
+      const createdAt = d.createdAt || d.dateCreated || d.created_at || d.creationDate || d.date || d.timestamp || null;
+      return {
+        id: doc.id,
+        name: d.name || d.storeName || d.title || d.businessName || 'Boutique sans nom',
+        slug,
+        url: d.url || d.storeUrl || d.publicUrl || d.customDomain || null,
+        logo: d.logo || d.logoUrl || d.image || d.photo || null,
+        ownerId,
+        ownerName: d.ownerName || d.userName || d.displayName || d.owner || null,
+        ownerEmail: d.email || d.ownerEmail || null,
+        country: d.country || null,
+        status: d.status || (d.active === false ? 'inactive' : 'active'),
+        createdAt,
+        _createdMs: getTimestampMs(createdAt),
+      };
+    });
 
-    let query = db.collection('stores');
-    if (country) { const aliases = getCountryAliases(country); if (aliases.length) query = query.where('country','in',aliases.slice(0,10)); }
-    query = query.orderBy(storesDateField, 'desc');
-    if (cursorId) { const cursor = await db.collection('stores').doc(cursorId).get(); if (cursor.exists) query = query.startAfter(cursor); }
-    const snap = await query.limit(limit).get();
-    const stores = snap.docs.map(doc => { const d=doc.data()||{}; const ownerId=d.userId||d.ownerId||d.uid||d.createdBy||d.ownerUid||null; const slug=d.slug||d.username||d.storeSlug||null;
-      return { id:doc.id, name:d.name||d.storeName||d.title||d.businessName||'Boutique sans nom', slug, url:d.url||d.storeUrl||d.publicUrl||d.customDomain||null, logo:d.logo||d.logoUrl||d.image||d.photo||null, ownerId, ownerName:d.ownerName||d.userName||d.displayName||d.owner||null, ownerEmail:d.email||d.ownerEmail||null, country:d.country||null, status:d.status||(d.active===false?'inactive':'active'), createdAt:d[storesDateField]||d.createdAt||d.created_at||d.creationDate||d.dateCreated||null }; });
-    const ownerIds=[...new Set(stores.map(s=>s.ownerId).filter(Boolean))];
-    const ownerSnaps=await Promise.all(ownerIds.map(id=>db.collection('users').doc(id).get()));
-    const owners=new Map(ownerSnaps.filter(s=>s.exists).map(s=>{const u=s.data()||{};return [s.id,{name:u.displayName||u.username||u.name||u.fullName||null,email:u.email||null,country:u.country||u.countryCode||u.country_code||null,phone:u.phone||u.whatsapp||null,balance:Number(u.balance||0),createdAt:u.createdAt||u.created_at||null}];}));
-    for(const store of stores){const owner=owners.get(store.ownerId);if(owner){store.ownerName=store.ownerName||owner.name;store.ownerEmail=store.ownerEmail||owner.email;store.ownerCountry=owner.country||null;store.ownerPhone=owner.phone||null;store.ownerBalance=owner.balance;store.ownerCreatedAt=owner.createdAt;if(!store.country)store.country=owner.country;}}
-    return res.json({ success:true, stores, nextCursor:snap.size===limit?snap.docs[snap.docs.length-1].id:null, pageSize:limit });
-  } catch (error) { console.error('Erreur /api/admin/stores:',error); return res.status(500).json({success:false,error:'Impossible de charger les boutiques.'}); }
+    if (country) {
+      const aliases = new Set(getCountryAliases(country).map(v => String(v).toLowerCase()));
+      stores = stores.filter(s => aliases.has(String(s.country || '').toLowerCase()));
+    }
+
+    stores.sort((a, b) => b._createdMs - a._createdMs);
+
+    const totalAvailable = stores.length;
+    stores = stores.slice(0, limit).map(s => { delete s._createdMs; return s; });
+
+    const ownerIds = [...new Set(stores.map(s => s.ownerId).filter(Boolean))];
+    const ownerSnaps = await Promise.all(ownerIds.map(id => db.collection('users').doc(id).get()));
+    const owners = new Map(ownerSnaps.filter(s => s.exists).map(s => {
+      const u = s.data() || {};
+      return [s.id, {
+        name: u.displayName || u.username || u.name || u.fullName || null,
+        email: u.email || null,
+        country: u.country || u.countryCode || u.country_code || null,
+        phone: u.phone || u.whatsapp || null,
+        balance: Number(u.balance || 0),
+        createdAt: u.createdAt || u.created_at || null,
+      }];
+    }));
+
+    for (const store of stores) {
+      const owner = owners.get(store.ownerId);
+      if (owner) {
+        store.ownerName = store.ownerName || owner.name;
+        store.ownerEmail = store.ownerEmail || owner.email;
+        store.ownerCountry = owner.country || null;
+        store.ownerPhone = owner.phone || null;
+        store.ownerBalance = owner.balance;
+        store.ownerCreatedAt = owner.createdAt;
+        if (!store.country) store.country = owner.country;
+      }
+    }
+
+    return res.json({ success: true, stores, total: totalAvailable, pageSize: limit, nextCursor: null });
+  } catch (error) {
+    console.error('Erreur /api/admin/stores:', error);
+    return res.status(500).json({ success: false, error: 'Impossible de charger les boutiques.' });
+  }
 });
 
-// ✅ /deposits — 6 sources + filtre fournisseur + cache 5 min
+// ✅ DEPOSITS: support dateStart/dateEnd + tri mémoire
 adminRouter.get('/deposits', async (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 10), 100);
     const status = String(req.query.status || 'all').toUpperCase();
     const providerFilter = String(req.query.provider || 'all').toLowerCase();
+    const dateStartRaw = req.query.dateStart ? new Date(req.query.dateStart) : null;
+    const dateEndRaw = req.query.dateEnd ? new Date(req.query.dateEnd) : null;
+    const dateStart = dateStartRaw && !isNaN(dateStartRaw.getTime()) ? dateStartRaw : null;
+    const dateEnd = dateEndRaw && !isNaN(dateEndRaw.getTime()) ? dateEndRaw : null;
     const forceRefresh = String(req.query.refresh || '') === '1';
 
-    const cacheKey = `deposits:${status}:${providerFilter}`;
+    const cacheKey = `deposits:${status}:${providerFilter}:${dateStart?.getTime() || 'x'}:${dateEnd?.getTime() || 'x'}`;
     if (!forceRefresh && depositsCache.data && depositsCache.data[cacheKey] && Date.now() < depositsCache.data[cacheKey].expires) {
       return res.json({ success: true, transactions: depositsCache.data[cacheKey].transactions, cached: true, sources: PAYMENT_COLLECTIONS });
     }
@@ -4174,7 +4359,6 @@ adminRouter.get('/deposits', async (req, res) => {
 
     const results = [];
     for (const source of sources) {
-      // Filtre fournisseur
       if (providerFilter !== 'all') {
         const srcName = source.providerFallback.toLowerCase();
         const srcId = source.name.toLowerCase();
@@ -4182,7 +4366,7 @@ adminRouter.get('/deposits', async (req, res) => {
       }
       try {
         const dateField = await detectDateField(source.name).catch(() => 'createdAt');
-        const snap = await db.collection(source.name).limit(limit * 2).get();
+        const snap = await db.collection(source.name).limit(500).get();
 
         const items = snap.docs.map(doc => {
           const d = doc.data() || {};
@@ -4190,7 +4374,12 @@ adminRouter.get('/deposits', async (req, res) => {
           const rawStatus = String(d.status || d.paymentStatus || d.state || 'UNKNOWN');
           const amount = Number(pick(source.amountKeys) || 0);
           const creditedRaw = pick(source.creditKeys);
-          const createdAtRaw = d[dateField] || d.createdAt || d.dateInitiated || d.created_at || d.dateCreated || d.timestamp || null;
+          const createdAtRaw = d[dateField] || d.createdAt || d.dateInitiated || d.created_at || d.dateCreated || d.timestamp || d.date || null;
+          const createdAtMs = getTimestampMs(createdAtRaw);
+
+          if (dateStart && createdAtMs < dateStart.getTime()) return null;
+          if (dateEnd && createdAtMs >= dateEnd.getTime()) return null;
+
           return {
             id: doc.id,
             source: source.name,
@@ -4206,9 +4395,9 @@ adminRouter.get('/deposits', async (req, res) => {
             createdAt: createdAtRaw,
             completedAt: d.completedAt || d.dateConfirmed || d.creditedAt || d.updatedAt || null,
             failureReason: d.failureReason || d.error || d.message || null,
-            _createdMs: getTimestampMs(createdAtRaw),
+            _createdMs: createdAtMs,
           };
-        });
+        }).filter(Boolean);
         results.push({ source: source.name, items });
       } catch (err) {
         console.warn(`Deposits ${source.name}:`, err.message);
@@ -4230,19 +4419,19 @@ adminRouter.get('/deposits', async (req, res) => {
     }
 
     transactions.sort((a, b) => b._createdMs - a._createdMs);
+    const totalAvailable = transactions.length;
     transactions = transactions.slice(0, limit).map(t => { delete t._createdMs; return t; });
 
     if (!depositsCache.data) depositsCache.data = {};
     depositsCache.data[cacheKey] = { transactions, expires: Date.now() + DEPOSITS_CACHE_TTL_MS };
 
-    return res.json({ success: true, transactions, pageSize: limit, sources: results.map(s => s.source), providerFilter });
+    return res.json({ success: true, transactions, total: totalAvailable, pageSize: limit, sources: results.map(s => s.source), providerFilter });
   } catch (error) {
     console.error('Erreur /api/admin/deposits:', error);
     return res.status(500).json({ success: false, error: 'Impossible de charger les recharges.' });
   }
 });
 
-// ✅ /customers — utilise getAllUsersSorted() (cache 30 min) pour un vrai tri par date
 adminRouter.get('/customers', async (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 10), 100);
@@ -4250,6 +4439,10 @@ adminRouter.get('/customers', async (req, res) => {
     const country = String(req.query.country || '').trim();
     const segment = String(req.query.segment || 'all').trim();
     const sort = String(req.query.sort || 'recent').trim();
+    const dateStartRaw = req.query.dateStart ? new Date(req.query.dateStart) : null;
+    const dateEndRaw = req.query.dateEnd ? new Date(req.query.dateEnd) : null;
+    const dateStart = dateStartRaw && !isNaN(dateStartRaw.getTime()) ? dateStartRaw : null;
+    const dateEnd = dateEndRaw && !isNaN(dateEndRaw.getTime()) ? dateEndRaw : null;
     const forceRefresh = String(req.query.refresh || '') === '1';
     const cursorIdx = req.query.cursor ? Math.max(0, parseInt(req.query.cursor, 10) || 0) : 0;
 
@@ -4258,13 +4451,18 @@ adminRouter.get('/customers', async (req, res) => {
 
     const allUsers = await getAllUsersSorted(forceRefresh);
 
+    let filtered = allUsers;
+
+    if (dateStart) filtered = filtered.filter(u => u._createdAtMs >= dateStart.getTime());
+    if (dateEnd) filtered = filtered.filter(u => u._createdAtMs < dateEnd.getTime());
+
     if (search) {
       let matched;
       if (search.includes('@')) {
-        matched = allUsers.filter(u => String(u.email || '').toLowerCase() === search.toLowerCase());
+        matched = filtered.filter(u => String(u.email || '').toLowerCase() === search.toLowerCase());
       } else {
         const q = search.toLowerCase();
-        matched = allUsers.filter(u =>
+        matched = filtered.filter(u =>
           String(u.id).toLowerCase() === q ||
           String(u.displayName || u.username || u.name || '').toLowerCase().includes(q) ||
           String(u.email || '').toLowerCase().includes(q)
@@ -4273,8 +4471,6 @@ adminRouter.get('/customers', async (req, res) => {
       const customers = matched.slice(0, limit).map(u => formatCustomerFromUser(u, metricsReady));
       return res.json({ success: true, customers, total: matched.length, page: 1, totalPages: 1, pageSize: limit, nextCursor: null, metricsReady, metricsAsOf: metricsState?.payload?.completedAt || null });
     }
-
-    let filtered = allUsers;
 
     if (country) {
       const aliases = new Set(getCountryAliases(country).map(v => String(v).toLowerCase()));
@@ -4398,7 +4594,6 @@ adminRouter.post('/customers/rebuild-order-metrics', async (req, res) => {
     }
     const completedAt = new Date().toISOString();
     await setSharedAdminCache('customerOrderMetricsState', { completedAt, ordersRead, usersRead, changed, unattributedOrders, unattributedAmounts }, 60 * 60 * 24 * 365 * 1000);
-    // ✅ Vide aussi allUsersCache pour refléter adminTotalProfit
     allUsersCache.data = null;
     allUsersCache.expires = 0;
     for (const key of ['overview', 'topUsers', 'usersStats']) {
@@ -4469,8 +4664,8 @@ adminRouter.get('/customers/:id', async (req, res) => {
         all.push({ id: doc.id, source: collectionName, ...d, normalizedAmount: amount, normalizedProvider: financials.provider, normalizedProviderCost: financials.providerCostXAF, normalizedProfit: financials.grossProfitXAF, normalizedMarginPct: financials.profitMarginPct, providerCostEstimated: financials.providerCostEstimated, profitEstimated: financials.profitEstimated });
       }
     }
-    all.sort((a, b) => getTimestampMs(b.createdAt || b.created_at || b.dateCreated) - getTimestampMs(a.createdAt || a.created_at || a.dateCreated));
-    const orders = all.slice(0, 50).map(o => ({ id: o.id, source: o.source, orderId: o.orderId || o.reference || o.order_id || o.id, serviceName: o.serviceName || o.service_name || o.name || 'Service', quantity: Number(o.quantity || o.qty || o.count || 0), provider: o.normalizedProvider || null, status: o.status || o.orderStatus || o.state || 'Inconnu', amount: o.normalizedAmount, providerCostXAF: o.normalizedProviderCost, grossProfitXAF: o.normalizedProfit, profitMarginPct: o.normalizedMarginPct, providerCostEstimated: o.providerCostEstimated, profitEstimated: o.profitEstimated, createdAt: o.createdAt || o.dateCreated || o.created_at || o.timestamp || null }));
+    all.sort((a, b) => getTimestampMs(b.createdAt || b.date || b.created_at || b.dateCreated) - getTimestampMs(a.createdAt || a.date || a.created_at || a.dateCreated));
+    const orders = all.slice(0, 50).map(o => ({ id: o.id, source: o.source, orderId: o.orderId || o.reference || o.order_id || o.id, serviceName: o.serviceName || o.service_name || o.name || 'Service', quantity: Number(o.quantity || o.qty || o.count || 0), provider: o.normalizedProvider || null, status: o.status || o.orderStatus || o.state || 'Inconnu', amount: o.normalizedAmount, providerCostXAF: o.normalizedProviderCost, grossProfitXAF: o.normalizedProfit, profitMarginPct: o.normalizedMarginPct, providerCostEstimated: o.providerCostEstimated, profitEstimated: o.profitEstimated, createdAt: o.createdAt || o.date || o.dateCreated || o.created_at || o.timestamp || null }));
     return res.json({ success: true, customer: { id: userDoc.id, name: u.displayName || u.username || u.name || 'Utilisateur', email: u.email || null, phone: u.phone || u.whatsapp || null, country: u.country || null, balance: Number(u.balance || 0), totalOrders: exactOrderCount, totalSpent: Math.round(derivedSpendPriceXAF), createdAt: u.createdAt || u.created_at || null, lastSignIn: u.lastSignIn || u.lastLoginAt || null, lastActivityAt: u.lastActivityAt || u.lastSeenAt || u.lastDashboardVisit || u.lastSignIn || u.lastLoginAt || null, resellerLevel: u.resellerLevel || null }, orders, exactOrderCount, derivedSpendPriceXAF: Math.round(derivedSpendPriceXAF), storedTotalSpent: Number(u.totalSpent || 0), countsByCollection, ordersReturned: orders.length, capped: exactOrderCount > orders.length, unattributedAmountCount, spendNote: 'Total brut des montants de commandes retrouvés dans les six collections, en normalisant les champs connus. Les commandes sans montant reconnu sont comptées dans le volume, mais pas dans le total dépensé.' });
   } catch (error) { console.error('Erreur /api/admin/customers/:id:', error); return res.status(500).json({ success: false, error: 'Impossible de charger la fiche utilisateur.' }); }
 });
@@ -4951,7 +5146,6 @@ adminRouter.get('/financials', async (req, res) => {
   }
 });
 
-// ✅ /cache/clear — vide TOUS les caches
 adminRouter.post('/cache/clear', (req, res) => {
   adminMemoryCache.overview.data = null;   adminMemoryCache.overview.expires = 0;
   adminMemoryCache.topUsers.data = null;   adminMemoryCache.topUsers.expires = 0;
