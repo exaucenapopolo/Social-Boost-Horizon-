@@ -108,7 +108,7 @@ a{color:inherit}
 .section-label{display:block;font-size:.68rem;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px}
 .section-title{font-family:var(--font-display);font-size:1.25rem;font-weight:500;color:var(--text);line-height:1.2;letter-spacing:-.01em}
 .section-sub{font-size:.82rem;color:var(--text-muted);margin-top:6px;line-height:1.5;max-width:640px}
-.section-actions{display:flex;gap:8px;flex-wrap:wrap}
+.section-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 
 .filter-bar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:20px;padding:14px 0;border-bottom:1px solid var(--border)}
 .filter-group{display:flex;align-items:center;gap:8px}
@@ -436,16 +436,24 @@ textarea.msg-area:focus{border-color:var(--gold)}
         </div>
         <div class="stats-strip" style="margin-bottom:0;">
           <div class="stat-block">
-            <div class="stat-label">Dépôts aujourd'hui</div>
+            <div class="stat-label">Dépôts réussis aujourd'hui</div>
             <div class="stat-value green" id="kpiDepositsToday">—</div>
+            <div class="stat-sub" id="kpiDepositsTodaySub" style="font-size:.72rem;line-height:1.4;margin-top:6px;">—</div>
           </div>
           <div class="stat-block">
-            <div class="stat-label">Dépôts hier</div>
+            <div class="stat-label">Dépôts réussis hier</div>
             <div class="stat-value" id="kpiDepositsYesterday">—</div>
+            <div class="stat-sub" id="kpiDepositsYesterdaySub" style="font-size:.72rem;line-height:1.4;margin-top:6px;">—</div>
           </div>
           <div class="stat-block">
-            <div class="stat-label">Dépôts avant-hier</div>
+            <div class="stat-label">Dépôts réussis avant-hier</div>
             <div class="stat-value" id="kpiDepositsDayBefore">—</div>
+            <div class="stat-sub" id="kpiDepositsDayBeforeSub" style="font-size:.72rem;line-height:1.4;margin-top:6px;">—</div>
+          </div>
+          <div class="stat-block">
+            <div class="stat-label">Meilleur déposant (aujourd'hui)</div>
+            <div class="stat-value gold" id="kpiTopDepositorName" style="font-size:1.1rem;line-height:1.3;word-break:break-word;">—</div>
+            <div class="stat-sub" id="kpiTopDepositorAmount" style="font-size:.72rem;line-height:1.4;margin-top:6px;">—</div>
           </div>
           <div class="stat-block">
             <div class="stat-label">Visites aujourd'hui</div>
@@ -484,14 +492,25 @@ textarea.msg-area:focus{border-color:var(--gold)}
         <div class="section-head">
           <div>
             <span class="section-label">Classement</span>
-            <h2 class="section-title">Clients les plus actifs</h2>
-            <p class="section-sub">Contactez directement vos meilleurs clients et suivez la marge qu'ils génèrent.</p>
+            <h2 class="section-title" id="topUsersTitle">Clients les plus actifs — toute la plateforme</h2>
+            <p class="section-sub" id="topUsersSubtitle">Contactez directement vos meilleurs clients et suivez la marge qu'ils génèrent.</p>
           </div>
           <div class="section-actions">
+            <div class="segmented" id="topUsersPeriodToggle">
+              <button class="seg-btn active" data-topusers-period="all" onclick="setTopUsersPeriod('all')">Toute la plateforme</button>
+              <button class="seg-btn" data-topusers-period="today" onclick="setTopUsersPeriod('today')">Aujourd'hui</button>
+            </div>
             <button class="btn btn-outline btn-sm" onclick="loadTopUsers(true)"><i class="fas fa-sync-alt"></i> Actualiser</button>
           </div>
         </div>
-        <div class="table-wrap"><table><thead><tr><th>Client</th><th>Pays</th><th>Commandes</th><th>Total payé</th><th>Marge générée</th><th></th></tr></thead><tbody id="topUsersBody"><tr><td colspan="6" class="loading">Chargement du classement…</td></tr></tbody></table></div>
+        <div class="table-wrap">
+          <table>
+            <thead id="topUsersThead">
+              <tr><th>Client</th><th>Pays</th><th>Commandes</th><th>Total payé</th><th>Marge générée</th><th></th></tr>
+            </thead>
+            <tbody id="topUsersBody"><tr><td colspan="6" class="loading">Chargement du classement…</td></tr></tbody>
+          </table>
+        </div>
       </section>
 
       <section class="section">
@@ -660,6 +679,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
       <section class="section" style="padding-top:0;">
         <div class="filter-bar">
           <div class="filter-group"><label>Statut</label><select id="depositStatusFilter" onchange="loadDeposits(true)"><option value="all">Tous</option><option value="CONFIRMED">Réussies</option><option value="PENDING">En attente</option><option value="FAILED">Échouées</option></select></div>
+          <div class="filter-group"><label>Fournisseur</label><select id="depositProviderFilter" onchange="loadDeposits(true)"><option value="all">Tous</option><option value="nelsiuspay">NelsiusPay</option><option value="fapshi">Fapshi</option><option value="swychr">Swychr</option><option value="rechargement">Rechargement</option><option value="recharge">Recharge</option><option value="transaction">Transaction</option></select></div>
         </div>
         <div class="table-wrap">
           <table>
@@ -1024,6 +1044,10 @@ let giftsLoaded=false;
 let giftEmailPreviewEdited=false;
 let autoRefreshInterval=null;
 
+/* ═══════════ ÉTAT CLASSEMENT DU JOUR ═══════════ */
+let topUsersPeriod = 'all';
+let lastTopUsersPeriod = null;
+
 /* ═══════════ UTILITAIRES DATE / TYPE / TRI ═══════════ */
 function timestampToMs(ts){
   if(!ts)return 0;
@@ -1086,7 +1110,6 @@ function startAutoRefresh(){
         updateGiftBadges(s.giftsPending, s.giftsLate);
         await loadGifts();
       } else {
-        // Juste les badges en arrière-plan
         const d = await fetchAdmin('/overview');
         const s = d.data || {};
         updateGiftBadges(s.giftsPending, s.giftsLate);
@@ -1141,7 +1164,7 @@ function exportFinancialsPDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF();c
 let metricsRebuildRunning=false;
 async function rebuildCustomerMetrics(){if(metricsRebuildRunning)return;if(!confirm('Recalculer les commandes et dépenses historiques ?'))return;metricsRebuildRunning=true;const btn=[...document.querySelectorAll('button')].find(b=>b.textContent.includes('Recalculer'));if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-circle-notch fa-spin"></i> Recalcul…';}try{const d=await fetchAdmin('/customers/rebuild-order-metrics',{method:'POST',body:JSON.stringify({confirm:true})});showToast(`Historique recalculé : ${Number(d.ordersRead||0).toLocaleString('fr-FR')} commandes lues`);allCustomers=[];customerCursor=null;await loadCustomers(true);await loadOverview(true);}catch(e){showError('Recalcul impossible : '+e.message);}finally{metricsRebuildRunning=false;if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-calculator"></i> Recalculer';}}}
 
-/* ═══════════ DEPOSITS — multi-sources ═══════════ */
+/* ═══════════ DEPOSITS — multi-sources + filtre fournisseur ═══════════ */
 let allDeposits=[];let depositCursors={paymentTransactions:null,fapshiTransactions:null,payments:null,rechargements:null,recharges:null,transactions:null};let depositsLoading=false;
 async function loadDeposits(reset=false){
   if(depositsLoading)return;
@@ -1153,14 +1176,17 @@ async function loadDeposits(reset=false){
     tb.innerHTML='<tr><td colspan="8" class="loading">Chargement…</td></tr>';
   }
   try{
-    const p=new URLSearchParams({limit:'25',status:document.getElementById('depositStatusFilter')?.value||'all'});
+    const statusVal = document.getElementById('depositStatusFilter')?.value || 'all';
+    const providerVal = document.getElementById('depositProviderFilter')?.value || 'all';
+    const p=new URLSearchParams({limit:'25',status:statusVal,provider:providerVal});
+    if(reset) p.set('refresh','1');
     p.set('cursors',JSON.stringify(depositCursors));
     const d=await fetchAdmin('/deposits?'+p.toString());
     allDeposits=reset?(d.transactions||[]):allDeposits.concat(d.transactions||[]);
     allDeposits=sortByDateDesc(allDeposits);
     depositCursors=d.nextCursors||depositCursors;
     tb.innerHTML='';
-    if(!allDeposits.length)tb.innerHTML='<tr><td colspan="8" class="loading">Aucune recharge trouvée.</td></tr>';
+    if(!allDeposits.length)tb.innerHTML='<tr><td colspan="8" class="loading">Aucune recharge trouvée pour ce filtre.</td></tr>';
     for(const t of allDeposits){
       const tr=document.createElement('tr');
       const status=String(t.status||'UNKNOWN').toUpperCase();
@@ -1172,7 +1198,7 @@ async function loadDeposits(reset=false){
     const credited=confirmed.reduce((sum,t)=>sum+(t.creditedAmountXAF===null||t.creditedAmountXAF===undefined?0:Number(t.creditedAmountXAF||0)),0);
     const byProvider={};allDeposits.forEach(t=>{const p=t.provider||'?';byProvider[p]=(byProvider[p]||0)+1;});
     document.getElementById('depositsStats').innerHTML=`<div class="stat-item">Affichées : <strong>${allDeposits.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Confirmées : <strong>${confirmed.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Montant crédité : <strong>${credited.toLocaleString('fr-FR')} FCFA</strong></div>${Object.entries(byProvider).map(([k,v])=>`<div class="stat-sep"></div><div class="stat-item"><i class="fas fa-plug" style="color:var(--gold);"></i> ${esc(k)} : <strong>${v}</strong></div>`).join('')}`;
-    document.getElementById('depositsMoreBtn').style.display=Object.values(depositCursors).some(Boolean)?'inline-flex':'none';
+    document.getElementById('depositsMoreBtn').style.display='none';
   }catch(e){
     tb.innerHTML=`<tr><td colspan="8" class="loading">Erreur : ${esc(e.message)}</td></tr>`;
     showError('Recharges : '+e.message);
@@ -1215,10 +1241,42 @@ async function forceRefresh(){
 function showToast(msg){const t=document.createElement('div');t.innerHTML='<i class="fas fa-check-circle" style="margin-right:8px;"></i>'+msg;t.style.cssText='position:fixed;bottom:24px;right:24px;background:var(--green);color:#0a0e17;padding:12px 20px;border-radius:6px;z-index:9999;font-weight:600;font-size:.84rem;box-shadow:0 8px 24px rgba(0,0,0,.4);max-width:calc(100vw - 48px);word-break:break-word;';document.body.appendChild(t);setTimeout(()=>t.remove(),2400);}
 
 /* ═══════════ OVERVIEW ═══════════ */
+function renderDepositBlock(depositData, key) {
+  let obj;
+  if (depositData && typeof depositData === 'object') {
+    obj = depositData;
+  } else {
+    obj = { total: Number(depositData || 0), success: Number(depositData || 0), pending: 0, failed: 0, totalCreditedXAF: 0 };
+  }
+  const success = Number(obj.success || obj.total || 0);
+  const pending = Number(obj.pending || 0);
+  const failed = Number(obj.failed || 0);
+  const totalXAF = Number(obj.totalCreditedXAF || 0);
+
+  const mainEl = document.getElementById('kpiDeposits' + key);
+  const subEl = document.getElementById('kpiDeposits' + key + 'Sub');
+  if (mainEl) mainEl.textContent = success.toLocaleString('fr-FR');
+
+  if (subEl) {
+    const parts = [];
+    if (pending > 0) parts.push(`${pending.toLocaleString('fr-FR')} en attente`);
+    if (failed > 0) parts.push(`${failed.toLocaleString('fr-FR')} échoué(s)`);
+    if (totalXAF > 0) parts.push(`${totalXAF.toLocaleString('fr-FR')} FCFA`);
+    if (!parts.length) parts.push(`${Number(obj.total || 0).toLocaleString('fr-FR')} transaction(s)`);
+    subEl.textContent = parts.join(' · ');
+  }
+}
+
 function renderOverviewData(s){
   const put=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
+
   put('kpiTotalUsers',Number(s.totalUsers||0).toLocaleString('fr-FR'));
-  put('kpiNewUsers',`+${Number(s.newUsers7d||0).toLocaleString('fr-FR')} cette semaine`);
+
+  // ✅ Semaine courante vs semaine dernière (reset chaque lundi)
+  const thisWeek = Number(s.newUsersThisWeek ?? s.newUsers7d ?? 0);
+  const lastWeek = Number(s.newUsersLastWeek ?? 0);
+  put('kpiNewUsers', `+${thisWeek.toLocaleString('fr-FR')} cette semaine · ${lastWeek.toLocaleString('fr-FR')} la semaine dernière`);
+
   put('kpiTotalOrders',Number(s.totalOrders||0).toLocaleString('fr-FR'));
   put('kpiPendingOrders',`${Number(s.pendingOrders||0).toLocaleString('fr-FR')} en attente`);
   put('kpiOrdersToday',Number(s.ordersToday||0).toLocaleString('fr-FR'));
@@ -1231,14 +1289,31 @@ function renderOverviewData(s){
   put('kpiDashboardActive',`${Number(s.activeDashboardUsers7d||0).toLocaleString('fr-FR')} actifs sur 7 jours`);
   put('kpiTotalBalance',Number(s.totalBalance||0).toLocaleString('fr-FR')+' FCFA');
   put('kpiAverageBalance',Number(s.averageBalance||0).toLocaleString('fr-FR')+' FCFA de solde moyen');
-  put('kpiDepositsToday',Number(s.depositsToday ?? 0).toLocaleString('fr-FR'));
-  put('kpiDepositsYesterday',Number(s.depositsYesterday ?? 0).toLocaleString('fr-FR'));
-  put('kpiDepositsDayBefore',Number(s.depositsDayBefore ?? 0).toLocaleString('fr-FR'));
+
+  // ✅ Dépôts (objet structuré ou nombre, rétrocompat)
+  renderDepositBlock(s.depositsToday, 'Today');
+  renderDepositBlock(s.depositsYesterday, 'Yesterday');
+  renderDepositBlock(s.depositsDayBefore, 'DayBefore');
+
+  // ✅ Top déposant du jour
+  const topDep = (s.depositsToday && typeof s.depositsToday === 'object') ? s.depositsToday.topDepositor : null;
+  if (topDep) {
+    put('kpiTopDepositorName', topDep.name || 'Anonyme');
+    const parts = [];
+    if (Number(topDep.amount || 0) > 0) parts.push(`${Number(topDep.amount).toLocaleString('fr-FR')} FCFA`);
+    if (Number(topDep.count || 0) > 0) parts.push(`${topDep.count} dépôt(s)`);
+    if (topDep.country) parts.push(formatCountryLabel(topDep.country));
+    put('kpiTopDepositorAmount', parts.join(' · '));
+  } else {
+    put('kpiTopDepositorName', '—');
+    put('kpiTopDepositorAmount', 'Aucun dépôt réussi aujourd\'hui');
+  }
+
   put('kpiVisitsToday',Number(s.dashboardVisitsToday ?? 0).toLocaleString('fr-FR'));
   put('kpiVisitsYesterday',Number(s.dashboardVisitsYesterday ?? 0).toLocaleString('fr-FR'));
   put('kpiVisitsDayBefore',Number(s.dashboardVisitsDayBefore ?? 0).toLocaleString('fr-FR'));
 
-  // Ventes / marges consolidées (nouvelles clés renvoyées par /overview)
+  // Ventes / marges consolidées
   const salesNet = Number(s.allCollectionsGrossSales||0) - Number(s.allCollectionsRefunds||0);
   put('kpiAllSales', Math.max(0, salesNet).toLocaleString('fr-FR')+' FCFA');
   put('kpiAllRefunds', Number(s.allCollectionsRefunds||0).toLocaleString('fr-FR')+' FCFA');
@@ -1287,26 +1362,80 @@ async function loadOverview(force=false){
   }
 }
 
-/* ═══════════ TOP USERS avec marge ═══════════ */
+/* ═══════════ TOP USERS — Classement global + Classement du jour ═══════════ */
 let topUsersLoaded=false;let topUsersLoadedAt=0;let topUsersLoading=false;
+
+function setTopUsersPeriod(period) {
+  topUsersPeriod = period;
+  document.querySelectorAll('[data-topusers-period]').forEach(b => {
+    b.classList.toggle('active', b.dataset.topusersPeriod === period);
+  });
+  // Mise à jour du titre
+  const titleEl = document.getElementById('topUsersTitle');
+  const subEl = document.getElementById('topUsersSubtitle');
+  if (titleEl) titleEl.textContent = period === 'today' ? 'Clients les plus actifs — aujourd\'hui' : 'Clients les plus actifs — toute la plateforme';
+  if (subEl) subEl.textContent = period === 'today'
+    ? 'Clients ayant commandé aujourd\'hui, avec la marge générée sur la journée.'
+    : 'Contactez directement vos meilleurs clients et suivez la marge qu\'ils génèrent sur toute la plateforme.';
+  // Adapter le thead
+  const thead = document.getElementById('topUsersThead');
+  if (thead) {
+    thead.innerHTML = period === 'today'
+      ? '<tr><th>Client</th><th>Pays</th><th>Commandes du jour</th><th>Total payé (jour)</th><th>Marge générée (jour)</th><th></th></tr>'
+      : '<tr><th>Client</th><th>Pays</th><th>Commandes</th><th>Total payé</th><th>Marge générée</th><th></th></tr>';
+  }
+  loadTopUsers(true);
+}
+
 async function loadTopUsers(force=false){
-  if(topUsersLoading||(!force&&topUsersLoaded&&Date.now()-topUsersLoadedAt<5*60*1000))return;
-  topUsersLoading=true;
-  const tb=document.getElementById('topUsersBody');if(!tb){topUsersLoading=false;return;}
+  if(topUsersLoading) return;
+  if(!force && topUsersLoaded && topUsersPeriod === lastTopUsersPeriod && Date.now()-topUsersLoadedAt < 5*60*1000) return;
+
+  topUsersLoading = true;
+  const tb = document.getElementById('topUsersBody');
+  if(!tb){ topUsersLoading = false; return; }
+
   try{
-    const d=await fetchAdmin('/top-users'+(force?'?refresh=1':''));
-    const users=d.users||[];
-    tb.innerHTML='';
-    if(!users.length)tb.innerHTML='<tr><td colspan="6" class="loading">Le classement sera disponible après le recalcul des commandes historiques.</td></tr>';
-    users.forEach(u=>{
-      const phone=String(u.phone||'').replace(/[^0-9]/g,'');
-      const tr=document.createElement('tr');
-      tr.innerHTML=`<td><strong>${esc(u.name||'Client')}</strong>${u.email?`<br><small style="color:var(--text-dim);">${esc(u.email)}</small>`:''}</td><td>${esc(formatCountryLabel(u.country)||'—')}</td><td>${Number(u.orderCount||0).toLocaleString('fr-FR')}</td><td>${Number(u.totalSpent||0).toLocaleString('fr-FR')} FCFA</td><td style="color:var(--gold);font-weight:600;">${Number(u.totalProfit||0).toLocaleString('fr-FR')} FCFA</td><td><div class="action-row"><button class="btn btn-outline btn-sm" onclick="openCustomerDetail('${escAttr(u.id)}')" title="Voir la fiche"><i class="fas fa-eye"></i></button>${u.email?`<button class="btn btn-gold btn-sm" title="Envoyer un email" onclick="sendCustomerEmail('${escAttr(u.id)}','${escAttr(u.name||'')}','')"><i class="fas fa-envelope"></i></button>`:''}${phone?`<a class="btn btn-wa btn-sm" title="WhatsApp" href="https://wa.me/${escAttr(phone)}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i></a>`:''}</div></td>`;
+    const qs = topUsersPeriod === 'today'
+      ? '?period=today' + (force ? '&refresh=1' : '')
+      : (force ? '?refresh=1' : '');
+    const d = await fetchAdmin('/top-users' + qs);
+    const users = d.users || [];
+    tb.innerHTML = '';
+
+    if(!users.length){
+      tb.innerHTML = `<tr><td colspan="6" class="loading">${topUsersPeriod === 'today' ? 'Aucune commande enregistrée aujourd\'hui.' : 'Le classement sera disponible après le recalcul des commandes historiques.'}</td></tr>`;
+    }
+
+    users.forEach(u => {
+      const phone = String(u.phone || '').replace(/[^0-9]/g, '');
+      const totalSpent = Number(u.totalSpent ?? u.totalPaid ?? 0);
+      const profit = Number(u.totalProfit ?? 0);
+      const orderCount = Number(u.orderCount ?? 0);
+
+      // Détails des services commandés (uniquement en mode today)
+      let servicesLine = '';
+      if (topUsersPeriod === 'today' && Array.isArray(u.orders) && u.orders.length) {
+        const names = u.orders.slice(0, 3).map(o => o.serviceName).filter(Boolean);
+        const extra = Math.max(0, u.orders.length - 3);
+        if (names.length) {
+          servicesLine = `<br><small style="color:var(--text-dim);font-size:.7rem;">${esc(names.join(', '))}${extra > 0 ? ' +' + extra : ''}</small>`;
+        }
+      }
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td><strong>${esc(u.name||'Client')}</strong>${u.email?`<br><small style="color:var(--text-dim);">${esc(u.email)}</small>`:''}</td><td>${esc(formatCountryLabel(u.country)||'—')}</td><td>${orderCount.toLocaleString('fr-FR')}${servicesLine}</td><td>${totalSpent.toLocaleString('fr-FR')} FCFA</td><td style="color:var(--gold);font-weight:600;">${profit.toLocaleString('fr-FR')} FCFA</td><td><div class="action-row"><button class="btn btn-outline btn-sm" onclick="openCustomerDetail('${escAttr(u.id)}')" title="Voir la fiche"><i class="fas fa-eye"></i></button>${u.email?`<button class="btn btn-gold btn-sm" title="Envoyer un email" onclick="sendCustomerEmail('${escAttr(u.id)}','${escAttr(u.name||'')}','')"><i class="fas fa-envelope"></i></button>`:''}${phone?`<a class="btn btn-wa btn-sm" title="WhatsApp" href="https://wa.me/${escAttr(phone)}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i></a>`:''}</div></td>`;
       tb.appendChild(tr);
     });
-    topUsersLoaded=true;topUsersLoadedAt=Date.now();
-  }catch(e){tb.innerHTML=`<tr><td colspan="6" class="loading">Classement indisponible : ${esc(e.message)}</td></tr>`;}
-  finally{topUsersLoading=false;}
+
+    topUsersLoaded = true;
+    topUsersLoadedAt = Date.now();
+    lastTopUsersPeriod = topUsersPeriod;
+  }catch(e){
+    tb.innerHTML = `<tr><td colspan="6" class="loading">Classement indisponible : ${esc(e.message)}</td></tr>`;
+  }finally{
+    topUsersLoading = false;
+  }
 }
 
 /* ═══════════ FINANCES ═══════════ */
@@ -1323,7 +1452,7 @@ async function loadOrderSummary(force=false){if(orderSummaryLoading)return;if(!f
 function refreshOrdersView(){allOrders=[];orderCursors={autoOrders:null,commandes:null,orders:null,orders_automatique:null,orders_avancee:null,orders_standard_revendeur:null};loadOrders(true);loadOrderSummary(true);}
 
 let allOrders=[];let orderCursors={autoOrders:null,commandes:null,orders:null,orders_automatique:null,orders_avancee:null,orders_standard_revendeur:null};let ordersLoading=false;
-async function loadOrders(reset=false){if(ordersLoading)return;ordersLoading=true;const tb=document.getElementById('ordersBody');if(reset){allOrders=[];orderCursors={autoOrders:null,commandes:null,orders:null,orders_automatique:null,orders_avancee:null,orders_standard_revendeur:null};tb.innerHTML='<tr><td colspan="11" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';}try{const params=new URLSearchParams({limit:'5',cursors:JSON.stringify(orderCursors)});const provider=document.getElementById('orderProviderFilter')?.value||'all';if(provider!=='all')params.set('provider',provider);const selectedStatus=document.getElementById('orderStatusFilter')?.value||'all';if(selectedStatus!=='all')params.set('status',selectedStatus);const d=await fetchAdmin('/orders?'+params.toString());allOrders=reset?(d.orders||[]):allOrders.concat(d.orders||[]);allOrders=sortByDateDesc(allOrders);orderCursors=d.nextCursors||orderCursors;renderOrders();document.getElementById('ordersMoreBtn').style.display=Object.values(orderCursors).some(Boolean)?'inline-flex':'none';}catch(e){tb.innerHTML=`<tr><td colspan="11" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Commandes : '+e.message);}finally{ordersLoading=false;}}
+async function loadOrders(reset=false){if(ordersLoading)return;ordersLoading=true;const tb=document.getElementById('ordersBody');if(reset){allOrders=[];orderCursors={autoOrders:null,commandes:null,orders:null,orders_automatique:null,orders_avancee:null,orders_standard_revendeur:null};tb.innerHTML='<tr><td colspan="11" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';}try{const params=new URLSearchParams({limit:'5',cursors:JSON.stringify(orderCursors)});const provider=document.getElementById('orderProviderFilter')?.value||'all';if(provider!=='all')params.set('provider',provider);const selectedStatus=document.getElementById('orderStatusFilter')?.value||'all';if(selectedStatus!=='all')params.set('status',selectedStatus);if(reset)params.set('refresh','1');const d=await fetchAdmin('/orders?'+params.toString());allOrders=reset?(d.orders||[]):allOrders.concat(d.orders||[]);allOrders=sortByDateDesc(allOrders);orderCursors=d.nextCursors||orderCursors;renderOrders();document.getElementById('ordersMoreBtn').style.display=Object.values(orderCursors).some(Boolean)?'inline-flex':'none';}catch(e){tb.innerHTML=`<tr><td colspan="11" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Commandes : '+e.message);}finally{ordersLoading=false;}}
 function loadMoreOrders(){loadOrders(false);}
 function filterOrders(){renderOrders();}
 function renderOrders(){
@@ -1560,7 +1689,7 @@ async function submitCustomerEmail(){
 
 /* ═══════════ CUSTOMERS ═══════════ */
 let allCustomers=[];let customerCursor=null;let customersLoading=false;
-async function loadCustomers(reset=false){if(customersLoading)return;customersLoading=true;const tb=document.getElementById('customersBody');const q=(document.getElementById('customerSearch')?.value||'').trim();if(reset){allCustomers=[];customerCursor=null;tb.innerHTML='<tr><td colspan="9" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';}try{const params=new URLSearchParams({limit:'25'});if(q)params.set('q',q);const country=document.getElementById('customerCountryFilter')?.value||'';const segment=document.getElementById('customerSegmentFilter')?.value||'all';const sort=document.getElementById('customerSortFilter')?.value||'recent';if(country)params.set('country',country);params.set('segment',segment);params.set('sort',sort);if(!q&&customerCursor)params.set('cursor',customerCursor);const d=await fetchAdmin('/customers?'+params.toString());allCustomers=reset?(d.customers||[]):allCustomers.concat(d.customers||[]);allCustomers=sortByDateDesc(allCustomers);customerCursor=d.nextCursor||null;const metricsNote=document.getElementById('customerMetricsStatus');if(metricsNote){metricsNote.style.display='block';metricsNote.style.color=d.metricsReady?'var(--text-dim)':'var(--gold)';metricsNote.textContent=d.metricsReady?`Historique calculé le ${d.metricsAsOf?formatDate(d.metricsAsOf):'date inconnue'}. Total : ${d.total||allCustomers.length} utilisateur(s).`:`Les statistiques de commandes historiques ne sont pas synchronisées. Cliquez sur « Recalculer » avant de vous fier aux segments.`;}renderCustomers();document.getElementById('customersMoreBtn').style.display=(!q&&customerCursor)?'inline-flex':'none';}catch(e){tb.innerHTML=`<tr><td colspan="9" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Utilisateurs : '+e.message);}finally{customersLoading=false;}}
+async function loadCustomers(reset=false){if(customersLoading)return;customersLoading=true;const tb=document.getElementById('customersBody');const q=(document.getElementById('customerSearch')?.value||'').trim();if(reset){allCustomers=[];customerCursor=null;tb.innerHTML='<tr><td colspan="9" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';}try{const params=new URLSearchParams({limit:'25'});if(q)params.set('q',q);const country=document.getElementById('customerCountryFilter')?.value||'';const segment=document.getElementById('customerSegmentFilter')?.value||'all';const sort=document.getElementById('customerSortFilter')?.value||'recent';if(country)params.set('country',country);params.set('segment',segment);params.set('sort',sort);if(reset)params.set('refresh','1');if(!q&&customerCursor)params.set('cursor',customerCursor);const d=await fetchAdmin('/customers?'+params.toString());allCustomers=reset?(d.customers||[]):allCustomers.concat(d.customers||[]);allCustomers=sortByDateDesc(allCustomers);customerCursor=d.nextCursor||null;const metricsNote=document.getElementById('customerMetricsStatus');if(metricsNote){metricsNote.style.display='block';metricsNote.style.color=d.metricsReady?'var(--text-dim)':'var(--gold)';metricsNote.textContent=d.metricsReady?`Historique calculé le ${d.metricsAsOf?formatDate(d.metricsAsOf):'date inconnue'}. Total : ${d.total||allCustomers.length} utilisateur(s).`:`Les statistiques de commandes historiques ne sont pas synchronisées. Cliquez sur « Recalculer » avant de vous fier aux segments.`;}renderCustomers();document.getElementById('customersMoreBtn').style.display=(!q&&customerCursor)?'inline-flex':'none';}catch(e){tb.innerHTML=`<tr><td colspan="9" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Utilisateurs : '+e.message);}finally{customersLoading=false;}}
 function loadMoreCustomers(){loadCustomers(false);}
 function renderCustomers(){
   const tb=document.getElementById('customersBody');tb.innerHTML='';
