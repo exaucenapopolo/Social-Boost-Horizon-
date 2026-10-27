@@ -214,6 +214,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
 .mobile-toggle{display:none;position:fixed;top:14px;left:14px;z-index:200;width:40px;height:40px;border-radius:6px;background:var(--bg-card);border:1px solid var(--border-strong);color:var(--text);font-size:1rem;cursor:pointer;align-items:center;justify-content:center}
 .date-range{display:flex;gap:6px;align-items:center}
 .date-range input[type="date"]{padding:8px 10px;font-size:.78rem}
+.financial-warning{padding:10px 14px;background:var(--warning-dim);border:1px solid rgba(251,191,36,.25);border-radius:6px;color:var(--warning);font-size:.78rem;display:none;line-height:1.55;margin-bottom:14px;}
 @media(max-width:1024px){
   .sidebar{transform:translateX(-100%)}
   .sidebar.open{transform:translateX(0)}
@@ -403,7 +404,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
       <div class="top-bar">
         <div><div class="page-title">Finances & rentabilité</div><div class="page-subtitle">Comparaison de périodes, ventes nettes et marges</div></div>
         <div class="top-actions">
-          <button class="btn btn-outline" onclick="loadFinancials(true)"><i class="fas fa-sync-alt"></i> Actualiser</button>
+          <button class="btn btn-outline" onclick="loadFinancialsForce()"><i class="fas fa-sync-alt"></i> Actualiser</button>
           <button class="btn btn-gold" onclick="exportFinancialsPDF()"><i class="fas fa-file-pdf"></i> Exporter PDF</button>
         </div>
       </div>
@@ -423,6 +424,29 @@ textarea.msg-area:focus{border-color:var(--gold)}
             <button class="seg-btn" data-financial-range="all" onclick="setFinancialRange('all')">Tout</button>
           </div>
           <input type="hidden" id="financialRange" value="30d">
+        </div>
+
+        <div class="filter-bar" style="padding-top:6px;">
+          <div class="filter-group">
+            <label>Fournisseur</label>
+            <select id="financialProviderFilter" onchange="setFinancialProvider(this.value)">
+              <option value="all">Tous fournisseurs</option>
+              <option value="MTP">MTP</option>
+              <option value="EXO">EXO</option>
+              <option value="AfriqueBoost">AfriqueBoost</option>
+              <option value="SMMWiz">SMMWiz</option>
+              <option value="SMMGen">SMMGen</option>
+            </select>
+          </div>
+          <div class="filter-group" style="margin-left:auto;">
+            <span id="financialProviderNote" style="font-size:.7rem;color:var(--text-dim);display:none;">
+              <i class="fas fa-info-circle"></i> Filtre fournisseur actif
+            </span>
+          </div>
+        </div>
+
+        <div class="financial-warning" id="financialWarning">
+          <i class="fas fa-triangle-exclamation"></i> <strong>Période longue détectée.</strong> Charger 90 jours / Année / Tout peut consommer plusieurs milliers de lectures Firestore. Les données sont mises en cache serveur 15 minutes : attends plutôt ce délai avant de recharger.
         </div>
       </section>
 
@@ -800,40 +824,33 @@ textarea.msg-area:focus{border-color:var(--gold)}
 </div>
 
 <script>
-/* ═══════════════════════════════════════════════════════════════
-   1. CONSTANTES
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ CONSTANTES ═══════ */
 const SBH_WA_DISPLAY = '+1 (423) 675-2034';
 const SBH_WA_LINK = 'https://wa.me/14236752034';
 const SBH_SITE_URL = 'https://socialboosthorizon.com/';
 const SBH_DASHBOARD_URL = 'https://socialboosthorizon.com/dashboard';
 
-/* ═══════════════════════════════════════════════════════════════
-   2. VARIABLES D'ÉTAT (TOUTES EN PREMIER)
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ ÉTAT ═══════ */
 let token = sessionStorage.getItem('sbh_admin_token');
 let autoRefreshInterval = null;
 let lastForceRefreshAt = 0;
 let lastBadgesUpdateAt = 0;
 
-// Overview
 let overviewLoaded = false;
 let overviewLoadedAt = 0;
 let overviewLoading = false;
 
-// Top Users
 let topUsersPeriod = 'all';
 let topUsersLoaded = false;
 let topUsersLoadedAt = 0;
 let topUsersLoading = false;
 let lastTopUsersPeriod = null;
 
-// Financials
 let financialsLoaded = false;
 let financialsLoadedAt = 0;
 let financialsLoadedRange = null;
+let financialProviderFilter = 'all'; // ✅ NOUVEAU
 
-// Orders
 let allOrders = [];
 let orderOffset = 0;
 let ordersHasMore = false;
@@ -843,28 +860,24 @@ let orderSummaryLoaded = false;
 let orderSummaryLoadedAt = 0;
 let orderSummaryLoading = false;
 
-// Deposits
 let allDeposits = [];
 let depositsLoading = false;
 let depositsLoadedAt = 0;
 
-// Customers
 let allCustomers = [];
 let customerCursor = null;
 let customersLoading = false;
 let customersLoadedAt = 0;
 
-// Stores
 let allStores = [];
 let storesLoading = false;
 let storesLoadedAt = 0;
 
-// Services
 let allServices = [];
 let servicesLoaded = false;
+let servicesLoadedAt = 0; // ✅ NOUVEAU
 let currentMultipliers = null;
 
-// Gifts
 let allGifts = [];
 let giftsLoaded = false;
 let currentWaGift = null;
@@ -873,20 +886,16 @@ let emailSending = false;
 let giftEmailPreviewEdited = false;
 let bulkCurrentList = [];
 
-// Customer email
 let currentCustomerEmail = null;
 let customerEmailSending = false;
 
-// Misc
 let metricsRebuildRunning = false;
 
-/* ═══════════════════════════════════════════════════════════════
-   3. CACHE CLIENT (TTL par vue pour économiser les lectures)
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ TTL & CONSTANTES ═══════ */
 const CLIENT_TTL = {
   overview:    2 * 60 * 1000,
   topUsers:    5 * 60 * 1000,
-  financials:  5 * 60 * 1000,
+  financials:  10 * 60 * 1000, // ✅ 10 min
   orders:      3 * 60 * 1000,
   orderSummary:3 * 60 * 1000,
   deposits:    3 * 60 * 1000,
@@ -895,13 +904,38 @@ const CLIENT_TTL = {
   gifts:       2 * 60 * 1000,
   services:   15 * 60 * 1000,
 };
-const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 min
+const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const FORCE_REFRESH_THROTTLE_MS = 30 * 1000;
 const BADGES_TTL_MS = 10 * 60 * 1000;
 
-/* ═══════════════════════════════════════════════════════════════
-   4. UTILITAIRES
-═══════════════════════════════════════════════════════════════ */
+/* ✅ NOUVEAU : Cache sessionStorage pour Finances (0 lectures si re-clic) */
+const FIN_CACHE_KEY = 'sbh_fin_cache_v3';
+const FIN_CACHE_TTL = 5 * 60 * 1000;
+const HEAVY_RANGES = ['90d', 'year', 'all'];
+
+function getFinancialsCacheKey(range, provider){return `${range}|${provider}`;}
+function getFinancialsCache(range, provider){
+  try{
+    const cache = JSON.parse(sessionStorage.getItem(FIN_CACHE_KEY) || '{}');
+    const entry = cache[getFinancialsCacheKey(range, provider)];
+    if (entry && Date.now() < entry.expires) return entry;
+  } catch(_){}
+  return null;
+}
+function setFinancialsCache(range, provider, data, previous, ttlMs){
+  try{
+    const cache = JSON.parse(sessionStorage.getItem(FIN_CACHE_KEY) || '{}');
+    cache[getFinancialsCacheKey(range, provider)] = {
+      data, previous, expires: Date.now() + ttlMs
+    };
+    sessionStorage.setItem(FIN_CACHE_KEY, JSON.stringify(cache));
+  }catch(_){}
+}
+function clearFinancialsCache(){
+  try{sessionStorage.removeItem(FIN_CACHE_KEY);}catch(_){}
+}
+
+/* ═══════ UTILITAIRES ═══════ */
 function timestampToMs(ts){
   if(!ts)return 0;
   if(typeof ts==='object'&&ts._seconds!==undefined)return Number(ts._seconds)*1000;
@@ -973,9 +1007,7 @@ function downloadBlob(content,filename,mime){
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   5. PAYS
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ PAYS ═══════ */
 const SBH_COUNTRY_CODES = 'AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW'.split(/\s+/);
 function populateCountryFilters(){
   const labels=new Intl.DisplayNames(['fr'],{type:'region'});
@@ -1003,9 +1035,7 @@ function formatCountryLabel(raw){
   return v;
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   6. FETCH + LOGIN
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ FETCH + LOGIN ═══════ */
 async function fetchAdmin(ep,opts={}){
   const res=await fetch(`/api/admin${ep}`,{
     ...opts,
@@ -1044,13 +1074,12 @@ async function unlock(){
 function logout(){
   if(autoRefreshInterval){clearInterval(autoRefreshInterval);autoRefreshInterval=null;}
   sessionStorage.removeItem('sbh_admin_token');
+  clearFinancialsCache();
   token=null;
   location.reload();
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   7. BADGES GIFTS
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ BADGES GIFTS ═══════ */
 function updateGiftBadges(pendingCount,lateCount){
   const b=document.getElementById('navGiftCount'),l=document.getElementById('navGiftLateCount');
   if(b){const n=Number(pendingCount||0);if(n>0){b.textContent=n;b.style.display='inline-block';}else b.style.display='none';}
@@ -1065,9 +1094,7 @@ function decrementGiftBadge(by){
   else b.style.display='none';
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   8. SWITCH VIEW
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ SWITCH VIEW ═══════ */
 function switchView(view){
   document.querySelectorAll('.view').forEach(v=>v.style.display='none');
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -1077,10 +1104,9 @@ function switchView(view){
   if(nav)nav.classList.add('active');
   document.querySelector('.sidebar')?.classList.remove('open');
 
-  // Chargement à la demande (avec cache)
   if(view==='overview'){if(!overviewLoaded)loadOverview();if(!topUsersLoaded)loadTopUsers();}
   else if(view==='services'){if(!servicesLoaded)loadServices();}
-  else if(view==='finances'){if(!financialsLoaded)loadFinancials();}
+  else if(view==='finances'){if(!financialsLoaded)loadFinancials();} // ✅ plus de force
   else if(view==='gifts'){if(!giftsLoaded){giftsLoaded=true;loadGifts();}}
   else if(view==='deposits'){if(allDeposits.length===0&&!depositsLoading)loadDeposits(true);}
   else if(view==='orders'){if(allOrders.length===0&&!ordersLoading)loadOrders(true);if(!orderSummaryLoaded)loadOrderSummary();}
@@ -1088,9 +1114,7 @@ function switchView(view){
   else if(view==='stores'){if(allStores.length===0&&!storesLoading)loadStores(true);}
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   9. FORCE REFRESH (uniquement la vue active, throttle 30s)
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ FORCE REFRESH ═══════ */
 async function forceRefresh(){
   if(Date.now()-lastForceRefreshAt<FORCE_REFRESH_THROTTLE_MS){
     showToast('Patientez avant de forcer à nouveau.');
@@ -1100,7 +1124,7 @@ async function forceRefresh(){
   const activeView=document.querySelector('.nav-item.active')?.dataset?.view||'overview';
   try{
     if(activeView==='overview'){overviewLoaded=false;topUsersLoaded=false;await loadOverview(true);await loadTopUsers(true);}
-    else if(activeView==='finances'){financialsLoaded=false;await loadFinancials(true);}
+    else if(activeView==='finances'){await loadFinancialsForce();}
     else if(activeView==='orders'){ordersLoadedAt=0;await refreshOrdersView();await loadOrderSummary(true);}
     else if(activeView==='deposits'){depositsLoadedAt=0;await loadDeposits(true);}
     else if(activeView==='customers'){customersLoadedAt=0;await loadCustomers(true);}
@@ -1111,9 +1135,7 @@ async function forceRefresh(){
   }catch(e){showError('Actualisation : '+e.message);}
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   10. AUTO-REFRESH INTELLIGENT (5 min, uniquement vue active)
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ AUTO-REFRESH INTELLIGENT ═══════ */
 function startAutoRefresh(){
   if(autoRefreshInterval)clearInterval(autoRefreshInterval);
   autoRefreshInterval=setInterval(async()=>{
@@ -1124,10 +1146,8 @@ function startAutoRefresh(){
 
     const activeView=document.querySelector('.nav-item.active')?.dataset?.view;
 
-    // 1. Mise à jour légère des badges (max 1 fois / 10 min)
     if(Date.now()-lastBadgesUpdateAt>BADGES_TTL_MS){
       try{
-        // Utilise le cache serveur (déjà partagé sur 15 min) — coût minime
         if(activeView==='overview'){
           const d=await fetchAdmin('/overview');
           renderOverviewData(d.data||{});
@@ -1138,7 +1158,6 @@ function startAutoRefresh(){
       }catch(e){console.warn('Auto-refresh badges:',e.message);}
     }
 
-    // 2. Refresh silencieux de la vue active uniquement si expirée
     try{
       if(activeView==='overview'){
         if(Date.now()-overviewLoadedAt<CLIENT_TTL.overview)return;
@@ -1150,14 +1169,12 @@ function startAutoRefresh(){
         if(Date.now()-orderSummaryLoadedAt<CLIENT_TTL.orderSummary)return;
         await loadOrderSummary();
       }
-      // Pour les autres vues : ne rien faire (économie de lectures)
+      // ✅ Finances : PAS d'auto-refresh (trop coûteux)
     }catch(e){console.warn('Auto-refresh:',e.message);}
   },AUTO_REFRESH_INTERVAL_MS);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   11. OVERVIEW
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ OVERVIEW ═══════ */
 async function loadOverview(force=false){
   if(overviewLoading)return;
   if(!force&&overviewLoaded&&Date.now()-overviewLoadedAt<CLIENT_TTL.overview)return;
@@ -1277,9 +1294,7 @@ async function loadOrdersForDate(){
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   12. TOP USERS
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ TOP USERS ═══════ */
 function setTopUsersPeriod(period){
   topUsersPeriod=period;
   document.querySelectorAll('[data-topusers-period]').forEach(b=>b.classList.toggle('active',b.dataset.topusersPeriod===period));
@@ -1342,49 +1357,105 @@ async function loadTopUsers(force=false){
   }finally{topUsersLoading=false;}
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   13. FINANCES
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ FINANCES ═══════ */
 function fcfa(v){return `${Number(v||0).toLocaleString('fr-FR')} FCFA`;}
 function compareLabel(v){if(v===null||v===undefined)return 'Comparaison indisponible';if(v>0)return `+${v}% vs préc.`;if(v<0)return `${v}% vs préc.`;return 'Stable';}
 function comparisonCell(v){if(v===null||v===undefined)return '—';const n=Number(v);return `${n>0?'+':''}${n.toLocaleString('fr-FR')}%`;}
 function percentChange(c,p){if(p===null||p===undefined||Number(p)===0)return null;return Math.round(((Number(c||0)-Number(p))/Number(p))*1000)/10;}
+
+// ✅ NOUVEAU : Change de fournisseur
+function setFinancialProvider(provider){
+  financialProviderFilter = provider;
+  financialsLoaded = false;
+  const note = document.getElementById('financialProviderNote');
+  if(note){
+    note.style.display = provider==='all' ? 'none' : 'inline';
+    if(provider !== 'all') note.innerHTML = `<i class="fas fa-filter"></i> Filtré : <strong>${esc(provider)}</strong>`;
+  }
+  loadFinancials();
+}
+
+// ✅ NOUVEAU : Confirmation avant les périodes lourdes
+function confirmHeavyRange(range){
+  if(!HEAVY_RANGES.includes(range)) return true;
+  const cached = getFinancialsCache(range, financialProviderFilter);
+  if(cached) return true; // déjà en cache, pas de lecture
+  return confirm(
+    `⚠️ Période "${range}" = potentiellement des milliers de lectures Firestore.\n\n` +
+    `Recommandé : utiliser 30 jours max, ou attendre que le cache serveur 15 min soit chaud.\n\n` +
+    `Continuer quand même ?`
+  );
+}
+
 function setFinancialRange(range){
   const input=document.getElementById('financialRange');
   if(input)input.value=range;
   document.querySelectorAll('[data-financial-range]').forEach(b=>b.classList.toggle('active',b.dataset.financialRange===range));
-  loadFinancials(true);
+
+  // Afficher le warning visuel pour les périodes lourdes
+  const warn = document.getElementById('financialWarning');
+  if(warn) warn.style.display = HEAVY_RANGES.includes(range) ? 'block' : 'none';
+
+  // ✅ Confirmation obligatoire pour périodes lourdes
+  if(!confirmHeavyRange(range)) return;
+
+  // ✅ PAS de force : utilise le cache serveur 15 min + cache client 5 min
+  financialsLoaded = false;
+  loadFinancials(false);
 }
+
+// ✅ NOUVEAU : bouton "Actualiser" qui force explicitement
+async function loadFinancialsForce(){
+  if(Date.now()-lastForceRefreshAt<FORCE_REFRESH_THROTTLE_MS){
+    showToast('Patientez avant de forcer à nouveau.');
+    return;
+  }
+  lastForceRefreshAt = Date.now();
+  clearFinancialsCache(); // vide le cache client pour ce load
+  await loadFinancials(true);
+}
+
 async function loadFinancials(force=false){
   const range=document.getElementById('financialRange')?.value||'30d';
+  const provider=financialProviderFilter;
+
+  // Afficher le warning visuel
+  const warn = document.getElementById('financialWarning');
+  if(warn) warn.style.display = HEAVY_RANGES.includes(range) ? 'block' : 'none';
+
+  // ✅ Vérifier le cache client AVANT tout fetch (0 lectures si on re-clique)
+  if(!force){
+    const clientCached = getFinancialsCache(range, provider);
+    if(clientCached){
+      renderFinancialsData(clientCached.data, clientCached.previous);
+      financialsLoaded = true;
+      financialsLoadedAt = Date.now();
+      financialsLoadedRange = range;
+      return;
+    }
+  }
+
+  // Skip si déjà chargé et TTL pas expiré
   if(!force&&financialsLoaded&&financialsLoadedRange===range&&Date.now()-financialsLoadedAt<CLIENT_TTL.financials)return;
+
+  // Confirmation si période lourde et pas en cache
+  if(!force && !confirmHeavyRange(range)) return;
+
   const body=document.getElementById('financialComparisonBody');
   body.innerHTML='<tr><td colspan="4" class="loading"><i class="fas fa-circle-notch"></i> Calcul…</td></tr>';
+
   try{
-    const d=await fetchAdmin('/financials?range='+encodeURIComponent(range)+(force?'&refresh=1':''));
+    const params = new URLSearchParams({ range });
+    if(provider !== 'all') params.set('provider', provider);
+    if(force) params.set('refresh','1');
+
+    const d=await fetchAdmin('/financials?'+params.toString());
     const c=d.data||{};const p=d.previous||null;
-    document.getElementById('finOrders').textContent=Number(c.totalOrders||0).toLocaleString('fr-FR');
-    document.getElementById('finOrdersCompare').textContent=compareLabel(c.ordersChangePct);
-    document.getElementById('finSales').textContent=fcfa(c.autoOrdersNetSales);
-    document.getElementById('finSalesCompare').textContent=compareLabel(c.netSalesChangePct);
-    document.getElementById('finRefunds').textContent=fcfa(c.autoOrdersRefunds);
-    document.getElementById('finSupplierCost').textContent=fcfa(c.supplierCostWithSnapshots);
-    document.getElementById('finGrossProfit').textContent=fcfa(c.recordedGrossProfitBeforeRefunds);
-    document.getElementById('finCoverage').textContent=`${Number(c.profitSnapshotCoveragePctAllTime||0).toLocaleString('fr-FR')}%`;
-    document.getElementById('finCoverageSub').textContent=`${Number(c.profitSnapshotOrdersAllTime||0).toLocaleString('fr-FR')} / ${Number(c.autoOrdersAllTime||0).toLocaleString('fr-FR')}`;
-    const rows=[
-      ['Commandes',Number(c.totalOrders||0),p?Number(p.totalOrders||0):null,c.ordersChangePct],
-      ['Ventes nettes',fcfa(c.autoOrdersNetSales),p?fcfa(p.autoOrdersNetSales):null,c.netSalesChangePct],
-      ['Remboursements',fcfa(c.autoOrdersRefunds),p?fcfa(p.autoOrdersRefunds):null,p?percentChange(c.autoOrdersRefunds,p.autoOrdersRefunds):null],
-      ['Coût fournisseur',fcfa(c.supplierCostWithSnapshots),p?fcfa(p.supplierCostWithSnapshots):null,p?percentChange(c.supplierCostWithSnapshots,p.supplierCostWithSnapshots):null],
-      ['Marge brute',fcfa(c.recordedGrossProfitBeforeRefunds),p?fcfa(p.recordedGrossProfitBeforeRefunds):null,p?percentChange(c.recordedGrossProfitBeforeRefunds,p.recordedGrossProfitBeforeRefunds):null],
-    ];
-    body.innerHTML='';
-    rows.forEach(r=>{
-      const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${esc(r[0])}</td><td><strong>${typeof r[1]==='number'?r[1].toLocaleString('fr-FR'):esc(r[1])}</strong></td><td>${r[2]===null?'—':(typeof r[2]==='number'?r[2].toLocaleString('fr-FR'):esc(r[2]))}</td><td>${comparisonCell(r[3])}</td>`;
-      body.appendChild(tr);
-    });
+
+    // ✅ Cache client pour éviter les re-fetch
+    setFinancialsCache(range, provider, c, p, FIN_CACHE_TTL);
+
+    renderFinancialsData(c, p);
     financialsLoaded=true;financialsLoadedAt=Date.now();financialsLoadedRange=range;
   }catch(e){
     body.innerHTML=`<tr><td colspan="4" class="loading">Erreur : ${esc(e.message)}</td></tr>`;
@@ -1392,9 +1463,35 @@ async function loadFinancials(force=false){
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   14. ORDERS
-═══════════════════════════════════════════════════════════════ */
+// ✅ NOUVEAU : Fonction de rendu isolée (réutilisable pour le cache)
+function renderFinancialsData(c, p){
+  document.getElementById('finOrders').textContent=Number(c.totalOrders||0).toLocaleString('fr-FR');
+  document.getElementById('finOrdersCompare').textContent=compareLabel(c.ordersChangePct);
+  document.getElementById('finSales').textContent=fcfa(c.autoOrdersNetSales);
+  document.getElementById('finSalesCompare').textContent=compareLabel(c.netSalesChangePct);
+  document.getElementById('finRefunds').textContent=fcfa(c.autoOrdersRefunds);
+  document.getElementById('finSupplierCost').textContent=fcfa(c.supplierCostWithSnapshots);
+  document.getElementById('finGrossProfit').textContent=fcfa(c.recordedGrossProfitBeforeRefunds);
+  document.getElementById('finCoverage').textContent=`${Number(c.profitSnapshotCoveragePctAllTime||0).toLocaleString('fr-FR')}%`;
+  document.getElementById('finCoverageSub').textContent=`${Number(c.profitSnapshotOrdersAllTime||0).toLocaleString('fr-FR')} / ${Number(c.autoOrdersAllTime||0).toLocaleString('fr-FR')}`;
+
+  const rows=[
+    ['Commandes',Number(c.totalOrders||0),p?Number(p.totalOrders||0):null,c.ordersChangePct],
+    ['Ventes nettes',fcfa(c.autoOrdersNetSales),p?fcfa(p.autoOrdersNetSales):null,c.netSalesChangePct],
+    ['Remboursements',fcfa(c.autoOrdersRefunds),p?fcfa(p.autoOrdersRefunds):null,p?percentChange(c.autoOrdersRefunds,p.autoOrdersRefunds):null],
+    ['Coût fournisseur',fcfa(c.supplierCostWithSnapshots),p?fcfa(p.supplierCostWithSnapshots):null,p?percentChange(c.supplierCostWithSnapshots,p.supplierCostWithSnapshots):null],
+    ['Marge brute',fcfa(c.recordedGrossProfitBeforeRefunds),p?fcfa(p.recordedGrossProfitBeforeRefunds):null,p?percentChange(c.recordedGrossProfitBeforeRefunds,p.recordedGrossProfitBeforeRefunds):null],
+  ];
+  const body=document.getElementById('financialComparisonBody');
+  body.innerHTML='';
+  rows.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${esc(r[0])}</td><td><strong>${typeof r[1]==='number'?r[1].toLocaleString('fr-FR'):esc(r[1])}</strong></td><td>${r[2]===null?'—':(typeof r[2]==='number'?r[2].toLocaleString('fr-FR'):esc(r[2]))}</td><td>${comparisonCell(r[3])}</td>`;
+    body.appendChild(tr);
+  });
+}
+
+/* ═══════ ORDERS ═══════ */
 function clearOrderDates(){
   const s=document.getElementById('orderDateStart');
   const e=document.getElementById('orderDateEnd');
@@ -1478,9 +1575,7 @@ function renderOrders(){
   document.getElementById('ordersStats').innerHTML=`<div class="stat-item">Affichées : <strong>${list.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Payé : <strong>${total.toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-sep"></div><div class="stat-item">Coûts : <strong>${costs.toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-sep"></div><div class="stat-item">Marge : <strong>${profit.toLocaleString('fr-FR')} FCFA</strong></div>`;
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   15. DEPOSITS
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ DEPOSITS ═══════ */
 function clearDepositDates(){
   const s=document.getElementById('depositDateStart');
   const e=document.getElementById('depositDateEnd');
@@ -1524,9 +1619,7 @@ async function loadDeposits(reset=false){
   }finally{depositsLoading=false;}
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   16. CUSTOMERS
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ CUSTOMERS ═══════ */
 function clearCustomerDates(){
   const s=document.getElementById('customerDateStart');
   const e=document.getElementById('customerDateEnd');
@@ -1705,9 +1798,7 @@ async function openCustomerDetail(id){
 }
 function closeCustomerModal(){document.getElementById('customerModal').classList.remove('active');}
 
-/* ═══════════════════════════════════════════════════════════════
-   17. STORES
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ STORES ═══════ */
 async function loadStores(reset=false){
   if(storesLoading)return;
   storesLoading=true;
@@ -1748,17 +1839,17 @@ function copyAllStoreLinks(){
   navigator.clipboard.writeText(links.join('\n')).then(()=>showToast(`${links.length} lien(s) copié(s).`)).catch(()=>alert('Copie impossible.'));
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   18. SERVICES
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ SERVICES ═══════ */
 async function loadServices(force=false){
-  if(servicesLoaded&&!force&&Date.now()-overviewLoadedAt<CLIENT_TTL.services)return;
+  // ✅ FIX : utilise servicesLoadedAt (pas overviewLoadedAt)
+  if(servicesLoaded&&!force&&Date.now()-servicesLoadedAt<CLIENT_TTL.services)return;
   try{
     const d=await fetchAdmin('/services');
     const data=d.data||{};
     allServices=data.services||[];
     currentMultipliers=data.multipliers||{};
     servicesLoaded=true;
+    servicesLoadedAt=Date.now();
     renderServices();
   }catch(e){
     document.getElementById('servicesBody').innerHTML=`<tr><td colspan="7" class="loading">Erreur : ${esc(e.message)}</td></tr>`;
@@ -1835,9 +1926,7 @@ function resetServiceFilters(){
   renderServices();
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   19. CUSTOMER EMAIL
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ CUSTOMER EMAIL ═══════ */
 function buildCustomerEmailTemplate(type,userName,orderRef){
   const n=userName||'cher client';
   const orderLine=orderRef?`au sujet de votre commande ${orderRef}`:'';
@@ -1898,9 +1987,7 @@ async function submitCustomerEmail(){
   finally{customerEmailSending=false;btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i> Envoyer';}
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   20. GIFTS
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ GIFTS ═══════ */
 async function loadGifts(){
   const tb=document.getElementById('giftsBody');
   tb.innerHTML='<tr><td colspan="7" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr>';
@@ -2018,9 +2105,7 @@ async function setGiftStatus(id,status){
   }catch(e){alert('Erreur réseau : '+e.message);}
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   21. GIFT EMAIL
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ GIFT EMAIL ═══════ */
 async function openGiftEmailModal(giftId){
   const g=allGifts.find(x=>x.id===giftId);if(!g)return;
   if(g.status==='rejected'){
@@ -2164,9 +2249,7 @@ async function sendGiftEmailAndMark(){
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   22. WHATSAPP
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ WHATSAPP ═══════ */
 function openWaModal(giftId){
   const g=allGifts.find(x=>x.id===giftId);if(!g||!g.whatsapp)return;
   currentWaGift=g;
@@ -2246,9 +2329,7 @@ function sendWhatsApp(){
   closeWaModal();
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   23. BULK GIFTS
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ BULK GIFTS ═══════ */
 async function bulkProcessPendingGifts(){
   const filterSel=document.getElementById('giftStatusFilter');
   if(filterSel&&filterSel.value!=='pending'){filterSel.value='pending';await loadGifts();}
@@ -2323,9 +2404,7 @@ async function confirmBulkProcess(){
   setTimeout(()=>{closeBulkGiftModal();},1500);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   24. EXPORTS PDF / CSV / VCF
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ EXPORTS PDF / CSV / VCF ═══════ */
 function addFooter(doc){
   doc.setFontSize(9);doc.setTextColor(136);
   doc.text('Fondateur : NAPOPOLO EXAUCE',14,doc.internal.pageSize.height-10);
@@ -2425,10 +2504,11 @@ function exportDepositsPDF(){
 function exportFinancialsPDF(){
   const{jsPDF}=window.jspdf;const doc=new jsPDF();
   const range=document.getElementById('financialRange')?.value||'30d';
+  const provider=financialProviderFilter;
   doc.setFontSize(18);doc.setTextColor(201,169,97);
   doc.text('Rapport Finances — SBH',14,18);
   doc.setFontSize(9);doc.setTextColor(120);
-  doc.text(`Généré le ${new Date().toLocaleString('fr-FR')} · Période : ${range}`,14,25);
+  doc.text(`Généré le ${new Date().toLocaleString('fr-FR')} · Période : ${range} · Fournisseur : ${provider==='all'?'Tous':provider}`,14,25);
   doc.autoTable({
     head:[['Indicateur','Valeur']],
     body:[
@@ -2487,9 +2567,7 @@ function exportGiftsPDF(){
   showToast('PDF généré.');
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   25. KEYBOARD
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ KEYBOARD ═══════ */
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&document.getElementById('waModal').classList.contains('active'))closeWaModal();
   if(e.key==='Escape'&&document.getElementById('emailModal').classList.contains('active'))closeGiftEmailModal();
@@ -2498,12 +2576,9 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&document.getElementById('customerModal').classList.contains('active'))closeCustomerModal();
 });
 
-/* ═══════════════════════════════════════════════════════════════
-   26. INIT (à la toute fin — toutes les fonctions existent)
-═══════════════════════════════════════════════════════════════ */
+/* ═══════ INIT ═══════ */
 function startAfterLogin(){
   populateCountryFilters();
-  // Charge uniquement la vue overview au démarrage (économie de lectures)
   loadOverview();
   loadTopUsers();
   startAutoRefresh();
