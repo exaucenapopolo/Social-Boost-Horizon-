@@ -63,6 +63,40 @@ const SBH_WA_LINK    = 'https://wa.me/14236752034';
 const SBH_SITE_URL   = 'https://socialboosthorizon.com/';
 const SBH_DASHBOARD  = 'https://socialboosthorizon.com/tableau-de-bord.html';
 
+// ═══════════════════════════════════════════════════════════════
+// ✅ FIX #1 : Champs de date connus par collection (codés en dur
+// pour éviter toute détection hasardeuse)
+// ═══════════════════════════════════════════════════════════════
+const KNOWN_DATE_FIELD = {
+  'commandes': 'date',               // EXO (order-exo.js)
+  'autoOrders': 'createdAt',         // MTP, AfriqueBoost, SMMWiz
+  'fapshiTransactions': 'createdAt', // Fapshi
+  'paymentTransactions': 'createdAt',// NelsiusPay
+  'transactions': 'createdAt',       // Swychr (create-swychr.js)
+  'orders': 'createdAt',
+  'orders_automatique': 'createdAt',
+  'orders_avancee': 'createdAt',
+  'orders_standard_revendeur': 'createdAt',
+  'welcomeGiftClaims': 'createdAt',
+  'users': 'createdAt',
+  'stores': 'createdAt',
+  'payments': 'createdAt',
+  'rechargements': 'createdAt',
+  'recharges': 'createdAt',
+  'partnerRequests': 'createdAt',
+};
+
+// ═══════════════════════════════════════════════════════════════
+// ✅ FIX #2 : Fournisseur connu par collection (évite le bug
+// du provider null qui empêchait de calculer la marge EXO)
+// ═══════════════════════════════════════════════════════════════
+const KNOWN_PROVIDER_BY_COLLECTION = {
+  'commandes': 'EXO',                // order-exo.js
+  'fapshiTransactions': 'Fapshi',
+  'paymentTransactions': 'NelsiusPay',
+  'transactions': 'Swychr',          // create-swychr.js
+};
+
 function giftNeedsLinkConfirmation(giftType) {
   return giftType === 'likes' || giftType === 'tiktok';
 }
@@ -3354,6 +3388,10 @@ const ALL_USERS_CACHE_TTL_MS = 30 * 60 * 1000;
 const topUsersTodayCache = { data: null, expires: 0, lastRefresh: 0 };
 const TOP_USERS_TODAY_CACHE_TTL_MS = 5 * 60 * 1000;
 
+// ✅ FIX #3 : Cache séparé pour les périodes personnalisées du top-users
+const topUsersCustomRangeCache = new Map();
+const TOP_USERS_CUSTOM_CACHE_TTL_MS = 5 * 60 * 1000;
+
 const depositsCache = { data: null, expires: 0 };
 const DEPOSITS_CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -3362,7 +3400,13 @@ const ORDERS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const DATE_FIELD_CACHE = {};
 
+// ✅ FIX #4 : detectDateField utilise maintenant KNOWN_DATE_FIELD en priorité
 async function detectDateField(collectionName) {
+  // Priorité absolue au mapping connu
+  if (KNOWN_DATE_FIELD[collectionName]) {
+    DATE_FIELD_CACHE[collectionName] = KNOWN_DATE_FIELD[collectionName];
+    return KNOWN_DATE_FIELD[collectionName];
+  }
   if (DATE_FIELD_CACHE[collectionName] !== undefined) return DATE_FIELD_CACHE[collectionName];
   const candidates = ['createdAt', 'date', 'created_at', 'timestamp', 'dateCreated', 'paidAt'];
   try {
@@ -3457,7 +3501,9 @@ async function countOrdersInWindow(collectionName, start, end) {
   } catch (_) { return 0; }
 }
 
-// ✅ VERSION ROBUSTE : double requête (Timestamp + ISO string), fallback en mémoire
+// ✅ FIX #5 : getFinancialsForCollection avec fallback intelligent
+// - Ajout de refundAmount (pour EXO)
+// - Fallback mémoire si profit=0 & cost=0 & sales>0 (indique champs manquants EXO)
 async function getFinancialsForCollection(colName, start, end) {
   const dateField = await detectDateField(colName);
   const ref = db.collection(colName);
@@ -3501,6 +3547,7 @@ async function getFinancialsForCollection(colName, start, end) {
       g: admin.firestore.AggregateField.sum('supplierCostXAF'),
       h: admin.firestore.AggregateField.sum('estimatedProfitXAF'),
       i: admin.firestore.AggregateField.sum('refundedAmount'),
+      j: admin.firestore.AggregateField.sum('refundAmount'), // ✅ EXO
     };
 
     let allOk = true;
@@ -3515,7 +3562,7 @@ async function getFinancialsForCollection(colName, start, end) {
         result.sales += sales;
         result.supplierCost += Math.max(Number(dd.f || 0), Number(dd.g || 0));
         result.grossProfit += Number(dd.h || 0);
-        result.refunds += Number(dd.i || 0);
+        result.refunds += Math.max(Number(dd.i || 0), Number(dd.j || 0));
       } catch (e) {
         allOk = false;
         break;
@@ -3526,8 +3573,13 @@ async function getFinancialsForCollection(colName, start, end) {
     console.warn(`[Fin] Aggregate indisponible pour ${colName}, fallback mémoire :`, e.message);
   }
 
-  // Fallback : lecture en mémoire
-  if (!aggSucceeded) {
+  // ✅ Fallback mémoire si :
+  // - agrégation échouée
+  // - OU sales>0 mais profit ET cost sont 0 (champs manquants, cas EXO)
+  const needsFallback = !aggSucceeded ||
+    (result.sales > 0 && result.grossProfit === 0 && result.supplierCost === 0);
+
+  if (needsFallback) {
     let memSales = 0, memCost = 0, memProfit = 0, memRefunds = 0;
     for (const q of queries) {
       try {
@@ -3535,7 +3587,7 @@ async function getFinancialsForCollection(colName, start, end) {
         docs.forEach(doc => {
           const data = doc.data() || {};
           const amount = getOrderAmountXAF(data, colName);
-          const fin = getOrderFinancials(data, null, colName);
+          const fin = getOrderFinancials(data, null, colName); // ✅ utilise KNOWN_PROVIDER
           memSales += amount || 0;
           memCost += fin.providerCostXAF || 0;
           memProfit += fin.grossProfitXAF || 0;
@@ -3549,6 +3601,7 @@ async function getFinancialsForCollection(colName, start, end) {
     result.supplierCost = memCost;
     result.grossProfit = memProfit;
     result.refunds = memRefunds;
+    console.log(`[Fin] Fallback mémoire utilisé pour ${colName}: sales=${memSales}, cost=${memCost}, profit=${memProfit}`);
   }
 
   return result;
@@ -3627,8 +3680,9 @@ async function getDepositsStatsAllCollections(start, end) {
           successDocs.forEach(doc => {
             const d = doc.data() || {};
             const pick = keys => { for (const k of keys) if (d[k] !== undefined && d[k] !== null && d[k] !== '') return d[k]; return null; };
+            // ✅ FIX #6 : Priorité à amountXAF (Swychr stocke la valeur FCFA ici)
             const amount = Number(
-              pick(['creditedAmountXAF','amountCredited','amount','amountXAF','total','montant','requestedAmount']) || 0
+              pick(['creditedAmountXAF','amountXAF','amountCredited','amount','total','montant','requestedAmount']) || 0
             );
             totalCreditedXAF += amount;
             const uid = d.userId || d.uid || d.user_id || null;
@@ -3682,15 +3736,39 @@ async function getTopUsersToday(forceRefresh = false) {
   const todayStart = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) - 60 * 60 * 1000);
   const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
+  const result = await computeTopUsersInRange(todayStart, tomorrowStart);
+
+  topUsersTodayCache.data = result;
+  topUsersTodayCache.expires = now + TOP_USERS_TODAY_CACHE_TTL_MS;
+  return result;
+}
+
+// ✅ FIX #7 : getTopUsersInRange pour période personnalisée
+async function getTopUsersInRange(dateStart, dateEnd, forceRefresh = false) {
+  const now = Date.now();
+  const cacheKey = `${dateStart?.getTime() || 'x'}_${dateEnd?.getTime() || 'x'}`;
+  const cached = topUsersCustomRangeCache.get(cacheKey);
+  if (!forceRefresh && cached && now < cached.expires) {
+    return cached.data;
+  }
+  const result = await computeTopUsersInRange(dateStart, dateEnd);
+  topUsersCustomRangeCache.set(cacheKey, { data: result, expires: now + TOP_USERS_CUSTOM_CACHE_TTL_MS });
+  return result;
+}
+
+// ✅ Fonction commune pour top-users (today + custom range)
+// Utilise getOrderFinancials qui maintenant résout EXO correctement
+async function computeTopUsersInRange(start, end) {
   const userAgg = new Map();
 
   for (const colName of ADMIN_ORDER_COLLECTIONS) {
     try {
       const dateField = await detectDateField(colName);
-      let q = db.collection(colName)
-        .where(dateField, '>=', admin.firestore.Timestamp.fromDate(todayStart))
-        .where(dateField, '<', admin.firestore.Timestamp.fromDate(tomorrowStart))
-        .limit(500);
+      let q = db.collection(colName);
+      if (start) q = q.where(dateField, '>=', admin.firestore.Timestamp.fromDate(start));
+      if (end) q = q.where(dateField, '<', admin.firestore.Timestamp.fromDate(end));
+      q = q.limit(1000);
+
       const snap = await q.get().catch(() => null);
       if (!snap) continue;
 
@@ -3699,6 +3777,7 @@ async function getTopUsersToday(forceRefresh = false) {
         const uid = d.userId || d.uid || d.user_id || d.customerId || null;
         if (!uid) return;
 
+        // ✅ FIX #8 : Provider EXO résolu automatiquement via KNOWN_PROVIDER_BY_COLLECTION
         const f = getOrderFinancials(d, null, colName);
         const cur = userAgg.get(uid) || { count: 0, totalPaid: 0, totalProfit: 0, orders: [] };
         cur.count++;
@@ -3715,7 +3794,7 @@ async function getTopUsersToday(forceRefresh = false) {
         userAgg.set(uid, cur);
       });
     } catch (e) {
-      console.warn(`TopUsersToday ${colName}:`, e.message);
+      console.warn(`TopUsers computeTopUsersInRange ${colName}:`, e.message);
     }
   }
 
@@ -3735,7 +3814,7 @@ async function getTopUsersToday(forceRefresh = false) {
     }
   });
 
-  const result = [...userAgg.entries()].map(([uid, stats]) => {
+  return [...userAgg.entries()].map(([uid, stats]) => {
     const u = usersMap.get(uid) || {};
     return {
       id: uid,
@@ -3750,10 +3829,6 @@ async function getTopUsersToday(forceRefresh = false) {
       orders: stats.orders.slice(0, 10),
     };
   }).sort((a, b) => b.totalProfit - a.totalProfit);
-
-  topUsersTodayCache.data = result;
-  topUsersTodayCache.expires = now + TOP_USERS_TODAY_CACHE_TTL_MS;
-  return result;
 }
 
 async function readOrderCounters() {
@@ -3788,9 +3863,23 @@ function getOrderAmountXAF(d = {}, collectionName = '') {
   }
   return explicitZero ? 0 : null;
 }
+
+// ✅ FIX #9 : getOrderFinancials résout automatiquement le provider via KNOWN_PROVIDER_BY_COLLECTION
+// quand rawProvider est null (cas EXO)
 function getOrderFinancials(d = {}, rawProvider = null, collectionName = '') {
   const amount = getOrderAmountXAF(d, collectionName);
-  const provider = normalizeProvider(rawProvider || d.provider || d.fournisseur || d.providerName || d.supplier || d.api);
+  
+  // Résolution du provider : rawProvider > champ doc > KNOWN_PROVIDER_BY_COLLECTION > 'inconnu'
+  let resolvedProvider = null;
+  if (rawProvider) {
+    resolvedProvider = rawProvider;
+  } else if (d.provider || d.fournisseur || d.providerName || d.supplier || d.api) {
+    resolvedProvider = d.provider || d.fournisseur || d.providerName || d.supplier || d.api;
+  } else if (collectionName && KNOWN_PROVIDER_BY_COLLECTION[collectionName]) {
+    resolvedProvider = KNOWN_PROVIDER_BY_COLLECTION[collectionName];
+  }
+  
+  const provider = normalizeProvider(resolvedProvider);
   const storedMultiplier = Number(d.providerMultiplier || d.multiplier || 0);
   const multiplierByProvider = { MTP: MTP_MULTIPLIER, EXO: EXO_MULTIPLIER, AfriqueBoost: AFB_MULTIPLIER, SMMWiz: SMMWIZ_MULTIPLIER, SMMGen: SMMGEN_MULTIPLIER };
   const multiplier = storedMultiplier > 1 ? storedMultiplier : multiplierByProvider[provider];
@@ -3820,6 +3909,40 @@ async function countPendingAdminOrders() {
   const snapshots = await Promise.all(ADMIN_ORDER_COLLECTIONS.map(name => db.collection(name).where('status','in',variants).count().get().catch(() => ({ data: () => ({ count: 0 }) }))));
   return snapshots.reduce((sum, snap) => sum + Number(snap.data()?.count || 0), 0);
 }
+
+// ═══════════════════════════════════════════════════════════════
+// ✅ FIX #10 : Route /diagnostic pour debug (nouvelle route,
+// n'affecte aucune route existante)
+// ═══════════════════════════════════════════════════════════════
+adminRouter.get('/diagnostic', async (req, res) => {
+  try {
+    const collections = [...ADMIN_ORDER_COLLECTIONS, ...PAYMENT_COLLECTIONS];
+    const results = {};
+    for (const name of collections) {
+      try {
+        const c = await db.collection(name).count().get();
+        const dateField = await detectDateField(name);
+        const sample = await db.collection(name).limit(1).get();
+        let sampleFields = null;
+        if (!sample.empty) {
+          const data = sample.docs[0].data();
+          sampleFields = Object.keys(data).slice(0, 20);
+        }
+        results[name] = {
+          count: c.data().count,
+          dateField,
+          provider: KNOWN_PROVIDER_BY_COLLECTION[name] || (sampleFields && sampleFields.includes('provider') ? 'dynamic (champ provider)' : 'auto'),
+          sampleFields,
+        };
+      } catch (e) {
+        results[name] = { error: e.message };
+      }
+    }
+    res.json({ success: true, collections: results, timestamp: new Date().toISOString() });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 adminRouter.get('/overview', async (req, res) => {
   try {
@@ -3971,10 +4094,28 @@ async function countDepositsInRange(start, end) {
   } catch (_) { return 0; }
 }
 
+// ✅ FIX #11 : /top-users supporte maintenant dateStart/dateEnd (période personnalisée)
 adminRouter.get('/top-users', async (req, res) => {
   try {
     const forceRefresh = String(req.query.refresh || '') === '1';
     const period = String(req.query.period || 'all').toLowerCase();
+
+    // ✅ NOUVEAU : Période personnalisée (dateStart/dateEnd fournis)
+    if (req.query.dateStart || req.query.dateEnd) {
+      const dateStartRaw = req.query.dateStart ? new Date(req.query.dateStart) : null;
+      const dateEndRaw = req.query.dateEnd ? new Date(req.query.dateEnd) : null;
+      const dateStart = dateStartRaw && !isNaN(dateStartRaw.getTime()) ? dateStartRaw : null;
+      const dateEnd = dateEndRaw && !isNaN(dateEndRaw.getTime()) ? dateEndRaw : null;
+      const users = await getTopUsersInRange(dateStart, dateEnd, forceRefresh);
+      return res.json({
+        success: true,
+        period: 'custom',
+        users,
+        dateStart: dateStart ? dateStart.toISOString() : null,
+        dateEnd: dateEnd ? dateEnd.toISOString() : null,
+        cached: false,
+      });
+    }
 
     if (period === 'today') {
       const users = await getTopUsersToday(forceRefresh);
@@ -4082,9 +4223,9 @@ adminRouter.get('/orders-summary', async (req, res) => {
     const buckets = {
       pending: ['En attente', 'en attente', 'pending', 'Pending'],
       inProgress: ['En cours', 'en cours', 'In progress', 'in progress', 'Processing', 'processing'],
-      completed: ['Terminé', 'Terminée', 'Terminee', 'completed', 'Completed', 'Done', 'done', 'Delivered', 'delivered'],
+      completed: ['Terminé', 'Terminée', 'Terminee', 'completed', 'Completed', 'Done', 'done', 'Delivered', 'delivered', 'Succès', 'succès'],
       cancelled: ['Annulé', 'Annulée', 'Annule', 'Canceled', 'Cancelled', 'canceled', 'cancelled'],
-      failed: ['Échouée', 'Echouée', 'failed', 'Failed', 'error', 'Erreur', 'failed'],
+      failed: ['Échouée', 'Echouée', 'failed', 'Failed', 'error', 'Erreur'],
     };
     const [counterTotals, ...collectionStatuses] = await Promise.all([
       readOrderCounters(),
@@ -4143,8 +4284,10 @@ adminRouter.get('/orders', async (req, res) => {
 
     const statusAliases = {
       'en attente': ['en attente','pending'], 'en cours': ['en cours','in progress','processing'],
-      'terminé': ['terminé','terminée','terminee','completed','done','delivered'],
-      'annulé': ['annulé','annulée','annule','canceled','cancelled'], 'partiel': ['partiel','partial'],
+      'terminé': ['terminé','terminée','terminee','completed','done','delivered','succès','succes'],
+      'terminée': ['terminé','terminée','terminee','completed','done','delivered','succès','succes'],
+      'annulé': ['annulé','annulée','annule','canceled','cancelled'], 'annulée': ['annulé','annulée','annule','canceled','cancelled'],
+      'partiel': ['partiel','partial'],
       'échouée': ['échouée','echouee','failed','error','erreur'],
     };
     const providerAliases = { mtp:['mtp','morethanpanel'], exo:['exo'], afriqueboost:['afriqueboost','afb'], smmwiz:['smmwiz'], smmgen:['smmgen'] };
@@ -4168,7 +4311,6 @@ adminRouter.get('/orders', async (req, res) => {
             if (!seen.has(d.id)) { seen.add(d.id); docs.push(d); }
           });
         } else {
-          // Tenter orderBy date, sinon fallback limit simple
           let snap;
           try {
             snap = await ref.orderBy(dateField, 'desc').limit(500).get();
@@ -4181,7 +4323,7 @@ adminRouter.get('/orders', async (req, res) => {
 
         for (const doc of docs) {
           const data = doc.data() || {};
-          const dateVal = data[dateField] || data.createdAt || data.created_at || data.timestamp || data.date || null;
+          const dateVal = data[dateField] || data.createdAt || data.date || data.created_at || data.timestamp || data.dateCreated || null;
           const ts = getTimestampMs(dateVal);
 
           if (dateStart && ts < dateStart.getTime()) continue;
@@ -4326,6 +4468,7 @@ adminRouter.get('/stores', async (req, res) => {
 });
 
 // ✅ DEPOSITS: support dateStart/dateEnd + tri mémoire
+// ✅ FIX #12 : transactions → providerFallback 'Swychr' + creditKeys priorise amountXAF
 adminRouter.get('/deposits', async (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 10), 100);
@@ -4344,11 +4487,12 @@ adminRouter.get('/deposits', async (req, res) => {
 
     const sources = [
       { name: 'paymentTransactions', providerFallback: 'NelsiusPay', amountKeys: ['requestedAmount','amount'], currencyKeys: ['requestedCurrency','currency'], creditKeys: ['creditedAmountXAF','amountXAF'] },
-      { name: 'fapshiTransactions', providerFallback: 'Fapshi', amountKeys: ['amount','requestedAmount'], currencyKeys: ['currency','requestedCurrency'], creditKeys: ['creditedAmountXAF','creditedAmount','amountCreditedXAF'] },
-      { name: 'payments', providerFallback: 'Swychr', amountKeys: ['amount','amountXAF','total','montant'], currencyKeys: ['currency','devise'], creditKeys: ['creditedAmountXAF','amountCredited','amount'] },
-      { name: 'rechargements', providerFallback: 'Rechargement', amountKeys: ['amount','amountXAF','total','montant','requestedAmount'], currencyKeys: ['currency','devise'], creditKeys: ['creditedAmountXAF','amountCredited','amount'] },
-      { name: 'recharges', providerFallback: 'Recharge', amountKeys: ['amount','amountXAF','total','montant','requestedAmount'], currencyKeys: ['currency','devise'], creditKeys: ['creditedAmountXAF','amountCredited','amount'] },
-      { name: 'transactions', providerFallback: 'Transaction', amountKeys: ['amount','amountXAF','total','montant','requestedAmount'], currencyKeys: ['currency','devise'], creditKeys: ['creditedAmountXAF','amountCredited','amount'] },
+      { name: 'fapshiTransactions', providerFallback: 'Fapshi', amountKeys: ['amount','requestedAmount'], currencyKeys: ['currency','requestedCurrency'], creditKeys: ['creditedAmountXAF','creditedAmount','amountCreditedXAF','amount'] },
+      { name: 'payments', providerFallback: 'Swychr', amountKeys: ['amount','amountXAF','total','montant'], currencyKeys: ['currency','devise'], creditKeys: ['creditedAmountXAF','amountXAF','amountCredited','amount'] },
+      { name: 'rechargements', providerFallback: 'Rechargement', amountKeys: ['amount','amountXAF','total','montant','requestedAmount'], currencyKeys: ['currency','devise'], creditKeys: ['creditedAmountXAF','amountXAF','amountCredited','amount'] },
+      { name: 'recharges', providerFallback: 'Recharge', amountKeys: ['amount','amountXAF','total','montant','requestedAmount'], currencyKeys: ['currency','devise'], creditKeys: ['creditedAmountXAF','amountXAF','amountCredited','amount'] },
+      // ✅ FIX : Swychr → amountXAF prioritaire (montant crédité FCFA)
+      { name: 'transactions', providerFallback: 'Swychr', amountKeys: ['amount','amountXAF','total','montant','requestedAmount'], currencyKeys: ['currency','devise'], creditKeys: ['amountXAF','creditedAmountXAF','amountCredited','amount'] },
     ];
 
     const statusVariants = {
@@ -4374,7 +4518,7 @@ adminRouter.get('/deposits', async (req, res) => {
           const rawStatus = String(d.status || d.paymentStatus || d.state || 'UNKNOWN');
           const amount = Number(pick(source.amountKeys) || 0);
           const creditedRaw = pick(source.creditKeys);
-          const createdAtRaw = d[dateField] || d.createdAt || d.dateInitiated || d.created_at || d.dateCreated || d.timestamp || d.date || null;
+          const createdAtRaw = d[dateField] || d.createdAt || d.dateInitiated || d.created_at || d.dateCreated || d.timestamp || d.date || d.paidAt || null;
           const createdAtMs = getTimestampMs(createdAtRaw);
 
           if (dateStart && createdAtMs < dateStart.getTime()) return null;
@@ -4383,9 +4527,9 @@ adminRouter.get('/deposits', async (req, res) => {
           return {
             id: doc.id,
             source: source.name,
-            reference: d.reference || d.transId || d.fapshiTransId || d.transactionId || doc.id,
+            reference: d.reference || d.transId || d.fapshiTransId || d.transactionId || d.transaction_id || doc.id,
             userId: d.userId || d.uid || d.user_id || null,
-            userName: d.userName || d.displayName || d.name || d.customer_name || null,
+            userName: d.userName || d.displayName || d.name || d.customer_name || d.username || null,
             userEmail: d.email || d.userEmail || d.customer_email || null,
             provider: d.provider || d.paymentProvider || source.providerFallback,
             status: rawStatus,
@@ -4393,7 +4537,7 @@ adminRouter.get('/deposits', async (req, res) => {
             requestedCurrency: pick(source.currencyKeys) || 'XAF',
             creditedAmountXAF: creditedRaw === null ? null : Number(creditedRaw),
             createdAt: createdAtRaw,
-            completedAt: d.completedAt || d.dateConfirmed || d.creditedAt || d.updatedAt || null,
+            completedAt: d.completedAt || d.dateConfirmed || d.creditedAt || d.updatedAt || d.paidAt || null,
             failureReason: d.failureReason || d.error || d.message || null,
             _createdMs: createdAtMs,
           };
@@ -4551,6 +4695,7 @@ adminRouter.post('/customers/rebuild-order-metrics', async (req, res) => {
           if (!uid) { unattributedOrders++; continue; }
           const current = metricMap.get(uid) || { count: 0, spent: 0, profit: 0 };
           current.count++;
+          // ✅ FIX #13 : Passe le provider correct via KNOWN_PROVIDER_BY_COLLECTION
           const f = getOrderFinancials(d, null, collectionName);
           if (f.amount === null) unattributedAmounts++; else current.spent += f.amount;
           if (f.grossProfitXAF) current.profit += f.grossProfitXAF;
@@ -5157,6 +5302,7 @@ adminRouter.post('/cache/clear', (req, res) => {
   allUsersCache.expires = 0;
   topUsersTodayCache.data = null;
   topUsersTodayCache.expires = 0;
+  topUsersCustomRangeCache.clear(); // ✅ FIX : vide aussi le cache custom
   depositsCache.data = null;
   depositsCache.expires = 0;
   ordersCache.data = null;
