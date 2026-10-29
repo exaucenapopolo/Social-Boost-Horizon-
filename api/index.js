@@ -61,7 +61,7 @@ const db = admin.firestore();
 const SBH_WA_DISPLAY = '+1 (423) 675-2034';
 const SBH_WA_LINK    = 'https://wa.me/14236752034';
 const SBH_SITE_URL   = 'https://socialboosthorizon.com/';
-const SBH_DASHBOARD  = 'https://socialboosthorizon.com/tableau-de-bord.html';
+const SBH_DASHBOARD  = 'https://socialboosthorizon.com/dashboard';
 
 // ═══════════════════════════════════════════════════════════════
 // ✅ FIX #1 : Champs de date connus par collection (codés en dur
