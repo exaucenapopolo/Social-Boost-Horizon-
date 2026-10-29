@@ -263,6 +263,12 @@ textarea.msg-area:focus{border-color:var(--gold)}
 .rec-card .rec-title{font-size:.9rem;font-weight:600;color:var(--text);margin-bottom:5px;}
 .rec-card .rec-desc{font-size:.82rem;color:var(--text-muted);line-height:1.55;margin-bottom:10px;}
 .rec-card .rec-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.live-badge{display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:3px;font-size:.6rem;font-weight:700;margin-left:6px;letter-spacing:.3px;}
+.live-badge.cached{background:var(--blue-dim);color:var(--accent);}
+.live-badge.live{background:var(--green-dim);color:var(--green);}
+.customer-stats-bar{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--warning-dim);border:1px solid rgba(251,191,36,.25);border-radius:6px;margin-bottom:14px;font-size:.83rem;line-height:1.55;flex-wrap:wrap;}
+.customer-stats-bar>i{color:var(--warning);flex-shrink:0;font-size:1rem;}
+.customer-stats-bar .msg{flex:1;min-width:180px;color:var(--text-muted);}
 @media(max-width:1024px){
   .sidebar{transform:translateX(-100%)}
   .sidebar.open{transform:translateX(0)}
@@ -639,7 +645,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
               <button onclick="resetCustomerDownloadTracking();closeCustomerExport()"><i class="fas fa-rotate-left"></i> Réinitialiser</button>
             </div>
           </div>
-          <button class="btn btn-outline" onclick="loadCustomers(true)"><i class="fas fa-sync-alt"></i> Actualiser</button>
+          <button class="btn btn-outline" onclick="loadCustomers(true,true)"><i class="fas fa-sync-alt"></i> Actualiser</button>
         </div>
       </div>
       <section class="section" style="padding-top:0;">
@@ -654,6 +660,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
           <button class="btn btn-gold btn-sm" onclick="loadCustomers(true)"><i class="fas fa-search"></i> Rechercher</button>
         </div>
         <p id="customerMetricsStatus" style="display:none;color:var(--gold);font-size:.8rem;margin:0 0 14px;line-height:1.55;"></p>
+        <div id="customerStatsLoadBanner" class="customer-stats-bar" style="display:none;"></div>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Inscription</th><th>Utilisateur</th><th>Pays</th><th>Commandes</th><th>Total dépensé</th><th>Marge</th><th>Solde</th><th>Dernière activité</th><th></th></tr></thead>
@@ -982,6 +989,9 @@ const FORCE_REFRESH_THROTTLE_MS = 30*1000;
 const BADGES_TTL_MS = 10*60*1000;
 const FIN_CACHE_KEY = 'sbh_fin_cache_v3';
 const FIN_CACHE_TTL = 5*60*1000;
+const CUST_STATS_CACHE_KEY = 'sbh_cust_stats_v1';
+const CUST_STATS_TTL = 15*60*1000;
+const AUTO_ENRICH_LIMIT = 5;
 const HEAVY_RANGES = ['90d','year','all'];
 const PERIOD_CONFIG = {
   today:{range:'today',label:"Aujourd'hui",compareLabel:"hier à la même heure"},
@@ -994,10 +1004,30 @@ const PERIOD_CONFIG = {
 };
 const OBJECTIVES_KEY = 'sbh_admin_objectives_v1';
 
+let custStatsCache = null;
+let custStatsInflight = new Map();
+let autoEnrichAttempted = false;
+
 function getFinancialsCacheKey(range,provider){return `${range}|${provider}`;}
 function getFinancialsCache(range,provider){try{const cache=JSON.parse(sessionStorage.getItem(FIN_CACHE_KEY)||'{}');const entry=cache[getFinancialsCacheKey(range,provider)];if(entry&&Date.now()<entry.expires)return entry;}catch(_){}return null;}
 function setFinancialsCache(range,provider,data,previous,ttlMs){try{const cache=JSON.parse(sessionStorage.getItem(FIN_CACHE_KEY)||'{}');cache[getFinancialsCacheKey(range,provider)]={data,previous,expires:Date.now()+ttlMs};sessionStorage.setItem(FIN_CACHE_KEY,JSON.stringify(cache));}catch(_){}}
 function clearFinancialsCache(){try{sessionStorage.removeItem(FIN_CACHE_KEY);}catch(_){}}
+
+function loadCustStatsCache(){
+  if(custStatsCache) return custStatsCache;
+  try{
+    const raw = sessionStorage.getItem(CUST_STATS_CACHE_KEY)||'{}';
+    const parsed = JSON.parse(raw);
+    const now = Date.now();
+    for(const k of Object.keys(parsed)){ if(!parsed[k]||!parsed[k].expires||parsed[k].expires<now) delete parsed[k]; }
+    custStatsCache = parsed;
+  }catch(_){ custStatsCache = {}; }
+  return custStatsCache;
+}
+function saveCustStatsCache(){try{sessionStorage.setItem(CUST_STATS_CACHE_KEY,JSON.stringify(custStatsCache||{}));}catch(_){}}
+function getCachedCustomerStats(userId){if(!userId)return null;const cache=loadCustStatsCache();const e=cache[userId];if(e&&e.expires>Date.now())return e;return null;}
+function setCachedCustomerStats(userId, stats){if(!userId)return;const cache=loadCustStatsCache();cache[userId]={...stats,expires:Date.now()+CUST_STATS_TTL};saveCustStatsCache();}
+function clearCustStatsCache(){try{sessionStorage.removeItem(CUST_STATS_CACHE_KEY);}catch(_){}custStatsCache=null;}
 
 function timestampToMs(ts){
   if(!ts)return 0;
@@ -1053,7 +1083,7 @@ async function unlock(){
   }catch(e){err.textContent=e.message||'Connexion impossible.';err.style.display='block';}
   finally{btn.disabled=false;btn.textContent='Déverrouiller';input.value='';}
 }
-function logout(){if(autoRefreshInterval){clearInterval(autoRefreshInterval);autoRefreshInterval=null;}sessionStorage.removeItem('sbh_admin_token');clearFinancialsCache();token=null;location.reload();}
+function logout(){if(autoRefreshInterval){clearInterval(autoRefreshInterval);autoRefreshInterval=null;}sessionStorage.removeItem('sbh_admin_token');clearFinancialsCache();clearCustStatsCache();token=null;location.reload();}
 
 function updateGiftBadges(pendingCount,lateCount){
   const b=document.getElementById('navGiftCount'),l=document.getElementById('navGiftLateCount');
@@ -1103,7 +1133,7 @@ async function forceRefresh(){
     else if(activeView==='finances'){await loadFinancialsForce();}
     else if(activeView==='orders'){ordersLoadedAt=0;await refreshOrdersView();await loadOrderSummary(true);}
     else if(activeView==='deposits'){depositsLoadedAt=0;await loadDeposits(true);}
-    else if(activeView==='customers'){customersLoadedAt=0;await loadCustomers(true);}
+    else if(activeView==='customers'){customersLoadedAt=0;autoEnrichAttempted=false;await loadCustomers(true,true);}
     else if(activeView==='stores'){storesLoadedAt=0;await loadStores(true);}
     else if(activeView==='gifts'){giftsLoaded=false;await loadGifts();}
     else if(activeView==='services'){servicesLoaded=false;await loadServices(true);}
@@ -1571,23 +1601,88 @@ function toggleCustomerExport(e){if(e)e.stopPropagation();document.getElementByI
 function closeCustomerExport(){document.getElementById('customerExportMenu').classList.remove('open');}
 document.addEventListener('click',e=>{const menu=document.getElementById('customerExportMenu');const wrapper=e.target.closest('.export-menu-wrapper');if(menu&&menu.classList.contains('open')&&!wrapper)closeCustomerExport();});
 let metricsRebuildRunningGuard=false;
+
+async function enrichCustomerStats(userId){
+  if(!userId)return null;
+  if(custStatsInflight.has(userId))return custStatsInflight.get(userId);
+  const cached=getCachedCustomerStats(userId);
+  if(cached)return cached;
+  const promise=(async()=>{
+    try{
+      const d=await fetchAdmin('/customers/'+encodeURIComponent(userId));
+      if(!d.success)return null;
+      const c=d.customer||{};
+      const orders=Array.isArray(d.orders)?d.orders:[];
+      const totalOrders=Number(d.exactOrderCount ?? c.totalOrders ?? orders.length ?? 0);
+      let totalSpent=Number(d.derivedSpendPriceXAF ?? c.totalSpent ?? 0);
+      if(!totalSpent)totalSpent=orders.reduce((s,o)=>s+Number(o.amount||0),0);
+      let totalProfit=Number(c.totalProfit ?? 0);
+      if(!totalProfit)totalProfit=orders.reduce((s,o)=>s+Number(o.grossProfitXAF||0),0);
+      const stats={totalOrders,totalSpent,totalProfit,balance:Number(c.balance??0)};
+      setCachedCustomerStats(userId,stats);
+      return stats;
+    }catch(e){console.warn('Enrich stats échoué',userId,e.message);return null;}
+    finally{custStatsInflight.delete(userId);}
+  })();
+  custStatsInflight.set(userId,promise);
+  return promise;
+}
+async function enrichMultipleCustomers(ids,onProgress){
+  let done=0;
+  for(const id of ids){
+    await enrichCustomerStats(id);
+    done++;
+    if(onProgress)onProgress(done,ids.length);
+  }
+}
+function getCustomerDisplayStats(u){
+  if(!u)return null;
+  if(u.metricsReady)return {totalOrders:Number(u.totalOrders||0),totalSpent:Number(u.totalSpent||0),totalProfit:Number(u.totalProfit||0),balance:Number(u.balance||0),source:'cached'};
+  const cached=getCachedCustomerStats(u.id);
+  if(cached)return {totalOrders:Number(cached.totalOrders||0),totalSpent:Number(cached.totalSpent||0),totalProfit:Number(cached.totalProfit||0),balance:Number(cached.balance??u.balance??0),source:'live'};
+  return null;
+}
+async function autoEnrichFirstCustomers(){
+  if(autoEnrichAttempted)return;
+  autoEnrichAttempted=true;
+  const missing=allCustomers.filter(u=>!getCustomerDisplayStats(u)).slice(0,AUTO_ENRICH_LIMIT);
+  if(!missing.length)return;
+  await enrichMultipleCustomers(missing.map(u=>u.id));
+  renderCustomers();
+}
+async function loadAllVisibleCustomerStats(){
+  const missing=allCustomers.filter(u=>!getCustomerDisplayStats(u));
+  if(!missing.length){showToast('Toutes les stats sont déjà chargées.');return;}
+  const estimated=missing.length*12;
+  if(!confirm(`Charger les statistiques de ${missing.length} client(s) ?\n\nEstimation : ~${estimated} lectures Firestore (1 par client + ses commandes).\n\nLes résultats seront cachés 15 minutes.`))return;
+  const btn=document.getElementById('loadMissingStatsBtn');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-circle-notch fa-spin"></i> 0/'+missing.length;}
+  try{
+    await enrichMultipleCustomers(missing.map(u=>u.id),(done,total)=>{if(btn)btn.innerHTML=`<i class="fas fa-circle-notch fa-spin"></i> ${done}/${total}`;});
+    renderCustomers();
+    showToast(`${missing.length} client(s) enrichi(s).`);
+  }catch(e){showError('Chargement stats : '+e.message);}
+  finally{if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-download"></i> Charger les stats manquantes';}}
+}
+
 async function rebuildCustomerMetrics(){
   if(metricsRebuildRunningGuard||metricsRebuildRunning)return;
-  if(!confirm('Recalculer les commandes et dépenses historiques ?'))return;
+  if(!confirm('Recalculer les commandes et dépenses historiques ?\n\n⚠️ Cette action lit toutes les commandes historiques (peut être plusieurs milliers de lectures).'))return;
   metricsRebuildRunning=true;metricsRebuildRunningGuard=true;
   const btn=[...document.querySelectorAll('button')].find(b=>b.textContent.includes('Recalculer'));
   if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-circle-notch fa-spin"></i> Recalcul…';}
   try{
     const d=await fetchAdmin('/customers/rebuild-order-metrics',{method:'POST',body:JSON.stringify({confirm:true})});
     showToast(`Recalculé : ${Number(d.ordersRead||0).toLocaleString('fr-FR')} commandes`);
-    allCustomers=[];customerCursor=null;customersLoadedAt=0;
-    await loadCustomers(true);
+    clearCustStatsCache();
+    allCustomers=[];customerCursor=null;customersLoadedAt=0;autoEnrichAttempted=false;
+    await loadCustomers(true,true);
     overviewLoaded=false;topUsersLoaded=false;
     await loadOverview(true);
   }catch(e){showError('Recalcul : '+e.message);}
   finally{metricsRebuildRunning=false;metricsRebuildRunningGuard=false;if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-calculator"></i> Recalculer';}}
 }
-async function loadCustomers(reset=false){
+async function loadCustomers(reset=false,forceServerRefresh=false){
   if(customersLoading)return;
   customersLoading=true;
   const tb=document.getElementById('customersBody');
@@ -1601,7 +1696,7 @@ async function loadCustomers(reset=false){
     const sort=document.getElementById('customerSortFilter')?.value||'recent';
     if(country)params.set('country',country);
     params.set('segment',segment);params.set('sort',sort);
-    if(reset)params.set('refresh','1');
+    if(forceServerRefresh)params.set('refresh','1');
     if(!q&&customerCursor)params.set('cursor',customerCursor);
     const ds=formatDateInput('customerDateStart');if(ds)params.set('dateStart',ds.toISOString());
     const de=formatDateInput('customerDateEnd');if(de)params.set('dateEnd',new Date(de.getTime()+24*60*60*1000).toISOString());
@@ -1617,6 +1712,7 @@ async function loadCustomers(reset=false){
     }
     renderCustomers();
     document.getElementById('customersMoreBtn').style.display=(!q&&customerCursor)?'inline-flex':'none';
+    if(reset)autoEnrichFirstCustomers();
   }catch(e){tb.innerHTML=`<tr><td colspan="9" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Utilisateurs : '+e.message);}
   finally{customersLoading=false;}
 }
@@ -1625,18 +1721,42 @@ function renderCustomers(){
   const tb=document.getElementById('customersBody');tb.innerHTML='';
   const downloaded=getDownloadedCustomerIds();
   if(!allCustomers.length){const note=document.getElementById('customerMetricsStatus');const text=note&&note.style.display!=='none'?'Aucune liste fiable avant recalcul.':'Aucun utilisateur.';tb.innerHTML=`<tr><td colspan="9" class="loading">${esc(text)}</td></tr>`;}
+  let missingCount=0;
   allCustomers.forEach(u=>{
     const last=u.lastActivityAt||u.lastSignIn;
     const phone=String(u.phone||'').replace(/[^0-9]/g,'');
     const wasDownloaded=downloaded.includes(u.id);
     const dlBadge=wasDownloaded?'<span class="dl-badge"><i class="fas fa-check"></i> Exporté</span>':'';
+    const stats=getCustomerDisplayStats(u);
+    let ordersCell,spentCell,profitCell;
+    if(stats){
+      const badge=stats.source==='live'
+        ?'<span class="live-badge live" title="Chargé en direct · cache 15 min"><i class="fas fa-bolt"></i> live</span>'
+        :'<span class="live-badge cached" title="Stats pré-calculées (métriques serveur)"><i class="fas fa-database"></i></span>';
+      ordersCell=`${stats.totalOrders.toLocaleString('fr-FR')}${badge}`;
+      spentCell=`${stats.totalSpent.toLocaleString('fr-FR')} FCFA`;
+      profitCell=`${stats.totalProfit.toLocaleString('fr-FR')} FCFA`;
+    }else{
+      missingCount++;
+      ordersCell='<span style="color:var(--text-dim);">—</span>';
+      spentCell='<span style="color:var(--text-dim);">—</span>';
+      profitCell='<span style="color:var(--text-dim);">—</span>';
+    }
+    const balanceVal=stats?stats.balance:Number(u.balance||0);
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td style="white-space:nowrap;font-size:.78rem;color:var(--text-muted);">${esc(formatDate(u.createdAt))}</td><td><strong>${esc(u.name||'Utilisateur')}</strong>${dlBadge}<br><small style="color:var(--text-dim);">${esc(u.email||u.id)}</small></td><td>${esc(formatCountryLabel(u.country))}</td><td>${u.metricsReady?Number(u.totalOrders||0).toLocaleString('fr-FR'):'—'}</td><td style="color:var(--green);font-weight:600;white-space:nowrap;">${u.metricsReady?Number(u.totalSpent||0).toLocaleString('fr-FR')+' FCFA':'—'}</td><td style="color:var(--gold);font-weight:600;white-space:nowrap;">${u.metricsReady?Number(u.totalProfit||0).toLocaleString('fr-FR')+' FCFA':'—'}</td><td style="white-space:nowrap;">${Number(u.balance||0).toLocaleString('fr-FR')} FCFA</td><td style="font-size:.78rem;white-space:nowrap;">${last?esc(formatDate(last)):'—'}</td><td><div class="action-row"><button class="btn btn-outline btn-sm" title="Fiche" onclick="openCustomerDetail('${escAttr(u.id)}')"><i class="fas fa-eye"></i></button>${u.email?`<button class="btn btn-gold btn-sm" title="Email" onclick="sendCustomerEmail('${escAttr(u.id)}','${escAttr(u.name||'')}','')"><i class="fas fa-envelope"></i></button>`:''}${phone?`<a class="btn btn-wa btn-sm" title="WhatsApp" href="https://wa.me/${escAttr(phone)}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i></a>`:''}</div></td>`;
+    tr.innerHTML=`<td style="white-space:nowrap;font-size:.78rem;color:var(--text-muted);">${esc(formatDate(u.createdAt))}</td><td><strong>${esc(u.name||'Utilisateur')}</strong>${dlBadge}<br><small style="color:var(--text-dim);">${esc(u.email||u.id)}</small></td><td>${esc(formatCountryLabel(u.country))}</td><td>${ordersCell}</td><td style="color:var(--green);font-weight:600;white-space:nowrap;">${spentCell}</td><td style="color:var(--gold);font-weight:600;white-space:nowrap;">${profitCell}</td><td style="white-space:nowrap;">${balanceVal.toLocaleString('fr-FR')} FCFA</td><td style="font-size:.78rem;white-space:nowrap;">${last?esc(formatDate(last)):'—'}</td><td><div class="action-row"><button class="btn btn-outline btn-sm" title="Fiche" onclick="openCustomerDetail('${escAttr(u.id)}')"><i class="fas fa-eye"></i></button>${u.email?`<button class="btn btn-gold btn-sm" title="Email" onclick="sendCustomerEmail('${escAttr(u.id)}','${escAttr(u.name||'')}','')"><i class="fas fa-envelope"></i></button>`:''}${phone?`<a class="btn btn-wa btn-sm" title="WhatsApp" href="https://wa.me/${escAttr(phone)}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i></a>`:''}</div></td>`;
     tb.appendChild(tr);
   });
   const totalDownloaded=downloaded.length;
   const displayedDownloaded=allCustomers.filter(c=>downloaded.includes(c.id)).length;
   document.getElementById('customersStats').innerHTML=`<div class="stat-item">Affichés : <strong>${allCustomers.length}</strong></div><div class="stat-sep"></div><div class="stat-item"><i class="fas fa-check-circle" style="color:var(--green);font-size:.7rem;"></i> Exportés : <strong>${displayedDownloaded}</strong></div><div class="stat-sep"></div><div class="stat-item">Total suivi : <strong>${totalDownloaded}</strong></div>`;
+  const banner=document.getElementById('customerStatsLoadBanner');
+  if(banner){
+    if(missingCount>0&&!customersLoading){
+      banner.style.display='flex';
+      banner.innerHTML=`<i class="fas fa-triangle-exclamation"></i><div class="msg">${missingCount} client(s) sans statistiques visibles. Cliquez pour voir le nombre de commandes, le total dépensé et la marge.</div><button class="btn btn-gold btn-sm" id="loadMissingStatsBtn" onclick="loadAllVisibleCustomerStats()"><i class="fas fa-download"></i> Charger les stats (${missingCount})</button>`;
+    }else{banner.style.display='none';}
+  }
 }
 async function openCustomerDetail(id){
   if(!id)return;
@@ -2029,12 +2149,6 @@ async function sendCustomerEmail(userId,userName,orderRef,messageType){
   currentCustomerEmail={userId,userName:userName||(customerInfo&&customerInfo.name)||'cher client',orderRef:orderRef||'',type,customerInfo};
   renderCustomerEmailModal();
   document.getElementById('customerEmailModal').classList.add('active');
-  /*
-    Fetch conditionnel UNIQUEMENT si nécessaire (0 lecture par défaut) :
-    - Client absent du cache (aucune info) → 1 lecture
-    - Type encouragement ou partnership_invitation ET compte de commandes absent/0/manquant → 1 lecture
-    Pour tous les autres cas, 0 lecture ajoutée.
-  */
   const needsFetch = !customerInfo || 
     ((type==='encouragement'||type==='partnership_invitation') && (customerInfo.metricsReady===false || customerInfo.totalOrders===undefined || customerInfo.totalOrders===null || customerInfo.totalOrders===0));
   if(needsFetch){
@@ -2717,7 +2831,10 @@ function exportCustomersVCF(mode){
 function exportCustomersCSV(){
   if(!allCustomers.length){alert('Aucun client.');return;}
   const head=['Nom','Email','Téléphone','UID','Pays','Commandes','Total dépensé (FCFA)','Marge (FCFA)','Solde (FCFA)','Inscription','Dernière activité'];
-  const rows=allCustomers.map(c=>[c.name||c.username||'',c.email||'',c.phone||'',c.id,formatCountryLabel(c.country),c.metricsReady?(c.totalOrders||0):'',c.metricsReady?(c.totalSpent||0):'',c.metricsReady?(c.totalProfit||0):'',c.balance||0,formatDate(c.createdAt),formatDate(c.lastActivityAt||c.lastSignIn)]);
+  const rows=allCustomers.map(c=>{
+    const st=getCustomerDisplayStats(c)||{totalOrders:'',totalSpent:'',totalProfit:'',balance:c.balance||0};
+    return [c.name||c.username||'',c.email||'',c.phone||'',c.id,formatCountryLabel(c.country),st.totalOrders||'',st.totalSpent||'',st.totalProfit||'',st.balance||0,formatDate(c.createdAt),formatDate(c.lastActivityAt||c.lastSignIn)];
+  });
   const csv=[head,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
   const ts=new Date().toISOString().slice(0,10);
   downloadBlob('\ufeff'+csv,`clients_sbh_${ts}.csv`,'text/csv;charset=utf-8');
@@ -2728,7 +2845,10 @@ function exportCustomersPDF(mode){
   const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape'});
   doc.setFontSize(18);doc.setTextColor(201,169,97);doc.text('Rapport Clients — Social Boost Horizon',14,18);
   doc.setFontSize(9);doc.setTextColor(120);doc.text(`Généré le ${new Date().toLocaleString('fr-FR')} · ${allCustomers.length} client(s)`,14,25);
-  doc.autoTable({head:[['Nom','Email','UID','Pays','Commandes','Total dépensé','Marge','Solde','Inscription']],body:allCustomers.map(c=>[c.name||c.username||'—',c.email||'—',c.id.substring(0,10)+'…',formatCountryLabel(c.country),c.metricsReady?(c.totalOrders||0):'—',c.metricsReady?Number(c.totalSpent||0).toLocaleString('fr-FR')+' FCFA':'—',c.metricsReady?Number(c.totalProfit||0).toLocaleString('fr-FR')+' FCFA':'—',Number(c.balance||0).toLocaleString('fr-FR')+' FCFA',formatDate(c.createdAt)]),startY:30,theme:'striped',headStyles:{fillColor:[201,169,97],textColor:[10,14,23]},styles:{fontSize:8,cellPadding:2.5}});
+  doc.autoTable({head:[['Nom','Email','UID','Pays','Commandes','Total dépensé','Marge','Solde','Inscription']],body:allCustomers.map(c=>{
+    const st=getCustomerDisplayStats(c);
+    return [c.name||c.username||'—',c.email||'—',c.id.substring(0,10)+'…',formatCountryLabel(c.country),st?st.totalOrders:'—',st?Number(st.totalSpent).toLocaleString('fr-FR')+' FCFA':'—',st?Number(st.totalProfit).toLocaleString('fr-FR')+' FCFA':'—',Number(c.balance||0).toLocaleString('fr-FR')+' FCFA',formatDate(c.createdAt)];
+  }),startY:30,theme:'striped',headStyles:{fillColor:[201,169,97],textColor:[10,14,23]},styles:{fontSize:8,cellPadding:2.5}});
   addFooter(doc);doc.save(`clients_sbh_${new Date().toISOString().slice(0,10)}.pdf`);showToast('PDF généré.');
 }
 function exportOrdersPDF(){
