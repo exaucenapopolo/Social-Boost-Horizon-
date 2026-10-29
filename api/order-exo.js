@@ -156,8 +156,8 @@ export default async function handler(req, res) {
         if (orderResult.error) {
             return res.status(400).json({ 
                 success: false, 
-                error: 'Erreur fournisseur: ' + orderResult.error,
-                adminContact: '+237600000000' 
+                error: 'Erreur service momentanément indisponible, veillez contacter le support : ' + orderResult.error,
+                adminContact: '+1 (423) 675-2034' 
             });
         }
 
