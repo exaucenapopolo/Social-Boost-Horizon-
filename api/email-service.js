@@ -13,8 +13,8 @@ const SITE_URL    = 'https://socialboosthorizon.com';
 
 // ─── Identité visuelle ───
 const LOGO_URL             = 'https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg';
-const WHATSAPP_NUMBER      = '+1 (242) 454-2961';
-const WHATSAPP_LINK        = 'https://wa.me/12424542961';
+const WHATSAPP_NUMBER      = '+1 (423) 675-2034';
+const WHATSAPP_LINK        = 'https://wa.me/14236752034';
 const PARTNER_TEXERRA_URL  = 'https://www.texerra.site/';
 const PARTNER_TRIXHUB_URL  = 'https://www.trixhub.store/?ref=EXA0001HJB';
 
@@ -73,7 +73,7 @@ function header() {
   return `<tr><td align="center" style="padding:0 0 26px;">
     <img src="${LOGO_URL}" alt="Social Boost Horizon" width="60" height="60" style="display:block;border-radius:50%;border:2px solid #C9A961;">
     <div style="margin-top:12px;color:#C9A961;font-size:14px;font-weight:700;letter-spacing:2.5px;font-family:Arial,sans-serif;">SOCIAL BOOST HORIZON</div>
-    <div style="margin-top:5px;color:#666e7d;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:Arial,sans-serif;">Plateforme de croissance digitale</div>
+    <div style="margin-top:5px;color:#666e7d;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:Arial,sans-serif;">Votre Visibilité, Notre Horizon</div>
   </td></tr>`;
 }
 
@@ -87,7 +87,7 @@ function partnersBlock() {
           <a href="${PARTNER_TEXERRA_URL}" style="text-decoration:none;display:block;">
             <div style="border:1px solid #1e2430;border-radius:6px;padding:16px 14px;background:#0f131c;min-height:92px;">
               <div style="color:#C9A961;font-size:12px;font-weight:700;letter-spacing:1.2px;font-family:Arial,sans-serif;">TEXERRA SMS</div>
-              <div style="color:#8b93a7;font-size:11px;line-height:1.55;margin-top:6px;font-family:Arial,sans-serif;">Services digitaux, SMS et solutions en ligne.</div>
+              <div style="color:#8b93a7;font-size:11px;line-height:1.55;margin-top:6px;font-family:Arial,sans-serif;">Acheter un numéro étranger pour WhatsApp, tiktok, PayPal...etc.</div>
               <div style="color:#4DA6FF;font-size:11px;margin-top:8px;font-weight:600;font-family:Arial,sans-serif;">texerra.site →</div>
             </div>
           </a>
@@ -96,7 +96,7 @@ function partnersBlock() {
           <a href="${PARTNER_TRIXHUB_URL}" style="text-decoration:none;display:block;">
             <div style="border:1px solid #1e2430;border-radius:6px;padding:16px 14px;background:#0f131c;min-height:92px;">
               <div style="color:#C9A961;font-size:12px;font-weight:700;letter-spacing:1.2px;font-family:Arial,sans-serif;">TRIXHUB</div>
-              <div style="color:#8b93a7;font-size:11px;line-height:1.55;margin-top:6px;font-family:Arial,sans-serif;">Gagnez jusqu'à 5 000 FCFA par jour en ligne.</div>
+              <div style="color:#8b93a7;font-size:11px;line-height:1.55;margin-top:6px;font-family:Arial,sans-serif;">Gagnez jusqu'à 5 000 FCFA par jour avec ton téléphone en effectuant des tâches.</div>
               <div style="color:#4DA6FF;font-size:11px;margin-top:8px;font-weight:600;font-family:Arial,sans-serif;">trixhub.store →</div>
             </div>
           </a>
@@ -231,7 +231,7 @@ async function sendWelcomeEmail({ email, username, country }) {
 
     ${paragraph(`Nous vous invitons à vous connecter à votre espace personnel pour explorer l'ensemble des fonctionnalités disponibles et effectuer votre première opération.`)}
 
-    ${ctaButton('Accéder à mon tableau de bord', `${SITE_URL}/dashboard.html`)}
+    ${ctaButton('Accéder à mon tableau de bord', `${SITE_URL}/dashboard`)}
 
     ${paragraph(`Pour toute question ou assistance, notre équipe support reste à votre disposition 7 jours sur 7. Vous pouvez nous écrire à <a href="mailto:${REPLY_TO}" style="color:#C9A961;text-decoration:none;">${REPLY_TO}</a> ou nous joindre sur WhatsApp au <a href="${WHATSAPP_LINK}" style="color:#C9A961;text-decoration:none;">${WHATSAPP_NUMBER}</a>.`)}
   `;
