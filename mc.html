@@ -849,7 +849,7 @@ let lastTopUsersPeriod = null;
 let financialsLoaded = false;
 let financialsLoadedAt = 0;
 let financialsLoadedRange = null;
-let financialProviderFilter = 'all'; // ✅ NOUVEAU
+let financialProviderFilter = 'all';
 
 let allOrders = [];
 let orderOffset = 0;
@@ -875,7 +875,7 @@ let storesLoadedAt = 0;
 
 let allServices = [];
 let servicesLoaded = false;
-let servicesLoadedAt = 0; // ✅ NOUVEAU
+let servicesLoadedAt = 0;
 let currentMultipliers = null;
 
 let allGifts = [];
@@ -895,7 +895,7 @@ let metricsRebuildRunning = false;
 const CLIENT_TTL = {
   overview:    2 * 60 * 1000,
   topUsers:    5 * 60 * 1000,
-  financials:  10 * 60 * 1000, // ✅ 10 min
+  financials:  10 * 60 * 1000,
   orders:      3 * 60 * 1000,
   orderSummary:3 * 60 * 1000,
   deposits:    3 * 60 * 1000,
@@ -908,7 +908,6 @@ const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const FORCE_REFRESH_THROTTLE_MS = 30 * 1000;
 const BADGES_TTL_MS = 10 * 60 * 1000;
 
-/* ✅ NOUVEAU : Cache sessionStorage pour Finances (0 lectures si re-clic) */
 const FIN_CACHE_KEY = 'sbh_fin_cache_v3';
 const FIN_CACHE_TTL = 5 * 60 * 1000;
 const HEAVY_RANGES = ['90d', 'year', 'all'];
@@ -1106,7 +1105,7 @@ function switchView(view){
 
   if(view==='overview'){if(!overviewLoaded)loadOverview();if(!topUsersLoaded)loadTopUsers();}
   else if(view==='services'){if(!servicesLoaded)loadServices();}
-  else if(view==='finances'){if(!financialsLoaded)loadFinancials();} // ✅ plus de force
+  else if(view==='finances'){if(!financialsLoaded)loadFinancials();}
   else if(view==='gifts'){if(!giftsLoaded){giftsLoaded=true;loadGifts();}}
   else if(view==='deposits'){if(allDeposits.length===0&&!depositsLoading)loadDeposits(true);}
   else if(view==='orders'){if(allOrders.length===0&&!ordersLoading)loadOrders(true);if(!orderSummaryLoaded)loadOrderSummary();}
@@ -1169,7 +1168,6 @@ function startAutoRefresh(){
         if(Date.now()-orderSummaryLoadedAt<CLIENT_TTL.orderSummary)return;
         await loadOrderSummary();
       }
-      // ✅ Finances : PAS d'auto-refresh (trop coûteux)
     }catch(e){console.warn('Auto-refresh:',e.message);}
   },AUTO_REFRESH_INTERVAL_MS);
 }
@@ -1363,7 +1361,6 @@ function compareLabel(v){if(v===null||v===undefined)return 'Comparaison indispon
 function comparisonCell(v){if(v===null||v===undefined)return '—';const n=Number(v);return `${n>0?'+':''}${n.toLocaleString('fr-FR')}%`;}
 function percentChange(c,p){if(p===null||p===undefined||Number(p)===0)return null;return Math.round(((Number(c||0)-Number(p))/Number(p))*1000)/10;}
 
-// ✅ NOUVEAU : Change de fournisseur
 function setFinancialProvider(provider){
   financialProviderFilter = provider;
   financialsLoaded = false;
@@ -1375,11 +1372,10 @@ function setFinancialProvider(provider){
   loadFinancials();
 }
 
-// ✅ NOUVEAU : Confirmation avant les périodes lourdes
 function confirmHeavyRange(range){
   if(!HEAVY_RANGES.includes(range)) return true;
   const cached = getFinancialsCache(range, financialProviderFilter);
-  if(cached) return true; // déjà en cache, pas de lecture
+  if(cached) return true;
   return confirm(
     `⚠️ Période "${range}" = potentiellement des milliers de lectures Firestore.\n\n` +
     `Recommandé : utiliser 30 jours max, ou attendre que le cache serveur 15 min soit chaud.\n\n` +
@@ -1392,26 +1388,22 @@ function setFinancialRange(range){
   if(input)input.value=range;
   document.querySelectorAll('[data-financial-range]').forEach(b=>b.classList.toggle('active',b.dataset.financialRange===range));
 
-  // Afficher le warning visuel pour les périodes lourdes
   const warn = document.getElementById('financialWarning');
   if(warn) warn.style.display = HEAVY_RANGES.includes(range) ? 'block' : 'none';
 
-  // ✅ Confirmation obligatoire pour périodes lourdes
   if(!confirmHeavyRange(range)) return;
 
-  // ✅ PAS de force : utilise le cache serveur 15 min + cache client 5 min
   financialsLoaded = false;
   loadFinancials(false);
 }
 
-// ✅ NOUVEAU : bouton "Actualiser" qui force explicitement
 async function loadFinancialsForce(){
   if(Date.now()-lastForceRefreshAt<FORCE_REFRESH_THROTTLE_MS){
     showToast('Patientez avant de forcer à nouveau.');
     return;
   }
   lastForceRefreshAt = Date.now();
-  clearFinancialsCache(); // vide le cache client pour ce load
+  clearFinancialsCache();
   await loadFinancials(true);
 }
 
@@ -1419,11 +1411,9 @@ async function loadFinancials(force=false){
   const range=document.getElementById('financialRange')?.value||'30d';
   const provider=financialProviderFilter;
 
-  // Afficher le warning visuel
   const warn = document.getElementById('financialWarning');
   if(warn) warn.style.display = HEAVY_RANGES.includes(range) ? 'block' : 'none';
 
-  // ✅ Vérifier le cache client AVANT tout fetch (0 lectures si on re-clique)
   if(!force){
     const clientCached = getFinancialsCache(range, provider);
     if(clientCached){
@@ -1435,10 +1425,8 @@ async function loadFinancials(force=false){
     }
   }
 
-  // Skip si déjà chargé et TTL pas expiré
   if(!force&&financialsLoaded&&financialsLoadedRange===range&&Date.now()-financialsLoadedAt<CLIENT_TTL.financials)return;
 
-  // Confirmation si période lourde et pas en cache
   if(!force && !confirmHeavyRange(range)) return;
 
   const body=document.getElementById('financialComparisonBody');
@@ -1452,7 +1440,6 @@ async function loadFinancials(force=false){
     const d=await fetchAdmin('/financials?'+params.toString());
     const c=d.data||{};const p=d.previous||null;
 
-    // ✅ Cache client pour éviter les re-fetch
     setFinancialsCache(range, provider, c, p, FIN_CACHE_TTL);
 
     renderFinancialsData(c, p);
@@ -1463,7 +1450,6 @@ async function loadFinancials(force=false){
   }
 }
 
-// ✅ NOUVEAU : Fonction de rendu isolée (réutilisable pour le cache)
 function renderFinancialsData(c, p){
   document.getElementById('finOrders').textContent=Number(c.totalOrders||0).toLocaleString('fr-FR');
   document.getElementById('finOrdersCompare').textContent=compareLabel(c.ordersChangePct);
@@ -1841,7 +1827,6 @@ function copyAllStoreLinks(){
 
 /* ═══════ SERVICES ═══════ */
 async function loadServices(force=false){
-  // ✅ FIX : utilise servicesLoadedAt (pas overviewLoadedAt)
   if(servicesLoaded&&!force&&Date.now()-servicesLoadedAt<CLIENT_TTL.services)return;
   try{
     const d=await fetchAdmin('/services');
@@ -1926,43 +1911,220 @@ function resetServiceFilters(){
   renderServices();
 }
 
-/* ═══════ CUSTOMER EMAIL ═══════ */
-function buildCustomerEmailTemplate(type,userName,orderRef){
-  const n=userName||'cher client';
+/* ═══════ CUSTOMER EMAIL — VERSION ENRICHIE ═══════ */
+function buildCustomerEmailTemplate(type,userName,orderRef,customerInfo){
+  const n=userName||(customerInfo&&customerInfo.name)||'cher client';
+  const info=customerInfo||{};
   const orderLine=orderRef?`au sujet de votre commande ${orderRef}`:'';
-  const waLine=`💬 Besoin d'aide ? Contactez-nous sur WhatsApp : ${SBH_WA_DISPLAY}\n   ${SBH_WA_LINK}`;
+  const waLine=`💬 WhatsApp : ${SBH_WA_DISPLAY}\n   ${SBH_WA_LINK}`;
   const siteLine=`🌐 Site : ${SBH_SITE_URL}`;
-  const dashLine=`🔗 Tableau de bord : ${SBH_DASHBOARD_URL}`;
-  if(type==='order_feedback')return `Bonjour ${n},\n\nNous espérons que vous allez bien et que votre expérience sur Social Boost Horizon se déroule à merveille.\n\nNous vous contactons aujourd'hui ${orderLine?orderLine+' ':'au sujet de vos commandes passées '}car votre satisfaction est notre priorité absolue.\n\n• Vos commandes se sont-elles bien passées ?\n• Êtes-vous satisfait(e) du résultat ?\n• Avez-vous rencontré des difficultés ?\n\nVotre retour nous aide à améliorer nos services.\n\n${dashLine}\n${siteLine}\n\n${waLine}\n\nCordialement,\nL'équipe Social Boost Horizon`;
-  if(type==='platform_feedback')return `Bonjour ${n},\n\nNous aimerions connaître votre expérience globale sur Social Boost Horizon :\n\n• Trouvez-vous facilement les services ?\n• La navigation est-elle intuitive ?\n• Y a-t-il des fonctionnalités à améliorer ?\n\nVotre avis est précieux.\n\n${dashLine}\n${siteLine}\n\n${waLine}\n\nCordialement,\nL'équipe Social Boost Horizon`;
-  if(type==='encouragement')return `Bonjour ${n},\n\nNous tenons à vous remercier chaleureusement pour votre fidélité et votre confiance envers Social Boost Horizon.\n\nVotre engagement nous encourage à continuer d'innover.\n\n${dashLine}\n${siteLine}\n\n${waLine}\n\nCordialement,\nL'équipe Social Boost Horizon`;
-  if(type==='store_owner')return `Bonjour ${n},\n\nNous espérons que votre boutique sur Social Boost Horizon se développe comme vous le souhaitez.\n\nNous aimerions avoir votre retour :\n\n• Comment se passent vos ventes ?\n• Avez-vous des difficultés à trouver des clients ?\n• Rencontrez-vous des obstacles ?\n\nNotre équipe est disponible pour vous accompagner.\n\n${dashLine}\n${siteLine}\n\n${waLine}\n\nCordialement,\nL'équipe Social Boost Horizon`;
-  return `Bonjour ${n},\n\nNous espérons que vous allez bien et que vous profitez de Social Boost Horizon.\n\n${orderRef?`CONCERNANT VOTRE COMMANDE ${orderRef}\nVotre satisfaction est notre priorité.\n\n`:''}DÉCOUVREZ NOS NOUVEAUTÉS\n• Boost réseaux sociaux\n• Création de boutique en ligne\n• Accompagnement digital\n\n${dashLine}\n${siteLine}\n\n${waLine}\n\nCordialement,\nL'équipe Social Boost Horizon`;
+  const dashLine=`🔗 Votre tableau de bord : ${SBH_DASHBOARD_URL}`;
+
+  const ordersCount=info.metricsReady&&info.totalOrders?Number(info.totalOrders):null;
+  const totalSpent=info.metricsReady&&info.totalSpent?Number(info.totalSpent):null;
+  const signupDate=info.createdAt?formatDate(info.createdAt):null;
+  const country=info.country?formatCountryLabel(info.country):null;
+
+  if(type==='order_feedback'){
+    return `Bonjour ${n},
+
+J'espère que vous allez bien et que vous prenez plaisir à utiliser Social Boost Horizon.
+
+Je me permets de vous contacter ${orderLine||'au sujet de vos commandes passées sur notre plateforme'}, car votre satisfaction est au cœur de nos préoccupations.
+
+Chez Social Boost Horizon, vous n'êtes pas un simple utilisateur : vous êtes un partenaire. Et l'avis de nos partenaires compte énormément pour nous. C'est grâce à vos retours que nous pouvons améliorer nos services et vous offrir une expérience toujours meilleure.
+
+J'aimerais beaucoup connaître votre ressenti :
+• Vos commandes se sont-elles bien déroulées ?
+• Êtes-vous satisfait(e) du résultat obtenu ?
+• Avez-vous rencontré la moindre difficulté ?
+
+Si tout s'est bien passé, nous serions ravis de le savoir — cela nous encourage à continuer. Et si quelque chose n'a pas été à la hauteur de vos attentes, dites-le-nous : nous ferons tout notre possible pour y remédier.
+
+${dashLine}
+${siteLine}
+
+${waLine}
+
+Merci de votre confiance, et à très bientôt sur Social Boost Horizon.
+
+Avec toute notre considération,
+L'équipe Social Boost Horizon`;
+  }
+
+  if(type==='platform_feedback'){
+    return `Bonjour ${n},
+
+Comment allez-vous ? J'espère que vous allez bien.
+
+Je vous écris aujourd'hui parce que votre opinion nous est précieuse. Chez Social Boost Horizon, nous croyons que les meilleures plateformes se construisent avec et pour leurs utilisateurs. Et vous faites partie de ceux qui comptent le plus pour nous.
+
+J'aimerais prendre quelques instants de votre temps pour connaître votre expérience globale sur notre plateforme :
+
+• Trouvez-vous facilement les services dont vous avez besoin ?
+• La navigation vous semble-t-elle intuitive et agréable ?
+• Y a-t-il des fonctionnalités que vous aimeriez voir apparaître ?
+• Avez-vous rencontré des difficultés, même mineures ?
+
+Vos retours, qu'ils soient positifs ou critiques, nous aident à grandir et à mieux vous servir. Ne sous-estimez jamais l'importance de votre voix : elle guide nos décisions et nous permet de construire une plateforme qui vous ressemble vraiment.
+
+${dashLine}
+${siteLine}
+
+${waLine}
+
+Merci d'être avec nous. Votre confiance nous honore, et nous ferons toujours de notre mieux pour la mériter.
+
+Avec toute notre considération,
+L'équipe Social Boost Horizon`;
+  }
+
+  if(type==='encouragement'){
+    let activityLine='';
+    if(ordersCount){
+      activityLine=`\nNous avons remarqué que vous avez déjà passé ${ordersCount} commande${ordersCount>1?'s':''} sur notre plateforme, et cela nous remplit de gratitude.`;
+      if(totalSpent){
+        activityLine+=` Vous avez investi ${totalSpent.toLocaleString('fr-FR')} FCFA dans vos projets, et nous mettons tout en œuvre pour que chaque franc soit bien investi.`;
+      }
+    }else{
+      activityLine=`\nChaque fois que vous utilisez notre plateforme, vous nous honorez de votre confiance.`;
+    }
+    const signupLine=signupDate?`\nVous êtes avec nous depuis le ${signupDate}, et nous sommes fiers de vous compter parmi nos clients fidèles.`:'';
+    const countryLine2=country?`\nDepuis ${country}, vous faites rayonner vos projets, et nous sommes honorés d'y contribuer.`:'';
+    return `Bonjour ${n},
+
+J'espère que vous allez bien.
+
+Je vous écris aujourd'hui pour vous adresser un grand merci. Votre fidélité et votre confiance envers Social Boost Horizon nous touchent sincèrement.${activityLine}${signupLine}${countryLine2}
+
+Continuez à croire en vos projets, à développer votre présence digitale, à faire grandir vos ambitions. Nous sommes là pour vous accompagner à chaque étape, et nous serons toujours disponibles pour vous soutenir.
+
+Si vous avez besoin de quoi que ce soit — un conseil, une question, un projet à concrétiser — n'hésitez jamais à nous contacter. Vous n'êtes jamais seul(e).
+
+${dashLine}
+${siteLine}
+
+${waLine}
+
+Encore merci pour votre confiance. Elle est notre plus belle récompense.
+
+Avec toute notre considération,
+L'équipe Social Boost Horizon`;
+  }
+
+  if(type==='store_owner'){
+    return `Bonjour ${n},
+
+J'espère que vous allez bien et que votre boutique sur Social Boost Horizon se développe comme vous le souhaitez.
+
+Je tenais à vous écrire car votre réussite est importante pour nous. Une boutique qui grandit, c'est une aventure que nous sommes fiers de partager avec vous.
+
+J'aimerais prendre de vos nouvelles et connaître votre expérience :
+
+• Comment se passent vos ventes en ce moment ?
+• Avez-vous des difficultés à trouver de nouveaux clients ?
+• Rencontrez-vous des obstacles que nous pourrions vous aider à surmonter ?
+• Y a-t-il des fonctionnalités ou des outils qui vous manquent ?
+
+Notre équipe est disponible pour vous accompagner, vous conseiller et vous soutenir. Ne restez pas seul(e) face à vos défis : ensemble, nous pouvons faire grandir votre boutique et lui donner l'élan qu'elle mérite.
+
+${dashLine}
+${siteLine}
+
+${waLine}
+
+Merci de faire partie de l'aventure Social Boost Horizon. Votre succès est notre succès.
+
+Avec toute notre considération,
+L'équipe Social Boost Horizon`;
+  }
+
+  return `Bonjour ${n},
+
+J'espère que ce message vous trouve en pleine forme, et que vous profitez pleinement de tout ce que Social Boost Horizon a à vous offrir.
+
+Je tenais à vous écrire personnellement pour vous remercier de votre confiance. Chez Social Boost Horizon, chaque utilisateur est important, et nous mettons un point d'honneur à vous offrir une expérience à la hauteur de vos attentes.
+
+${orderRef?`Concernant votre commande ${orderRef}, sachez que votre satisfaction reste notre priorité absolue.\n\n`:''}Peut-être n'avez-vous pas encore eu l'occasion d'explorer tout ce que notre plateforme peut faire pour vous. Laissez-nous vous présenter quelques-uns de nos services :
+
+• Boost de vos réseaux sociaux (Instagram, TikTok, Facebook, YouTube...)
+• Création et gestion de boutique en ligne
+• Accompagnement digital et conseils personnalisés
+• Et bien d'autres services pensés pour vous
+
+Que vous soyez entrepreneur(e), créateur/trice de contenu, ou simplement à la recherche de solutions digitales, nous avons ce qu'il vous faut.
+
+Si vous avez la moindre question, la moindre hésitation, ou si vous souhaitez simplement discuter d'un projet, notre équipe est là pour vous. N'hésitez jamais à nous contacter : nous répondons à chacun avec attention.
+
+${dashLine}
+${siteLine}
+
+${waLine}
+
+Merci de faire partie de la famille Social Boost Horizon. Votre confiance nous honore, et nous ferons toujours de notre mieux pour la mériter.
+
+Avec toute notre considération,
+L'équipe Social Boost Horizon`;
 }
-function buildCustomerEmailSubject(type,orderRef){
-  if(type==='order_feedback')return orderRef?`Votre avis sur votre commande ${orderRef}`:'Votre avis sur vos commandes';
-  if(type==='platform_feedback')return 'Votre expérience sur Social Boost Horizon';
-  if(type==='encouragement')return 'Merci pour votre fidélité';
-  if(type==='store_owner')return 'Votre boutique sur Social Boost Horizon';
-  return orderRef?`Suivi de votre commande ${orderRef}`:'Votre expérience sur Social Boost Horizon';
+function buildCustomerEmailSubject(type,orderRef,userName){
+  const n=userName||'';
+  if(type==='order_feedback')return orderRef?`Votre avis sur votre commande ${orderRef}${n?' — '+n:''}`:`Votre avis sur vos commandes${n?' — '+n:''}`;
+  if(type==='platform_feedback')return `Votre expérience sur Social Boost Horizon${n?' — '+n:''}`;
+  if(type==='encouragement')return `Merci pour votre fidélité${n?', '+n:''}`;
+  if(type==='store_owner')return `Parlons de votre boutique${n?' — '+n:''}`;
+  return orderRef?`Suivi de votre commande ${orderRef}${n?' — '+n:''}`:`Un message personnel pour vous${n?', '+n:''}`;
 }
-function sendCustomerEmail(userId,userName,orderRef,messageType){
+
+async function sendCustomerEmail(userId,userName,orderRef,messageType){
   if(!userId)return;
   const type=messageType||'general';
-  currentCustomerEmail={userId,userName:userName||'cher client',orderRef:orderRef||'',type};
-  document.getElementById('customerEmailRecipient').innerHTML=`<div class="name">${esc(userName||'Client')}</div><div class="meta">Adresse email enregistrée dans le compte.</div>`;
-  document.getElementById('customerEmailType').value=type;
-  document.getElementById('customerEmailSubject').value=buildCustomerEmailSubject(type,orderRef);
-  document.getElementById('customerEmailMessage').value=buildCustomerEmailTemplate(type,userName,orderRef);
+  let customerInfo=allCustomers.find(c=>c.id===userId)||null;
+  currentCustomerEmail={userId,userName:userName||(customerInfo&&customerInfo.name)||'cher client',orderRef:orderRef||'',type,customerInfo};
+  renderCustomerEmailModal();
   document.getElementById('customerEmailModal').classList.add('active');
+  if(!customerInfo){
+    try{
+      const d=await fetchAdmin('/customers/'+encodeURIComponent(userId));
+      if(d.success&&d.customer&&currentCustomerEmail&&currentCustomerEmail.userId===userId){
+        currentCustomerEmail.customerInfo=d.customer;
+        if(!userName&&d.customer.name)currentCustomerEmail.userName=d.customer.name;
+        const currentMsg=document.getElementById('customerEmailMessage').value;
+        const defaultMsg=buildCustomerEmailTemplate(type,userName,orderRef,null);
+        if(!currentMsg||currentMsg===defaultMsg)renderCustomerEmailModal();
+        else updateCustomerEmailRecipient();
+      }
+    }catch(_){}
+  }
+}
+function renderCustomerEmailModal(){
+  if(!currentCustomerEmail)return;
+  const c=currentCustomerEmail;
+  updateCustomerEmailRecipient();
+  document.getElementById('customerEmailType').value=c.type;
+  document.getElementById('customerEmailSubject').value=buildCustomerEmailSubject(c.type,c.orderRef,c.userName);
+  document.getElementById('customerEmailMessage').value=buildCustomerEmailTemplate(c.type,c.userName,c.orderRef,c.customerInfo);
+}
+function updateCustomerEmailRecipient(){
+  const c=currentCustomerEmail;if(!c)return;
+  const info=c.customerInfo;
+  const parts=[`<div class="name">${esc(c.userName)}</div>`];
+  const meta=[];
+  if(info&&info.email)meta.push(esc(info.email));
+  if(info&&info.country)meta.push(esc(formatCountryLabel(info.country)));
+  if(info&&info.metricsReady&&info.totalOrders)meta.push(`${Number(info.totalOrders).toLocaleString('fr-FR')} commande(s)`);
+  if(info&&info.metricsReady&&info.totalSpent)meta.push(`${Number(info.totalSpent).toLocaleString('fr-FR')} FCFA dépensés`);
+  if(info&&info.balance)meta.push(`Solde : ${Number(info.balance).toLocaleString('fr-FR')} FCFA`);
+  if(meta.length)parts.push(`<div class="meta">${meta.join(' · ')}</div>`);
+  else parts.push('<div class="meta">Adresse email enregistrée dans le compte.</div>');
+  document.getElementById('customerEmailRecipient').innerHTML=parts.join('');
 }
 function updateCustomerEmailType(){
   if(!currentCustomerEmail)return;
   const type=document.getElementById('customerEmailType').value;
   currentCustomerEmail.type=type;
   if(type!=='custom'){
-    document.getElementById('customerEmailSubject').value=buildCustomerEmailSubject(type,currentCustomerEmail.orderRef);
-    document.getElementById('customerEmailMessage').value=buildCustomerEmailTemplate(type,currentCustomerEmail.userName,currentCustomerEmail.orderRef);
+    document.getElementById('customerEmailSubject').value=buildCustomerEmailSubject(type,currentCustomerEmail.orderRef,currentCustomerEmail.userName);
+    document.getElementById('customerEmailMessage').value=buildCustomerEmailTemplate(type,currentCustomerEmail.userName,currentCustomerEmail.orderRef,currentCustomerEmail.customerInfo);
   }else{
     document.getElementById('customerEmailSubject').value='';
     document.getElementById('customerEmailMessage').value='';
@@ -2105,7 +2267,7 @@ async function setGiftStatus(id,status){
   }catch(e){alert('Erreur réseau : '+e.message);}
 }
 
-/* ═══════ GIFT EMAIL ═══════ */
+/* ═══════ GIFT EMAIL — VERSION ENRICHIE ═══════ */
 async function openGiftEmailModal(giftId){
   const g=allGifts.find(x=>x.id===giftId);if(!g)return;
   if(g.status==='rejected'){
@@ -2117,7 +2279,7 @@ async function openGiftEmailModal(giftId){
     catch(e){currentEmailGift=null;alert(e.message||'Aucun email disponible.');return;}
   }
   if(!g.email){currentEmailGift=null;alert('Aucun email disponible.');return;}
-  document.getElementById('emailRecipientInfo').innerHTML=`<div class="name">${esc(g.userName||'Utilisateur')}</div><div class="meta">${esc(g.email)}</div><div class="meta">${esc(giftPlainLabel(g.giftType))} · ${esc(formatDate(g.createdAt))}</div>`;
+  document.getElementById('emailRecipientInfo').innerHTML=`<div class="name">${esc(g.userName||'Utilisateur')}</div><div class="meta">${esc(g.email)}</div><div class="meta">${esc(giftPlainLabel(g.giftType))} · ${esc(formatDate(g.createdAt))}${g.country?' · '+esc(g.country):''}</div>`;
   let rec='confirmation';
   const age=getGiftAgeDays(g.createdAt)||0;
   if(g.status==='delivered')rec='delivered';
@@ -2136,7 +2298,7 @@ async function openGiftEmailModalForStatus(giftId,forcedType,rejectionReason){
     catch(e){alert(e.message||'Aucun email disponible.');return;}
   }
   if(!g.email){alert('Aucun email disponible.');return;}
-  document.getElementById('emailRecipientInfo').innerHTML=`<div class="name">${esc(g.userName||'Utilisateur')}</div><div class="meta">${esc(g.email)}</div><div class="meta">${esc(giftPlainLabel(g.giftType))} · ${esc(formatDate(g.createdAt))}</div>`;
+  document.getElementById('emailRecipientInfo').innerHTML=`<div class="name">${esc(g.userName||'Utilisateur')}</div><div class="meta">${esc(g.email)}</div><div class="meta">${esc(giftPlainLabel(g.giftType))} · ${esc(formatDate(g.createdAt))}${g.country?' · '+esc(g.country):''}</div>`;
   const combine=document.getElementById('sendGiftEmailAndMarkBtn');
   if(combine)combine.style.display=(g.status==='pending')?'inline-flex':'none';
   if(forcedType==='rejected'){
@@ -2158,7 +2320,29 @@ function buildGiftRejectionText(g,reason){
   const n=g.userName||'cher client';
   const dateStr=formatDate(g.createdAt);
   const gt=giftPlainLabel(g.giftType);
-  return `Bonjour ${n},\n\nNous vous contactons au sujet de votre demande de cadeau de bienvenue enregistrée le ${dateStr}.\n\nAprès examen, nous sommes au regret de vous informer que nous ne pouvons pas donner suite à votre demande.\n\n🎁 Cadeau concerné : ${gt}\n📅 Demandé le : ${dateStr}\n\nRAISON COMMUNIQUÉE\n${reason||'Les informations fournies ne nous ont pas permis de valider votre demande.'}\n\nSi vous pensez qu'il s'agit d'une erreur, notre équipe reste à disposition sur WhatsApp.\n\n💬 ${SBH_WA_DISPLAY}\n   ${SBH_WA_LINK}\n\nCordialement,\nL'équipe Social Boost Horizon`;
+  return `Bonjour ${n},
+
+Nous revenons vers vous au sujet de votre demande de cadeau de bienvenue enregistrée le ${dateStr}.
+
+Après un examen attentif de votre dossier, nous sommes au regret de vous informer que nous ne pouvons pas donner suite à cette demande.
+
+🎁 Cadeau concerné : ${gt}
+📅 Demandé le : ${dateStr}
+
+Raison communiquée :
+${reason||'Les informations fournies ne nous ont pas permis de valider votre demande.'}
+
+Nous tenons à vous présenter nos excuses si cette décision vous cause une quelconque déception. Croyez bien que nous aurions préféré une issue favorable, et que cette décision a été prise avec la plus grande attention.
+
+Si vous pensez qu'il s'agit d'une erreur, ou si vous souhaitez apporter des précisions, n'hésitez pas à nous contacter. Notre équipe se fera un plaisir d'examiner votre situation à nouveau.
+
+💬 WhatsApp : ${SBH_WA_DISPLAY}
+   ${SBH_WA_LINK}
+
+Merci de votre compréhension et de votre confiance.
+
+Avec toute notre considération,
+L'équipe Social Boost Horizon`;
 }
 function buildGiftEmailText(g,type){
   const n=g.userName||'cher client';
@@ -2171,24 +2355,162 @@ function buildGiftEmailText(g,type){
   const countryLine=g.country?`🌍 Pays : ${g.country}\n`:'';
   const waLine=`💬 WhatsApp : ${SBH_WA_DISPLAY}\n   ${SBH_WA_LINK}`;
   const siteLine=`🌐 Site : ${SBH_SITE_URL}`;
-  const dashLine=`🔗 Tableau de bord : ${SBH_DASHBOARD_URL}`;
+  const dashLine=`🔗 Votre tableau de bord : ${SBH_DASHBOARD_URL}`;
   const baseRecap=`🎁 Cadeau : ${gt}\n📅 Demandé le : ${dateStr} (${ageLabel})\n${countryLine}`;
   const linkLine=needsLink?`🔗 Lien à créditer : ${link}\n`:'';
   if(type==='confirmation'){
-    if(!needsLink)return `Bonjour ${n},\n\nNOUS AVONS UNE BONNE NOUVELLE POUR VOUS !\nVotre cadeau de bienvenue a bien été enregistré :\n\n${baseRecap}\nAucune action n'est requise. Nous finalisons le crédit.\n\n${dashLine}\n${siteLine}\n\n${waLine}\n\nCordialement,\nL'équipe Social Boost Horizon`;
-    return `Bonjour ${n},\n\nRÉCAPITULATIF DE VOTRE DEMANDE :\n${baseRecap}${linkLine}\n⚠️ ACTION REQUISE : Confirmez le lien ci-dessus.\nRépondez "OUI" pour valider.\n\n${dashLine}\n${siteLine}\n\n${waLine}\n\nCordialement,\nL'équipe Social Boost Horizon`;
+    if(!needsLink)return `Bonjour ${n},
+
+Nous avons le plaisir de vous confirmer que votre demande de cadeau de bienvenue a bien été enregistrée. 🎉
+
+Chez Social Boost Horizon, nous croyons que chaque nouveau client mérite d'être accueilli comme il se doit. C'est pourquoi nous tenons à vous offrir ce petit geste, modeste mais sincère, en guise de bienvenue.
+
+Récapitulatif de votre demande :
+${baseRecap}
+Aucune action n'est requise de votre part. Notre équipe finalise le traitement, et le montant sera crédité sur votre solde dans les meilleurs délais.
+
+${dashLine}
+${siteLine}
+
+${waLine}
+
+Merci de nous avoir rejoints. Bienvenue dans la famille Social Boost Horizon.
+
+Avec toute notre considération,
+L'équipe Social Boost Horizon`;
+    return `Bonjour ${n},
+
+Nous avons bien reçu votre demande de cadeau de bienvenue, et nous vous en remercions. 🎉
+
+Récapitulatif de votre demande :
+${baseRecap}${linkLine}
+⚠️ Une petite action de votre part est nécessaire : merci de confirmer que le lien ci-dessus est bien le bon. Répondez simplement "OUI" à ce message (ou sur WhatsApp), et nous procéderons au traitement dans les plus brefs délais.
+
+Nous préférons prendre le temps de vérifier avec vous plutôt que de risquer une erreur. Votre satisfaction passe avant tout.
+
+${dashLine}
+${siteLine}
+
+${waLine}
+
+Merci de votre confiance.
+
+Avec toute notre considération,
+L'équipe Social Boost Horizon`;
   }
   if(type==='launched'){
-    if(!needsLink)return `Bonjour ${n},\n\nBonne nouvelle ! Votre cadeau a été TRAITÉ.\n\n${baseRecap}\nVÉRIFIEZ VOTRE SOLDE :\n${dashLine}\n\n${waLine}\n\nCordialement,\nL'équipe Social Boost Horizon`;
-    return `Bonjour ${n},\n\nVotre cadeau est en cours de traitement.\n\n${baseRecap}${linkLine}\n\n${waLine}\n\nCordialement,\nL'équipe Social Boost Horizon`;
+    if(!needsLink)return `Bonjour ${n},
+
+Excellente nouvelle ! Votre cadeau a bien été traité. 🎉
+
+Récapitulatif :
+${baseRecap}
+Le montant a été crédité sur votre solde. Nous vous invitons à vérifier votre tableau de bord pour confirmer que tout est bien en ordre :
+${dashLine}
+
+Si vous constatez la moindre anomalie, n'hésitez pas à nous contacter. Notre équipe se fera un plaisir de vous aider.
+
+${waLine}
+
+Encore merci pour votre confiance.
+
+Avec toute notre considération,
+L'équipe Social Boost Horizon`;
+    return `Bonjour ${n},
+
+Excellente nouvelle ! Votre cadeau a bien été traité. 🎉
+
+Récapitulatif :
+${baseRecap}${linkLine}
+Nous avons bien pris en compte le lien ci-dessus. Merci de vérifier que tout est en ordre sur le compte concerné.
+
+Si vous constatez la moindre anomalie, n'hésitez pas à nous contacter. Notre équipe se fera un plaisir de vous aider.
+
+${waLine}
+
+Encore merci pour votre confiance.
+
+Avec toute notre considération,
+L'équipe Social Boost Horizon`;
   }
   if(type==='delay'){
-    if(!needsLink)return `Bonjour ${n},\n\nConcernant votre demande du ${dateStr}, soit ${ageLabel}.\n\nToutes nos excuses pour ce retard.\n\n${baseRecap}\nAucune action requise.\n\n${dashLine}\n${siteLine}\n\n${waLine}\n\nCordialement,\nL'équipe Social Boost Horizon`;
-    return `Bonjour ${n},\n\nConcernant votre demande du ${dateStr}, soit ${ageLabel}.\n\nToutes nos excuses.\n\n${baseRecap}${linkLine}\n⚠️ ACTION REQUISE : Confirmez le lien ci-dessus.\n\n${waLine}\n\nCordialement,\nL'équipe Social Boost Horizon`;
+    if(!needsLink)return `Bonjour ${n},
+
+Je me permets de vous écrire concernant votre demande de cadeau du ${dateStr}, soit ${ageLabel}.
+
+Je tiens à vous présenter nos plus sincères excuses pour ce délai. Nous savons à quel point votre temps est précieux, et nous sommes conscients que cette attente n'est pas à la hauteur du service que nous souhaitons vous offrir.
+
+Sachez que votre demande n'est pas oubliée : elle est bien prise en compte, et nous mettons tout en œuvre pour la traiter dans les meilleurs délais.
+
+Récapitulatif :
+${baseRecap}
+Aucune action n'est requise de votre part.
+
+Nous vous remercions de votre patience et de votre compréhension. Votre confiance nous honore, et nous ferons tout pour la mériter.
+
+${dashLine}
+${siteLine}
+
+${waLine}
+
+Avec toute notre considération,
+L'équipe Social Boost Horizon`;
+    return `Bonjour ${n},
+
+Je me permets de vous écrire concernant votre demande de cadeau du ${dateStr}, soit ${ageLabel}.
+
+Je tiens à vous présenter nos plus sincères excuses pour ce délai. Nous savons à quel point votre temps est précieux, et nous sommes conscients que cette attente n'est pas à la hauteur du service que nous souhaitons vous offrir.
+
+Récapitulatif :
+${baseRecap}${linkLine}
+⚠️ Si vous ne l'avez pas encore fait, merci de confirmer le lien ci-dessus en répondant simplement "OUI". Dès réception, nous traitons votre demande.
+
+Nous vous remercions de votre patience et de votre compréhension.
+
+${waLine}
+
+Avec toute notre considération,
+L'équipe Social Boost Horizon`;
   }
   if(type==='delivered'){
-    if(!needsLink)return `Bonjour ${n},\n\nC'est avec plaisir que nous vous confirmons que votre cadeau a été LIVRÉ AVEC SUCCÈS.\n\n${baseRecap}\nVÉRIFIEZ MAINTENANT :\n${dashLine}\n\n${waLine}\n\nCordialement,\nL'équipe Social Boost Horizon`;
-    return `Bonjour ${n},\n\nVotre cadeau a été LIVRÉ AVEC SUCCÈS.\n\n${baseRecap}${linkLine}\nVÉRIFIEZ sur le compte concerné.\n\n${dashLine}\n${siteLine}\n\n${waLine}\n\nCordialement,\nL'équipe Social Boost Horizon`;
+    if(!needsLink)return `Bonjour ${n},
+
+C'est avec un réel plaisir que nous vous confirmons que votre cadeau de bienvenue a été livré avec succès. 🎉
+
+Récapitulatif :
+${baseRecap}
+Le montant a été crédité sur votre solde. Merci de vérifier votre tableau de bord pour le confirmer :
+${dashLine}
+
+Nous espérons que ce petit geste contribuera à votre réussite sur notre plateforme. N'oubliez pas : votre satisfaction est notre priorité, et notre équipe reste disponible pour toute question.
+
+${siteLine}
+
+${waLine}
+
+Encore merci de votre confiance.
+
+Avec toute notre considération,
+L'équipe Social Boost Horizon`;
+    return `Bonjour ${n},
+
+C'est avec un réel plaisir que nous vous confirmons que votre cadeau de bienvenue a été livré avec succès. 🎉
+
+Récapitulatif :
+${baseRecap}${linkLine}
+Le lien ci-dessus a bien été traité. Merci de vérifier que tout est en ordre sur le compte concerné.
+
+Nous espérons que ce petit geste contribuera à votre réussite sur notre plateforme. N'oubliez pas : votre satisfaction est notre priorité, et notre équipe reste disponible pour toute question.
+
+${dashLine}
+${siteLine}
+
+${waLine}
+
+Encore merci de votre confiance.
+
+Avec toute notre considération,
+L'équipe Social Boost Horizon`;
   }
   return '';
 }
@@ -2249,7 +2571,7 @@ async function sendGiftEmailAndMark(){
   }
 }
 
-/* ═══════ WHATSAPP ═══════ */
+/* ═══════ WHATSAPP — VERSION ENRICHIE ═══════ */
 function openWaModal(giftId){
   const g=allGifts.find(x=>x.id===giftId);if(!g||!g.whatsapp)return;
   currentWaGift=g;
@@ -2278,7 +2600,7 @@ function buildWaMessage(g,type){
   const gt=giftPlainLabel(g.giftType);
   const needsLink=giftNeedsLinkConfirmation(g.giftType);
   const link=g.link||'(non fourni)';
-  const countryLine=g.country?`🌍 Pays : ${g.country}\n`:'';
+  const countryLine=g.country?`🌍 ${g.country}\n`:'';
   const age=getGiftAgeDays(g.createdAt)||0;
   const ageLabel=age===0?'aujourd\'hui':(age===1?'hier':`il y a ${age} jours`);
   const waLine=`💬 ${SBH_WA_DISPLAY}\n   ${SBH_WA_LINK}`;
@@ -2287,20 +2609,106 @@ function buildWaMessage(g,type){
   const baseRecap=`🎁 Cadeau : ${gt}\n📅 Demandé le : ${d} (${ageLabel})\n${countryLine}`;
   const linkLine=needsLink?`🔗 Lien : ${link}\n`:'';
   if(type==='confirmation'){
-    if(!needsLink)return `Bonjour ${n} 👋\n\nNOUS AVONS UNE BONNE NOUVELLE ! Votre cadeau a bien été enregistré :\n\n${baseRecap}\nAucune action requise.\n\n${dashLine}\n${siteLine}\n\n${waLine}\n\n— L'équipe Social Boost Horizon`;
-    return `Bonjour ${n} 👋\n\nNous avons reçu votre demande :\n${baseRecap}${linkLine}\n⚠️ ACTION REQUISE : Confirmez le lien ci-dessus.\nRépondez "OUI".\n\n${dashLine}\n${siteLine}\n\n${waLine}\n\n— L'équipe Social Boost Horizon`;
+    if(!needsLink)return `Bonjour ${n} 👋
+
+C'est avec plaisir que nous vous confirmons la réception de votre demande de cadeau de bienvenue 🎉
+
+${baseRecap}
+Aucune action n'est requise de votre part : notre équipe traite votre demande et le crédit sera effectué très prochainement.
+
+Merci de votre confiance.
+
+${dashLine}
+${siteLine}
+
+— L'équipe Social Boost Horizon`;
+    return `Bonjour ${n} 👋
+
+Nous avons bien reçu votre demande de cadeau de bienvenue 🎉
+
+${baseRecap}${linkLine}
+⚠️ Merci de confirmer que ce lien est bien le bon en répondant "OUI". Dès confirmation, nous traitons votre demande.
+
+${dashLine}
+${siteLine}
+
+— L'équipe Social Boost Horizon`;
   }
   if(type==='launched'){
-    if(!needsLink)return `Bonjour ${n} 👋\n\nVotre cadeau a été traité.\n\n${baseRecap}\nVÉRIFIEZ :\n${dashLine}\n\n${waLine}\n\n— L'équipe Social Boost Horizon`;
-    return `Bonjour ${n} 👋\n\nVotre cadeau est en cours.\n\n${baseRecap}${linkLine}\n\n${waLine}\n\n— L'équipe Social Boost Horizon`;
+    if(!needsLink)return `Bonjour ${n} 👋
+
+Excellente nouvelle : votre cadeau a bien été traité ✅
+
+${baseRecap}
+Le montant a été crédité sur votre solde. Vérifiez votre tableau de bord pour confirmer :
+${dashLine}
+
+Une question ? Nous sommes disponibles.
+
+— L'équipe Social Boost Horizon`;
+    return `Bonjour ${n} 👋
+
+Excellente nouvelle : votre cadeau a bien été traité ✅
+
+${baseRecap}${linkLine}
+Merci de vérifier que tout est en ordre sur le compte concerné.
+
+Une question ? Nous sommes disponibles.
+
+— L'équipe Social Boost Horizon`;
   }
   if(type==='delay'){
-    if(!needsLink)return `Bonjour ${n} 👋\n\nConcernant votre demande du ${d}, soit ${ageLabel}.\n\nToutes nos excuses.\n\n${baseRecap}\nAucune action requise.\n\n${dashLine}\n${siteLine}\n\n${waLine}\n\n— L'équipe Social Boost Horizon`;
-    return `Bonjour ${n} 👋\n\nConcernant votre demande du ${d}, soit ${ageLabel}.\n\nToutes nos excuses.\n\n${baseRecap}${linkLine}\n⚠️ ACTION REQUISE : Confirmez le lien.\nRépondez "OUI".\n\n${waLine}\n\n— L'équipe Social Boost Horizon`;
+    if(!needsLink)return `Bonjour ${n} 👋
+
+Concernant votre demande du ${d} (${ageLabel}), nous tenons à vous présenter nos plus sincères excuses pour ce délai.
+
+Votre demande est bien prise en compte, et nous mettons tout en œuvre pour la traiter au plus vite.
+
+${baseRecap}
+Aucune action n'est requise de votre part.
+
+Merci de votre patience et de votre compréhension.
+
+${waLine}
+
+— L'équipe Social Boost Horizon`;
+    return `Bonjour ${n} 👋
+
+Concernant votre demande du ${d} (${ageLabel}), nous tenons à vous présenter nos plus sincères excuses pour ce délai.
+
+${baseRecap}${linkLine}
+⚠️ Si ce n'est pas déjà fait, confirmez le lien en répondant "OUI". Nous traitons votre demande dès réception.
+
+Merci de votre patience et de votre compréhension.
+
+${waLine}
+
+— L'équipe Social Boost Horizon`;
   }
   if(type==='delivered'){
-    if(!needsLink)return `Bonjour ${n} 👋\n\nCadeau LIVRÉ AVEC SUCCÈS.\n\n${baseRecap}\nVÉRIFIEZ :\n${dashLine}\n\n${waLine}\n\n— L'équipe Social Boost Horizon`;
-    return `Bonjour ${n} 👋\n\nCadeau LIVRÉ AVEC SUCCÈS.\n\n${baseRecap}${linkLine}\nVÉRIFIEZ sur le compte concerné.\n\n${dashLine}\n${siteLine}\n\n${waLine}\n\n— L'équipe Social Boost Horizon`;
+    if(!needsLink)return `Bonjour ${n} 👋
+
+C'est avec plaisir que nous vous confirmons que votre cadeau a été livré avec succès 🎉
+
+${baseRecap}
+Le montant a été crédité sur votre solde. Vérifiez votre tableau de bord :
+${dashLine}
+
+Merci de votre confiance.
+
+— L'équipe Social Boost Horizon`;
+    return `Bonjour ${n} 👋
+
+C'est avec plaisir que nous vous confirmons que votre cadeau a été livré avec succès 🎉
+
+${baseRecap}${linkLine}
+Le lien a bien été traité. Merci de vérifier que tout est en ordre.
+
+${dashLine}
+
+Merci de votre confiance.
+
+— L'équipe Social Boost Horizon`;
   }
   return '';
 }
