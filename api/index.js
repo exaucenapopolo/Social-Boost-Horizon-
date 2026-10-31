@@ -3583,16 +3583,28 @@ async function getFinancialsForCollection(colName, start, end) {
     let memSales = 0, memCost = 0, memProfit = 0, memRefunds = 0;
     for (const q of queries) {
       try {
-        const docs = await q.limit(2000).get();
-        docs.forEach(doc => {
-          const data = doc.data() || {};
-          const amount = getOrderAmountXAF(data, colName);
-          const fin = getOrderFinancials(data, null, colName); // ✅ utilise KNOWN_PROVIDER
-          memSales += amount || 0;
-          memCost += fin.providerCostXAF || 0;
-          memProfit += fin.grossProfitXAF || 0;
-          memRefunds += fin.refundedAmount || 0;
-        });
+        // Pas de limite arbitraire à 2 000 : le fallback doit rester exact.
+        // Le chemin normal est l'agrégation Firestore ; cette pagination n'est
+        // utilisée que si l'agrégation échoue ou si les champs de marge manquent.
+        const orderField = (!start && !end) ? admin.firestore.FieldPath.documentId() : dateField;
+        let lastDoc = null;
+        while (true) {
+          let pageQuery = q.orderBy(orderField).limit(500);
+          if (lastDoc) pageQuery = pageQuery.startAfter(lastDoc);
+          const page = await pageQuery.get();
+          if (page.empty) break;
+          page.forEach(doc => {
+            const data = doc.data() || {};
+            const amount = getOrderAmountXAF(data, colName);
+            const fin = getOrderFinancials(data, null, colName); // ✅ utilise KNOWN_PROVIDER
+            memSales += amount || 0;
+            memCost += fin.providerCostXAF || 0;
+            memProfit += fin.grossProfitXAF || 0;
+            memRefunds += fin.refundedAmount || 0;
+          });
+          lastDoc = page.docs[page.docs.length - 1];
+          if (page.size < 500) break;
+        }
       } catch (e) {
         console.warn(`[Fin] Fallback mémoire échoué pour ${colName}:`, e.message);
       }
@@ -3631,6 +3643,21 @@ async function getFinancialsAllCollections(start, end) {
     totalProfit,
     netSales: Math.max(0, totalSales - totalRefunds),
   };
+}
+
+// Cache mémoire partagé par les routes financières et la vue d'ensemble.
+// Une même plage sélectionnée ne relance pas les agrégations Firestore.
+const financialRangeAggregateCache = new Map();
+const overviewRangeResponseCache = new Map();
+const CUSTOM_RANGE_CACHE_TTL_MS = 15 * 60 * 1000;
+
+async function getCachedFinancialAggregate(start, end, forceRefresh = false) {
+  const key = `${start ? start.toISOString() : 'open'}|${end ? end.toISOString() : 'open'}`;
+  const cached = financialRangeAggregateCache.get(key);
+  if (!forceRefresh && cached && Date.now() < cached.expires) return cached.data;
+  const data = await getFinancialsAllCollections(start, end);
+  financialRangeAggregateCache.set(key, { data, expires: Date.now() + CUSTOM_RANGE_CACHE_TTL_MS });
+  return data;
 }
 
 async function countDepositsAllCollections(start, end) {
@@ -3767,6 +3794,8 @@ async function computeTopUsersInRange(start, end) {
       let q = db.collection(colName);
       if (start) q = q.where(dateField, '>=', admin.firestore.Timestamp.fromDate(start));
       if (end) q = q.where(dateField, '<', admin.firestore.Timestamp.fromDate(end));
+      // Limite préexistante conservée pour les fenêtres courtes : ne pas
+      // transformer l'affichage du classement journalier en scan historique.
       q = q.limit(1000);
 
       const snap = await q.get().catch(() => null);
@@ -3774,23 +3803,28 @@ async function computeTopUsersInRange(start, end) {
 
       snap.forEach(doc => {
         const d = doc.data() || {};
-        const uid = d.userId || d.uid || d.user_id || d.customerId || null;
+        const uid = d.userId || d.uid || d.user_id || d.customerId || d.customerUid || null;
         if (!uid) return;
 
-        // ✅ FIX #8 : Provider EXO résolu automatiquement via KNOWN_PROVIDER_BY_COLLECTION
         const f = getOrderFinancials(d, null, colName);
         const cur = userAgg.get(uid) || { count: 0, totalPaid: 0, totalProfit: 0, orders: [] };
         cur.count++;
         cur.totalPaid += f.amount || 0;
-        cur.totalProfit += f.grossProfitXAF || 0;
-        cur.orders.push({
-          orderId: d.orderId || d.reference || d.order_id || doc.id,
-          serviceName: d.serviceName || d.service_name || d.name || 'Service',
-          provider: f.provider,
-          amount: f.amount,
-          profit: f.grossProfitXAF,
-          createdAt: d[dateField] || d.createdAt || d.created_at || null,
-        });
+        const normalizedStatus = String(d.status || d.orderStatus || d.state || '').trim().toLowerCase();
+        const eligibleForMargin = ['success','successful','succeeded','completed','complete','delivered','termine','terminé','en cours','in progress','in_progress','processing'].includes(normalizedStatus);
+        if (eligibleForMargin && f.grossProfitXAF !== null && f.grossProfitXAF !== undefined && Number.isFinite(Number(f.grossProfitXAF))) {
+          cur.totalProfit += Number(f.grossProfitXAF);
+        }
+        if (cur.orders.length < 10) {
+          cur.orders.push({
+            orderId: d.orderId || d.reference || d.order_id || doc.id,
+            serviceName: d.serviceName || d.service_name || d.name || 'Service',
+            provider: f.provider,
+            amount: f.amount,
+            profit: eligibleForMargin ? f.grossProfitXAF : 0,
+            createdAt: d[dateField] || d.createdAt || d.created_at || null,
+          });
+        }
         userAgg.set(uid, cur);
       });
     } catch (e) {
@@ -3824,9 +3858,10 @@ async function computeTopUsersInRange(start, end) {
       country: u.country || null,
       balance: u.balance || 0,
       orderCount: stats.count,
+      totalSpent: stats.totalPaid,
       totalPaid: stats.totalPaid,
       totalProfit: stats.totalProfit,
-      orders: stats.orders.slice(0, 10),
+      orders: stats.orders,
     };
   }).sort((a, b) => b.totalProfit - a.totalProfit);
 }
@@ -4129,34 +4164,33 @@ adminRouter.get('/top-users', async (req, res) => {
       if (shared) { memCacheSet(adminMemoryCache.topUsers, shared.payload, Math.max(1000, shared.expiresAtMs - Date.now())); return res.json({ success: true, period: 'all', users: shared.payload, cached: true, cacheScope: 'shared' }); }
     }
 
-    let usersSnap;
-    try {
-      usersSnap = await db.collection('users').orderBy('adminOrderCount', 'desc').limit(20).get();
-    } catch {
-      usersSnap = await db.collection('users').where('adminOrderCount', '>', 0).orderBy('adminOrderCount', 'desc').limit(20).get();
-    }
-
-    const users = usersSnap.docs.map(d => {
-      const u = d.data();
-      return {
-        id: d.id,
-        name: u.displayName || u.username || u.name || 'Anonyme',
+    // Toute la plateforme : utiliser le même cache utilisateurs que /customers.
+    // Cela évite la limite de 1 000 commandes par collection qui sous-estimait
+    // les profils ayant un historique important, sans relire chaque commande.
+    const allUsers = await getAllUsersSorted(forceRefresh);
+    const metricsState = await getSharedAdminCache('customerOrderMetricsState');
+    const metricsReady = Boolean(metricsState?.payload?.completedAt);
+    const users = allUsers
+      .map(u => formatCustomerFromUser(u, metricsReady))
+      .map(u => ({
+        id: u.id,
+        name: u.name || 'Anonyme',
         email: u.email || null,
-        phone: u.phone || u.whatsapp || null,
-        balance: u.balance || 0,
+        phone: u.phone || null,
+        balance: Number(u.balance || 0),
         country: u.country || null,
         createdAt: u.createdAt || null,
-        orderCount: Number(u.adminOrderCount || 0),
-        totalSpent: Number(u.adminTotalSpent || 0),
-        totalProfit: Number(u.adminTotalProfit || 0),
-      };
-    });
+        orderCount: Number(u.totalOrders || 0),
+        totalSpent: Number(u.totalSpent || 0),
+        totalProfit: Number(u.totalProfit || 0),
+      }))
+      .filter(u => u.orderCount > 0)
+      .sort((a, b) => (b.orderCount - a.orderCount) || (b.totalSpent - a.totalSpent))
+      .slice(0, 20);
 
-    users.sort((a, b) => (b.orderCount - a.orderCount) || (b.totalSpent - a.totalSpent));
-
-    memCacheSet(adminMemoryCache.topUsers, users, 60 * 60 * 1000);
-    await setSharedAdminCache('topUsers', users, 60 * 60 * 1000);
-    res.json({ success: true, period: 'all', users, cached: false, reads: usersSnap.size });
+    memCacheSet(adminMemoryCache.topUsers, users, 30 * 60 * 1000);
+    await setSharedAdminCache('topUsers', users, 30 * 60 * 1000);
+    res.json({ success: true, period: 'all', users, cached: false, reads: allUsers.length, source: 'users-profile-cache' });
   } catch (error) {
     console.error('Erreur /top-users:', error);
     res.status(500).json({ success: false, error: 'Impossible de charger le classement des utilisateurs.' });
@@ -4621,13 +4655,17 @@ adminRouter.get('/customers', async (req, res) => {
       filtered = filtered.filter(u => aliases.has(String(u.country || '').trim().toLowerCase()));
     }
 
-    if (segment === 'ordered') filtered = filtered.filter(u => Number(u.adminOrderCount || 0) > 0);
-    else if (segment === 'neverOrdered') filtered = filtered.filter(u => Number(u.adminOrderCount || 0) === 0);
-    else if (segment === 'highOrders') filtered.sort((a, b) => Number(b.adminOrderCount || 0) - Number(a.adminOrderCount || 0));
-    else if (segment === 'highBalance') filtered.sort((a, b) => Number(b.balance || 0) - Number(a.balance || 0));
+    const orderMetric = u => Number(metricsReady ? (u.adminOrderCount ?? u.totalOrders ?? 0) : (u.totalOrders ?? u.adminOrderCount ?? 0));
+    const spendMetric = u => Number(metricsReady ? (u.adminTotalSpent ?? u.totalSpent ?? 0) : (u.totalSpent ?? u.adminTotalSpent ?? 0));
+    const profitMetric = u => Number(metricsReady ? (u.adminTotalProfit ?? u.totalProfit ?? 0) : (u.totalProfit ?? u.adminTotalProfit ?? 0));
+    if (segment === 'ordered') filtered = filtered.filter(u => orderMetric(u) > 0);
+    else if (segment === 'neverOrdered') filtered = filtered.filter(u => orderMetric(u) === 0);
 
-    if (sort === 'orders') filtered.sort((a, b) => Number(b.adminOrderCount || 0) - Number(a.adminOrderCount || 0));
-    else if (sort === 'balance') filtered.sort((a, b) => Number(b.balance || 0) - Number(a.balance || 0));
+    // Le segment de classement doit primer sur le tri récent par défaut.
+    if (sort === 'orders' || segment === 'highOrders') filtered.sort((a, b) => orderMetric(b) - orderMetric(a));
+    else if (sort === 'spent' || segment === 'highSpent') filtered.sort((a, b) => spendMetric(b) - spendMetric(a));
+    else if (sort === 'profit' || segment === 'highProfit') filtered.sort((a, b) => profitMetric(b) - profitMetric(a));
+    else if (sort === 'balance' || segment === 'highBalance') filtered.sort((a, b) => Number(b.balance || 0) - Number(a.balance || 0));
     else filtered.sort((a, b) => b._createdAtMs - a._createdAtMs);
 
     const total = filtered.length;
@@ -4655,9 +4693,11 @@ adminRouter.get('/customers', async (req, res) => {
 });
 
 function formatCustomerFromUser(u, metricsReady) {
-  const orderCount = Number(u.adminOrderCount ?? u.totalOrders ?? 0);
-  const spent = Number(u.adminTotalSpent ?? u.totalSpent ?? 0);
-  const profit = Number(u.adminTotalProfit ?? 0);
+  // Après recalcul, les compteurs admin ont été reconstruits à partir des commandes
+  // de toutes les collections ; avant cela, on conserve les compteurs du profil.
+  const orderCount = Number(metricsReady ? (u.adminOrderCount ?? u.totalOrders ?? 0) : (u.totalOrders ?? u.adminOrderCount ?? 0));
+  const spent = Number(metricsReady ? (u.adminTotalSpent ?? u.totalSpent ?? 0) : (u.totalSpent ?? u.adminTotalSpent ?? 0));
+  const profit = Number(metricsReady ? (u.adminTotalProfit ?? u.totalProfit ?? 0) : (u.totalProfit ?? u.adminTotalProfit ?? 0));
   return {
     id: u.id,
     name: u.displayName || u.username || u.name || 'Utilisateur',
@@ -4698,7 +4738,11 @@ adminRouter.post('/customers/rebuild-order-metrics', async (req, res) => {
           // ✅ FIX #13 : Passe le provider correct via KNOWN_PROVIDER_BY_COLLECTION
           const f = getOrderFinancials(d, null, collectionName);
           if (f.amount === null) unattributedAmounts++; else current.spent += f.amount;
-          if (f.grossProfitXAF) current.profit += f.grossProfitXAF;
+          const normalizedStatus = String(d.status || d.orderStatus || d.state || '').trim().toLowerCase();
+          const eligibleForMargin = ['success','successful','succeeded','completed','complete','delivered','termine','terminé','en cours','in progress','in_progress','processing'].includes(normalizedStatus);
+          if (eligibleForMargin && f.grossProfitXAF !== null && f.grossProfitXAF !== undefined && Number.isFinite(Number(f.grossProfitXAF))) {
+            current.profit += Number(f.grossProfitXAF);
+          }
           metricMap.set(uid, current);
         }
         last = page.docs[page.docs.length - 1];
@@ -4739,6 +4783,9 @@ adminRouter.post('/customers/rebuild-order-metrics', async (req, res) => {
     }
     const completedAt = new Date().toISOString();
     await setSharedAdminCache('customerOrderMetricsState', { completedAt, ordersRead, usersRead, changed, unattributedOrders, unattributedAmounts }, 60 * 60 * 24 * 365 * 1000);
+    // Expire aggregate views so the next overview/client ranking uses the newly
+    // rebuilt per-user order metrics rather than an older shared snapshot.
+    await Promise.all(['overview','topUsers','usersStats'].map(key => setSharedAdminCache(key, null, 1000)));
     allUsersCache.data = null;
     allUsersCache.expires = 0;
     for (const key of ['overview', 'topUsers', 'usersStats']) {
@@ -4797,6 +4844,7 @@ adminRouter.get('/customers/:id', async (req, res) => {
     const userId = String(req.params.id || '').trim(); if (!userId) return res.status(400).json({ success: false, error: 'Identifiant utilisateur requis.' });
     const userDoc = await db.collection('users').doc(userId).get(); if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' }); const u = userDoc.data() || {};
     const all = []; const countsByCollection = {}; let derivedSpendPriceXAF = 0, exactOrderCount = 0, unattributedAmountCount = 0;
+    let totalGrossProfitXAF = 0, profitEligibleOrders = 0, profitUnavailableOrders = 0;
     for (const collectionName of ADMIN_ORDER_COLLECTIONS) {
       const [a, b, c, d, e] = await Promise.all([db.collection(collectionName).where('userId','==',userId).get(), db.collection(collectionName).where('uid','==',userId).get(), db.collection(collectionName).where('user_id','==',userId).get(), db.collection(collectionName).where('customerId','==',userId).get(), db.collection(collectionName).where('customerUid','==',userId).get()]);
       const docsMap = new Map(); [...a.docs, ...b.docs, ...c.docs, ...d.docs, ...e.docs].forEach(doc => docsMap.set(doc.id, doc)); const docs = [...docsMap.values()];
@@ -4806,12 +4854,22 @@ adminRouter.get('/customers/:id', async (req, res) => {
         const financials = getOrderFinancials(d, d.provider || d.fournisseur || d.providerName || d.supplier || (collectionName === 'commandes' ? 'EXO' : null), collectionName);
         const amount = financials.amount;
         if (amount === null) unattributedAmountCount++; else derivedSpendPriceXAF += amount;
+        const normalizedStatus = String(d.status || d.orderStatus || d.state || '').trim().toLowerCase();
+        const eligibleForCustomerMargin = ['success', 'successful', 'succeeded', 'completed', 'complete', 'delivered', 'termine', 'terminé', 'en cours', 'in progress', 'in_progress', 'processing'].includes(normalizedStatus);
+        if (eligibleForCustomerMargin) {
+          if (financials.grossProfitXAF !== null && financials.grossProfitXAF !== undefined && Number.isFinite(Number(financials.grossProfitXAF))) {
+            totalGrossProfitXAF += Number(financials.grossProfitXAF);
+            profitEligibleOrders++;
+          } else {
+            profitUnavailableOrders++;
+          }
+        }
         all.push({ id: doc.id, source: collectionName, ...d, normalizedAmount: amount, normalizedProvider: financials.provider, normalizedProviderCost: financials.providerCostXAF, normalizedProfit: financials.grossProfitXAF, normalizedMarginPct: financials.profitMarginPct, providerCostEstimated: financials.providerCostEstimated, profitEstimated: financials.profitEstimated });
       }
     }
     all.sort((a, b) => getTimestampMs(b.createdAt || b.date || b.created_at || b.dateCreated) - getTimestampMs(a.createdAt || a.date || a.created_at || a.dateCreated));
     const orders = all.slice(0, 50).map(o => ({ id: o.id, source: o.source, orderId: o.orderId || o.reference || o.order_id || o.id, serviceName: o.serviceName || o.service_name || o.name || 'Service', quantity: Number(o.quantity || o.qty || o.count || 0), provider: o.normalizedProvider || null, status: o.status || o.orderStatus || o.state || 'Inconnu', amount: o.normalizedAmount, providerCostXAF: o.normalizedProviderCost, grossProfitXAF: o.normalizedProfit, profitMarginPct: o.normalizedMarginPct, providerCostEstimated: o.providerCostEstimated, profitEstimated: o.profitEstimated, createdAt: o.createdAt || o.date || o.dateCreated || o.created_at || o.timestamp || null }));
-    return res.json({ success: true, customer: { id: userDoc.id, name: u.displayName || u.username || u.name || 'Utilisateur', email: u.email || null, phone: u.phone || u.whatsapp || null, country: u.country || null, balance: Number(u.balance || 0), totalOrders: exactOrderCount, totalSpent: Math.round(derivedSpendPriceXAF), createdAt: u.createdAt || u.created_at || null, lastSignIn: u.lastSignIn || u.lastLoginAt || null, lastActivityAt: u.lastActivityAt || u.lastSeenAt || u.lastDashboardVisit || u.lastSignIn || u.lastLoginAt || null, resellerLevel: u.resellerLevel || null }, orders, exactOrderCount, derivedSpendPriceXAF: Math.round(derivedSpendPriceXAF), storedTotalSpent: Number(u.totalSpent || 0), countsByCollection, ordersReturned: orders.length, capped: exactOrderCount > orders.length, unattributedAmountCount, spendNote: 'Total brut des montants de commandes retrouvés dans les six collections, en normalisant les champs connus. Les commandes sans montant reconnu sont comptées dans le volume, mais pas dans le total dépensé.' });
+    return res.json({ success: true, customer: { id: userDoc.id, name: u.displayName || u.username || u.name || 'Utilisateur', email: u.email || null, phone: u.phone || u.whatsapp || null, country: u.country || null, balance: Number(u.balance || 0), totalOrders: exactOrderCount, totalSpent: Math.round(derivedSpendPriceXAF), totalGrossProfitXAF: Math.round(totalGrossProfitXAF), profitEligibleOrders, profitUnavailableOrders, createdAt: u.createdAt || u.created_at || null, lastSignIn: u.lastSignIn || u.lastLoginAt || null, lastActivityAt: u.lastActivityAt || u.lastSeenAt || u.lastDashboardVisit || u.lastSignIn || u.lastLoginAt || null, resellerLevel: u.resellerLevel || null }, orders, exactOrderCount, derivedSpendPriceXAF: Math.round(derivedSpendPriceXAF), totalGrossProfitXAF: Math.round(totalGrossProfitXAF), profitEligibleOrders, profitUnavailableOrders, storedTotalSpent: Number(u.totalSpent || 0), countsByCollection, ordersReturned: orders.length, capped: exactOrderCount > orders.length, unattributedAmountCount, spendNote: 'Total brut des montants de commandes retrouvés dans les six collections, en normalisant les champs connus. Les commandes sans montant reconnu sont comptées dans le volume, mais pas dans le total dépensé. La marge client additionne uniquement les commandes réussies, terminées ou en cours.' });
   } catch (error) { console.error('Erreur /api/admin/customers/:id:', error); return res.status(500).json({ success: false, error: 'Impossible de charger la fiche utilisateur.' }); }
 });
 
@@ -5182,6 +5240,85 @@ function financialWindow(range) {
   return { start: new Date(now.getTime() - durationMs), end: now, previousStart: new Date(now.getTime() - 2 * durationMs), previousEnd: new Date(now.getTime() - durationMs) };
 }
 
+// Les champs type=date du panneau sont interprétés en heure locale UTC+1
+// (Cameroun). La borne de fin est exclusive pour inclure toute la journée choisie.
+function parseBusinessDate(value, endExclusive = false) {
+  const match = String(value || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day + (endExclusive ? 1 : 0)) - 60 * 60 * 1000);
+  const check = new Date(Date.UTC(year, month - 1, day));
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) return null;
+  return date;
+}
+
+function periodPayloadFromAggregate(range, start, end, agg) {
+  const grossMarginAfterRefunds = Number(agg.netSales || 0) - Number(agg.totalSupplierCost || 0);
+  return {
+    range,
+    start: start ? start.toISOString() : null,
+    end: end ? end.toISOString() : new Date().toISOString(),
+    autoOrdersCount: Number(agg.totalOrders || 0),
+    legacyOrdersCount: 0,
+    totalOrders: Number(agg.totalOrders || 0),
+    autoOrdersGrossSales: Number(agg.totalSales || 0),
+    autoOrdersRefunds: Number(agg.totalRefunds || 0),
+    autoOrdersNetSales: Number(agg.netSales || 0),
+    supplierCostWithSnapshots: Number(agg.totalSupplierCost || 0),
+    // Marge de gestion demandée : ventes nettes - coût fournisseur.
+    // Les remboursements sont déjà retirés des ventes nettes.
+    grossMarginAfterRefunds,
+    recordedGrossProfitBeforeRefunds: grossMarginAfterRefunds,
+    providerRecordedProfitBeforeRefunds: Number(agg.totalProfit || 0),
+    financialScope: 'Les ventes, coûts et marges couvrent toutes les collections de commandes (autoOrders, commandes EXO, etc.).',
+  };
+}
+
+async function getDashboardVisitsInWindow(start, end) {
+  if (!start || !end) return 0;
+  const startKey = localDateKey(start);
+  const endKey = localDateKey(end);
+  const collection = db.collection('dailyCounters');
+  const query = collection
+    .where(admin.firestore.FieldPath.documentId(), '>=', startKey)
+    .where(admin.firestore.FieldPath.documentId(), '<', endKey);
+  try {
+    const result = await query.aggregate({ total: admin.firestore.AggregateField.sum('dashboardVisits') }).get();
+    return Number(result.data()?.total || 0);
+  } catch (error) {
+    // Compatibilité si l'agrégation sur les IDs de documents n'est pas disponible.
+    try {
+      const snap = await query.get();
+      return snap.docs.reduce((sum, doc) => sum + Number(doc.data()?.dashboardVisits || 0), 0);
+    } catch (_) {
+      console.warn('Agrégation des visites dashboard indisponible :', error.message);
+      return 0;
+    }
+  }
+}
+
+async function buildOverviewRange(start, end, forceRefresh = false) {
+  const [financials, newUsersCount, dashboardVisits] = await Promise.all([
+    getCachedFinancialAggregate(start, end, forceRefresh),
+    countUsersInWindow(start, end),
+    getDashboardVisitsInWindow(start, end),
+  ]);
+  const grossMargin = Number(financials.netSales || 0) - Number(financials.totalSupplierCost || 0);
+  return {
+    totalOrders: Number(financials.totalOrders || 0),
+    autoOrdersNetSales: Number(financials.netSales || 0),
+    autoOrdersRefunds: Number(financials.totalRefunds || 0),
+    supplierCostWithSnapshots: Number(financials.totalSupplierCost || 0),
+    recordedGrossProfitBeforeRefunds: grossMargin,
+    grossMarginAfterRefunds: grossMargin,
+    newUsersCount: Number(newUsersCount || 0),
+    _newUsersCount: Number(newUsersCount || 0),
+    dashboardVisits: Number(dashboardVisits || 0),
+    start: start.toISOString(),
+    end: end.toISOString(),
+  };
+}
+
 function applyTimeWindow(query, start, end) {
   if (start) query = query.where('createdAt', '>=', admin.firestore.Timestamp.fromDate(start));
   if (end) query = query.where('createdAt', '<', admin.firestore.Timestamp.fromDate(end));
@@ -5230,13 +5367,49 @@ async function readFinancialPeriod(range) {
 adminRouter.get('/financials', async (req, res) => {
   try {
     const acceptedRanges = ['today', 'yesterday', 'dayBefore', '7d', '30d', '90d', 'month', 'year', 'all'];
-    const range = acceptedRanges.includes(String(req.query.range || '30d')) ? String(req.query.range || '30d') : '30d';
-    const cacheKey = `financials:${range}`;
-    const sharedKey = `financials-${range}`;
-    const cached = adminMemoryCache.financialsMap.get(cacheKey);
+    const requestedRange = String(req.query.range || '30d');
+    const isCustom = requestedRange === 'custom' || Boolean(req.query.dateStart || req.query.dateEnd);
+    const range = isCustom ? 'custom' : (acceptedRanges.includes(requestedRange) ? requestedRange : '30d');
     const forceRefresh = String(req.query.refresh || '') === '1';
-    if (!forceRefresh && cached && Date.now() < cached.expires) return res.json({ success: true, data: cached.data, previous: cached.previous, cached: true, cacheScope: 'instance' });
-    if (!forceRefresh) {
+
+    let bounds;
+    if (isCustom) {
+      const start = parseBusinessDate(req.query.dateStart, false);
+      const end = parseBusinessDate(req.query.dateEnd, true);
+      if (!start || !end || start >= end) {
+        return res.status(400).json({ success: false, error: 'Sélectionnez une date de début et une date de fin valides.' });
+      }
+      let previousStart = null, previousEnd = null;
+      const hasCompareStart = Boolean(req.query.compareStart);
+      const hasCompareEnd = Boolean(req.query.compareEnd);
+      if (hasCompareStart !== hasCompareEnd) {
+        return res.status(400).json({ success: false, error: 'Pour comparer, renseignez les deux dates de la période de comparaison.' });
+      }
+      if (hasCompareStart && hasCompareEnd) {
+        previousStart = parseBusinessDate(req.query.compareStart, false);
+        previousEnd = parseBusinessDate(req.query.compareEnd, true);
+        if (!previousStart || !previousEnd || previousStart >= previousEnd) {
+          return res.status(400).json({ success: false, error: 'Les dates de comparaison sont invalides.' });
+        }
+      } else {
+        const duration = end.getTime() - start.getTime();
+        previousEnd = new Date(start.getTime());
+        previousStart = new Date(start.getTime() - duration);
+      }
+      bounds = { start, end, previousStart, previousEnd };
+    } else {
+      bounds = financialWindow(range);
+    }
+
+    const cacheKey = isCustom
+      ? `financials:custom:${bounds.start.toISOString()}:${bounds.end.toISOString()}:${bounds.previousStart.toISOString()}:${bounds.previousEnd.toISOString()}`
+      : `financials:${range}`;
+    const sharedKey = isCustom ? null : `financials-${range}`;
+    const cached = adminMemoryCache.financialsMap.get(cacheKey);
+    if (!forceRefresh && cached && Date.now() < cached.expires) {
+      return res.json({ success: true, data: cached.data, previous: cached.previous, cached: true, cacheScope: 'instance' });
+    }
+    if (!isCustom && !forceRefresh) {
       const shared = await getSharedAdminCache(sharedKey);
       if (shared) {
         const ttl = Math.max(1000, shared.expiresAtMs - Date.now());
@@ -5245,23 +5418,22 @@ adminRouter.get('/financials', async (req, res) => {
       }
     }
 
-    const bounds = financialWindow(range);
-    const current = await readFinancialPeriod(range);
-    let previous = null;
-    if (bounds.previousStart && bounds.previousEnd) {
-      const pAgg = await getFinancialsAllCollections(bounds.previousStart, bounds.previousEnd);
-      previous = {
-        start: bounds.previousStart.toISOString(),
-        end: bounds.previousEnd.toISOString(),
-        autoOrdersCount: pAgg.totalOrders,
-        legacyOrdersCount: 0,
-        totalOrders: pAgg.totalOrders,
-        autoOrdersGrossSales: pAgg.totalSales,
-        autoOrdersRefunds: pAgg.totalRefunds,
-        autoOrdersNetSales: pAgg.netSales,
-        supplierCostWithSnapshots: pAgg.totalSupplierCost,
-        recordedGrossProfitBeforeRefunds: pAgg.totalProfit,
-      };
+    let current, previous = null;
+    if (isCustom) {
+      const [currentAgg, previousAgg] = await Promise.all([
+        getCachedFinancialAggregate(bounds.start, bounds.end, forceRefresh),
+        getCachedFinancialAggregate(bounds.previousStart, bounds.previousEnd, forceRefresh),
+      ]);
+      current = periodPayloadFromAggregate('custom', bounds.start, bounds.end, currentAgg);
+      previous = periodPayloadFromAggregate('custom-comparison', bounds.previousStart, bounds.previousEnd, previousAgg);
+    } else {
+      current = await readFinancialPeriod(range);
+      if (bounds.previousStart && bounds.previousEnd) {
+        const pAgg = await getCachedFinancialAggregate(bounds.previousStart, bounds.previousEnd, forceRefresh);
+        previous = periodPayloadFromAggregate('previous', bounds.previousStart, bounds.previousEnd, pAgg);
+      }
+      current.grossMarginAfterRefunds = Number(current.autoOrdersNetSales || 0) - Number(current.supplierCostWithSnapshots || 0);
+      current.recordedGrossProfitBeforeRefunds = current.grossMarginAfterRefunds;
     }
 
     const [allAutoOrders, marginSnapshotOrders] = await Promise.all([
@@ -5281,13 +5453,62 @@ adminRouter.get('/financials', async (req, res) => {
     current.ordersChangePct = previous && orderBase > 0
       ? Math.round(((current.totalOrders - previous.totalOrders) / orderBase) * 1000) / 10
       : null;
+    if (previous) {
+      previous.grossMarginAfterRefunds = Number(previous.autoOrdersNetSales || 0) - Number(previous.supplierCostWithSnapshots || 0);
+      previous.recordedGrossProfitBeforeRefunds = previous.grossMarginAfterRefunds;
+    }
 
     adminMemoryCache.financialsMap.set(cacheKey, { data: current, previous, expires: Date.now() + 15 * 60 * 1000 });
-    await setSharedAdminCache(sharedKey, { data: current, previous }, 15 * 60 * 1000);
-    res.json({ success: true, data: current, previous, cached: false });
+    if (!isCustom) await setSharedAdminCache(sharedKey, { data: current, previous }, 15 * 60 * 1000);
+    res.json({ success: true, data: current, previous, cached: false, custom: isCustom });
   } catch (error) {
     console.error('Erreur /api/admin/financials:', error);
     res.status(500).json({ success: false, error: 'Impossible de charger les données financières. Vérifiez les index Firestore et les données de commandes.' });
+  }
+});
+
+// Vue d'ensemble sur une période manuelle : mêmes agrégats financiers, plus
+// inscriptions et visites du tableau de bord, avec cache mémoire 15 minutes.
+adminRouter.get('/overview-range', async (req, res) => {
+  try {
+    const start = parseBusinessDate(req.query.dateStart, false);
+    const end = parseBusinessDate(req.query.dateEnd, true);
+    if (!start || !end || start >= end) {
+      return res.status(400).json({ success: false, error: 'Sélectionnez une plage de dates valide.' });
+    }
+    const hasCompareStart = Boolean(req.query.compareStart);
+    const hasCompareEnd = Boolean(req.query.compareEnd);
+    if (hasCompareStart !== hasCompareEnd) {
+      return res.status(400).json({ success: false, error: 'Pour comparer, renseignez les deux dates de comparaison.' });
+    }
+    let previousStart = null, previousEnd = null;
+    if (hasCompareStart && hasCompareEnd) {
+      previousStart = parseBusinessDate(req.query.compareStart, false);
+      previousEnd = parseBusinessDate(req.query.compareEnd, true);
+      if (!previousStart || !previousEnd || previousStart >= previousEnd) {
+        return res.status(400).json({ success: false, error: 'La plage de comparaison est invalide.' });
+      }
+    } else {
+      const duration = end.getTime() - start.getTime();
+      previousEnd = new Date(start.getTime());
+      previousStart = new Date(start.getTime() - duration);
+    }
+    const forceRefresh = String(req.query.refresh || '') === '1';
+    const key = `${start.toISOString()}|${end.toISOString()}|${previousStart.toISOString()}|${previousEnd.toISOString()}`;
+    const cached = overviewRangeResponseCache.get(key);
+    if (!forceRefresh && cached && Date.now() < cached.expires) {
+      return res.json({ success: true, data: cached.data, previous: cached.previous, cached: true });
+    }
+    const [data, previous] = await Promise.all([
+      buildOverviewRange(start, end, forceRefresh),
+      buildOverviewRange(previousStart, previousEnd, forceRefresh),
+    ]);
+    const result = { data, previous };
+    overviewRangeResponseCache.set(key, { ...result, expires: Date.now() + CUSTOM_RANGE_CACHE_TTL_MS });
+    res.json({ success: true, ...result, cached: false });
+  } catch (error) {
+    console.error('Erreur /api/admin/overview-range:', error);
+    res.status(500).json({ success: false, error: 'Impossible de calculer les indicateurs de cette période.' });
   }
 });
 
@@ -5296,6 +5517,8 @@ adminRouter.post('/cache/clear', (req, res) => {
   adminMemoryCache.topUsers.data = null;   adminMemoryCache.topUsers.expires = 0;
   adminMemoryCache.usersStats.data = null; adminMemoryCache.usersStats.expires = 0;
   adminMemoryCache.financialsMap.clear();
+  financialRangeAggregateCache.clear();
+  overviewRangeResponseCache.clear();
   adminMemoryCache.orderSummary.data = null; adminMemoryCache.orderSummary.expires = 0;
   adminMemoryCache.giftsMap.clear();
   allUsersCache.data = null;
