@@ -356,12 +356,30 @@ textarea.msg-area:focus{border-color:var(--gold)}
           <button class="seg-btn" data-period="30d" onclick="setOverviewPeriod('30d')">30 jours</button>
           <button class="seg-btn" data-period="month" onclick="setOverviewPeriod('month')">Ce mois</button>
           <button class="seg-btn" data-period="year" onclick="setOverviewPeriod('year')">Cette année</button>
+          <button class="seg-btn" data-period="custom" onclick="setOverviewPeriod('custom')">Personnalisée</button>
         </div>
         <div class="period-cache-info">
           <i class="fas fa-shield-halved"></i>
           <span>Cache 15 min · Économie de lectures Firestore</span>
         </div>
       </div>
+
+      <div class="filter-bar" id="overviewCustomRangeBar" style="display:none;">
+        <div class="filter-group"><label>Période du</label><input type="date" id="overviewCustomStart"></div>
+        <div class="filter-group"><label>au</label><input type="date" id="overviewCustomEnd"></div>
+        <span class="filter-divider"></span>
+        <div class="filter-group"><label>Comparer du</label><input type="date" id="overviewCompareStart"></div>
+        <div class="filter-group"><label>au</label><input type="date" id="overviewCompareEnd"></div>
+        <button class="btn btn-gold btn-sm" onclick="applyOverviewCustomRange()"><i class="fas fa-filter"></i> Appliquer</button>
+      </div>
+
+      <section class="section" id="overviewObjectivesSection" style="padding-top:8px;">
+        <div class="section-head">
+          <div><span class="section-label">Pilotage</span><h2 class="section-title">Mes objectifs en cours</h2><p class="section-sub">Suivi de tes cibles sur la période choisie, conservé dans ce navigateur.</p></div>
+          <div class="section-actions"><button class="btn btn-gold btn-sm" onclick="openObjectivesModal()"><i class="fas fa-bullseye"></i> Définir un objectif</button></div>
+        </div>
+        <div id="overviewObjectivesPanel"><div class="loading">Aucun objectif défini.</div></div>
+      </section>
 
       <div id="periodOverviewWrap" style="display:none;">
         <div id="overviewComparisonBanner" class="comparison-banner flat" style="display:none;"></div>
@@ -376,22 +394,9 @@ textarea.msg-area:focus{border-color:var(--gold)}
 
         <div class="stats-strip">
           <div class="stat-block"><div class="stat-label">Nouveaux utilisateurs</div><div class="stat-value blue" id="periodNewUsers">—</div><div class="stat-sub" id="periodNewUsersSub">—</div></div>
+          <div class="stat-block"><div class="stat-label">Visites dashboard</div><div class="stat-value" id="periodDashboardVisits">—</div><div class="stat-sub" id="periodDashboardVisitsSub">—</div></div>
           <div class="stat-block"><div class="stat-label">Marge %</div><div class="stat-value" id="periodMarginPct">—</div><div class="stat-sub">sur ventes nettes</div></div>
         </div>
-
-        <section class="section">
-          <div class="section-head">
-            <div>
-              <span class="section-label">Objectifs personnalisés</span>
-              <h2 class="section-title">Progression vers tes objectifs</h2>
-              <p class="section-sub">Définis tes propres cibles. Aucune lecture Firestore — stockés dans ton navigateur.</p>
-            </div>
-            <div class="section-actions">
-              <button class="btn btn-gold btn-sm" onclick="openObjectivesModal()"><i class="fas fa-bullseye"></i> Modifier mes objectifs</button>
-            </div>
-          </div>
-          <div id="overviewObjectivesPanel"></div>
-        </section>
 
         <section class="section">
           <div class="section-head"><div><span class="section-label">Assistant</span><h2 class="section-title">Félicitations & recommandations</h2><p class="section-sub">Actions concrètes pour progresser ou stabiliser tes acquis</p></div></div>
@@ -403,7 +408,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
       <div class="stats-strip">
         <div class="stat-block"><div class="stat-label">Utilisateurs totaux</div><div class="stat-value" id="kpiTotalUsers">—</div><div class="stat-sub" id="kpiNewUsers">—</div></div>
         <div class="stat-block"><div class="stat-label">Commandes totales</div><div class="stat-value" id="kpiTotalOrders">—</div><div class="stat-sub" id="kpiPendingOrders">—</div></div>
-        <div class="stat-block"><div class="stat-label">Aujourd'hui</div><div class="stat-value green" id="kpiOrdersToday">—</div><div class="stat-sub">commandes</div></div>
+        <div class="stat-block"><div class="stat-label">Aujourd'hui</div><div class="stat-value green" id="kpiOrdersToday">—</div><div class="stat-sub" id="kpiOrdersTodayCompare">commandes</div></div>
         <div class="stat-block"><div class="stat-label">Hier</div><div class="stat-value" id="kpiOrdersYesterday">—</div><div class="stat-sub">commandes</div></div>
         <div class="stat-block"><div class="stat-label">Avant-hier</div><div class="stat-value" id="kpiOrdersDayBefore">—</div><div class="stat-sub">commandes</div></div>
       </div>
@@ -416,7 +421,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
       <section class="section">
         <div class="section-head"><div><span class="section-label">Activité</span><h2 class="section-title">Inscriptions et engagement</h2></div></div>
         <div class="stats-strip" style="margin-bottom:0;">
-          <div class="stat-block"><div class="stat-label">Nouveaux aujourd'hui</div><div class="stat-value blue" id="kpiUsersToday">—</div></div>
+          <div class="stat-block"><div class="stat-label">Nouveaux aujourd'hui</div><div class="stat-value blue" id="kpiUsersToday">—</div><div class="stat-sub" id="kpiUsersTodayCompare">—</div></div>
           <div class="stat-block"><div class="stat-label">Nouveaux hier</div><div class="stat-value" id="kpiUsersYesterday">—</div></div>
           <div class="stat-block"><div class="stat-label">Nouveaux avant-hier</div><div class="stat-value" id="kpiUsersDayBefore">—</div></div>
           <div class="stat-block"><div class="stat-label">Visites dashboard</div><div class="stat-value" id="kpiDashboardVisits">—</div><div class="stat-sub" id="kpiDashboardActive">—</div></div>
@@ -441,7 +446,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
           <div class="stat-block"><div class="stat-label">Dépôts réussis hier</div><div class="stat-value" id="kpiDepositsYesterday">—</div><div class="stat-sub" id="kpiDepositsYesterdaySub" style="font-size:.72rem;">—</div></div>
           <div class="stat-block"><div class="stat-label">Dépôts réussis avant-hier</div><div class="stat-value" id="kpiDepositsDayBefore">—</div><div class="stat-sub" id="kpiDepositsDayBeforeSub" style="font-size:.72rem;">—</div></div>
           <div class="stat-block"><div class="stat-label">Meilleur déposant</div><div class="stat-value gold" id="kpiTopDepositorName" style="font-size:1.1rem;">—</div><div class="stat-sub" id="kpiTopDepositorAmount" style="font-size:.72rem;">—</div></div>
-          <div class="stat-block"><div class="stat-label">Visites aujourd'hui</div><div class="stat-value blue" id="kpiVisitsToday">—</div></div>
+          <div class="stat-block"><div class="stat-label">Visites aujourd'hui</div><div class="stat-value blue" id="kpiVisitsToday">—</div><div class="stat-sub" id="kpiVisitsTodayCompare">—</div></div>
           <div class="stat-block"><div class="stat-label">Visites hier</div><div class="stat-value" id="kpiVisitsYesterday">—</div></div>
           <div class="stat-block"><div class="stat-label">Visites avant-hier</div><div class="stat-value" id="kpiVisitsDayBefore">—</div></div>
         </div>
@@ -524,9 +529,19 @@ textarea.msg-area:focus{border-color:var(--gold)}
             <button class="seg-btn" data-financial-range="month" onclick="setFinancialRange('month')">Mois</button>
             <button class="seg-btn" data-financial-range="year" onclick="setFinancialRange('year')">Année</button>
             <button class="seg-btn" data-financial-range="all" onclick="setFinancialRange('all')">Tout</button>
+            <button class="seg-btn" data-financial-range="custom" onclick="setFinancialRange('custom')">Personnalisée</button>
           </div>
           <input type="hidden" id="financialRange" value="30d">
         </div>
+        <div class="filter-bar" id="financeCustomRangeBar" style="display:none;padding-top:4px;">
+          <div class="filter-group"><label>Période du</label><input type="date" id="financialDateStart"></div>
+          <div class="filter-group"><label>au</label><input type="date" id="financialDateEnd"></div>
+          <span class="filter-divider"></span>
+          <div class="filter-group"><label>Comparer du</label><input type="date" id="financialCompareStart"></div>
+          <div class="filter-group"><label>au</label><input type="date" id="financialCompareEnd"></div>
+          <button class="btn btn-gold btn-sm" onclick="applyFinancialCustomRange()"><i class="fas fa-filter"></i> Appliquer</button>
+        </div>
+        <p id="financialComparisonCaption" style="font-size:.76rem;color:var(--text-dim);margin:0 0 12px;"></p>
         <div class="filter-bar" style="padding-top:6px;">
           <div class="filter-group">
             <label>Fournisseur</label>
@@ -552,7 +567,8 @@ textarea.msg-area:focus{border-color:var(--gold)}
         <div class="stat-block"><div class="stat-label">Ventes nettes</div><div class="stat-value green" id="finSales">—</div><div class="stat-sub" id="finSalesCompare">—</div></div>
         <div class="stat-block"><div class="stat-label">Remboursements</div><div class="stat-value red" id="finRefunds">—</div></div>
         <div class="stat-block"><div class="stat-label">Coût fournisseur</div><div class="stat-value" id="finSupplierCost">—</div></div>
-        <div class="stat-block"><div class="stat-label">Marge brute</div><div class="stat-value gold" id="finGrossProfit">—</div></div>
+        <div class="stat-block"><div class="stat-label">Marge brute</div><div class="stat-value gold" id="finGrossProfit">—</div><div class="stat-sub" id="finGrossProfitCompare">—</div></div>
+        <div class="stat-block"><div class="stat-label">Taux de marge</div><div class="stat-value" id="finMarginPct">—</div></div>
         <div class="stat-block"><div class="stat-label">Couverture</div><div class="stat-value blue" id="finCoverage">—</div><div class="stat-sub" id="finCoverageSub">—</div></div>
       </div>
       <section class="section">
@@ -652,8 +668,8 @@ textarea.msg-area:focus{border-color:var(--gold)}
         <div class="filter-bar">
           <div class="filter-group"><label>Recherche</label><input id="customerSearch" type="text" placeholder="Nom, email exact…" onkeydown="if(event.key==='Enter')loadCustomers(true)" style="min-width:200px;"></div>
           <div class="filter-group"><label>Pays</label><select id="customerCountryFilter" onchange="loadCustomers(true)"><option value="">Tous</option></select></div>
-          <div class="filter-group"><label>Segment</label><select id="customerSegmentFilter" onchange="loadCustomers(true)"><option value="all">Tous</option><option value="ordered">A déjà commandé</option><option value="neverOrdered">Aucune commande</option><option value="highOrders">Plus de commandes</option><option value="highBalance">Solde élevé</option></select></div>
-          <div class="filter-group"><label>Tri</label><select id="customerSortFilter" onchange="loadCustomers(true)"><option value="recent">Plus récents</option><option value="orders">Commandes</option><option value="balance">Solde</option></select></div>
+          <div class="filter-group"><label>Segment</label><select id="customerSegmentFilter" onchange="loadCustomers(true)"><option value="all">Tous</option><option value="ordered">A déjà commandé</option><option value="neverOrdered">Aucune commande</option><option value="highOrders">Plus de commandes</option><option value="highSpent">Plus dépensé</option><option value="highProfit">Plus de marge</option><option value="highBalance">Solde élevé</option></select></div>
+          <div class="filter-group"><label>Tri</label><select id="customerSortFilter" onchange="loadCustomers(true)"><option value="recent">Plus récents</option><option value="orders">Commandes</option><option value="spent">Total dépensé</option><option value="profit">Marge brute</option><option value="balance">Solde</option></select></div>
           <div class="filter-group date-range"><label>Inscription du</label><input type="date" id="customerDateStart" onchange="loadCustomers(true)"></div>
           <div class="filter-group date-range"><label>au</label><input type="date" id="customerDateEnd" onchange="loadCustomers(true)"></div>
           <button class="btn btn-outline btn-sm" onclick="clearCustomerDates()" title="Réinitialiser"><i class="fas fa-undo"></i></button>
@@ -904,21 +920,40 @@ textarea.msg-area:focus{border-color:var(--gold)}
 </div>
 
 <div id="objectivesModal" class="modal-overlay" onclick="if(event.target===this)closeObjectivesModal()">
-  <div class="modal" style="max-width:560px;">
-    <div class="modal-header"><h3><i class="fas fa-bullseye"></i> Modifier mes objectifs — <span id="objPeriodLabel">—</span></h3><button class="modal-close" onclick="closeObjectivesModal()">&times;</button></div>
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header"><h3><i class="fas fa-bullseye"></i> Définir mes objectifs</h3><button class="modal-close" onclick="closeObjectivesModal()">&times;</button></div>
     <div class="modal-body">
-      <p style="font-size:.84rem;color:var(--text-muted);margin-bottom:20px;line-height:1.55;">Fixez vos propres cibles pour cette période. Ces objectifs sont stockés <strong>uniquement dans votre navigateur</strong> — aucune lecture Firestore, aucune écriture Firestore.</p>
-      <label class="preview-label" for="objOrdersInput"><i class="fas fa-shopping-cart"></i> Commandes cibles</label>
-      <input type="number" id="objOrdersInput" min="0" step="1" class="modal-select" placeholder="Ex: 500">
-      <label class="preview-label" for="objSalesInput"><i class="fas fa-coins"></i> Ventes nettes cibles (FCFA)</label>
-      <input type="number" id="objSalesInput" min="0" step="1000" class="modal-select" placeholder="Ex: 500000">
-      <label class="preview-label" for="objProfitInput"><i class="fas fa-chart-line"></i> Marge brute cible (FCFA)</label>
-      <input type="number" id="objProfitInput" min="0" step="1000" class="modal-select" placeholder="Ex: 200000">
-      <label class="preview-label" for="objUsersInput"><i class="fas fa-user-plus"></i> Nouveaux utilisateurs cibles</label>
-      <input type="number" id="objUsersInput" min="0" step="1" class="modal-select" placeholder="Ex: 50">
+      <p style="font-size:.84rem;color:var(--text-muted);margin-bottom:18px;line-height:1.55;">Choisis la période à piloter. Les objectifs sont enregistrés dans le stockage local de ce navigateur : aucune écriture Firestore n'est effectuée.</p>
+      <label class="preview-label" for="objectivePeriodSelect">Période de l'objectif</label>
+      <select id="objectivePeriodSelect" class="modal-select" onchange="updateObjectivePeriodInputs()">
+        <option value="today">Aujourd'hui</option>
+        <option value="tomorrow">Demain</option>
+        <option value="next3days">Les 3 prochains jours</option>
+        <option value="week">Cette semaine</option>
+        <option value="month">Ce mois</option>
+        <option value="nextMonth">Le mois prochain</option>
+        <option value="year">Cette année</option>
+        <option value="custom">Période personnalisée</option>
+      </select>
+      <div id="objectiveCustomDates" style="display:none;">
+        <div class="filter-bar" style="padding:4px 0 12px;border-bottom:0;">
+          <div class="filter-group"><label>Du</label><input type="date" id="objectiveDateStart"></div>
+          <div class="filter-group"><label>Au</label><input type="date" id="objectiveDateEnd"></div>
+        </div>
+      </div>
+      <label class="preview-label" for="objOrdersInput"><i class="fas fa-shopping-cart"></i> Nombre de commandes</label>
+      <input type="number" id="objOrdersInput" min="0" step="1" class="modal-select" placeholder="Ex : 50">
+      <label class="preview-label" for="objSalesInput"><i class="fas fa-coins"></i> Ventes nettes (FCFA)</label>
+      <input type="number" id="objSalesInput" min="0" step="1000" class="modal-select" placeholder="Ex : 500000">
+      <label class="preview-label" for="objProfitInput"><i class="fas fa-chart-line"></i> Marge brute (FCFA)</label>
+      <input type="number" id="objProfitInput" min="0" step="1000" class="modal-select" placeholder="Ex : 200000">
+      <label class="preview-label" for="objUsersInput"><i class="fas fa-user-plus"></i> Nouveaux utilisateurs</label>
+      <input type="number" id="objUsersInput" min="0" step="1" class="modal-select" placeholder="Ex : 50">
+      <label class="preview-label" for="objVisitsInput"><i class="fas fa-chart-bar"></i> Visites du tableau de bord</label>
+      <input type="number" id="objVisitsInput" min="0" step="1" class="modal-select" placeholder="Ex : 1000">
     </div>
     <div class="modal-footer">
-      <button class="btn btn-outline" onclick="resetObjectives()"><i class="fas fa-rotate-left"></i> Réinitialiser (suggestion auto)</button>
+      <button class="btn btn-outline" onclick="resetObjectives()"><i class="fas fa-trash-alt"></i> Supprimer l'objectif</button>
       <button class="btn btn-gold" onclick="saveObjectives()"><i class="fas fa-check"></i> Enregistrer</button>
     </div>
   </div>
@@ -950,6 +985,9 @@ let financialsLoaded = false;
 let financialsLoadedAt = 0;
 let financialsLoadedRange = null;
 let financialProviderFilter = 'all';
+let lastFinancialData = null;
+let lastFinancialPrevious = null;
+let lastFinancialSelection = null;
 let allOrders = [];
 let orderOffset = 0;
 let ordersHasMore = false;
@@ -1104,13 +1142,16 @@ function switchView(view){
       document.getElementById('defaultOverviewWrap').style.display='block';
       if(!overviewLoaded)loadOverview();
       if(!topUsersLoaded)loadTopUsers();
+      loadObjectiveProgress();
     }else if(overviewPeriodData){
+      const cfg=overviewPeriodData.cfg||PERIOD_CONFIG[overviewPeriod]||{label:'Période personnalisée',compareLabel:'période de comparaison'};
       document.getElementById('periodOverviewWrap').style.display='block';
       document.getElementById('defaultOverviewWrap').style.display='none';
-      renderPeriodOverview(overviewPeriodData.data,overviewPeriodData.previous,PERIOD_CONFIG[overviewPeriod]);
-      renderComparisonBanner(overviewPeriodData.data,overviewPeriodData.previous,PERIOD_CONFIG[overviewPeriod]);
-      renderObjectives(overviewPeriodData.data,overviewPeriodData.previous,PERIOD_CONFIG[overviewPeriod]);
-      renderRecommendations(overviewPeriodData.data,overviewPeriodData.previous,PERIOD_CONFIG[overviewPeriod]);
+      const customBar=document.getElementById('overviewCustomRangeBar');if(customBar)customBar.style.display=overviewPeriod==='custom'?'flex':'none';
+      renderPeriodOverview(overviewPeriodData.data,overviewPeriodData.previous,cfg);
+      renderComparisonBanner(overviewPeriodData.data,overviewPeriodData.previous,cfg);
+      renderObjectives(overviewPeriodData.data,overviewPeriodData.previous,cfg);
+      renderRecommendations(overviewPeriodData.data,overviewPeriodData.previous,cfg);
     }else{loadOverviewPeriod();}
   }
   else if(view==='services'){if(!servicesLoaded)loadServices();}
@@ -1158,39 +1199,90 @@ function startAutoRefresh(){
 }
 
 function setOverviewPeriod(period){
-  if(!PERIOD_CONFIG[period])return;
+  if(period!=='custom'&&!PERIOD_CONFIG[period])return;
   overviewPeriod=period;
   document.querySelectorAll('#overviewPeriodSegmented .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.period===period));
+  const customBar=document.getElementById('overviewCustomRangeBar');
+  if(customBar)customBar.style.display=period==='custom'?'flex':'none';
   if(period==='today'){
     document.getElementById('periodOverviewWrap').style.display='none';
     document.getElementById('defaultOverviewWrap').style.display='block';
     if(!overviewLoaded)loadOverview();
-  }else{loadOverviewPeriod();}
+    loadObjectiveProgress();
+  }else if(period==='custom'){
+    overviewPeriodData=null;
+    document.getElementById('periodOverviewWrap').style.display='block';
+    document.getElementById('defaultOverviewWrap').style.display='none';
+    const today=new Date();
+    const start=new Date(today.getFullYear(),today.getMonth(),1);
+    const dateToInput=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const startEl=document.getElementById('overviewCustomStart'),endEl=document.getElementById('overviewCustomEnd');
+    if(startEl&&!startEl.value)startEl.value=dateToInput(start);
+    if(endEl&&!endEl.value)endEl.value=dateToInput(today);
+    const banner=document.getElementById('overviewComparisonBanner');if(banner)banner.style.display='none';
+  }else{
+    document.getElementById('periodOverviewWrap').style.display='block';
+    document.getElementById('defaultOverviewWrap').style.display='none';
+    loadOverviewPeriod();
+  }
 }
+
+function applyOverviewCustomRange(){
+  const start=document.getElementById('overviewCustomStart')?.value||'';
+  const end=document.getElementById('overviewCustomEnd')?.value||'';
+  const compareStart=document.getElementById('overviewCompareStart')?.value||'';
+  const compareEnd=document.getElementById('overviewCompareEnd')?.value||'';
+  if(!start||!end||start>end){showError('Choisissez une période principale valide.');return;}
+  if(Boolean(compareStart)!==Boolean(compareEnd)||(compareStart&&compareStart>compareEnd)){showError('Renseignez les deux dates de comparaison dans le bon ordre.');return;}
+  overviewPeriod='custom';
+  loadOverviewPeriod(true);
+}
+
 async function loadOverviewPeriod(force=false){
   if(overviewPeriodLoading)return;
   overviewPeriodLoading=true;
   document.getElementById('periodOverviewWrap').style.display='block';
   document.getElementById('defaultOverviewWrap').style.display='none';
   const banner=document.getElementById('overviewComparisonBanner');if(banner)banner.style.display='none';
-  ['periodOrders','periodSales','periodRefunds','periodCost','periodProfit','periodNewUsers','periodMarginPct'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='…';});
-  document.getElementById('overviewObjectivesPanel').innerHTML='<div class="loading"><i class="fas fa-circle-notch"></i> Calcul…</div>';
+  ['periodOrders','periodSales','periodRefunds','periodCost','periodProfit','periodNewUsers','periodDashboardVisits','periodMarginPct'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='…';});
   document.getElementById('overviewRecommendationsPanel').innerHTML='';
   try{
-    const cfg=PERIOD_CONFIG[overviewPeriod];
-    const qs=`range=${cfg.range}${force?'&refresh=1':''}`;
-    const [finData,curUsers,prevUsers]=await Promise.all([fetchAdmin('/financials?'+qs),fetchNewUsersForPeriod(cfg.range,false),fetchNewUsersForPeriod(cfg.range,true)]);
-    const data=finData.data||{};const previous=finData.previous||null;
-    data.newUsersCount=curUsers;data._newUsersPrev=prevUsers;
-    if(previous)previous._newUsersCount=prevUsers;
-    overviewPeriodData={data,previous};
+    let data,previous,cfg;
+    if(overviewPeriod==='custom'){
+      const dateStart=document.getElementById('overviewCustomStart')?.value||'';
+      const dateEnd=document.getElementById('overviewCustomEnd')?.value||'';
+      const compareStart=document.getElementById('overviewCompareStart')?.value||'';
+      const compareEnd=document.getElementById('overviewCompareEnd')?.value||'';
+      if(!dateStart||!dateEnd||dateStart>dateEnd)throw new Error('Sélectionnez une période personnalisée valide.');
+      const params=new URLSearchParams({dateStart,dateEnd});
+      if(compareStart&&compareEnd){params.set('compareStart',compareStart);params.set('compareEnd',compareEnd);}
+      if(force)params.set('refresh','1');
+      const response=await fetchAdmin('/overview-range?'+params.toString());
+      data=response.data||{};previous=response.previous||null;
+      data._newUsersCount=Number(data.newUsersCount||0);
+      if(previous)previous._newUsersCount=Number(previous.newUsersCount||0);
+      const fmt=d=>new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+      cfg={range:'custom',label:`${fmt(dateStart)} au ${fmt(dateEnd)}`,compareLabel:compareStart&&compareEnd?`${fmt(compareStart)} au ${fmt(compareEnd)}`:'période précédente de même durée'};
+    }else{
+      const standardCfg=PERIOD_CONFIG[overviewPeriod];
+      if(!standardCfg)throw new Error('Période inconnue.');
+      const qs=`range=${standardCfg.range}${force?'&refresh=1':''}`;
+      const [finData,curUsers,prevUsers]=await Promise.all([fetchAdmin('/financials?'+qs),fetchNewUsersForPeriod(standardCfg.range,false),fetchNewUsersForPeriod(standardCfg.range,true)]);
+      data=finData.data||{};previous=finData.previous||null;
+      data.newUsersCount=curUsers;data._newUsersCount=curUsers;data._newUsersPrev=prevUsers;
+      if(previous)previous._newUsersCount=prevUsers;
+      cfg=standardCfg;
+    }
+    overviewPeriodData={data,previous,cfg};
     renderPeriodOverview(data,previous,cfg);
     renderComparisonBanner(data,previous,cfg);
     renderObjectives(data,previous,cfg);
     renderRecommendations(data,previous,cfg);
-  }catch(e){console.error('Period load error',e);showError('Période : '+e.message);document.getElementById('overviewObjectivesPanel').innerHTML=`<div class="loading">Erreur : ${esc(e.message)}</div>`;}
+    loadObjectiveProgress();
+  }catch(e){console.error('Period load error',e);showError('Période : '+e.message);document.getElementById('overviewRecommendationsPanel').innerHTML=`<div class="loading">Erreur : ${esc(e.message)}</div>`;}
   finally{overviewPeriodLoading=false;}
 }
+
 function computeDateBounds(range,isPrevious){
   const now=new Date();const dayMs=24*60*60*1000;const offsetMs=60*60*1000;const local=new Date(now.getTime()+offsetMs);
   const startOfToday=new Date(Date.UTC(local.getUTCFullYear(),local.getUTCMonth(),local.getUTCDate())-offsetMs);
@@ -1212,31 +1304,36 @@ async function fetchNewUsersForPeriod(range,isPrevious){
     return Number(d.total||0);
   }catch(e){console.warn('New users period error',e.message);return 0;}
 }
-function periodPct(cur,prev){const c=Number(cur)||0;const p=Number(prev)||0;if(p===0)return c>0?100:null;return ((c-p)/p)*100;}
+function periodPct(cur,prev){const c=Number(cur)||0;const p=Number(prev)||0;if(p===0)return null;return ((c-p)/p)*100;}
+function getNetGrossMargin(data){return Number(data?.autoOrdersNetSales||0)-Number(data?.supplierCostWithSnapshots||0);}
 function renderPeriodOverview(data,previous,cfg){
   const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
   const setSub=(id,cur,prev,suffix='')=>{
-    const el=document.getElementById(id);if(!el)return;if(!previous){el.innerHTML='—';return;}
+    const el=document.getElementById(id);if(!el)return;if(prev===null||prev===undefined){el.textContent='—';return;}
     const delta=periodPct(cur,prev);
     const deltaLabel=delta===null?'—':(delta>0?`+${Math.round(delta)}%`:`${Math.round(delta)}%`);
     const deltaColor=delta===null?'var(--text-dim)':(delta>0?'var(--green)':(delta<0?'var(--red)':'var(--text-muted)'));
     el.innerHTML=`Préc. : ${Number(prev||0).toLocaleString('fr-FR')}${suffix} · <span style="color:${deltaColor};">${deltaLabel}</span>`;
   };
   const sales=Math.max(0,Number(data.autoOrdersNetSales||0));
-  const marginPct=sales>0?(Number(data.recordedGrossProfitBeforeRefunds||0)/sales*100):0;
+  const margin=getNetGrossMargin(data);
+  const marginPct=sales>0?(margin/sales*100):0;
+  const visits=Number(data.dashboardVisits??0);
   set('periodOrders',Number(data.totalOrders||0).toLocaleString('fr-FR'));
   set('periodSales',Number(data.autoOrdersNetSales||0).toLocaleString('fr-FR')+' FCFA');
   set('periodRefunds',Number(data.autoOrdersRefunds||0).toLocaleString('fr-FR')+' FCFA');
   set('periodCost',Number(data.supplierCostWithSnapshots||0).toLocaleString('fr-FR')+' FCFA');
-  set('periodProfit',Number(data.recordedGrossProfitBeforeRefunds||0).toLocaleString('fr-FR')+' FCFA');
+  set('periodProfit',margin.toLocaleString('fr-FR')+' FCFA');
   set('periodNewUsers',Number(data.newUsersCount||0).toLocaleString('fr-FR'));
+  set('periodDashboardVisits',visits.toLocaleString('fr-FR'));
   set('periodMarginPct',marginPct.toFixed(1)+'%');
   setSub('periodOrdersSub',data.totalOrders,previous?.totalOrders);
   setSub('periodSalesSub',data.autoOrdersNetSales,previous?.autoOrdersNetSales,' FCFA');
   setSub('periodRefundsSub',data.autoOrdersRefunds,previous?.autoOrdersRefunds,' FCFA');
   setSub('periodCostSub',data.supplierCostWithSnapshots,previous?.supplierCostWithSnapshots,' FCFA');
-  setSub('periodProfitSub',data.recordedGrossProfitBeforeRefunds,previous?.recordedGrossProfitBeforeRefunds,' FCFA');
-  setSub('periodNewUsersSub',data.newUsersCount,previous?._newUsersCount);
+  setSub('periodProfitSub',margin,previous?getNetGrossMargin(previous):null,' FCFA');
+  setSub('periodNewUsersSub',data.newUsersCount,previous?._newUsersCount??previous?.newUsersCount);
+  setSub('periodDashboardVisitsSub',visits,previous?.dashboardVisits);
 }
 function renderComparisonBanner(data,previous,cfg){
   const banner=document.getElementById('overviewComparisonBanner');
@@ -1245,6 +1342,7 @@ function renderComparisonBanner(data,previous,cfg){
   const ordersDelta=periodPct(data.totalOrders,previous.totalOrders);
   const salesDelta=periodPct(data.autoOrdersNetSales,previous.autoOrdersNetSales);
   const usersDelta=periodPct(data.newUsersCount,previous._newUsersCount);
+  const visitsDelta=(data.dashboardVisits!==undefined&&previous.dashboardVisits!==undefined)?periodPct(data.dashboardVisits,previous.dashboardVisits):null;
   let severity='flat',icon='fa-equals',headline='Performance stable';
   if(ordersDelta!==null&&ordersDelta>=10&&salesDelta!==null&&salesDelta>=10){severity='champion';icon='fa-trophy';headline=`🎉 Félicitations ! Tu dépasses la période précédente (+${Math.round(ordersDelta)}% commandes, +${Math.round(salesDelta)}% ventes)`;}
   else if(ordersDelta!==null&&ordersDelta>=20){severity='up';icon='fa-rocket';headline=`🚀 Excellente progression : +${Math.round(ordersDelta)}% de commandes`;}
@@ -1256,53 +1354,114 @@ function renderComparisonBanner(data,previous,cfg){
   parts.push(`Commandes : <strong>${Number(data.totalOrders||0).toLocaleString('fr-FR')}</strong> vs ${Number(previous.totalOrders||0).toLocaleString('fr-FR')}`);
   if(data.autoOrdersNetSales>0||previous.autoOrdersNetSales>0){parts.push(`Ventes : <strong>${Number(data.autoOrdersNetSales||0).toLocaleString('fr-FR')} FCFA</strong> vs ${Number(previous.autoOrdersNetSales||0).toLocaleString('fr-FR')} FCFA`);}
   if(usersDelta!==null){parts.push(`Nouveaux : <strong>${Number(data.newUsersCount||0).toLocaleString('fr-FR')}</strong> vs ${Number(previous._newUsersCount||0).toLocaleString('fr-FR')}`);}
+  if(visitsDelta!==null){parts.push(`Visites : <strong>${Number(data.dashboardVisits||0).toLocaleString('fr-FR')}</strong> vs ${Number(previous.dashboardVisits||0).toLocaleString('fr-FR')}`);}
   let stabilization='';
   if(severity==='champion'||severity==='up'){stabilization='<br><br><strong>💡 Pour garder ce rythme :</strong> continue à publier régulièrement sur tes réseaux, réponds vite au support client, et remercie personnellement tes meilleurs clients (l\'email d\'encouragement est fait pour ça !).';}
   banner.className=`comparison-banner ${severity}`;
   banner.innerHTML=`<div class="icon"><i class="fas ${icon}"></i></div><div class="body"><div class="headline">${headline}</div><div class="detail">${cfg.label} · ${cfg.compareLabel} : ${parts.join(' · ')}${stabilization}</div></div>`;
 }
 
-function getStoredObjectives(){try{return JSON.parse(localStorage.getItem(OBJECTIVES_KEY)||'{}');}catch(_){return {};}}
+function getStoredObjectives(){try{return JSON.parse(localStorage.getItem(OBJECTIVES_KEY)||'{}')||{};}catch(_){return {};}}
 function saveStoredObjectives(obj){try{localStorage.setItem(OBJECTIVES_KEY,JSON.stringify(obj));}catch(_){}}
-function getObjectivesForPeriod(period){const all=getStoredObjectives();return all[period]||null;}
-function computeSuggestedObjectives(data,previous){const prev=previous||{};return{orders:Math.round((Number(prev.totalOrders||0)*1.10))||100,sales:Math.round((Number(prev.autoOrdersNetSales||0)*1.10))||100000,profit:Math.round((Number(prev.recordedGrossProfitBeforeRefunds||0)*1.10))||50000,newUsers:Math.round((Number(prev._newUsersCount||0)*1.10))||20};}
-function renderObjectives(data,previous,cfg){
-  const panel=document.getElementById('overviewObjectivesPanel');panel.innerHTML='';
-  const custom=getObjectivesForPeriod(overviewPeriod);const suggested=computeSuggestedObjectives(data,previous);const objectives=custom||suggested;
-  if(!custom){
-    const note=document.createElement('div');
-    note.style.cssText='padding:12px 16px;background:var(--blue-dim);border:1px solid rgba(77,166,255,.2);border-radius:6px;margin-bottom:16px;font-size:.82rem;color:var(--accent);line-height:1.55;';
-    note.innerHTML=`<i class="fas fa-info-circle"></i> Objectifs suggérés automatiquement (= <strong>période précédente + 10%</strong>). Clique sur <strong>"Modifier mes objectifs"</strong> pour les personnaliser.`;
-    panel.appendChild(note);
-  }
-  const metrics=[
-    {key:'orders',label:'Commandes',cur:data.totalOrders,target:objectives.orders,fmt:v=>Number(v).toLocaleString('fr-FR')},
-    {key:'sales',label:'Ventes nettes',cur:data.autoOrdersNetSales,target:objectives.sales,fmt:v=>Number(v).toLocaleString('fr-FR')+' FCFA'},
-    {key:'profit',label:'Marge brute',cur:data.recordedGrossProfitBeforeRefunds,target:objectives.profit,fmt:v=>Number(v).toLocaleString('fr-FR')+' FCFA'},
-    {key:'newUsers',label:'Nouveaux utilisateurs',cur:data.newUsersCount,target:objectives.newUsers,fmt:v=>Number(v).toLocaleString('fr-FR')}
-  ];
-  metrics.forEach(m=>{
-    const cur=Number(m.cur)||0;const target=Number(m.target)||0;if(target===0)return;
-    const pct=target>0?(cur/target)*100:0;const missing=Math.max(0,target-cur);
-    let fillClass='success';if(pct<50)fillClass='danger';else if(pct<100)fillClass='warning';
-    const valueClass=pct>=100?'good':(pct>=70?'warn':'bad');
-    const row=document.createElement('div');row.className='objective-row';
-    row.innerHTML=`<div class="objective-info"><div class="objective-title">${esc(m.label)}</div><div class="objective-meta">Atteint : <strong style="color:var(--text);">${m.fmt(cur)}</strong> / Objectif : <strong>${m.fmt(target)}</strong>${missing>0?`<br><span style="color:var(--warning);">Il te manque <strong>${m.fmt(missing)}</strong></span>`:`<br><span style="color:var(--green);">✓ Objectif atteint !</span>`}</div><div class="objective-bar"><div class="objective-fill ${fillClass}" style="width:${Math.min(100,pct)}%;"></div></div></div><div class="objective-value ${valueClass}">${Math.round(pct)}%</div>`;
-    panel.appendChild(row);
-  });
+function localDateInput(date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;}
+function getObjectiveBounds(period){
+  const now=new Date();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const addDays=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
+  let start=today,end=addDays(today,1);
+  if(period==='tomorrow'){start=addDays(today,1);end=addDays(start,1);}
+  else if(period==='next3days'){start=today;end=addDays(today,3);}
+  else if(period==='week'){const day=(today.getDay()+6)%7;start=addDays(today,-day);end=addDays(start,7);}
+  else if(period==='month'){start=new Date(today.getFullYear(),today.getMonth(),1);end=new Date(today.getFullYear(),today.getMonth()+1,1);}
+  else if(period==='nextMonth'){start=new Date(today.getFullYear(),today.getMonth()+1,1);end=new Date(today.getFullYear(),today.getMonth()+2,1);}
+  else if(period==='year'){start=new Date(today.getFullYear(),0,1);end=new Date(today.getFullYear()+1,0,1);}
+  return {start:localDateInput(start),end:localDateInput(addDays(end,-1))};
 }
+function updateObjectivePeriodInputs(){
+  const period=document.getElementById('objectivePeriodSelect')?.value||'today';
+  const custom=document.getElementById('objectiveCustomDates');
+  if(custom)custom.style.display=period==='custom'?'block':'none';
+  if(period==='custom'){
+    const today=new Date();const start=document.getElementById('objectiveDateStart'),end=document.getElementById('objectiveDateEnd');
+    if(start&&!start.value)start.value=localDateInput(new Date(today.getFullYear(),today.getMonth(),1));
+    if(end&&!end.value)end.value=localDateInput(today);
+  }
+}
+function renderObjectives(){loadObjectiveProgress();}
 function openObjectivesModal(){
-  const custom=getObjectivesForPeriod(overviewPeriod);const suggested=computeSuggestedObjectives(overviewPeriodData?.data,overviewPeriodData?.previous);const obj=custom||suggested;
-  document.getElementById('objOrdersInput').value=obj.orders;
-  document.getElementById('objSalesInput').value=obj.sales;
-  document.getElementById('objProfitInput').value=obj.profit;
-  document.getElementById('objUsersInput').value=obj.newUsers;
-  document.getElementById('objPeriodLabel').textContent=PERIOD_CONFIG[overviewPeriod]?.label||'Période';
+  const saved=getStoredObjectives();
+  document.getElementById('objectivePeriodSelect').value=saved.period||'today';
+  document.getElementById('objOrdersInput').value=saved.targets?.orders??'';
+  document.getElementById('objSalesInput').value=saved.targets?.sales??'';
+  document.getElementById('objProfitInput').value=saved.targets?.profit??'';
+  document.getElementById('objUsersInput').value=saved.targets?.newUsers??'';
+  document.getElementById('objVisitsInput').value=saved.targets?.visits??'';
+  document.getElementById('objectiveDateStart').value=saved.startDate||'';
+  document.getElementById('objectiveDateEnd').value=saved.endDate||'';
+  updateObjectivePeriodInputs();
   document.getElementById('objectivesModal').classList.add('active');
 }
-function saveObjectives(){const obj={orders:Number(document.getElementById('objOrdersInput').value)||0,sales:Number(document.getElementById('objSalesInput').value)||0,profit:Number(document.getElementById('objProfitInput').value)||0,newUsers:Number(document.getElementById('objUsersInput').value)||0};const all=getStoredObjectives();all[overviewPeriod]=obj;saveStoredObjectives(all);closeObjectivesModal();showToast('Objectifs enregistrés.');if(overviewPeriodData){renderObjectives(overviewPeriodData.data,overviewPeriodData.previous,PERIOD_CONFIG[overviewPeriod]);}}
-function resetObjectives(){const all=getStoredObjectives();delete all[overviewPeriod];saveStoredObjectives(all);closeObjectivesModal();showToast('Objectifs réinitialisés (suggestion auto).');if(overviewPeriodData){renderObjectives(overviewPeriodData.data,overviewPeriodData.previous,PERIOD_CONFIG[overviewPeriod]);}}
+function saveObjectives(){
+  const period=document.getElementById('objectivePeriodSelect').value||'today';
+  const bounds=period==='custom'?{start:document.getElementById('objectiveDateStart').value,end:document.getElementById('objectiveDateEnd').value}:getObjectiveBounds(period);
+  if(!bounds.start||!bounds.end||bounds.start>bounds.end){showError('Les dates de l’objectif sont invalides.');return;}
+  const targets={orders:Number(document.getElementById('objOrdersInput').value)||0,sales:Number(document.getElementById('objSalesInput').value)||0,profit:Number(document.getElementById('objProfitInput').value)||0,newUsers:Number(document.getElementById('objUsersInput').value)||0,visits:Number(document.getElementById('objVisitsInput').value)||0};
+  if(!Object.values(targets).some(v=>v>0)){showError('Saisissez au moins un objectif supérieur à zéro.');return;}
+  saveStoredObjectives({period,startDate:bounds.start,endDate:bounds.end,targets,updatedAt:new Date().toISOString()});
+  try{sessionStorage.removeItem('sbh_goal_progress_v1');}catch(_){}
+  closeObjectivesModal();showToast('Objectifs enregistrés dans ce navigateur.');loadObjectiveProgress(true);
+}
+function resetObjectives(){
+  localStorage.removeItem(OBJECTIVES_KEY);
+  try{sessionStorage.removeItem('sbh_goal_progress_v1');}catch(_){}
+  closeObjectivesModal();showToast('Objectif supprimé.');
+  const panel=document.getElementById('overviewObjectivesPanel');if(panel)panel.innerHTML='<p class="section-sub">Aucun objectif défini. Choisis une période et tes cibles pour commencer le suivi.</p>';
+}
 function closeObjectivesModal(){document.getElementById('objectivesModal').classList.remove('active');}
+function renderObjectiveProgress(data,goal){
+  const panel=document.getElementById('overviewObjectivesPanel');if(!panel)return;
+  const targets=goal.targets||{};
+  const metrics=[
+    {key:'orders',label:'Commandes',current:Number(data.totalOrders||0),target:Number(targets.orders||0),fmt:v=>Number(v).toLocaleString('fr-FR')},
+    {key:'sales',label:'Ventes nettes',current:Number(data.autoOrdersNetSales||0),target:Number(targets.sales||0),fmt:v=>Number(v).toLocaleString('fr-FR')+' FCFA'},
+    {key:'profit',label:'Marge brute',current:getNetGrossMargin(data),target:Number(targets.profit||0),fmt:v=>Number(v).toLocaleString('fr-FR')+' FCFA'},
+    {key:'newUsers',label:'Nouveaux utilisateurs',current:Number(data.newUsersCount||0),target:Number(targets.newUsers||0),fmt:v=>Number(v).toLocaleString('fr-FR')},
+    {key:'visits',label:'Visites du tableau de bord',current:Number(data.dashboardVisits||0),target:Number(targets.visits||0),fmt:v=>Number(v).toLocaleString('fr-FR')}
+  ].filter(m=>m.target>0);
+  if(!metrics.length){panel.innerHTML='<p class="section-sub">Aucun objectif défini. Choisis une période et tes cibles pour commencer le suivi.</p>';return;}
+  const start=new Date(`${goal.startDate}T00:00:00`),end=new Date(`${goal.endDate}T23:59:59`),now=new Date();
+  const duration=Math.max(1,end.getTime()-start.getTime());
+  const elapsed=Math.max(0,Math.min(1,(now.getTime()-start.getTime())/duration));
+  const remainingDays=Math.max(0,Math.ceil((end.getTime()-now.getTime())/(24*60*60*1000)));
+  const started=now>=start,finished=now>end;
+  const completed=metrics.every(m=>m.current>=m.target);
+  const onTrack=metrics.filter(m=>m.current>=m.target*elapsed).length;
+  const status=completed?'Objectif atteint':finished?'Période terminée':!started?'Objectif à venir':onTrack===metrics.length?'Tu es dans le rythme':'Un rattrapage est nécessaire';
+  const detail=completed?'Toutes les cibles définies sont atteintes. Tu peux conserver ce rythme ou relever ton prochain objectif.':!started?'La période n’a pas encore commencé. Tes objectifs sont enregistrés et le suivi démarrera à la date prévue.':finished?'La période est terminée. Consulte les résultats puis définis une nouvelle cible.':`Il reste ${remainingDays} jour(s). ${onTrack}/${metrics.length} indicateur(s) sont au rythme prévu.`;
+  const rows=metrics.map(m=>{
+    const pct=m.target>0?(m.current/m.target)*100:0;const missing=Math.max(0,m.target-m.current);const pace=m.target*elapsed;
+    const fillClass=pct>=100?'success':(m.current>=pace?'warning':'danger');
+    const valueClass=pct>=100?'good':(m.current>=pace?'warn':'bad');
+    return `<div class="objective-row"><div class="objective-info"><div class="objective-title">${esc(m.label)}</div><div class="objective-meta">Réalisé : <strong style="color:var(--text);">${m.fmt(m.current)}</strong> / Cible : <strong>${m.fmt(m.target)}</strong>${missing>0?`<br><span style="color:var(--warning);">Il manque ${m.fmt(missing)}</span>`:'<br><span style="color:var(--green);">Cible atteinte</span>'}${started&&!finished&&missing>0?` · Rythme attendu : ${m.fmt(Math.ceil(pace))}`:''}</div><div class="objective-bar"><div class="objective-fill ${fillClass}" style="width:${Math.min(100,pct)}%;"></div></div></div><div class="objective-value ${valueClass}">${Math.round(pct)}%</div></div>`;
+  }).join('');
+  const fmt=d=>new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+  panel.innerHTML=`<div class="rec-card ${completed?'severity-success':(!started?'severity-info':onTrack===metrics.length?'severity-success':'severity-warning')}"><div class="rec-body"><div class="rec-title">${esc(status)} · ${fmt(goal.startDate)} au ${fmt(goal.endDate)}</div><div class="rec-desc">${esc(detail)}</div></div></div>${rows}`;
+}
+async function loadObjectiveProgress(force=false){
+  const panel=document.getElementById('overviewObjectivesPanel');if(!panel)return;
+  const goal=getStoredObjectives();
+  if(!goal.startDate||!goal.endDate||!goal.targets){panel.innerHTML='<p class="section-sub">Aucun objectif défini. Choisis une période et tes cibles pour commencer le suivi.</p>';return;}
+  const cacheKey=`${goal.startDate}|${goal.endDate}`;
+  if(!force){
+    try{const cache=JSON.parse(sessionStorage.getItem('sbh_goal_progress_v1')||'{}');const entry=cache[cacheKey];if(entry&&entry.expires>Date.now()){renderObjectiveProgress(entry.data,goal);return;}}catch(_){}
+  }
+  panel.innerHTML='<div class="loading"><i class="fas fa-circle-notch"></i> Mise à jour de la progression…</div>';
+  try{
+    const params=new URLSearchParams({dateStart:goal.startDate,dateEnd:goal.endDate});
+    const d=await fetchAdmin('/overview-range?'+params.toString());
+    const data=d.data||{};renderObjectiveProgress(data,goal);
+    try{const cache=JSON.parse(sessionStorage.getItem('sbh_goal_progress_v1')||'{}');cache[cacheKey]={data,expires:Date.now()+10*60*1000};sessionStorage.setItem('sbh_goal_progress_v1',JSON.stringify(cache));}catch(_){}
+  }catch(e){panel.innerHTML=`<p class="error-msg" style="display:block;">Progression indisponible : ${esc(e.message)}</p>`;}
+}
 
 function renderRecommendations(data,previous,cfg){
   const recs=generateRecommendations(data,previous,cfg);
@@ -1322,8 +1481,10 @@ function generateRecommendations(data,previous,cfg){
   const ordersDelta=periodPct(data.totalOrders,previous.totalOrders);
   const salesDelta=periodPct(data.autoOrdersNetSales,previous.autoOrdersNetSales);
   const usersDelta=periodPct(data.newUsersCount,previous._newUsersCount);
-  const currentMargin=data.autoOrdersNetSales>0?(data.recordedGrossProfitBeforeRefunds/data.autoOrdersNetSales*100):0;
-  const prevMargin=previous.autoOrdersNetSales>0?(previous.recordedGrossProfitBeforeRefunds/previous.autoOrdersNetSales*100):0;
+  const currentSales=Number(data.autoOrdersNetSales||0);
+  const previousSales=Number(previous.autoOrdersNetSales||0);
+  const currentMargin=currentSales>0?(getNetGrossMargin(data)/currentSales*100):0;
+  const prevMargin=previousSales>0?(getNetGrossMargin(previous)/previousSales*100):0;
   if(ordersDelta!==null&&ordersDelta>=10&&salesDelta!==null&&salesDelta>=10){
     recs.push({severity:'champion',icon:'fa-trophy',title:`🏆 Champion ! +${Math.round(ordersDelta)}% commandes et +${Math.round(salesDelta)}% ventes`,description:`Félicitations, tu dépasses largement la période précédente ! Pour garder ce rythme : remercie personnellement tes meilleurs clients par email, publie régulièrement sur tes réseaux (Instagram/TikTok/Facebook), réponds vite au support, et propose des offres limitées dans le temps pour créer l'urgence.`,actions:[{label:'Encourager mes clients',icon:'fa-envelope',action:()=>{switchView('customers');}},{label:'Voir commandes',icon:'fa-list',action:()=>{switchView('orders');}}]});
   }else if(ordersDelta!==null&&ordersDelta<=-15){
@@ -1352,6 +1513,7 @@ async function loadOverview(force=false){
     const d=await fetchAdmin('/overview'+(force?'?refresh=1':''));
     renderOverviewData(d.data||{});
     overviewLoaded=true;overviewLoadedAt=Date.now();
+    loadObjectiveProgress();
     updateGiftBadges(d.data?.giftsPending,d.data?.giftsLate);
     lastBadgesUpdateAt=Date.now();
   }catch(e){showError('Vue d\'ensemble : '+e.message);}
@@ -1364,6 +1526,15 @@ function renderDepositBlock(obj,key){
   if(main)main.textContent=success.toLocaleString('fr-FR');
   if(sub){const parts=[];if(pending>0)parts.push(pending.toLocaleString('fr-FR')+' en attente');if(failed>0)parts.push(failed.toLocaleString('fr-FR')+' échoué(s)');if(xaf>0)parts.push(xaf.toLocaleString('fr-FR')+' FCFA');if(!parts.length)parts.push(Number(data.total||0).toLocaleString('fr-FR')+' tx');sub.textContent=parts.join(' · ');}
 }
+function renderKpiDelta(current,previous,label){
+  const cur=Number(current||0),prev=Number(previous||0);
+  const pct=periodPct(cur,prev);
+  if(pct===null)return `${label} : comparaison indisponible`;
+  const rounded=Math.round(pct*10)/10;
+  const color=rounded>0?'var(--green)':(rounded<0?'var(--red)':'var(--text-muted)');
+  const sign=rounded>0?'+':'';
+  return `${label} : <span style="color:${color};font-weight:600;">${sign}${rounded.toLocaleString('fr-FR')}%</span>`;
+}
 function renderOverviewData(s){
   const put=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
   put('kpiTotalUsers',Number(s.totalUsers||0).toLocaleString('fr-FR'));
@@ -1372,9 +1543,11 @@ function renderOverviewData(s){
   put('kpiTotalOrders',Number(s.totalOrders||0).toLocaleString('fr-FR'));
   put('kpiPendingOrders',`${Number(s.pendingOrders||0).toLocaleString('fr-FR')} en attente`);
   put('kpiOrdersToday',Number(s.ordersToday||0).toLocaleString('fr-FR'));
+  const orderDelta=document.getElementById('kpiOrdersTodayCompare');if(orderDelta)orderDelta.innerHTML=renderKpiDelta(s.ordersToday,s.ordersYesterday,'vs hier');
   put('kpiOrdersYesterday',Number(s.ordersYesterday||0).toLocaleString('fr-FR'));
   put('kpiOrdersDayBefore',Number(s.ordersDayBefore||0).toLocaleString('fr-FR'));
   put('kpiUsersToday',Number(s.newUsersToday||0).toLocaleString('fr-FR'));
+  const userDelta=document.getElementById('kpiUsersTodayCompare');if(userDelta)userDelta.innerHTML=renderKpiDelta(s.newUsersToday,s.newUsersYesterday,'vs hier');
   put('kpiUsersYesterday',Number(s.newUsersYesterday||0).toLocaleString('fr-FR'));
   put('kpiUsersDayBefore',Number(s.newUsersDayBefore||0).toLocaleString('fr-FR'));
   put('kpiDashboardVisits',Number(s.dashboardVisitsRecorded||0).toLocaleString('fr-FR'));
@@ -1386,13 +1559,14 @@ function renderOverviewData(s){
   if(topDep){put('kpiTopDepositorName',topDep.name||'Anonyme');const parts=[];if(Number(topDep.amount||0)>0)parts.push(`${Number(topDep.amount).toLocaleString('fr-FR')} FCFA`);if(Number(topDep.count||0)>0)parts.push(`${topDep.count} dépôt(s)`);put('kpiTopDepositorAmount',parts.join(' · '));}
   else{put('kpiTopDepositorName','—');put('kpiTopDepositorAmount','Aucun dépôt aujourd\'hui');}
   put('kpiVisitsToday',Number(s.dashboardVisitsToday??0).toLocaleString('fr-FR'));
+  const visitDelta=document.getElementById('kpiVisitsTodayCompare');if(visitDelta)visitDelta.innerHTML=renderKpiDelta(s.dashboardVisitsToday,s.dashboardVisitsYesterday,'vs hier');
   put('kpiVisitsYesterday',Number(s.dashboardVisitsYesterday??0).toLocaleString('fr-FR'));
   put('kpiVisitsDayBefore',Number(s.dashboardVisitsDayBefore??0).toLocaleString('fr-FR'));
   const netSales=Math.max(0,Number(s.allCollectionsGrossSales||0)-Number(s.allCollectionsRefunds||0));
   put('kpiAllSales',netSales.toLocaleString('fr-FR')+' FCFA');
   put('kpiAllRefunds',Number(s.allCollectionsRefunds||0).toLocaleString('fr-FR')+' FCFA');
   put('kpiAllCost',Number(s.allCollectionsSupplierCost||0).toLocaleString('fr-FR')+' FCFA');
-  put('kpiAllProfit',Number(s.allCollectionsGrossProfit||0).toLocaleString('fr-FR')+' FCFA');
+  put('kpiAllProfit',(netSales-Number(s.allCollectionsSupplierCost||0)).toLocaleString('fr-FR')+' FCFA');
   const breakdownEl=document.getElementById('collectionBreakdown');
   if(breakdownEl){
     const labels={autoOrders:'MTP & autres',commandes:'EXO',orders:'Orders',orders_automatique:'Auto',orders_avancee:'Avancée',orders_standard_revendeur:'Standard'};
@@ -1423,7 +1597,7 @@ function setTopUsersPeriod(period){
   const bar=document.getElementById('topUsersDateBar');if(bar)bar.style.display=(period==='custom')?'flex':'none';
   const titleEl=document.getElementById('topUsersTitle');const subEl=document.getElementById('topUsersSubtitle');
   if(titleEl)titleEl.textContent=period==='today'?'Clients les plus actifs — aujourd\'hui':period==='custom'?'Clients les plus actifs — période':'Clients les plus actifs';
-  if(subEl)subEl.textContent=period==='today'?'Clients ayant commandé aujourd\'hui.':period==='custom'?'Clients sur la période sélectionnée.':'Contactez directement vos meilleurs clients.';
+  if(subEl)subEl.textContent=period==='today'?'Clients ayant commandé aujourd\'hui.':period==='custom'?'Clients sur la période sélectionnée.':'Classement global. Pour actualiser les compteurs historiques, utilisez « Recalculer » dans la page Clients.';
   const thead=document.getElementById('topUsersThead');
   if(thead){thead.innerHTML=period==='today'?'<tr><th>Client</th><th>Pays</th><th>Commandes du jour</th><th>Total payé (jour)</th><th>Marge générée (jour)</th><th></th></tr>':period==='custom'?'<tr><th>Client</th><th>Pays</th><th>Commandes (période)</th><th>Total payé</th><th>Marge générée</th><th></th></tr>':'<tr><th>Client</th><th>Pays</th><th>Commandes</th><th>Total payé</th><th>Marge générée</th><th></th></tr>';}
   loadTopUsers(true);
@@ -1463,46 +1637,103 @@ function compareLabel(v){if(v===null||v===undefined)return 'Comparaison indispon
 function comparisonCell(v){if(v===null||v===undefined)return '—';const n=Number(v);return `${n>0?'+':''}${n.toLocaleString('fr-FR')}%`;}
 function percentChange(c,p){if(p===null||p===undefined||Number(p)===0)return null;return Math.round(((Number(c||0)-Number(p))/Number(p))*1000)/10;}
 function setFinancialProvider(provider){financialProviderFilter=provider;financialsLoaded=false;const note=document.getElementById('financialProviderNote');if(note){note.style.display=provider==='all'?'none':'inline';if(provider!=='all')note.innerHTML=`<i class="fas fa-filter"></i> Filtré : <strong>${esc(provider)}</strong>`;}loadFinancials();}
-function confirmHeavyRange(range){if(!HEAVY_RANGES.includes(range))return true;const cached=getFinancialsCache(range,financialProviderFilter);if(cached)return true;return confirm(`⚠️ Période "${range}" = potentiellement des milliers de lectures Firestore.\n\nRecommandé : utiliser 30 jours max, ou attendre que le cache serveur 15 min soit chaud.\n\nContinuer quand même ?`);}
+function getFinancialSelection(){
+  const range=document.getElementById('financialRange')?.value||'30d';
+  if(range!=='custom')return {range,cacheKey:range,dateStart:null,dateEnd:null,compareStart:null,compareEnd:null,currentLabel:({today:"Aujourd'hui",yesterday:'Hier',dayBefore:'Avant-hier','7d':'7 derniers jours','30d':'30 derniers jours','90d':'90 derniers jours',month:'Mois en cours',year:'Année en cours',all:'Toute la période'})[range]||range,compareLabel:'Période précédente'};
+  const dateStart=document.getElementById('financialDateStart')?.value||'';
+  const dateEnd=document.getElementById('financialDateEnd')?.value||'';
+  const compareStart=document.getElementById('financialCompareStart')?.value||'';
+  const compareEnd=document.getElementById('financialCompareEnd')?.value||'';
+  const cacheKey=`custom:${dateStart}:${dateEnd}:${compareStart}:${compareEnd}`;
+  const fmt=d=>d?new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}):'';
+  return {range,cacheKey,dateStart,dateEnd,compareStart,compareEnd,currentLabel:dateStart&&dateEnd?`${fmt(dateStart)} au ${fmt(dateEnd)}`:'Période personnalisée',compareLabel:compareStart&&compareEnd?`${fmt(compareStart)} au ${fmt(compareEnd)}`:'Période précédente de même durée'};
+}
+function confirmHeavyRange(range){
+  if(range==='custom'){
+    const sel=getFinancialSelection();
+    if(!sel.dateStart||!sel.dateEnd||sel.dateStart>sel.dateEnd)return false;
+    const days=Math.floor((new Date(`${sel.dateEnd}T00:00:00`).getTime()-new Date(`${sel.dateStart}T00:00:00`).getTime())/86400000)+1;
+    if(days<=90)return true;
+    const cached=getFinancialsCache(sel.cacheKey,financialProviderFilter);if(cached)return true;
+    return confirm(`Cette période couvre ${days.toLocaleString('fr-FR')} jours.
+
+Le serveur utilise un cache de 15 minutes et des agrégations Firestore. La première lecture peut être plus importante.
+
+Continuer ?`);
+  }
+  if(!HEAVY_RANGES.includes(range))return true;
+  const cached=getFinancialsCache(range,financialProviderFilter);if(cached)return true;
+  return confirm(`⚠️ Période "${range}" = potentiellement des milliers de lectures Firestore.
+
+Recommandé : utiliser 30 jours max, ou attendre que le cache serveur 15 min soit chaud.
+
+Continuer quand même ?`);
+}
 function setFinancialRange(range){
   const input=document.getElementById('financialRange');if(input)input.value=range;
   document.querySelectorAll('[data-financial-range]').forEach(b=>b.classList.toggle('active',b.dataset.financialRange===range));
-  const warn=document.getElementById('financialWarning');if(warn)warn.style.display=HEAVY_RANGES.includes(range)?'block':'none';
+  const customBar=document.getElementById('financeCustomRangeBar');if(customBar)customBar.style.display=range==='custom'?'flex':'none';
+  const warn=document.getElementById('financialWarning');if(warn)warn.style.display=range==='custom'?'none':(HEAVY_RANGES.includes(range)?'block':'none');
+  if(range==='custom'){
+    const today=new Date();const localInput=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const start=new Date(today.getFullYear(),today.getMonth(),1);
+    const ds=document.getElementById('financialDateStart'),de=document.getElementById('financialDateEnd');
+    if(ds&&!ds.value)ds.value=localInput(start);if(de&&!de.value)de.value=localInput(today);
+    const caption=document.getElementById('financialComparisonCaption');if(caption)caption.textContent='Choisissez une période et, facultativement, une seconde période de comparaison.';
+    return;
+  }
   if(!confirmHeavyRange(range))return;
+  financialsLoaded=false;loadFinancials(false);
+}
+function applyFinancialCustomRange(){
+  const sel=getFinancialSelection();
+  if(!sel.dateStart||!sel.dateEnd||sel.dateStart>sel.dateEnd){showError('Choisissez des dates valides pour la période financière.');return;}
+  if(Boolean(sel.compareStart)!==Boolean(sel.compareEnd)||(sel.compareStart&&sel.compareStart>sel.compareEnd)){showError('Les deux dates de comparaison doivent être renseignées dans le bon ordre.');return;}
+  if(!confirmHeavyRange('custom'))return;
   financialsLoaded=false;loadFinancials(false);
 }
 async function loadFinancialsForce(){if(Date.now()-lastForceRefreshAt<FORCE_REFRESH_THROTTLE_MS){showToast('Patientez avant de forcer à nouveau.');return;}lastForceRefreshAt=Date.now();clearFinancialsCache();await loadFinancials(true);}
 async function loadFinancials(force=false){
-  const range=document.getElementById('financialRange')?.value||'30d';const provider=financialProviderFilter;
-  const warn=document.getElementById('financialWarning');if(warn)warn.style.display=HEAVY_RANGES.includes(range)?'block':'none';
-  if(!force){const clientCached=getFinancialsCache(range,provider);if(clientCached){renderFinancialsData(clientCached.data,clientCached.previous);financialsLoaded=true;financialsLoadedAt=Date.now();financialsLoadedRange=range;return;}}
-  if(!force&&financialsLoaded&&financialsLoadedRange===range&&Date.now()-financialsLoadedAt<CLIENT_TTL.financials)return;
+  const sel=getFinancialSelection();const range=sel.range;const provider=financialProviderFilter;const cacheRange=sel.cacheKey;
+  const warn=document.getElementById('financialWarning');if(warn)warn.style.display=range==='custom'?'none':(HEAVY_RANGES.includes(range)?'block':'none');
+  if(range==='custom'&&(!sel.dateStart||!sel.dateEnd||sel.dateStart>sel.dateEnd))return;
+  if(!force){const clientCached=getFinancialsCache(cacheRange,provider);if(clientCached){renderFinancialsData(clientCached.data,clientCached.previous);lastFinancialData=clientCached.data;lastFinancialPrevious=clientCached.previous;lastFinancialSelection=sel;const caption=document.getElementById('financialComparisonCaption');if(caption)caption.textContent=`${sel.currentLabel} · comparaison : ${sel.compareLabel} · données en cache`;financialsLoaded=true;financialsLoadedAt=Date.now();financialsLoadedRange=cacheRange;return;}}
+  if(!force&&financialsLoaded&&financialsLoadedRange===cacheRange&&Date.now()-financialsLoadedAt<CLIENT_TTL.financials)return;
   if(!force&&!confirmHeavyRange(range))return;
   const body=document.getElementById('financialComparisonBody');body.innerHTML='<tr><td colspan="4" class="loading"><i class="fas fa-circle-notch"></i> Calcul…</td></tr>';
   try{
-    const params=new URLSearchParams({range});if(provider!=='all')params.set('provider',provider);if(force)params.set('refresh','1');
+    const params=new URLSearchParams({range});if(range==='custom'){params.set('dateStart',sel.dateStart);params.set('dateEnd',sel.dateEnd);if(sel.compareStart&&sel.compareEnd){params.set('compareStart',sel.compareStart);params.set('compareEnd',sel.compareEnd);}}
+    if(provider!=='all')params.set('provider',provider);if(force)params.set('refresh','1');
     const d=await fetchAdmin('/financials?'+params.toString());
     const c=d.data||{};const p=d.previous||null;
-    setFinancialsCache(range,provider,c,p,FIN_CACHE_TTL);
-    renderFinancialsData(c,p);financialsLoaded=true;financialsLoadedAt=Date.now();financialsLoadedRange=range;
+    setFinancialsCache(cacheRange,provider,c,p,FIN_CACHE_TTL);
+    lastFinancialData=c;lastFinancialPrevious=p;lastFinancialSelection=sel;
+    renderFinancialsData(c,p);
+    const caption=document.getElementById('financialComparisonCaption');if(caption)caption.textContent=`${sel.currentLabel} · comparaison : ${sel.compareLabel}${d.cached?' · données en cache':''}`;
+    financialsLoaded=true;financialsLoadedAt=Date.now();financialsLoadedRange=cacheRange;
   }catch(e){body.innerHTML=`<tr><td colspan="4" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Finances : '+e.message);}
 }
 function renderFinancialsData(c,p){
+  const margin=getNetGrossMargin(c);const previousMargin=p?getNetGrossMargin(p):null;
+  const marginPct=Number(c.autoOrdersNetSales||0)>0?(margin/Number(c.autoOrdersNetSales)*100):0;
   document.getElementById('finOrders').textContent=Number(c.totalOrders||0).toLocaleString('fr-FR');
-  document.getElementById('finOrdersCompare').textContent=compareLabel(c.ordersChangePct);
+  document.getElementById('finOrdersCompare').textContent=p?compareLabel(percentChange(c.totalOrders,p.totalOrders)):compareLabel(c.ordersChangePct);
   document.getElementById('finSales').textContent=fcfa(c.autoOrdersNetSales);
-  document.getElementById('finSalesCompare').textContent=compareLabel(c.netSalesChangePct);
+  document.getElementById('finSalesCompare').textContent=p?compareLabel(percentChange(c.autoOrdersNetSales,p.autoOrdersNetSales)):compareLabel(c.netSalesChangePct);
   document.getElementById('finRefunds').textContent=fcfa(c.autoOrdersRefunds);
   document.getElementById('finSupplierCost').textContent=fcfa(c.supplierCostWithSnapshots);
-  document.getElementById('finGrossProfit').textContent=fcfa(c.recordedGrossProfitBeforeRefunds);
+  document.getElementById('finGrossProfit').textContent=fcfa(margin);
+  document.getElementById('finGrossProfitCompare').textContent=p?compareLabel(percentChange(margin,previousMargin)):'Marge brute après remboursements';
+  const pctEl=document.getElementById('finMarginPct');if(pctEl)pctEl.textContent=`${marginPct.toLocaleString('fr-FR',{maximumFractionDigits:1})}%`;
   document.getElementById('finCoverage').textContent=`${Number(c.profitSnapshotCoveragePctAllTime||0).toLocaleString('fr-FR')}%`;
   document.getElementById('finCoverageSub').textContent=`${Number(c.profitSnapshotOrdersAllTime||0).toLocaleString('fr-FR')} / ${Number(c.autoOrdersAllTime||0).toLocaleString('fr-FR')}`;
   const rows=[
-    ['Commandes',Number(c.totalOrders||0),p?Number(p.totalOrders||0):null,c.ordersChangePct],
-    ['Ventes nettes',fcfa(c.autoOrdersNetSales),p?fcfa(p.autoOrdersNetSales):null,c.netSalesChangePct],
+    ['Commandes',Number(c.totalOrders||0),p?Number(p.totalOrders||0):null,p?percentChange(c.totalOrders,p.totalOrders):c.ordersChangePct],
+    ['Ventes nettes',fcfa(c.autoOrdersNetSales),p?fcfa(p.autoOrdersNetSales):null,p?percentChange(c.autoOrdersNetSales,p.autoOrdersNetSales):c.netSalesChangePct],
     ['Remboursements',fcfa(c.autoOrdersRefunds),p?fcfa(p.autoOrdersRefunds):null,p?percentChange(c.autoOrdersRefunds,p.autoOrdersRefunds):null],
     ['Coût fournisseur',fcfa(c.supplierCostWithSnapshots),p?fcfa(p.supplierCostWithSnapshots):null,p?percentChange(c.supplierCostWithSnapshots,p.supplierCostWithSnapshots):null],
-    ['Marge brute',fcfa(c.recordedGrossProfitBeforeRefunds),p?fcfa(p.recordedGrossProfitBeforeRefunds):null,p?percentChange(c.recordedGrossProfitBeforeRefunds,p.recordedGrossProfitBeforeRefunds):null],
+    ['Marge brute (ventes nettes − coût fournisseur)',fcfa(margin),p?fcfa(previousMargin):null,p?percentChange(margin,previousMargin):null],
+    ['Taux de marge',`${marginPct.toLocaleString('fr-FR',{maximumFractionDigits:1})}%`,p?`${(Number(p.autoOrdersNetSales||0)>0?(previousMargin/Number(p.autoOrdersNetSales)*100):0).toLocaleString('fr-FR',{maximumFractionDigits:1})}%`:null,null]
   ];
   const body=document.getElementById('financialComparisonBody');body.innerHTML='';
   rows.forEach(r=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${esc(r[0])}</td><td><strong>${typeof r[1]==='number'?r[1].toLocaleString('fr-FR'):esc(r[1])}</strong></td><td>${r[2]===null?'—':(typeof r[2]==='number'?r[2].toLocaleString('fr-FR'):esc(r[2]))}</td><td>${comparisonCell(r[3])}</td>`;body.appendChild(tr);});
@@ -1616,8 +1847,8 @@ async function enrichCustomerStats(userId){
       const totalOrders=Number(d.exactOrderCount ?? c.totalOrders ?? orders.length ?? 0);
       let totalSpent=Number(d.derivedSpendPriceXAF ?? c.totalSpent ?? 0);
       if(!totalSpent)totalSpent=orders.reduce((s,o)=>s+Number(o.amount||0),0);
-      let totalProfit=Number(c.totalProfit ?? 0);
-      if(!totalProfit)totalProfit=orders.reduce((s,o)=>s+Number(o.grossProfitXAF||0),0);
+      let totalProfit=Number(d.totalGrossProfitXAF ?? c.totalGrossProfitXAF ?? c.totalProfit ?? 0);
+      if(!Number.isFinite(totalProfit))totalProfit=0;
       const stats={totalOrders,totalSpent,totalProfit,balance:Number(c.balance??0)};
       setCachedCustomerStats(userId,stats);
       return stats;
@@ -1637,9 +1868,9 @@ async function enrichMultipleCustomers(ids,onProgress){
 }
 function getCustomerDisplayStats(u){
   if(!u)return null;
-  if(u.metricsReady)return {totalOrders:Number(u.totalOrders||0),totalSpent:Number(u.totalSpent||0),totalProfit:Number(u.totalProfit||0),balance:Number(u.balance||0),source:'cached'};
   const cached=getCachedCustomerStats(u.id);
   if(cached)return {totalOrders:Number(cached.totalOrders||0),totalSpent:Number(cached.totalSpent||0),totalProfit:Number(cached.totalProfit||0),balance:Number(cached.balance??u.balance??0),source:'live'};
+  if(u.metricsReady)return {totalOrders:Number(u.totalOrders||0),totalSpent:Number(u.totalSpent||0),totalProfit:Number(u.totalProfit||0),balance:Number(u.balance||0),source:'cached'};
   return null;
 }
 async function autoEnrichFirstCustomers(){
@@ -1702,7 +1933,9 @@ async function loadCustomers(reset=false,forceServerRefresh=false){
     const de=formatDateInput('customerDateEnd');if(de)params.set('dateEnd',new Date(de.getTime()+24*60*60*1000).toISOString());
     const d=await fetchAdmin('/customers?'+params.toString());
     allCustomers=reset?(d.customers||[]):allCustomers.concat(d.customers||[]);
-    allCustomers=sortByDateDesc(allCustomers);
+    const customerSortMode=document.getElementById('customerSortFilter')?.value||'recent';
+    const customerSegmentMode=document.getElementById('customerSegmentFilter')?.value||'all';
+    if(customerSortMode==='recent'&&!['highOrders','highSpent','highProfit','highBalance'].includes(customerSegmentMode))allCustomers=sortByDateDesc(allCustomers);
     customerCursor=d.nextCursor||null;customersLoadedAt=Date.now();
     const note=document.getElementById('customerMetricsStatus');
     if(note){
@@ -1787,8 +2020,9 @@ async function openCustomerDetail(id){
         <div class="cd-metric"><div class="cd-metric-label">Commandes</div><div class="cd-metric-value blue">${Number(c.totalOrders||0).toLocaleString('fr-FR')}</div></div>
         <div class="cd-metric"><div class="cd-metric-label">Total dépensé</div><div class="cd-metric-value green">${Number(d.derivedSpendPriceXAF??c.totalSpent??0).toLocaleString('fr-FR')}<span class="unit">FCFA</span></div></div>
         <div class="cd-metric"><div class="cd-metric-label">Solde</div><div class="cd-metric-value gold">${Number(c.balance||0).toLocaleString('fr-FR')}<span class="unit">FCFA</span></div></div>
-        <div class="cd-metric"><div class="cd-metric-label">Cmd. trouvées</div><div class="cd-metric-value">${Number(d.exactOrderCount||0).toLocaleString('fr-FR')}</div></div>
+        <div class="cd-metric"><div class="cd-metric-label">Marge brute générée</div><div class="cd-metric-value" style="color:var(--gold);">${Number(d.totalGrossProfitXAF??c.totalGrossProfitXAF??0).toLocaleString('fr-FR')}<span class="unit">FCFA</span></div></div>
       </div>
+      ${Number(d.profitUnavailableOrders||0)>0?`<p style="font-size:.75rem;color:var(--warning);margin:-10px 0 18px;line-height:1.5;">Marge non calculable pour ${Number(d.profitUnavailableOrders).toLocaleString('fr-FR')} commande(s) éligible(s), faute de coût fournisseur exploitable. Ces commandes ne sont pas incluses dans la marge affichée.</p>`:''}
       <div class="cd-actions">
         ${c.email?`<button class="btn btn-gold btn-sm" onclick="sendCustomerEmail('${escAttr(c.id)}','${escAttr(c.name||'')}','','general')"><i class="fas fa-envelope"></i> Email</button>`:''}
         ${c.email?`<button class="btn btn-outline btn-sm" onclick="sendCustomerEmail('${escAttr(c.id)}','${escAttr(c.name||'')}','','order_feedback')"><i class="fas fa-comments"></i> Feedback</button>`:''}
@@ -2817,7 +3051,41 @@ async function confirmBulkProcess(){
   setTimeout(()=>{closeBulkGiftModal();},1500);
 }
 
-function addFooter(doc){doc.setFontSize(9);doc.setTextColor(136);doc.text('Fondateur : NAPOPOLO EXAUCE',14,doc.internal.pageSize.height-10);doc.text(`Social Boost Horizon © ${new Date().getFullYear()}`,14,doc.internal.pageSize.height-5);}
+const SBH_PDF_LOGO_URL='https://raw.githubusercontent.com/exaucenapopolo/Social-Boost-Horizon-/refs/heads/main/assets/logos/Logo%20social%20Boost%20horizon.jpg';
+let sbhPdfLogoPromise=null;
+async function getSBHPdfLogo(){
+  if(sbhPdfLogoPromise)return sbhPdfLogoPromise;
+  sbhPdfLogoPromise=(async()=>{
+    try{
+      const response=await fetch(SBH_PDF_LOGO_URL,{mode:'cors',cache:'force-cache'});
+      if(!response.ok)throw new Error('Logo indisponible');
+      const blob=await response.blob();
+      return await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('Lecture du logo impossible'));reader.readAsDataURL(blob);});
+    }catch(error){console.warn('Logo PDF non chargé :',error.message);sbhPdfLogoPromise=null;return null;}
+  })();
+  return sbhPdfLogoPromise;
+}
+async function addBrandHeader(doc,title,subtitle=''){
+  const logo=await getSBHPdfLogo();
+  if(logo){try{doc.addImage(logo,'JPEG',14,8,19,19,undefined,'FAST');}catch(e){console.warn('Insertion du logo PDF impossible:',e.message);}}
+  const x=logo?39:14;
+  doc.setFont('helvetica','bold');doc.setFontSize(17);doc.setTextColor(10,22,43);doc.text('SOCIAL BOOST HORIZON',x,14);
+  doc.setFont('helvetica','normal');doc.setFontSize(11);doc.setTextColor(50,65,85);doc.text(String(title||'Rapport').slice(0,100),x,21);
+  if(subtitle){doc.setFontSize(8);doc.setTextColor(110,120,135);doc.text(String(subtitle).slice(0,180),14,32);}
+  doc.setDrawColor(201,169,97);doc.setLineWidth(.5);doc.line(14,36,doc.internal.pageSize.width-14,36);
+  return 42;
+}
+function addFooter(doc){
+  const pages=doc.getNumberOfPages();
+  for(let page=1;page<=pages;page++){
+    doc.setPage(page);const h=doc.internal.pageSize.height,w=doc.internal.pageSize.width;
+    doc.setDrawColor(220,224,230);doc.setLineWidth(.25);doc.line(14,h-15,w-14,h-15);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(110,118,130);
+    doc.text('Fondateur : NAPOPOLO EXAUCE',14,h-9);
+    doc.text(`Social Boost Horizon © ${new Date().getFullYear()}`,w/2,h-9,{align:'center'});
+    doc.text(`Page ${page}/${pages}`,w-14,h-9,{align:'right'});
+  }
+}
 function buildVCF(list){return list.map(c=>{const name=(c.name||c.username||'Client').replace(/[\r\n]/g,' ');const phone=(c.phone||'').replace(/[^0-9+]/g,'');const email=(c.email||'').replace(/[\r\n]/g,'');const note=`SBH Client - UID: ${c.id}${c.country?' - '+formatCountryLabel(c.country):''}`;const lines=['BEGIN:VCARD','VERSION:3.0',`FN:${name}`];if(email)lines.push(`EMAIL;TYPE=INTERNET:${email}`);if(phone)lines.push(`TEL;TYPE=CELL:${phone}`);lines.push(`NOTE:${note}`,'END:VCARD');return lines.join('\r\n');}).join('\r\n');}
 function exportCustomersVCF(mode){
   if(!allCustomers.length){alert('Aucun client.');return;}
@@ -2840,60 +3108,69 @@ function exportCustomersCSV(){
   downloadBlob('\ufeff'+csv,`clients_sbh_${ts}.csv`,'text/csv;charset=utf-8');
   showToast(`${allCustomers.length} client(s) exporté(s).`);
 }
-function exportCustomersPDF(mode){
+async function exportCustomersPDF(mode){
   if(!allCustomers.length){alert('Aucun client.');return;}
   const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape'});
-  doc.setFontSize(18);doc.setTextColor(201,169,97);doc.text('Rapport Clients — Social Boost Horizon',14,18);
-  doc.setFontSize(9);doc.setTextColor(120);doc.text(`Généré le ${new Date().toLocaleString('fr-FR')} · ${allCustomers.length} client(s)`,14,25);
-  doc.autoTable({head:[['Nom','Email','UID','Pays','Commandes','Total dépensé','Marge','Solde','Inscription']],body:allCustomers.map(c=>{
+  const startY=await addBrandHeader(doc,'Rapport Clients',`Généré le ${new Date().toLocaleString('fr-FR')} · ${allCustomers.length} client(s)`);
+  doc.autoTable({head:[['Nom','Email','UID','Pays','Commandes','Total dépensé','Marge brute','Solde','Inscription']],body:allCustomers.map(c=>{
     const st=getCustomerDisplayStats(c);
-    return [c.name||c.username||'—',c.email||'—',c.id.substring(0,10)+'…',formatCountryLabel(c.country),st?st.totalOrders:'—',st?Number(st.totalSpent).toLocaleString('fr-FR')+' FCFA':'—',st?Number(st.totalProfit).toLocaleString('fr-FR')+' FCFA':'—',Number(c.balance||0).toLocaleString('fr-FR')+' FCFA',formatDate(c.createdAt)];
-  }),startY:30,theme:'striped',headStyles:{fillColor:[201,169,97],textColor:[10,14,23]},styles:{fontSize:8,cellPadding:2.5}});
-  addFooter(doc);doc.save(`clients_sbh_${new Date().toISOString().slice(0,10)}.pdf`);showToast('PDF généré.');
+    return [c.name||c.username||'—',c.email||'—',String(c.id||'').substring(0,10)+'…',formatCountryLabel(c.country),st?Number(st.totalOrders||0).toLocaleString('fr-FR'):'—',st?fcfa(st.totalSpent):'—',st?fcfa(st.totalProfit):'—',fcfa(c.balance||0),formatDate(c.createdAt)];
+  }),startY,margin:{top:startY,bottom:19},theme:'striped',headStyles:{fillColor:[10,22,43],textColor:[255,255,255]},alternateRowStyles:{fillColor:[245,247,250]},styles:{fontSize:7.5,cellPadding:2.3,overflow:'linebreak'}});
+  addFooter(doc);doc.save(`clients_sbh_${new Date().toISOString().slice(0,10)}.pdf`);showToast('PDF clients généré.');
 }
-function exportOrdersPDF(){
+async function exportOrdersPDF(){
   if(!allOrders.length){alert('Aucune commande.');return;}
   const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape'});
-  doc.setFontSize(18);doc.setTextColor(201,169,97);doc.text('Rapport Commandes — SBH',14,18);
-  doc.setFontSize(9);doc.setTextColor(120);doc.text(`Généré le ${new Date().toLocaleString('fr-FR')} · ${allOrders.length} affichée(s)`,14,25);
-  doc.autoTable({head:[['Date','Référence','Client','Fournisseur','Service','Qté','Montant','Coût','Marge','Statut']],body:allOrders.map(o=>[formatDate(o.createdAt),o.orderId||o.id||'—',o.userName||o.userEmail||'—',o.provider||'—',(o.serviceName||'—').substring(0,35),Number(o.quantity||0).toLocaleString('fr-FR'),o.amount==null?'—':Number(o.amount).toLocaleString('fr-FR'),o.providerCostXAF==null?'—':Number(o.providerCostXAF).toLocaleString('fr-FR'),o.grossProfitXAF==null?'—':Number(o.grossProfitXAF).toLocaleString('fr-FR'),o.status||'—']),startY:30,theme:'striped',headStyles:{fillColor:[201,169,97],textColor:[10,14,23]},styles:{fontSize:7.5,cellPadding:2}});
-  addFooter(doc);doc.save(`commandes_sbh_${new Date().toISOString().slice(0,10)}.pdf`);showToast('PDF généré.');
+  const startY=await addBrandHeader(doc,'Rapport Commandes',`Généré le ${new Date().toLocaleString('fr-FR')} · ${allOrders.length} commande(s) affichée(s)`);
+  doc.autoTable({head:[['Date','Référence','Client','Fournisseur','Service','Qté','Montant','Coût','Marge','Statut']],body:allOrders.map(o=>[formatDate(o.createdAt),o.orderId||o.id||'—',o.userName||o.userEmail||'—',o.provider||'—',(o.serviceName||'—').substring(0,35),Number(o.quantity||0).toLocaleString('fr-FR'),o.amount==null?'—':fcfa(o.amount),o.providerCostXAF==null?'—':fcfa(o.providerCostXAF),o.grossProfitXAF==null?'—':fcfa(o.grossProfitXAF),o.status||'—']),startY,margin:{top:startY,bottom:19},theme:'striped',headStyles:{fillColor:[10,22,43],textColor:[255,255,255]},alternateRowStyles:{fillColor:[245,247,250]},styles:{fontSize:7.2,cellPadding:2,overflow:'linebreak'}});
+  addFooter(doc);doc.save(`commandes_sbh_${new Date().toISOString().slice(0,10)}.pdf`);showToast('PDF commandes généré.');
 }
-function exportDepositsPDF(){
+async function exportDepositsPDF(){
   if(!allDeposits.length){alert('Aucune recharge.');return;}
   const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape'});
-  doc.setFontSize(18);doc.setTextColor(201,169,97);doc.text('Rapport Recharges — SBH',14,18);
-  doc.setFontSize(9);doc.setTextColor(120);doc.text(`Généré le ${new Date().toLocaleString('fr-FR')} · ${allDeposits.length} recharge(s)`,14,25);
-  doc.autoTable({head:[['Date','Référence','Client','Fournisseur','Montant demandé','Montant crédité','Statut']],body:allDeposits.map(t=>[formatDate(t.createdAt),t.reference||'—',t.userName||t.userEmail||'—',t.provider||'—',Number(t.requestedAmount||0).toLocaleString('fr-FR')+' '+(t.requestedCurrency||''),t.creditedAmountXAF==null?'—':Number(t.creditedAmountXAF).toLocaleString('fr-FR')+' FCFA',(t.status||'—').toUpperCase()]),startY:30,theme:'striped',headStyles:{fillColor:[201,169,97],textColor:[10,14,23]},styles:{fontSize:8,cellPadding:2.5}});
-  addFooter(doc);doc.save(`recharges_sbh_${new Date().toISOString().slice(0,10)}.pdf`);showToast('PDF généré.');
+  const startY=await addBrandHeader(doc,'Rapport Recharges',`Généré le ${new Date().toLocaleString('fr-FR')} · ${allDeposits.length} recharge(s)`);
+  doc.autoTable({head:[['Date','Référence','Client','Fournisseur','Montant demandé','Montant crédité','Statut']],body:allDeposits.map(t=>[formatDate(t.createdAt),t.reference||'—',t.userName||t.userEmail||'—',t.provider||'—',`${Number(t.requestedAmount||0).toLocaleString('fr-FR')} ${t.requestedCurrency||''}`.trim(),t.creditedAmountXAF==null?'—':fcfa(t.creditedAmountXAF),(t.status||'—').toUpperCase()]),startY,margin:{top:startY,bottom:19},theme:'striped',headStyles:{fillColor:[10,22,43],textColor:[255,255,255]},alternateRowStyles:{fillColor:[245,247,250]},styles:{fontSize:8,cellPadding:2.5}});
+  addFooter(doc);doc.save(`recharges_sbh_${new Date().toISOString().slice(0,10)}.pdf`);showToast('PDF recharges généré.');
 }
-function exportFinancialsPDF(){
-  const{jsPDF}=window.jspdf;const doc=new jsPDF();
-  const range=document.getElementById('financialRange')?.value||'30d';
-  const provider=financialProviderFilter;
-  doc.setFontSize(18);doc.setTextColor(201,169,97);doc.text('Rapport Finances — SBH',14,18);
-  doc.setFontSize(9);doc.setTextColor(120);doc.text(`Généré le ${new Date().toLocaleString('fr-FR')} · Période : ${range} · Fournisseur : ${provider==='all'?'Tous':provider}`,14,25);
-  doc.autoTable({head:[['Indicateur','Valeur']],body:[['Commandes',document.getElementById('finOrders')?.textContent||'—'],['Ventes nettes',document.getElementById('finSales')?.textContent||'—'],['Remboursements',document.getElementById('finRefunds')?.textContent||'—'],['Coût fournisseur',document.getElementById('finSupplierCost')?.textContent||'—'],['Marge brute',document.getElementById('finGrossProfit')?.textContent||'—'],['Couverture',document.getElementById('finCoverage')?.textContent||'—']],startY:30,theme:'striped',headStyles:{fillColor:[201,169,97],textColor:[10,14,23]},styles:{fontSize:10,cellPadding:3}});
-  addFooter(doc);doc.save(`finances_sbh_${new Date().toISOString().slice(0,10)}.pdf`);showToast('PDF généré.');
+async function exportFinancialsPDF(){
+  if(!lastFinancialData){await loadFinancials(false);if(!lastFinancialData){alert('Les données financières ne sont pas encore disponibles.');return;}}
+  const includeComparison=lastFinancialPrevious?confirm('Voulez-vous inclure la comparaison avec la seconde période dans le PDF ?\n\nOK : inclure la comparaison.\nAnnuler : rapport de la période sélectionnée uniquement.') : false;
+  const{jsPDF}=window.jspdf;const doc=new jsPDF();const c=lastFinancialData;const p=includeComparison?lastFinancialPrevious:null;const sel=lastFinancialSelection||getFinancialSelection();
+  const subtitle=`Période : ${sel.currentLabel} · ${financialProviderFilter==='all'?'Tous fournisseurs':financialProviderFilter} · Généré le ${new Date().toLocaleString('fr-FR')}`;
+  const startY=await addBrandHeader(doc,'Rapport Finances & Rentabilité',subtitle);
+  const margin=getNetGrossMargin(c);const marginPct=Number(c.autoOrdersNetSales||0)>0?margin/Number(c.autoOrdersNetSales)*100:0;
+  const rows=[['Nombre de commandes',Number(c.totalOrders||0).toLocaleString('fr-FR')],['Ventes nettes',fcfa(c.autoOrdersNetSales)],['Remboursements (déjà déduits des ventes nettes)',fcfa(c.autoOrdersRefunds)],['Coûts fournisseurs',fcfa(c.supplierCostWithSnapshots)],['Marge brute = ventes nettes − coûts fournisseurs',fcfa(margin)],['Taux de marge brute',`${marginPct.toLocaleString('fr-FR',{maximumFractionDigits:2})}%`],['Couverture des coûts fournisseurs documentés',`${Number(c.profitSnapshotCoveragePctAllTime||0).toLocaleString('fr-FR')}% (${Number(c.profitSnapshotOrdersAllTime||0).toLocaleString('fr-FR')} / ${Number(c.autoOrdersAllTime||0).toLocaleString('fr-FR')})`]];
+  doc.autoTable({head:[['Indicateur','Valeur']],body:rows,startY,margin:{top:startY,bottom:19},theme:'grid',headStyles:{fillColor:[10,22,43],textColor:[255,255,255]},alternateRowStyles:{fillColor:[245,247,250]},styles:{fontSize:9,cellPadding:3.2}});
+  if(p){
+    const prevMargin=getNetGrossMargin(p);const prevPct=Number(p.autoOrdersNetSales||0)>0?prevMargin/Number(p.autoOrdersNetSales)*100:0;
+    const compareRows=[
+      ['Commandes',Number(c.totalOrders||0),Number(p.totalOrders||0),percentChange(c.totalOrders,p.totalOrders)],
+      ['Ventes nettes',fcfa(c.autoOrdersNetSales),fcfa(p.autoOrdersNetSales),percentChange(c.autoOrdersNetSales,p.autoOrdersNetSales)],
+      ['Remboursements',fcfa(c.autoOrdersRefunds),fcfa(p.autoOrdersRefunds),percentChange(c.autoOrdersRefunds,p.autoOrdersRefunds)],
+      ['Coûts fournisseurs',fcfa(c.supplierCostWithSnapshots),fcfa(p.supplierCostWithSnapshots),percentChange(c.supplierCostWithSnapshots,p.supplierCostWithSnapshots)],
+      ['Marge brute',fcfa(margin),fcfa(prevMargin),percentChange(margin,prevMargin)],
+      ['Taux de marge',`${marginPct.toLocaleString('fr-FR',{maximumFractionDigits:1})}%`,`${prevPct.toLocaleString('fr-FR',{maximumFractionDigits:1})}%`,'—']
+    ];
+    let y=doc.lastAutoTable.finalY+10;
+    if(y>doc.internal.pageSize.height-55){doc.addPage();y=20;}
+    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(10,22,43);doc.text(`Comparaison : ${sel.compareLabel}`,14,y);
+    doc.autoTable({head:[['Indicateur',sel.currentLabel,sel.compareLabel,'Évolution']],body:compareRows,startY:y+4,margin:{top:18,bottom:19},theme:'striped',headStyles:{fillColor:[10,22,43],textColor:[255,255,255]},alternateRowStyles:{fillColor:[245,247,250]},styles:{fontSize:7.5,cellPadding:2.5,overflow:'linebreak'}});
+  }
+  addFooter(doc);doc.save(`finances_sbh_${new Date().toISOString().slice(0,10)}.pdf`);showToast('PDF financier généré.');
 }
-function exportServicesPDF(){
+async function exportServicesPDF(){
   if(!allServices.length){alert('Aucun service.');return;}
-  const{jsPDF}=window.jspdf;const doc=new jsPDF();
-  doc.setFontSize(18);doc.setTextColor(201,169,97);doc.text('Rapport Services — SBH',14,20);
-  doc.setFontSize(9);doc.setTextColor(100);
-  const m=currentMultipliers||{};
-  doc.text(`MTP ×${m.MTP??'?'} | EXO ×${m.EXO??'?'} | AFB ×${m.AfriqueBoost??'?'} | SMMGen ×${m.SMMGen??'?'}`,14,27);
-  doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`,14,33);
-  doc.autoTable({head:[['ID','Fournisseur','Nom','Coût','Prix final','Bénéfice','Marge']],body:allServices.slice(0,200).map(s=>[s.id,s.provider,s.name.substring(0,40),`${s.providerCost} FCFA`,`${s.finalPrice} FCFA`,`+${s.profit} FCFA`,`${s.profitMargin}%`]),startY:38,theme:'striped',headStyles:{fillColor:[201,169,97],textColor:[10,14,23]},styles:{fontSize:8}});
-  addFooter(doc);doc.save('Services_SBH.pdf');showToast('PDF généré.');
+  const{jsPDF}=window.jspdf;const doc=new jsPDF();const m=currentMultipliers||{};
+  const startY=await addBrandHeader(doc,'Catalogue des Services',`Multiplicateurs : MTP ×${m.MTP??'?'} · EXO ×${m.EXO??'?'} · AFB ×${m.AfriqueBoost??'?'} · SMMGen ×${m.SMMGen??'?'} · ${new Date().toLocaleString('fr-FR')}`);
+  doc.autoTable({head:[['ID','Fournisseur','Nom','Coût','Prix final','Bénéfice','Marge']],body:allServices.slice(0,200).map(s=>[s.id,s.provider,s.name.substring(0,40),fcfa(s.providerCost),fcfa(s.finalPrice),`+${fcfa(s.profit)}`,`${s.profitMargin}%`]),startY,margin:{top:startY,bottom:19},theme:'striped',headStyles:{fillColor:[10,22,43],textColor:[255,255,255]},alternateRowStyles:{fillColor:[245,247,250]},styles:{fontSize:7.5,cellPadding:2.5}});
+  addFooter(doc);doc.save('Services_SBH.pdf');showToast('PDF services généré.');
 }
-function exportGiftsPDF(){
+async function exportGiftsPDF(){
   if(!allGifts.length){alert('Aucune demande.');return;}
   const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape'});
-  doc.setFontSize(18);doc.setTextColor(201,169,97);doc.text('Demandes cadeaux — SBH',14,20);
-  doc.setFontSize(9);doc.setTextColor(100);doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`,14,27);
-  doc.autoTable({head:[['Date','Âge','Utilisateur','Email','Pays','Type','Plateforme','Lien','WhatsApp','Statut']],body:allGifts.map(g=>{const a=getGiftAgeDays(g.createdAt);return[formatDate(g.createdAt),a===null?'–':(a===0?'Auj.':a===1?'Hier':a+'j'),g.userName||'–',g.email||'–',g.country||'–',giftPlainLabel(g),g.platform||'–',(g.link||'').substring(0,50),g.whatsapp?'+'+g.whatsapp:'–',g.status];}),startY:34,theme:'striped',headStyles:{fillColor:[201,169,97],textColor:[10,14,23]},styles:{fontSize:7.5}});
-  addFooter(doc);doc.save('Cadeaux_SBH.pdf');showToast('PDF généré.');
+  const startY=await addBrandHeader(doc,'Rapport des demandes de cadeaux',`Généré le ${new Date().toLocaleString('fr-FR')} · ${allGifts.length} demande(s)`);
+  doc.autoTable({head:[['Date','Âge','Utilisateur','Email','Pays','Type','Plateforme','Lien','WhatsApp','Statut']],body:allGifts.map(g=>{const a=getGiftAgeDays(g.createdAt);return[formatDate(g.createdAt),a===null?'–':(a===0?'Auj.':a===1?'Hier':a+'j'),g.userName||'–',g.email||'–',g.country||'–',giftPlainLabel(g),g.platform||'–',(g.link||'').substring(0,50),g.whatsapp?'+'+g.whatsapp:'–',g.status];}),startY,margin:{top:startY,bottom:19},theme:'striped',headStyles:{fillColor:[10,22,43],textColor:[255,255,255]},alternateRowStyles:{fillColor:[245,247,250]},styles:{fontSize:7,cellPadding:2,overflow:'linebreak'}});
+  addFooter(doc);doc.save('Cadeaux_SBH.pdf');showToast('PDF cadeaux généré.');
 }
 
 document.addEventListener('keydown',e=>{
