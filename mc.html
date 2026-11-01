@@ -360,7 +360,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
         </div>
         <div class="period-cache-info">
           <i class="fas fa-shield-halved"></i>
-          <span>Cache 15 min · Économie de lectures Firestore</span>
+          <span>Cache partagé 60 min · requêtes mutualisées</span>
         </div>
       </div>
 
@@ -478,13 +478,13 @@ textarea.msg-area:focus{border-color:var(--gold)}
               <button class="seg-btn" data-topusers-period="week" onclick="setTopUsersPeriod('week')">Cette semaine</button>
               <button class="seg-btn" data-topusers-period="custom" onclick="setTopUsersPeriod('custom')">Période</button>
             </div>
-            <button class="btn btn-outline btn-sm" onclick="loadTopUsers(true)"><i class="fas fa-sync-alt"></i> Actualiser</button>
+            <button class="btn btn-outline btn-sm" onclick="refreshTopUsersSafely()"><i class="fas fa-sync-alt"></i> Actualiser</button>
           </div>
         </div>
         <div class="filter-bar" id="topUsersDateBar" style="display:none;">
           <div class="filter-group"><label>Du</label><input type="date" id="topUsersDateStart" class="date-range"></div>
           <div class="filter-group"><label>Au</label><input type="date" id="topUsersDateEnd" class="date-range"></div>
-          <button class="btn btn-gold btn-sm" onclick="loadTopUsers(true)"><i class="fas fa-filter"></i> Filtrer</button>
+          <button class="btn btn-gold btn-sm" onclick="applyTopUsersFilter()"><i class="fas fa-filter"></i> Filtrer</button>
         </div>
         <div id="topUsersChampion" class="rec-card severity-champion" style="display:none;margin:0 0 18px;"></div>
         <div class="table-wrap">
@@ -561,7 +561,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
           </div>
         </div>
         <div class="financial-warning" id="financialWarning">
-          <i class="fas fa-triangle-exclamation"></i> <strong>Période longue détectée.</strong> Charger 90 jours / Année / Tout peut consommer plusieurs milliers de lectures Firestore. Les données sont mises en cache serveur 15 minutes.
+          <i class="fas fa-triangle-exclamation"></i> <strong>Période étendue détectée.</strong> La première consultation d'une période peut lire les index correspondant aux commandes de cette plage. Les résultats sont ensuite conservés dans un cache partagé pendant 60 minutes ; évitez l'actualisation forcée répétée.
         </div>
       </section>
       <div class="stats-strip">
@@ -619,7 +619,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
       <div class="top-bar">
         <div><div class="page-title">Recharges clients</div><div class="page-subtitle">Transactions de paiement</div></div>
         <div class="top-actions">
-          <button class="btn btn-outline" onclick="loadDeposits(true)"><i class="fas fa-sync-alt"></i> Actualiser</button>
+          <button class="btn btn-outline" onclick="refreshDepositsSafely()"><i class="fas fa-sync-alt"></i> Actualiser</button>
           <button class="btn btn-gold" onclick="exportDepositsPDF()"><i class="fas fa-file-pdf"></i> Exporter PDF</button>
         </div>
       </div>
@@ -638,6 +638,16 @@ textarea.msg-area:focus{border-color:var(--gold)}
           </table>
         </div>
         <div class="stats-bar" id="depositsStats"></div>
+        <div style="border-top:1px solid var(--border);margin-top:18px;padding-top:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div><div class="section-label">Traçabilité</div><div class="section-title" style="font-size:1rem;">Journal des opérations</div><div class="section-sub">Crédits de recharge confirmés, avec client, fournisseur, référence et évolution du solde.</div></div>
+            <div class="section-actions"><button class="btn btn-outline btn-sm" onclick="loadOperationJournal(true)"><i class="fas fa-sync-alt"></i> Actualiser le journal</button><button class="btn btn-gold btn-sm" id="operationJournalToggle" onclick="toggleOperationJournal()"><i class="fas fa-clock-rotate-left"></i> Afficher le journal</button></div>
+          </div>
+          <div id="operationJournalPanel" style="display:none;margin-top:14px;">
+            <div class="table-wrap"><table><thead><tr><th>Date</th><th>Utilisateur</th><th>Opération</th><th>Fournisseur / référence</th><th>Montant</th><th>Solde avant → après</th><th>Statut</th></tr></thead><tbody id="operationJournalBody"><tr><td colspan="7" class="loading">Ouvrez le journal pour charger les dernières opérations.</td></tr></tbody></table></div>
+            <p id="operationJournalNote" class="section-sub" style="margin-top:8px;"></p>
+          </div>
+        </div>
       </section>
     </div>
 
@@ -663,14 +673,14 @@ textarea.msg-area:focus{border-color:var(--gold)}
               <button onclick="resetCustomerDownloadTracking();closeCustomerExport()"><i class="fas fa-rotate-left"></i> Réinitialiser</button>
             </div>
           </div>
-          <button class="btn btn-outline" onclick="loadCustomers(true,true)"><i class="fas fa-sync-alt"></i> Actualiser</button>
+          <button class="btn btn-outline" onclick="refreshCustomersSafely()"><i class="fas fa-sync-alt"></i> Actualiser</button>
         </div>
       </div>
       <section class="section" style="padding-top:0;">
         <div class="filter-bar">
           <div class="filter-group"><label>Recherche</label><input id="customerSearch" type="text" placeholder="Nom, email exact…" onkeydown="if(event.key==='Enter')loadCustomers(true)" style="min-width:200px;"></div>
           <div class="filter-group"><label>Pays</label><select id="customerCountryFilter" onchange="loadCustomers(true)"><option value="">Tous</option></select></div>
-          <div class="filter-group"><label>Segment</label><select id="customerSegmentFilter" onchange="loadCustomers(true)"><option value="all">Tous</option><option value="ordered">A déjà commandé</option><option value="neverOrdered">Aucune commande</option><option value="highOrders">Plus de commandes</option><option value="highSpent">Plus dépensé</option><option value="highProfit">Plus de marge</option><option value="highBalance">Solde élevé</option></select></div>
+          <div class="filter-group"><label>Segment</label><select id="customerSegmentFilter" onchange="loadCustomers(true)"><option value="all">Tous</option><option value="vip">VIP · top 10 % des dépenses</option><option value="loyal">Fidèles · 5+ commandes et activité récente (30 j)</option><option value="new">Nouveaux · 30 jours</option><option value="atRisk">À risque · 7 à 9 jours</option><option value="inactive10">Inactifs · 10 à 20 jours</option><option value="inactive21">Inactifs · 21 à 29 jours</option><option value="inactive30">Inactifs · 1 à 3 mois</option><option value="inactive90">Inactifs · 3 à 5 mois</option><option value="inactive150">Inactifs · 5 mois et plus</option><option value="ordered">A déjà commandé</option><option value="neverOrdered">Aucune commande</option><option value="highOrders">Plus de commandes</option><option value="highSpent">Plus dépensé</option><option value="highProfit">Plus de marge</option><option value="highBalance">Solde élevé</option></select></div>
           <div class="filter-group"><label>Tri</label><select id="customerSortFilter" onchange="loadCustomers(true)"><option value="recent">Plus récents</option><option value="orders">Commandes</option><option value="spent">Total dépensé</option><option value="profit">Marge brute</option><option value="balance">Solde</option></select></div>
           <div class="filter-group date-range"><label>Inscription du</label><input type="date" id="customerDateStart" onchange="loadCustomers(true)"></div>
           <div class="filter-group date-range"><label>au</label><input type="date" id="customerDateEnd" onchange="loadCustomers(true)"></div>
@@ -681,7 +691,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
         <div id="customerStatsLoadBanner" class="customer-stats-bar" style="display:none;"></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Inscription</th><th>Utilisateur</th><th>Pays</th><th>Commandes</th><th>Total dépensé</th><th>Marge</th><th>Solde</th><th>Dernière activité</th><th></th></tr></thead>
+            <thead><tr><th>Inscription</th><th>Utilisateur</th><th>Pays</th><th>Commandes</th><th>Total dépensé</th><th>Marge</th><th>Solde</th><th>Dernière commande / activité</th><th></th></tr></thead>
             <tbody id="customersBody"><tr><td colspan="9" class="loading">Ouvrez cette vue pour charger les utilisateurs.</td></tr></tbody>
           </table>
         </div>
@@ -976,6 +986,7 @@ let lastForceRefreshAt = 0;
 let lastBadgesUpdateAt = 0;
 let overviewLoaded = false;
 let overviewLoadedAt = 0;
+let lastOverviewRawData=null;
 let overviewLoading = false;
 let overviewPeriod = 'today';
 let overviewPeriodData = null;
@@ -1028,16 +1039,16 @@ let currentCustomerEmail = null;
 let customerEmailSending = false;
 let metricsRebuildRunning = false;
 
-const CLIENT_TTL = {overview:2*60*1000,topUsers:5*60*1000,financials:10*60*1000,orders:3*60*1000,orderSummary:3*60*1000,deposits:3*60*1000,customers:5*60*1000,stores:10*60*1000,gifts:2*60*1000,services:15*60*1000};
-const AUTO_REFRESH_INTERVAL_MS = 5*60*1000;
-const FORCE_REFRESH_THROTTLE_MS = 30*1000;
+const CLIENT_TTL = {overview:30*60*1000,topUsers:30*60*1000,financials:30*60*1000,orders:10*60*1000,orderSummary:15*60*1000,deposits:10*60*1000,customers:30*60*1000,stores:30*60*1000,gifts:10*60*1000,services:30*60*1000};
+const AUTO_REFRESH_INTERVAL_MS = 30*60*1000;
+const FORCE_REFRESH_THROTTLE_MS = 5*60*1000;
 const BADGES_TTL_MS = 10*60*1000;
-const FIN_CACHE_KEY = 'sbh_fin_cache_v3';
-const FIN_CACHE_TTL = 5*60*1000;
+const FIN_CACHE_KEY = 'sbh_fin_cache_v4';
+const FIN_CACHE_TTL = 30*60*1000;
 const CUST_STATS_CACHE_KEY = 'sbh_cust_stats_v1';
-const CUST_STATS_TTL = 15*60*1000;
-const AUTO_ENRICH_LIMIT = 5;
-const HEAVY_RANGES = ['90d','year','all'];
+const CUST_STATS_TTL = 30*60*1000;
+const AUTO_ENRICH_LIMIT = 0;
+const HEAVY_RANGES = ['30d','90d','year','all'];
 const PERIOD_CONFIG = {
   today:{range:'today',label:"Aujourd'hui",compareLabel:"hier à la même heure"},
   yesterday:{range:'yesterday',label:"Hier",compareLabel:"avant-hier"},
@@ -1175,13 +1186,14 @@ async function forceRefresh(){
   const activeView=document.querySelector('.nav-item.active')?.dataset?.view||'overview';
   try{
     if(activeView==='overview'){
-      if(overviewPeriod==='today'){overviewLoaded=false;topUsersLoaded=false;await loadOverview(true);await loadTopUsers(true);}
+      if(!confirm('Forcer le recalcul de la vue d’ensemble ? Cette action contourne le cache partagé et peut consommer des lectures Firestore. Pour économiser le quota, annulez et utilisez simplement la période affichée.'))return;
+      if(overviewPeriod==='today'){overviewLoaded=false;topUsersLoaded=false;await loadOverview(true);await loadTopUsers(false);}
       else{await loadOverviewPeriod(true);}
     }
     else if(activeView==='finances'){await loadFinancialsForce();}
-    else if(activeView==='orders'){ordersLoadedAt=0;await refreshOrdersView();await loadOrderSummary(true);}
-    else if(activeView==='deposits'){depositsLoadedAt=0;await loadDeposits(true);}
-    else if(activeView==='customers'){customersLoadedAt=0;autoEnrichAttempted=false;await loadCustomers(true,true);}
+    else if(activeView==='orders'){ordersLoadedAt=0;await refreshOrdersView(true);}
+    else if(activeView==='deposits'){depositsLoadedAt=0;refreshDepositsSafely();}
+    else if(activeView==='customers'){customersLoadedAt=0;autoEnrichAttempted=false;refreshCustomersSafely();}
     else if(activeView==='stores'){storesLoadedAt=0;await loadStores(true);}
     else if(activeView==='gifts'){giftsLoaded=false;await loadGifts();}
     else if(activeView==='services'){servicesLoaded=false;await loadServices(true);}
@@ -1196,10 +1208,10 @@ function startAutoRefresh(){
     if(document.querySelector('.modal-overlay.active'))return;
     const activeView=document.querySelector('.nav-item.active')?.dataset?.view;
     if(Date.now()-lastBadgesUpdateAt>BADGES_TTL_MS){
-      try{if(activeView==='overview'&&overviewPeriod==='today'){const d=await fetchAdmin('/overview');renderOverviewData(d.data||{});overviewLoadedAt=Date.now();updateGiftBadges(d.data?.giftsPending,d.data?.giftsLate);lastBadgesUpdateAt=Date.now();}}catch(e){console.warn('Auto-refresh badges:',e.message);}
+      try{if(activeView==='overview'&&overviewPeriod==='today'){const d=await fetchAdmin('/overview');lastOverviewRawData=d.data||{};renderOverviewData(lastOverviewRawData);overviewLoadedAt=Date.now();updateGiftBadges(d.data?.giftsPending,d.data?.giftsLate);lastBadgesUpdateAt=Date.now();}}catch(e){console.warn('Auto-refresh badges:',e.message);}
     }
     try{
-      if(activeView==='overview'&&overviewPeriod==='today'){if(Date.now()-overviewLoadedAt<CLIENT_TTL.overview)return;const d=await fetchAdmin('/overview');renderOverviewData(d.data||{});overviewLoadedAt=Date.now();updateGiftBadges(d.data?.giftsPending,d.data?.giftsLate);}
+      if(activeView==='overview'&&overviewPeriod==='today'){if(Date.now()-overviewLoadedAt<CLIENT_TTL.overview)return;const d=await fetchAdmin('/overview');lastOverviewRawData=d.data||{};renderOverviewData(lastOverviewRawData);overviewLoadedAt=Date.now();updateGiftBadges(d.data?.giftsPending,d.data?.giftsLate);}
       else if(activeView==='orders'){if(Date.now()-orderSummaryLoadedAt<CLIENT_TTL.orderSummary)return;await loadOrderSummary();}
     }catch(e){console.warn('Auto-refresh:',e.message);}
   },AUTO_REFRESH_INTERVAL_MS);
@@ -1242,7 +1254,7 @@ function applyOverviewCustomRange(){
   if(!start||!end||start>end){showError('Choisissez une période principale valide.');return;}
   if(Boolean(compareStart)!==Boolean(compareEnd)||(compareStart&&compareStart>compareEnd)){showError('Renseignez les deux dates de comparaison dans le bon ordre.');return;}
   overviewPeriod='custom';
-  loadOverviewPeriod(true);
+  loadOverviewPeriod(false);
 }
 
 async function loadOverviewPeriod(force=false){
@@ -1306,9 +1318,9 @@ function computeDateBounds(range,isPrevious){
 async function fetchNewUsersForPeriod(range,isPrevious){
   try{
     const bounds=computeDateBounds(range,isPrevious);if(!bounds)return 0;
-    const qs=new URLSearchParams({limit:'1',dateStart:bounds.start.toISOString(),dateEnd:bounds.end.toISOString()});
-    const d=await fetchAdmin('/customers?'+qs.toString());
-    return Number(d.total||0);
+    const qs=new URLSearchParams({dateStart:bounds.start.toISOString(),dateEnd:bounds.end.toISOString()});
+    const d=await fetchAdmin('/users-count-range?'+qs.toString());
+    return Number(d.count||0);
   }catch(e){console.warn('New users period error',e.message);return 0;}
 }
 function periodPct(cur,prev){const c=Number(cur)||0;const p=Number(prev)||0;if(p===0)return null;return ((c-p)/p)*100;}
@@ -1489,20 +1501,94 @@ function renderObjectiveProgress(data,goal){
   const fmt=d=>new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
   panel.innerHTML=`<div class="rec-card ${completed?'severity-success':(!started?'severity-info':onTrack===metrics.length?'severity-success':'severity-warning')}"><div class="rec-body"><div class="rec-title">${esc(status)} · ${fmt(goal.startDate)} au ${fmt(goal.endDate)}</div><div class="rec-desc">${esc(detail)}</div></div></div>${rows}`;
 }
+function renderObjectiveAssistantAlert(data,goal){
+  const panel=document.getElementById('overviewRecommendationsPanel');
+  if(!panel||!goal?.startDate||!goal?.endDate||!goal?.targets)return;
+  const start=new Date(`${goal.startDate}T00:00:00`),end=new Date(`${goal.endDate}T23:59:59`),now=new Date();
+  const span=Math.max(1,end.getTime()-start.getTime());
+  const elapsed=Math.max(0,Math.min(1,(now.getTime()-start.getTime())/span));
+  const metrics=[
+    {key:'orders',label:'commandes',current:Number(data.totalOrders||0),target:Number(goal.targets.orders||0),unit:''},
+    {key:'sales',label:'ventes',current:Number(data.autoOrdersNetSales||0),target:Number(goal.targets.sales||0),unit:' FCFA'},
+    {key:'profit',label:'marge brute',current:getNetGrossMargin(data),target:Number(goal.targets.profit||0),unit:' FCFA'},
+    {key:'newUsers',label:'inscriptions',current:Number(data.newUsersCount||0),target:Number(goal.targets.newUsers||0),unit:''},
+    {key:'visits',label:'visites',current:Number(data.dashboardVisits||0),target:Number(goal.targets.visits||0),unit:''}
+  ].filter(m=>m.target>0);
+  if(!metrics.length)return;
+  const unfinished=metrics.filter(m=>m.current<m.target);
+  const behind=metrics.filter(m=>now>=start&&now<=end&&m.current<m.target*elapsed);
+  const completed=unfinished.length===0;
+  let severity='success',title='Objectif en bonne voie',detail='Les indicateurs suivent le rythme prévu. Maintiens ce niveau et prépare une cible supérieure.';
+  if(now<start){severity='info';title='Objectif à venir';detail=`Ton objectif commence le ${start.toLocaleDateString('fr-FR')}. Les résultats seront suivis à partir de cette date.`;}
+  else if(completed){severity='success';title='Objectif atteint';detail='Toutes les cibles fixées sont atteintes. Tu peux conserver ce rythme ou relever ton prochain objectif.';}
+  else if(now>end){severity='danger';detail=`La période est terminée. Il reste ${unfinished.map(m=>`${m.target-m.current} ${m.label}`).join(', ')} à atteindre.`;title='Objectif non atteint';}
+  else if(behind.length){severity='warning';title='Attention : tu prends du retard sur ton objectif';detail=`Pour revenir dans le rythme, il manque au minimum ${behind.map(m=>`${Math.max(0,Math.ceil(m.target*elapsed-m.current)).toLocaleString('fr-FR')} ${m.label}`).join(', ')} à ce stade. Pour atteindre la cible finale, il reste ${unfinished.map(m=>`${Math.max(0,m.target-m.current).toLocaleString('fr-FR')} ${m.label}`).join(', ')}.`;}
+  else{detail=`Tu es dans le rythme. Il reste ${unfinished.map(m=>`${Math.max(0,m.target-m.current).toLocaleString('fr-FR')} ${m.label}`).join(', ')} à réaliser avant le ${end.toLocaleDateString('fr-FR')}.`}
+  const existing=panel.querySelector('[data-objective-assistant]');if(existing)existing.remove();
+  const card=document.createElement('div');card.className=`rec-card severity-${severity}`;card.setAttribute('data-objective-assistant','true');
+  card.innerHTML=`<div class="rec-icon"><i class="fas fa-bullseye"></i></div><div class="rec-body"><div class="rec-title">${esc(title)}</div><div class="rec-desc">${esc(detail)}</div><div class="rec-actions"></div></div>`;
+  const actions=card.querySelector('.rec-actions');
+  const button=document.createElement('button');button.className='btn btn-outline btn-sm';button.innerHTML='<i class="fas fa-sliders"></i> Ajuster mes objectifs';button.onclick=()=>openObjectivesModal();actions.appendChild(button);
+  panel.prepend(card);
+}
+
 async function loadObjectiveProgress(force=false){
   const panel=document.getElementById('overviewObjectivesPanel');if(!panel)return;
   const goal=getStoredObjectives();
   if(!goal.startDate||!goal.endDate||!goal.targets){panel.innerHTML='<p class="section-sub">Aucun objectif défini. Choisis une période et tes cibles pour commencer le suivi.</p>';return;}
   const cacheKey=`${goal.startDate}|${goal.endDate}`;
+  const localStart=new Date(`${goal.startDate}T00:00:00`);
+  const localEnd=new Date(`${goal.endDate}T23:59:59`);
+  const now=new Date();
+  const asInput=d=>localDateInput(d);
+  const currentToday=asInput(now);
+
+  // 1) Réutiliser le payload exact déjà affiché pour une période personnalisée / standard.
+  if(!force&&overviewPeriodData?.data?.start&&overviewPeriodData?.data?.end){
+    const dataStart=asInput(new Date(overviewPeriodData.data.start));
+    const dataEnd=asInput(new Date(new Date(overviewPeriodData.data.end).getTime()-1));
+    if(dataStart===goal.startDate&&dataEnd===goal.endDate){
+      renderObjectiveProgress(overviewPeriodData.data,goal);
+      renderObjectiveAssistantAlert(overviewPeriodData.data,goal);
+      return;
+    }
+  }
+
+  // 2) Pour un objectif limité à aujourd'hui, reprendre les chiffres de /overview déjà chargés.
+  if(!force&&goal.startDate===currentToday&&goal.endDate===currentToday&&lastOverviewRawData){
+    const source=lastOverviewRawData;
+    const data={
+      totalOrders:Number(source.ordersToday||0),
+      autoOrdersNetSales:Number(source.totalRevenue||0),
+      autoOrdersRefunds:Number(source.autoOrdersRefunds||0),
+      supplierCostWithSnapshots:Number(source.allCollectionsSupplierCost||0),
+      newUsersCount:Number(source.newUsersToday||0),
+      dashboardVisits:Number(source.dashboardVisitsToday||0),
+    };
+    renderObjectiveProgress(data,goal);
+    renderObjectiveAssistantAlert(data,goal);
+    return;
+  }
+
+  // 3) Une cible future ne nécessite aucune lecture Firestore : elle commence à zéro.
+  if(now<localStart){
+    const empty={totalOrders:0,autoOrdersNetSales:0,autoOrdersRefunds:0,supplierCostWithSnapshots:0,newUsersCount:0,dashboardVisits:0};
+    renderObjectiveProgress(empty,goal);
+    renderObjectiveAssistantAlert(empty,goal);
+    return;
+  }
+
+  // 4) Dernier recours : une période différente, récupérée une fois puis mise en cache local + serveur.
   if(!force){
-    try{const cache=JSON.parse(sessionStorage.getItem('sbh_goal_progress_v1')||'{}');const entry=cache[cacheKey];if(entry&&entry.expires>Date.now()){renderObjectiveProgress(entry.data,goal);return;}}catch(_){}
+    try{const cache=JSON.parse(sessionStorage.getItem('sbh_goal_progress_v1')||'{}');const entry=cache[cacheKey];if(entry&&entry.expires>Date.now()){renderObjectiveProgress(entry.data,goal);renderObjectiveAssistantAlert(entry.data,goal);return;}}catch(_){}
   }
   panel.innerHTML='<div class="loading"><i class="fas fa-circle-notch"></i> Mise à jour de la progression…</div>';
   try{
     const params=new URLSearchParams({dateStart:goal.startDate,dateEnd:goal.endDate});
     const d=await fetchAdmin('/overview-range?'+params.toString());
-    const data=d.data||{};renderObjectiveProgress(data,goal);
-    try{const cache=JSON.parse(sessionStorage.getItem('sbh_goal_progress_v1')||'{}');cache[cacheKey]={data,expires:Date.now()+10*60*1000};sessionStorage.setItem('sbh_goal_progress_v1',JSON.stringify(cache));}catch(_){}
+    const data=d.data||{};
+    renderObjectiveProgress(data,goal);renderObjectiveAssistantAlert(data,goal);
+    try{const cache=JSON.parse(sessionStorage.getItem('sbh_goal_progress_v1')||'{}');cache[cacheKey]={data,expires:Date.now()+30*60*1000};sessionStorage.setItem('sbh_goal_progress_v1',JSON.stringify(cache));}catch(_){}
   }catch(e){panel.innerHTML=`<p class="error-msg" style="display:block;">Progression indisponible : ${esc(e.message)}</p>`;}
 }
 
@@ -1542,6 +1628,18 @@ function generateRecommendations(data,previous,cfg){
   if(currentMargin<prevMargin-3&&prevMargin>0){
     recs.push({severity:'info',icon:'fa-percent',title:`Marge en baisse (${currentMargin.toFixed(1)}% vs ${prevMargin.toFixed(1)}%)`,description:`Ta marge brute s'est réduite. Analyse tes services les moins rentables et privilégie ceux à forte marge.`,actions:[{label:'Voir les services',icon:'fa-layer-group',action:()=>{switchView('services');}}]});
   }
+  const grossSales=Number(data.autoOrdersGrossSales||0);
+  const refunds=Number(data.autoOrdersRefunds||0);
+  const refundRate=grossSales>0?refunds/grossSales*100:0;
+  if(refunds>0&&refundRate>=8){
+    recs.push({severity:'warning',icon:'fa-rotate-left',title:`Remboursements élevés : ${refundRate.toFixed(1)}% des ventes brutes`,description:`Les remboursements représentent ${refunds.toLocaleString('fr-FR')} FCFA sur ${grossSales.toLocaleString('fr-FR')} FCFA de ventes brutes. Vérifie les services et fournisseurs à l'origine des annulations avant d'augmenter les campagnes.`,actions:[{label:'Examiner les commandes',icon:'fa-list',action:()=>switchView('orders')}]});
+  }
+  if(ordersDelta!==null&&ordersDelta>=20&&usersDelta!==null&&usersDelta<=0){
+    recs.push({severity:'info',icon:'fa-chart-line',title:'Les commandes progressent sans nouvelles inscriptions',description:`Les commandes augmentent de ${Math.round(ordersDelta)}% alors que les nouvelles inscriptions ne progressent pas. La croissance vient surtout des clients existants : encourage leur fidélité et surveille la concentration du chiffre d'affaires.`,actions:[{label:'Voir les clients fidèles',icon:'fa-users',action:()=>{switchView('customers');const s=document.getElementById('customerSegmentFilter');if(s)s.value='loyal';loadCustomers(true);}}]});
+  }
+  if(salesDelta!==null&&salesDelta<=-15&&ordersDelta!==null&&ordersDelta>-5){
+    recs.push({severity:'warning',icon:'fa-money-bill-trend-down',title:'Les ventes baissent plus vite que les commandes',description:`Le volume de commandes tient, mais les ventes reculent de ${Math.abs(Math.round(salesDelta))}%. Vérifie le panier moyen, les prix et la composition des services commandés.`,actions:[{label:'Consulter les finances',icon:'fa-chart-column',action:()=>switchView('finances')}]});
+  }
   if(recs.length===0){
     recs.push({severity:'info',icon:'fa-lightbulb',title:'Plateforme stable — objectif +10%',description:`Tes indicateurs sont stables. Pour progresser : fixe-toi un objectif ambitieux (modifie tes objectifs), contacte 5 clients par jour pour les encourager, et teste un nouveau service.`,actions:[{label:'Modifier mes objectifs',icon:'fa-bullseye',action:()=>openObjectivesModal()}]});
   }
@@ -1554,7 +1652,8 @@ async function loadOverview(force=false){
   overviewLoading=true;
   try{
     const d=await fetchAdmin('/overview'+(force?'?refresh=1':''));
-    renderOverviewData(d.data||{});
+    lastOverviewRawData=d.data||{};
+    renderOverviewData(lastOverviewRawData);
     overviewLoaded=true;overviewLoadedAt=Date.now();
     loadObjectiveProgress();
     updateGiftBadges(d.data?.giftsPending,d.data?.giftsLate);
@@ -1626,7 +1725,7 @@ async function loadOrdersForDate(){
   result.innerHTML='<i class="fas fa-circle-notch fa-spin"></i> Recherche…';
   try{
     const start=new Date(date+'T00:00:00');const end=new Date(start.getTime()+24*60*60*1000);
-    const params=new URLSearchParams({limit:'1',offset:'0',dateStart:start.toISOString(),dateEnd:end.toISOString(),refresh:'1'});
+    const params=new URLSearchParams({limit:'1',offset:'0',dateStart:start.toISOString(),dateEnd:end.toISOString()});
     const d=await fetchAdmin('/orders?'+params.toString());
     const count=Number(d.total||0);
     const dateLabel=new Date(date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
@@ -1645,8 +1744,22 @@ function setTopUsersPeriod(period){
   if(subEl)subEl.textContent=period==='today'?'Classement exact des commandes enregistrées aujourd’hui.':period==='week'?'Classement exact depuis le début de la semaine.':period==='custom'?'Classement exact sur les dates choisies.':'Classement global construit à partir des métriques historiques vérifiées des fiches clients.';
   const thead=document.getElementById('topUsersThead');
   if(thead)thead.innerHTML=`<tr><th>Client</th><th>Pays</th><th>Commandes${period==='today'?' du jour':period==='week'?' de la semaine':period==='custom'?' (période)':''}</th><th>Total dépensé</th><th>Solde</th><th>Marge brute</th><th></th></tr>`;
+  loadTopUsers(false);
+}
+function applyTopUsersFilter(){
+  topUsersLoaded=false;
+  loadTopUsers(false);
+}
+
+let lastTopUsersForceRefreshAt=0;
+function refreshTopUsersSafely(){
+  if(Date.now()-lastTopUsersForceRefreshAt<FORCE_REFRESH_THROTTLE_MS){showToast('Actualisation du classement limitée à une fois toutes les 5 minutes pour protéger le quota.');return;}
+  const period=topUsersPeriod==='all'?'classement global (index des profils)':`classement ${topUsersPeriod} (lecture des commandes de la période)`;
+  if(!confirm(`Forcer le recalcul du ${period} ?\n\nCette action contourne le cache partagé et peut relire plusieurs centaines ou milliers de documents selon l'activité. Pour consulter les données récentes, changez simplement de période ou rouvrez la rubrique sans forcer.`))return;
+  lastTopUsersForceRefreshAt=Date.now();
   loadTopUsers(true);
 }
+
 async function loadTopUsers(force=false){
   if(topUsersLoading)return;
   if(!force&&topUsersLoaded&&topUsersPeriod===lastTopUsersPeriod&&Date.now()-topUsersLoadedAt<CLIENT_TTL.topUsers)return;
@@ -1732,17 +1845,15 @@ function confirmHeavyRange(range){
     const cached=getFinancialsCache(sel.cacheKey,financialProviderFilter);if(cached)return true;
     return confirm(`Cette période couvre ${days.toLocaleString('fr-FR')} jours.
 
-Le serveur utilise un cache de 15 minutes et des agrégations Firestore. La première lecture peut être plus importante.
+Le serveur utilise des agrégations Firestore et un cache partagé pouvant durer jusqu’à 60 minutes. Le nombre exact de lectures dépend du volume d’index de la période.
 
 Continuer ?`);
   }
   if(!HEAVY_RANGES.includes(range))return true;
   const cached=getFinancialsCache(range,financialProviderFilter);if(cached)return true;
-  return confirm(`⚠️ Période "${range}" = potentiellement des milliers de lectures Firestore.
+  return confirm(`Période "${range}" : première consultation avec agrégations Firestore. Les résultats sont ensuite conservés dans un cache partagé jusqu’à 60 minutes.
 
-Recommandé : utiliser 30 jours max, ou attendre que le cache serveur 15 min soit chaud.
-
-Continuer quand même ?`);
+Continuer ?`);
 }
 function setFinancialRange(range){
   const input=document.getElementById('financialRange');if(input)input.value=range;
@@ -1767,7 +1878,7 @@ function applyFinancialCustomRange(){
   if(!confirmHeavyRange('custom'))return;
   financialsLoaded=false;loadFinancials(false);
 }
-async function loadFinancialsForce(){if(Date.now()-lastForceRefreshAt<FORCE_REFRESH_THROTTLE_MS){showToast('Patientez avant de forcer à nouveau.');return;}lastForceRefreshAt=Date.now();clearFinancialsCache();await loadFinancials(true);}
+async function loadFinancialsForce(){if(Date.now()-lastForceRefreshAt<FORCE_REFRESH_THROTTLE_MS){showToast('Actualisation forcée limitée à une fois toutes les 5 minutes pour protéger le quota.');return;}if(!confirm('Forcer le recalcul financier en contournant le cache partagé ? Selon le volume de commandes, cela peut consommer de nombreuses lectures d’index. Pour économiser le quota, utilisez normalement la période sans actualisation forcée.'))return;lastForceRefreshAt=Date.now();clearFinancialsCache();await loadFinancials(true);}
 async function loadFinancials(force=false){
   const sel=getFinancialSelection();const range=sel.range;const provider=financialProviderFilter;const cacheRange=sel.cacheKey;
   const warn=document.getElementById('financialWarning');if(warn)warn.style.display=range==='custom'?'none':(HEAVY_RANGES.includes(range)?'block':'none');
@@ -1814,7 +1925,7 @@ function renderFinancialsData(c,p){
   rows.forEach(r=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${esc(r[0])}</td><td><strong>${typeof r[1]==='number'?r[1].toLocaleString('fr-FR'):esc(r[1])}</strong></td><td>${r[2]===null?'—':(typeof r[2]==='number'?r[2].toLocaleString('fr-FR'):esc(r[2]))}</td><td>${comparisonCell(r[3])}</td>`;body.appendChild(tr);});
 }
 
-function clearOrderDates(){const s=document.getElementById('orderDateStart');const e=document.getElementById('orderDateEnd');if(s)s.value='';if(e)e.value='';refreshOrdersView();}
+function clearOrderDates(){const s=document.getElementById('orderDateStart');const e=document.getElementById('orderDateEnd');if(s)s.value='';if(e)e.value='';allOrders=[];orderOffset=0;loadOrders(true,false);}
 async function loadOrderSummary(force=false){
   if(orderSummaryLoading)return;
   if(!force&&orderSummaryLoaded&&Date.now()-orderSummaryLoadedAt<CLIENT_TTL.orderSummary)return;
@@ -1828,8 +1939,8 @@ async function loadOrderSummary(force=false){
   }catch(e){showError('Compteurs : '+e.message);}
   finally{orderSummaryLoading=false;}
 }
-function refreshOrdersView(){allOrders=[];orderOffset=0;loadOrders(true);loadOrderSummary(true);}
-async function loadOrders(reset=false){
+function refreshOrdersView(force=true){allOrders=[];orderOffset=0;loadOrders(true,force);loadOrderSummary(force);}
+async function loadOrders(reset=false,force=false){
   if(ordersLoading)return;
   ordersLoading=true;
   const tb=document.getElementById('ordersBody');
@@ -1840,7 +1951,7 @@ async function loadOrders(reset=false){
     const st=document.getElementById('orderStatusFilter')?.value||'all';if(st!=='all')params.set('status',st);
     const ds=formatDateInput('orderDateStart');if(ds)params.set('dateStart',ds.toISOString());
     const de=formatDateInput('orderDateEnd');if(de)params.set('dateEnd',new Date(de.getTime()+24*60*60*1000).toISOString());
-    if(reset)params.set('refresh','1');
+    if(force)params.set('refresh','1');
     const d=await fetchAdmin('/orders?'+params.toString());
     const incoming=d.orders||[];
     allOrders=reset?incoming:allOrders.concat(incoming);
@@ -1870,15 +1981,61 @@ function renderOrders(){
   document.getElementById('ordersStats').innerHTML=`<div class="stat-item">Affichées : <strong>${list.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Payé : <strong>${total.toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-sep"></div><div class="stat-item">Coûts : <strong>${costs.toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-sep"></div><div class="stat-item">Marge : <strong>${profit.toLocaleString('fr-FR')} FCFA</strong></div>`;
 }
 
-function clearDepositDates(){const s=document.getElementById('depositDateStart');const e=document.getElementById('depositDateEnd');if(s)s.value='';if(e)e.value='';loadDeposits(true);}
-async function loadDeposits(reset=false){
+let operationJournalLoadedAt=0;
+let operationJournalLoading=false;
+function toggleOperationJournal(){
+  const panel=document.getElementById('operationJournalPanel');
+  const btn=document.getElementById('operationJournalToggle');
+  if(!panel)return;
+  const opening=panel.style.display==='none';
+  panel.style.display=opening?'block':'none';
+  if(btn)btn.innerHTML=opening?'<i class="fas fa-chevron-up"></i> Masquer le journal':'<i class="fas fa-clock-rotate-left"></i> Afficher le journal';
+  if(opening&&Date.now()-operationJournalLoadedAt>5*60*1000)loadOperationJournal(false);
+}
+async function loadOperationJournal(force=false){
+  if(operationJournalLoading)return;
+  if(!force&&operationJournalLoadedAt&&Date.now()-operationJournalLoadedAt<5*60*1000)return;
+  operationJournalLoading=true;
+  const body=document.getElementById('operationJournalBody');
+  if(body)body.innerHTML='<tr><td colspan="7" class="loading"><i class="fas fa-circle-notch fa-spin"></i> Chargement du journal…</td></tr>';
+  try{
+    const d=await fetchAdmin('/operations?limit=50'+(force?'&refresh=1':''));
+    const rows=d.operations||[];
+    if(body){
+      body.innerHTML='';
+      if(!rows.length)body.innerHTML='<tr><td colspan="7" class="loading">Aucune opération enregistrée pour le moment.</td></tr>';
+      rows.forEach(op=>{
+        const tr=document.createElement('tr');
+        const status=String(op.status||'UNKNOWN').toUpperCase();
+        const color=status==='CONFIRMED'?'var(--green)':status==='FAILED'?'var(--red)':'var(--warning)';
+        const balance=op.balanceBefore==null||op.balanceAfter==null?'—':`${Number(op.balanceBefore).toLocaleString('fr-FR')} → ${Number(op.balanceAfter).toLocaleString('fr-FR')} FCFA`;
+        tr.innerHTML=`<td style="white-space:nowrap;font-size:.78rem;">${esc(formatDate(op.createdAt))}</td><td><strong>${esc(op.userName||'Client')}</strong><br><small style="color:var(--text-dim);">${esc(op.userEmail||op.userId||'')}</small></td><td>${esc(op.action||'Opération')}</td><td>${esc(op.provider||'—')}<br><small style="color:var(--text-dim);">${esc(op.transactionId||'')}</small></td><td style="white-space:nowrap;font-weight:600;">${Number(op.amountXAF||0).toLocaleString('fr-FR')} FCFA</td><td style="white-space:nowrap;font-size:.78rem;">${esc(balance)}</td><td style="color:${color};font-weight:600;">${esc(status)}</td>`;
+        body.appendChild(tr);
+      });
+    }
+    const note=document.getElementById('operationJournalNote');
+    if(note)note.textContent=d.note||'Journal partagé · actualisation avec cache de 5 minutes.';
+    operationJournalLoadedAt=Date.now();
+  }catch(e){if(body)body.innerHTML=`<tr><td colspan="7" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Journal : '+e.message);}
+  finally{operationJournalLoading=false;}
+}
+
+let lastDepositForceRefreshAt=0;
+function refreshDepositsSafely(){
+  if(Date.now()-lastDepositForceRefreshAt<5*60*1000){showToast('Actualisation des recharges limitée à une fois toutes les 5 minutes pour protéger le quota.');return;}
+  if(!confirm('Forcer le rechargement des transactions de recharge en contournant le cache partagé ? Cette action peut relire plusieurs pages de transactions. Les filtres normaux réutilisent le cache et sont préférables pour économiser les lectures.'))return;
+  lastDepositForceRefreshAt=Date.now();
+  loadDeposits(true,true);
+}
+function clearDepositDates(){const s=document.getElementById('depositDateStart');const e=document.getElementById('depositDateEnd');if(s)s.value='';if(e)e.value='';loadDeposits(true,false);}
+async function loadDeposits(reset=false,force=false){
   if(depositsLoading)return;
   depositsLoading=true;
   const tb=document.getElementById('depositsBody');
   if(reset){allDeposits=[];tb.innerHTML='<tr><td colspan="8" class="loading">Chargement…</td></tr>';}
   try{
-    const p=new URLSearchParams({limit:'100',status:document.getElementById('depositStatusFilter')?.value||'all',provider:document.getElementById('depositProviderFilter')?.value||'all'});
-    if(reset)p.set('refresh','1');
+    const p=new URLSearchParams({limit:'25',status:document.getElementById('depositStatusFilter')?.value||'all',provider:document.getElementById('depositProviderFilter')?.value||'all'});
+    if(force)p.set('refresh','1');
     const ds=formatDateInput('depositDateStart');if(ds)p.set('dateStart',ds.toISOString());
     const de=formatDateInput('depositDateEnd');if(de)p.set('dateEnd',new Date(de.getTime()+24*60*60*1000).toISOString());
     const d=await fetchAdmin('/deposits?'+p.toString());
@@ -1982,12 +2139,16 @@ async function rebuildCustomerMetrics(){
     showToast(`Recalculé : ${Number(d.ordersRead||0).toLocaleString('fr-FR')} commandes`);
     clearCustStatsCache();
     allCustomers=[];customerCursor=null;customersLoadedAt=0;autoEnrichAttempted=false;
-    await loadCustomers(true,true);
+    await loadCustomers(true,false);
     overviewLoaded=false;topUsersLoaded=false;
     await loadOverview(true);
-    await loadTopUsers(true);
+    await loadTopUsers(false);
   }catch(e){showError('Recalcul : '+e.message);}
   finally{metricsRebuildRunning=false;metricsRebuildRunningGuard=false;if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-calculator"></i> Recalculer';}}
+}
+function refreshCustomersSafely(){
+  if(!confirm('Actualiser intégralement l’index des clients ? Si le cache partagé a expiré, cette opération peut lire environ 3 500 profils. Les recherches et filtres normaux réutilisent le cache et ne relisent pas tous les profils.'))return;
+  loadCustomers(true,true);
 }
 async function loadCustomers(reset=false,forceServerRefresh=false){
   if(customersLoading)return;
@@ -2011,7 +2172,7 @@ async function loadCustomers(reset=false,forceServerRefresh=false){
     allCustomers=reset?(d.customers||[]):allCustomers.concat(d.customers||[]);
     const customerSortMode=document.getElementById('customerSortFilter')?.value||'recent';
     const customerSegmentMode=document.getElementById('customerSegmentFilter')?.value||'all';
-    if(customerSortMode==='recent'&&!['highOrders','highSpent','highProfit','highBalance'].includes(customerSegmentMode))allCustomers=sortByDateDesc(allCustomers);
+    if(customerSortMode==='recent'&&!['highOrders','highSpent','highProfit','highBalance','vip','loyal','atRisk','inactive10','inactive21','inactive30','inactive90','inactive150','new'].includes(customerSegmentMode))allCustomers=sortByDateDesc(allCustomers);
     customerCursor=d.nextCursor||null;customersLoadedAt=Date.now();
     const note=document.getElementById('customerMetricsStatus');
     if(note){
@@ -2021,7 +2182,8 @@ async function loadCustomers(reset=false,forceServerRefresh=false){
     }
     renderCustomers();
     document.getElementById('customersMoreBtn').style.display=(!q&&customerCursor)?'inline-flex':'none';
-    if(reset)autoEnrichFirstCustomers();
+    // Aucun enrichissement automatique : ouvrir la liste ne doit jamais déclencher
+    // plusieurs fiches clients et relire leurs historiques de commandes.
   }catch(e){tb.innerHTML=`<tr><td colspan="9" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Utilisateurs : '+e.message);}
   finally{customersLoading=false;}
 }
@@ -2032,7 +2194,7 @@ function renderCustomers(){
   if(!allCustomers.length){const note=document.getElementById('customerMetricsStatus');const text=note&&note.style.display!=='none'?'Aucune liste fiable avant recalcul.':'Aucun utilisateur.';tb.innerHTML=`<tr><td colspan="9" class="loading">${esc(text)}</td></tr>`;}
   let missingCount=0;
   allCustomers.forEach(u=>{
-    const last=u.lastActivityAt||u.lastSignIn;
+    const last=u.lastOrderAt||u.lastActivityAt||u.lastSignIn;
     const phone=String(u.phone||'').replace(/[^0-9]/g,'');
     const wasDownloaded=downloaded.includes(u.id);
     const dlBadge=wasDownloaded?'<span class="dl-badge"><i class="fas fa-check"></i> Exporté</span>':'';
@@ -2040,7 +2202,7 @@ function renderCustomers(){
     let ordersCell,spentCell,profitCell;
     if(stats){
       const badge=stats.source==='live'
-        ?'<span class="live-badge live" title="Chargé en direct · cache 15 min"><i class="fas fa-bolt"></i> live</span>'
+        ?'<span class="live-badge live" title="Chargé en direct · cache 30 min"><i class="fas fa-bolt"></i> live</span>'
         :'<span class="live-badge cached" title="Stats pré-calculées (métriques serveur)"><i class="fas fa-database"></i></span>';
       ordersCell=`${stats.totalOrders.toLocaleString('fr-FR')}${badge}`;
       spentCell=`${stats.totalSpent.toLocaleString('fr-FR')} FCFA`;
@@ -2063,7 +2225,7 @@ function renderCustomers(){
   if(banner){
     if(missingCount>0&&!customersLoading){
       banner.style.display='flex';
-      banner.innerHTML=`<i class="fas fa-triangle-exclamation"></i><div class="msg">${missingCount} client(s) sans statistiques visibles. Cliquez pour voir le nombre de commandes, le total dépensé et la marge.</div><button class="btn btn-gold btn-sm" id="loadMissingStatsBtn" onclick="loadAllVisibleCustomerStats()"><i class="fas fa-download"></i> Charger les stats (${missingCount})</button>`;
+      banner.innerHTML=`<i class="fas fa-triangle-exclamation"></i><div class="msg">${missingCount} client(s) sans métriques pré-calculées. Pour des chiffres cohérents sur toute la plateforme, effectuez une seule reconstruction historique.</div><button class="btn btn-gold btn-sm" id="loadMissingStatsBtn" onclick="rebuildCustomerMetrics()"><i class="fas fa-calculator"></i> Recalculer l'historique</button>`;
     }else{banner.style.display='none';}
   }
 }
@@ -2121,7 +2283,7 @@ async function loadStores(reset=false){
   const tb=document.getElementById('storesBody');
   if(reset){allStores=[];tb.innerHTML='<tr><td colspan="6" class="loading">Chargement…</td></tr>';}
   try{
-    const params=new URLSearchParams({limit:'100'});
+    const params=new URLSearchParams({limit:'50'});
     const country=document.getElementById('storeCountryFilter')?.value||'';if(country)params.set('country',country);
     const d=await fetchAdmin('/stores?'+params.toString());
     allStores=d.stores||[];storesLoadedAt=Date.now();tb.innerHTML='';
