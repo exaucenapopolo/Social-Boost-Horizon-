@@ -58,6 +58,25 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
+function addAdminOperationLog(transaction, details = {}) {
+  const ref = db.collection('adminOperationLogs').doc();
+  transaction.set(ref, {
+    type: details.type || 'operation',
+    category: details.category || 'autre',
+    action: details.action || 'Opération',
+    userId: details.userId || null,
+    amountXAF: Number(details.amountXAF || 0),
+    provider: details.provider || null,
+    transactionId: details.transactionId || null,
+    status: details.status || 'CONFIRMED',
+    balanceBefore: details.balanceBefore == null ? null : Number(details.balanceBefore),
+    balanceAfter: details.balanceAfter == null ? null : Number(details.balanceAfter),
+    serviceName: details.serviceName || null,
+    source: details.source || 'system',
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
 const SBH_WA_DISPLAY = '+1 (423) 675-2034';
 const SBH_WA_LINK    = 'https://wa.me/14236752034';
 const SBH_SITE_URL   = 'https://socialboosthorizon.com/';
@@ -336,6 +355,8 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
         adminOrderCount: admin.firestore.FieldValue.increment(1),
         adminTotalSpent: admin.firestore.FieldValue.increment(cost),
         adminTotalProfit: admin.firestore.FieldValue.increment(estimatedProfitXAF),
+        adminLastOrderAt: admin.firestore.FieldValue.serverTimestamp(),
+        adminLastOrderAtMs: Date.now(),
       });
 
       const orderRef = db.collection('autoOrders').doc();
@@ -347,6 +368,7 @@ app.post('/api/mtp/order', checkAuth, async (req, res) => {
         status: 'En attente', createdAt: admin.firestore.FieldValue.serverTimestamp(),
         providerStartCount: 0, providerRemains: qty, refunded: false, refundedAmount: 0,
       });
+      addAdminOperationLog(transaction, { type: 'order_debit', category: 'commande', action: 'Commande passée', userId: uid, amountXAF: cost, provider: 'MTP', transactionId: finalOrderId, status: 'CONFIRMED', balanceBefore: freshBalance, balanceAfter: newBalance, serviceName: service.name, source: 'order-api' });
     });
     res.json({ success: true, orderId: finalOrderId, newBalance });
   } catch (error) {
@@ -421,6 +443,7 @@ app.get('/api/mtp/order-status/:orderId', checkAuth, async (req, res) => {
           const bal = userDoc.exists ? (userDoc.data().balance || 0) : 0;
 
           t.update(userRef, { balance: bal + refundAmount });
+          addAdminOperationLog(t, { type: 'order_refund', category: 'remboursement', action: 'Remboursement de commande', userId: uid, amountXAF: refundAmount, provider: 'MTP', transactionId: orderData.orderId || orderId, status: 'CONFIRMED', balanceBefore: bal, balanceAfter: bal + refundAmount, source: 'order-status' });
           t.update(orderDoc.ref, {
             status: newStatus, providerStartCount: startCount, providerRemains: remains,
             refunded: true, refundedAmount: refundAmount, lastChecked: admin.firestore.FieldValue.serverTimestamp()
@@ -681,6 +704,7 @@ app.post('/api/exo-status', checkAuth, async (req, res) => {
                     const bal = userDoc.exists ? (userDoc.data().balance || 0) : 0;
 
                     t.update(userRef, { balance: bal + refundAmount });
+                    addAdminOperationLog(t, { type: 'order_refund', category: 'remboursement', action: 'Remboursement de commande', userId: uid, amountXAF: refundAmount, provider: 'EXO', transactionId: orderData.orderId || orderData.exoOrderId || orderId, status: 'CONFIRMED', balanceBefore: bal, balanceAfter: bal + refundAmount, source: 'order-status' });
                     t.update(orderRef, {
                         status: mappedStatus, exoRemains: remains, isRefunded: true,
                         refundAmount: refundAmount, updatedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -787,6 +811,8 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
         adminOrderCount: admin.firestore.FieldValue.increment(1),
         adminTotalSpent: admin.firestore.FieldValue.increment(cost),
         adminTotalProfit: admin.firestore.FieldValue.increment(estimatedProfitXAF),
+        adminLastOrderAt: admin.firestore.FieldValue.serverTimestamp(),
+        adminLastOrderAtMs: Date.now(),
       });
 
       const orderRef = db.collection('autoOrders').doc();
@@ -798,6 +824,7 @@ app.post('/api/afriqueboost/order', checkAuth, async (req, res) => {
         status: 'En attente', createdAt: admin.firestore.FieldValue.serverTimestamp(),
         providerStartCount: 0, providerRemains: qty, refunded: false, refundedAmount: 0,
       });
+      addAdminOperationLog(transaction, { type: 'order_debit', category: 'commande', action: 'Commande passée', userId: uid, amountXAF: cost, provider: 'AFRIQUEBOOST', transactionId: finalOrderId, status: 'CONFIRMED', balanceBefore: freshBalance, balanceAfter: newBalance, serviceName: service.name, source: 'order-api' });
     });
 
     res.json({ success: true, orderId: finalOrderId, newBalance });
@@ -848,6 +875,7 @@ app.get('/api/afriqueboost/status/:orderId', checkAuth, async (req, res) => {
           const bal = userDoc.exists ? (userDoc.data().balance || 0) : 0;
 
           t.update(userRef, { balance: bal + refundAmount });
+          addAdminOperationLog(t, { type: 'order_refund', category: 'remboursement', action: 'Remboursement de commande', userId: uid, amountXAF: refundAmount, provider: 'AFRIQUEBOOST', transactionId: orderData.orderId || orderId, status: 'CONFIRMED', balanceBefore: bal, balanceAfter: bal + refundAmount, source: 'order-status' });
           t.update(orderDoc.ref, {
             status: newStatus, providerStartCount: startCount, providerRemains: remains,
             refunded: true, refundedAmount: refundAmount, lastChecked: admin.firestore.FieldValue.serverTimestamp()
@@ -1130,6 +1158,8 @@ app.post('/api/smmwiz/order', checkAuth, async (req, res) => {
         adminOrderCount: admin.firestore.FieldValue.increment(1),
         adminTotalSpent: admin.firestore.FieldValue.increment(cost),
         adminTotalProfit: admin.firestore.FieldValue.increment(estimatedProfitXAF),
+        adminLastOrderAt: admin.firestore.FieldValue.serverTimestamp(),
+        adminLastOrderAtMs: Date.now(),
       });
 
       const orderRef = db.collection('autoOrders').doc();
@@ -1158,6 +1188,7 @@ app.post('/api/smmwiz/order', checkAuth, async (req, res) => {
         refundedAmount: 0,
         orderParams: JSON.stringify(orderParams),
       });
+      addAdminOperationLog(transaction, { type: 'order_debit', category: 'commande', action: 'Commande passée', userId: uid, amountXAF: cost, provider: 'SMMWIZ', transactionId: finalOrderId, status: 'CONFIRMED', balanceBefore: freshBalance, balanceAfter: newBalance, serviceName: service.name, source: 'order-api' });
     });
 
     res.json({ success: true, orderId: finalOrderId, newBalance });
@@ -1227,6 +1258,7 @@ app.get('/api/smmwiz/order-status/:orderId', checkAuth, async (req, res) => {
           const bal = userDoc.exists ? (userDoc.data().balance || 0) : 0;
 
           t.update(userRef, { balance: bal + refundAmount });
+          addAdminOperationLog(t, { type: 'order_refund', category: 'remboursement', action: 'Remboursement de commande', userId: uid, amountXAF: refundAmount, provider: 'SMMWIZ', transactionId: orderData.orderId || orderId, status: 'CONFIRMED', balanceBefore: bal, balanceAfter: bal + refundAmount, source: 'order-status' });
           t.update(orderDoc.ref, {
             status: newStatus,
             providerStartCount: startCount,
@@ -1484,6 +1516,7 @@ app.get('/api/smmgen/order-status/:orderId', checkAuth, async (req, res) => {
             const bal = userDoc.exists ? (userDoc.data().balance || 0) : 0;
 
             t.update(userRef, { balance: bal + refundAmount });
+            addAdminOperationLog(t, { type: 'order_refund', category: 'remboursement', action: 'Remboursement de commande', userId: uid, amountXAF: refundAmount, provider: 'SMMGEN', transactionId: orderData.orderId || orderId, status: 'CONFIRMED', balanceBefore: bal, balanceAfter: bal + refundAmount, source: 'order-status' });
             t.update(orderDoc.ref, {
               status: newStatus,
               providerStartCount: startCount,
@@ -1974,6 +2007,7 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
       dateInitiated: admin.firestore.FieldValue.serverTimestamp(), checkoutUrl,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+    await upsertDepositOperationLog({ provider: 'Fapshi', transactionId: transDocId, userId: uid, amountXAF: amountNum, status: 'PENDING', action: 'Recharge initiée', source: 'fapshi-init' });
 
     return res.json({ success: true, checkoutUrl });
   } catch (err) {
@@ -1984,7 +2018,24 @@ app.post('/api/create-fapshi-checkout', checkAuth, async (req, res) => {
 
 app.post('/api/fapshi-webhook', async (req, res) => {
   const { status, amount, transId } = req.body;
-  if (status !== 'SUCCESSFUL') return res.status(200).json({ message: 'Statut ignoré.' });
+  const incomingStatus = String(status || '').toUpperCase();
+  if (incomingStatus !== 'SUCCESSFUL') {
+    const failedStatuses = new Set(['FAILED', 'EXPIRED', 'CANCELLED', 'CANCELED', 'REVERSED']);
+    if (transId && failedStatuses.has(incomingStatus)) {
+      try {
+        const failedRef = db.collection('fapshiTransactions').doc(String(transId));
+        const failedDoc = await failedRef.get();
+        if (failedDoc.exists && String(failedDoc.data()?.status || '').toUpperCase() !== 'CONFIRMED') {
+          const tx = failedDoc.data() || {};
+          await failedRef.update({ status: 'FAILED', failureReason: incomingStatus, lastChecked: admin.firestore.FieldValue.serverTimestamp() });
+          await upsertDepositOperationLog({ provider: 'Fapshi', transactionId: transId, userId: tx.userId, amountXAF: Number(tx.amount || amount || 0), status: 'FAILED', action: 'Recharge échouée', source: 'fapshi-webhook' });
+        }
+      } catch (auditError) {
+        console.warn('[Fapshi] Impossible de journaliser le statut:', auditError.message);
+      }
+    }
+    return res.status(200).json({ message: 'Statut non confirmé reçu.' });
+  }
 
   const amountNum = Number(amount);
   const transRef = db.collection('fapshiTransactions').doc(transId);
@@ -1997,11 +2048,15 @@ app.post('/api/fapshi-webhook', async (req, res) => {
     await transRef.update({ status: 'CONFIRMED', amountConfirmed: amountNum, dateConfirmed: admin.firestore.FieldValue.serverTimestamp() });
 
     const userRef = db.collection('users').doc(transData.userId);
+    let balanceBefore = 0, balanceAfter = amountNum;
     await db.runTransaction(async (t) => {
       const userDoc = await t.get(userRef);
-      if (!userDoc.exists) t.set(userRef, { balance: amountNum });
-      else t.update(userRef, { balance: (userDoc.data().balance || 0) + amountNum });
+      balanceBefore = userDoc.exists ? Number(userDoc.data().balance || 0) : 0;
+      balanceAfter = balanceBefore + amountNum;
+      if (!userDoc.exists) t.set(userRef, { balance: balanceAfter });
+      else t.update(userRef, { balance: balanceAfter });
     });
+    await recordDailyDepositCredit(transData.userId, amountNum, 'Fapshi', transId, balanceBefore, balanceAfter);
     await bumpDailyCounter('deposits');
     return res.status(200).json({ message: 'Webhook traité.' });
   } catch (err) {
@@ -2071,15 +2126,19 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
         const amountToCredit = transData.amount || 0;
         if (amountToCredit > 0) {
           const userRef = db.collection('users').doc(uid);
+          let balanceBefore = 0, balanceAfter = amountToCredit;
           await db.runTransaction(async (t) => {
             const userDoc = await t.get(userRef);
-            const currentBalance = userDoc.exists ? (userDoc.data().balance || 0) : 0;
-            t.update(userRef, { balance: currentBalance + amountToCredit });
+            balanceBefore = userDoc.exists ? Number(userDoc.data().balance || 0) : 0;
+            balanceAfter = balanceBefore + amountToCredit;
+            if (userDoc.exists) t.update(userRef, { balance: balanceAfter });
+            else t.set(userRef, { balance: balanceAfter }, { merge: true });
             t.update(transRef, {
               status: 'CONFIRMED',
               dateConfirmed: admin.firestore.FieldValue.serverTimestamp()
             });
           });
+          await recordDailyDepositCredit(uid, amountToCredit, 'Fapshi', transId, balanceBefore, balanceAfter);
           await bumpDailyCounter('deposits');
           credited = true;
           updatedStatus = 'CONFIRMED';
@@ -2097,6 +2156,15 @@ app.post('/api/fapshi-check-status', checkAuth, async (req, res) => {
     } else {
       await transRef.update({ status: statusUpper });
       updatedStatus = statusUpper;
+    }
+
+    if (updatedStatus !== 'CONFIRMED') {
+      await upsertDepositOperationLog({
+        provider: 'Fapshi', transactionId: transId, userId: uid,
+        amountXAF: Number(transData.amount || 0), status: updatedStatus,
+        action: updatedStatus === 'FAILED' ? 'Recharge échouée' : 'Recharge en attente',
+        source: 'fapshi-status',
+      });
     }
 
     return res.json({
@@ -2365,6 +2433,7 @@ app.post('/api/nelsiuspay/checkout', checkAuth, async (req, res) => {
       providerResponse: JSON.stringify(respData).substring(0, 2000),
     });
     console.log(`[NelsiusPay] Transaction Firestore créée: ${reference}`);
+    await upsertDepositOperationLog({ provider: 'NelsiusPay', transactionId: reference, userId: uid, amountXAF: creditedAmountXAF, status: 'PENDING', action: 'Recharge initiée', source: 'nelsiuspay-init' });
   } catch (dbErr) {
     console.error('[NelsiusPay] Erreur écriture Firestore:', dbErr.message);
   }
@@ -2450,6 +2519,9 @@ app.post('/api/nelsiuspay/status', checkAuth, async (req, res) => {
         providerCurrency,
         lastChecked: admin.firestore.FieldValue.serverTimestamp(),
       });
+    }
+    if (internalStatus !== transData.status) {
+      await upsertDepositOperationLog({ provider: 'NelsiusPay', transactionId: reference, userId: uid, amountXAF: Number(transData.creditedAmountXAF || 0), status: internalStatus, action: internalStatus === 'CONFIRMED' ? 'Recharge confirmée' : (internalStatus === 'FAILED' ? 'Recharge échouée' : 'Recharge en attente'), source: 'nelsiuspay-status' });
     }
 
     if (internalStatus === 'CONFIRMED') {
@@ -2565,6 +2637,8 @@ app.post('/api/nelsiuspay/webhook', async (req, res) => {
       lastChecked: admin.firestore.FieldValue.serverTimestamp(),
     });
 
+    await upsertDepositOperationLog({ provider: 'NelsiusPay', transactionId: reference, userId: transData.userId, amountXAF: Number(transData.creditedAmountXAF || 0), status: finalStatus, action: finalStatus === 'CONFIRMED' ? 'Recharge confirmée' : (finalStatus === 'FAILED' ? 'Recharge échouée' : 'Recharge en attente'), source: 'nelsiuspay-webhook' });
+
     if (finalStatus === 'CONFIRMED') {
       const wasCredited = await creditUserIfNeeded(reference, transData.userId, transData);
       if (wasCredited) await bumpDailyCounter('deposits');
@@ -2583,6 +2657,7 @@ async function creditUserIfNeeded(reference, userId, transData) {
   const transRef = db.collection('paymentTransactions').doc(reference);
   const userRef = db.collection('users').doc(userId);
   let creditedNow = false;
+  let audit = null;
 
   await db.runTransaction(async (t) => {
     const freshTrans = await t.get(transRef);
@@ -2617,9 +2692,13 @@ async function creditUserIfNeeded(reference, userId, transData) {
     });
 
     creditedNow = true;
+    audit = { amount: amountToCredit, balanceBefore: currentBalance, balanceAfter: newBalance };
     console.log(`[NelsiusPay] Crédit effectué: +${amountToCredit} XAF → ${userId} (solde: ${currentBalance} → ${newBalance})`);
   });
 
+  if (creditedNow && audit) {
+    await recordDailyDepositCredit(userId, audit.amount, 'NelsiusPay', reference, audit.balanceBefore, audit.balanceAfter);
+  }
   return creditedNow;
 }
 
@@ -2633,6 +2712,34 @@ function getClientIp(req) {
 
 function sha256Short(str) {
   return crypto.createHash('sha256').update(String(str)).digest('hex').slice(0, 32);
+}
+
+// Une seule ligne de journal par recharge, mise à jour à chaque changement
+// d'état. Cela conserve l'historique utile sans créer des doublons à chaque
+// vérification du statut par le client.
+async function upsertDepositOperationLog(details = {}) {
+  const provider = String(details.provider || 'Inconnu');
+  const transactionId = String(details.transactionId || '').trim();
+  if (!transactionId) return;
+  const id = `deposit_${sha256Short(`${provider}|${transactionId}`)}`;
+  try {
+    await db.collection('adminOperationLogs').doc(id).set({
+      type: details.status === 'CONFIRMED' ? 'deposit_credit' : 'deposit_transaction',
+      category: 'recharge',
+      action: details.action || (details.status === 'CONFIRMED' ? 'Recharge créditée' : 'Tentative de recharge'),
+      userId: details.userId || null,
+      amountXAF: Number(details.amountXAF || 0),
+      provider,
+      transactionId,
+      status: String(details.status || 'PENDING').toUpperCase(),
+      balanceBefore: details.balanceBefore == null ? null : Number(details.balanceBefore),
+      balanceAfter: details.balanceAfter == null ? null : Number(details.balanceAfter),
+      source: details.source || 'payment-api',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  } catch (error) {
+    console.warn('[Audit] Journal de recharge non enregistré:', error.message);
+  }
 }
 
 function normalizeWhatsappNumber(input) {
@@ -3443,7 +3550,8 @@ const PAYMENT_COLLECTIONS = [
 ];
 
 const allUsersCache = { data: null, expires: 0, lastRefresh: 0 };
-const ALL_USERS_CACHE_TTL_MS = 30 * 60 * 1000;
+const usersCountRangeCache = new Map();
+const ALL_USERS_CACHE_TTL_MS = 60 * 60 * 1000;
 
 const topUsersTodayCache = { data: null, expires: 0, lastRefresh: 0 };
 const TOP_USERS_TODAY_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -3453,10 +3561,10 @@ const topUsersCustomRangeCache = new Map();
 const TOP_USERS_CUSTOM_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const depositsCache = { data: null, expires: 0 };
-const DEPOSITS_CACHE_TTL_MS = 5 * 60 * 1000;
+const DEPOSITS_CACHE_TTL_MS = 15 * 60 * 1000;
 
 const ordersCache = { data: null, expires: 0 };
-const ORDERS_CACHE_TTL_MS = 5 * 60 * 1000;
+const ORDERS_CACHE_TTL_MS = 15 * 60 * 1000;
 
 const DATE_FIELD_CACHE = {};
 
@@ -3492,11 +3600,123 @@ async function detectDateField(collectionName) {
   return 'createdAt';
 }
 
+// Détecte le type réellement stocké dans le champ date afin d'éviter les
+// quatre requêtes redondantes (Timestamp, texte ISO, millisecondes, secondes).
+// Plusieurs types sont conservés seulement si l'échantillon confirme des dates mixtes.
+const DATE_TYPE_CACHE = new Map();
+const DATE_TYPE_TTL_MS = 6 * 60 * 60 * 1000;
+function classifyFirestoreDateType(value) {
+  if (value && typeof value.toDate === 'function') return 'timestamp';
+  if (value instanceof Date) return 'timestamp';
+  if (value && typeof value === 'object' && (value.seconds !== undefined || value._seconds !== undefined)) return 'timestamp';
+  if (typeof value === 'string') return 'iso';
+  if (typeof value === 'number' && Number.isFinite(value)) return value > 0 && value < 100000000000 ? 'seconds' : 'milliseconds';
+  return null;
+}
+function dateTypesFromRows(rows, dateField) {
+  const counts = { timestamp: 0, iso: 0, milliseconds: 0, seconds: 0 };
+  for (const row of rows) {
+    const kind = classifyFirestoreDateType(row?.[dateField]);
+    if (kind) counts[kind]++;
+  }
+  const types = Object.entries(counts).filter(([, count]) => count > 0).sort((a,b) => b[1]-a[1]).map(([type]) => type);
+  return types.length ? types : ['timestamp', 'iso'];
+}
+async function getCollectionDateTypes(collectionName, dateField = null) {
+  const field = dateField || await detectDateField(collectionName);
+  const key = `${collectionName}|${field}`;
+  const cached = DATE_TYPE_CACHE.get(key);
+  if (cached && cached.expires > Date.now()) return cached.types;
+  const sharedKey = `date-types-v2-${sha256Short(key)}`;
+  try {
+    const shared = await getSharedAdminCache(sharedKey);
+    if (shared?.payload?.types?.length) {
+      DATE_TYPE_CACHE.set(key, { types: shared.payload.types, expires: shared.expiresAtMs });
+      return shared.payload.types;
+    }
+  } catch (_) {}
+  let types = ['timestamp', 'iso'];
+  try {
+    const sample = await db.collection(collectionName).limit(20).get();
+    if (!sample.empty) types = dateTypesFromRows(sample.docs.map(doc => doc.data() || {}), field);
+  } catch (error) {
+    console.warn(`[DateTypes] Échantillon indisponible ${collectionName}:`, error.message);
+  }
+  const expires = Date.now() + DATE_TYPE_TTL_MS;
+  DATE_TYPE_CACHE.set(key, { types, expires });
+  await setSharedAdminCache(sharedKey, { types }, DATE_TYPE_TTL_MS).catch(() => {});
+  console.log(`[DateTypes] ${collectionName}.${field}: ${types.join(',')}`);
+  return types;
+}
+function dateBoundForType(date, type) {
+  if (!date) return null;
+  if (type === 'timestamp') return admin.firestore.Timestamp.fromDate(date);
+  if (type === 'iso') return date.toISOString();
+  if (type === 'seconds') return Math.floor(date.getTime() / 1000);
+  return date.getTime();
+}
+function buildDateRangeQueries(ref, dateField, start, end, dateTypes) {
+  return (dateTypes?.length ? dateTypes : ['timestamp', 'iso']).map(type => {
+    let query = ref;
+    if (start) query = query.where(dateField, '>=', dateBoundForType(start, type));
+    if (end) query = query.where(dateField, '<', dateBoundForType(end, type));
+    return { type, query };
+  });
+}
+
+const CUSTOMER_INDEX_VERSION = 3;
+const CUSTOMER_INDEX_SHARD_SIZE = 250;
+const CUSTOMER_INDEX_TTL_MS = 24 * 60 * 60 * 1000;
+
+function compactCustomerIndexRow(doc) {
+  const d = doc.data() || {};
+  return {
+    id: doc.id,
+    displayName: d.displayName || null, username: d.username || null, name: d.name || null,
+    email: d.email || null, phone: d.phone || null, whatsapp: d.whatsapp || null,
+    country: d.country || d.countryCode || d.country_code || null,
+    balance: Number(d.balance || 0),
+    totalOrders: Number(d.totalOrders || 0), totalSpent: Number(d.totalSpent || 0), totalProfit: Number(d.totalProfit || 0),
+    adminOrderCount: Number(d.adminOrderCount || 0), adminTotalSpent: Number(d.adminTotalSpent || 0),
+    adminTotalProfit: Number(d.adminTotalProfit || 0), adminOrderMetricsVersion: Number(d.adminOrderMetricsVersion || 0),
+    adminLastOrderAt: d.adminLastOrderAt || null,
+    adminLastOrderAtMs: Number(d.adminLastOrderAtMs || 0),
+    createdAt: d.createdAt || null, created_at: d.created_at || null,
+    dateCreated: d.dateCreated || null, timestamp: d.timestamp || null,
+    lastSignIn: d.lastSignIn || null, lastLoginAt: d.lastLoginAt || null,
+    lastActivityAt: d.lastActivityAt || null, lastSeenAt: d.lastSeenAt || null,
+    lastDashboardVisit: d.lastDashboardVisit || null,
+    resellerLevel: d.resellerLevel || null,
+    _createdAtMs: getTimestampMs(d.createdAt || d.created_at || d.dateCreated || d.timestamp),
+  };
+}
+
 async function getAllUsersSorted(forceRefresh = false) {
   const now = Date.now();
-  if (!forceRefresh && allUsersCache.data && now < allUsersCache.expires) {
-    return allUsersCache.data;
+  if (!forceRefresh && allUsersCache.data && now < allUsersCache.expires) return allUsersCache.data;
+
+  // Cache partagé en petits documents afin de rester sous la limite Firestore
+  // de taille d'un document et d'éviter 3 500 lectures sur chaque instance Vercel.
+  if (!forceRefresh) {
+    try {
+      const meta = await getSharedAdminCache('customer-index-v3-meta');
+      const manifest = meta?.payload;
+      if (manifest && manifest.version === CUSTOMER_INDEX_VERSION && Array.isArray(manifest.shards)) {
+        const chunks = await Promise.all(manifest.shards.map(key => getSharedAdminCache(key)));
+        if (chunks.every(Boolean)) {
+          const sharedRows = chunks.flatMap(x => Array.isArray(x.payload) ? x.payload : []);
+          if (sharedRows.length === Number(manifest.count || 0)) {
+            sharedRows.sort((a, b) => Number(b._createdAtMs || 0) - Number(a._createdAtMs || 0));
+            allUsersCache.data = sharedRows;
+            allUsersCache.expires = Math.min(meta.expiresAtMs, ...chunks.map(x => x.expiresAtMs));
+            allUsersCache.lastRefresh = now;
+            return sharedRows;
+          }
+        }
+      }
+    } catch (e) { console.warn('[Cache] Index utilisateurs partagé indisponible:', e.message); }
   }
+
   const allUsers = [];
   let last = null;
   while (true) {
@@ -3504,38 +3724,36 @@ async function getAllUsersSorted(forceRefresh = false) {
     if (last) q = q.startAfter(last);
     const page = await q.get();
     if (page.empty) break;
-    page.forEach(doc => {
-      const data = doc.data() || {};
-      allUsers.push({
-        id: doc.id,
-        ...data,
-        _createdAtMs: getTimestampMs(data.createdAt || data.created_at || data.dateCreated || data.timestamp),
-      });
-    });
+    page.docs.forEach(doc => allUsers.push(compactCustomerIndexRow(doc)));
     last = page.docs[page.docs.length - 1];
     if (page.size < 500) break;
   }
   allUsers.sort((a, b) => b._createdAtMs - a._createdAtMs);
   allUsersCache.data = allUsers;
-  allUsersCache.expires = now + ALL_USERS_CACHE_TTL_MS;
+  allUsersCache.expires = now + CUSTOMER_INDEX_TTL_MS;
   allUsersCache.lastRefresh = now;
-  console.log(`[Cache] ${allUsers.length} utilisateurs chargés et triés (TTL 30 min)`);
+
+  const shardKeys = [];
+  for (let i = 0; i < allUsers.length; i += CUSTOMER_INDEX_SHARD_SIZE) {
+    const key = `customer-index-v${CUSTOMER_INDEX_VERSION}-part-${String(i / CUSTOMER_INDEX_SHARD_SIZE).padStart(3, '0')}`;
+    shardKeys.push(key);
+    await setSharedAdminCache(key, allUsers.slice(i, i + CUSTOMER_INDEX_SHARD_SIZE), CUSTOMER_INDEX_TTL_MS);
+  }
+  await setSharedAdminCache('customer-index-v3-meta', {
+    version: CUSTOMER_INDEX_VERSION, count: allUsers.length, shards: shardKeys,
+    generatedAt: new Date().toISOString(),
+  }, CUSTOMER_INDEX_TTL_MS);
+  console.log(`[Cache] ${allUsers.length} profils chargés puis index partagé (${shardKeys.length} fragments, TTL ${Math.round(CUSTOMER_INDEX_TTL_MS / 60000)} min)`);
   return allUsers;
 }
 
 async function countUsersInWindow(start, end) {
   try {
-    const [tsCount, isoCount] = await Promise.all([
-      db.collection('users')
-        .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(start))
-        .where('createdAt', '<', admin.firestore.Timestamp.fromDate(end))
-        .count().get().catch(() => null),
-      db.collection('users')
-        .where('createdAt', '>=', start.toISOString())
-        .where('createdAt', '<', end.toISOString())
-        .count().get().catch(() => null),
-    ]);
-    return (tsCount?.data()?.count || 0) + (isoCount?.data()?.count || 0);
+    const ref = db.collection('users');
+    const dateTypes = await getCollectionDateTypes('users', 'createdAt');
+    const modes = buildDateRangeQueries(ref, 'createdAt', start, end, dateTypes);
+    const counts = await Promise.all(modes.map(({ query }) => query.count().get().catch(() => null)));
+    return counts.reduce((sum, snap) => sum + Number(snap?.data()?.count || 0), 0);
   } catch (_) { return 0; }
 }
 
@@ -3549,16 +3767,57 @@ async function countOrdersInWindow(collectionName, start, end) {
   const dateField = await detectDateField(collectionName);
   const ref = db.collection(collectionName);
   try {
-    const [tsR, isoR] = await Promise.all([
-      ref.where(dateField, '>=', admin.firestore.Timestamp.fromDate(start))
-         .where(dateField, '<', admin.firestore.Timestamp.fromDate(end))
-         .count().get().catch(() => null),
-      ref.where(dateField, '>=', start.toISOString())
-         .where(dateField, '<', end.toISOString())
-         .count().get().catch(() => null),
-    ]);
-    return (tsR?.data()?.count || 0) + (isoR?.data()?.count || 0);
+    const dateTypes = await getCollectionDateTypes(collectionName, dateField);
+    const modes = buildDateRangeQueries(ref, dateField, start, end, dateTypes);
+    const counts = await Promise.all(modes.map(({ query }) => query.count().get().catch(() => null)));
+    return counts.reduce((sum, snap) => sum + Number(snap?.data()?.count || 0), 0);
   } catch (_) { return 0; }
+}
+
+// Détection légère des champs financiers par collection. Un échantillon de 20 documents
+// est mis en cache 24 h; les requêtes suivantes n'agrègent que les champs utiles.
+const FINANCIAL_SCHEMA_CACHE = new Map();
+const FINANCIAL_SCHEMA_TTL_MS = 24 * 60 * 60 * 1000;
+async function getFinancialFieldSchema(collectionName) {
+  const cached = FINANCIAL_SCHEMA_CACHE.get(collectionName);
+  if (cached && cached.expires > Date.now()) return cached.schema;
+  const sharedKey = `financial-schema-${collectionName}-v2`;
+  const shared = await getSharedAdminCache(sharedKey);
+  if (shared?.payload) {
+    FINANCIAL_SCHEMA_CACHE.set(collectionName, { schema: shared.payload, expires: shared.expiresAtMs });
+    return shared.payload;
+  }
+  const sample = await db.collection(collectionName).limit(20).get();
+  const rows = sample.docs.map(doc => doc.data() || {});
+  const choose = candidates => {
+    let best = null, bestCount = 0;
+    for (const key of candidates) {
+      const count = rows.reduce((n, row) => n + (row[key] !== undefined && row[key] !== null && row[key] !== '' && Number.isFinite(Number(row[key])) ? 1 : 0), 0);
+      if (count > bestCount) { best = key; bestCount = count; }
+    }
+    return best;
+  };
+  const defaults = {
+    autoOrders: { sales: 'priceXAF', supplierCost: 'providerCostXAF', profit: 'estimatedProfitXAF', refunds: 'refundedAmount' },
+    commandes: { sales: 'totalCost', supplierCost: 'providerCostXAF', profit: 'estimatedProfitXAF', refunds: 'refundAmount' },
+    orders: { sales: 'amount', supplierCost: 'supplierCostXAF', profit: 'estimatedProfitXAF', refunds: 'refundedAmount' },
+    orders_automatique: { sales: 'amount', supplierCost: 'supplierCostXAF', profit: 'estimatedProfitXAF', refunds: 'refundedAmount' },
+    orders_avancee: { sales: 'amount', supplierCost: 'supplierCostXAF', profit: 'estimatedProfitXAF', refunds: 'refundedAmount' },
+    orders_standard_revendeur: { sales: 'amount', supplierCost: 'supplierCostXAF', profit: 'estimatedProfitXAF', refunds: 'refundedAmount' },
+  };
+  const fallback = defaults[collectionName] || defaults.orders;
+  const dateField = await detectDateField(collectionName);
+  const schema = {
+    sales: choose(['priceXAF','chargedAmountXAF','paidAmountXAF','amountXAF','finalPriceXAF','orderPriceXAF','totalPriceXAF','totalAmountXAF','totalCost','finalCost','cost','amount','totalAmount','total']) || fallback.sales,
+    supplierCost: choose(['providerCostXAF','supplierCostXAF','provider_cost_xaf','supplier_cost_xaf']) || fallback.supplierCost,
+    profit: choose(['estimatedProfitXAF']) || fallback.profit,
+    refunds: choose(['refundedAmount','refundAmount']) || fallback.refunds,
+    dateTypes: dateTypesFromRows(rows, dateField),
+  };
+  FINANCIAL_SCHEMA_CACHE.set(collectionName, { schema, expires: Date.now() + FINANCIAL_SCHEMA_TTL_MS });
+  await setSharedAdminCache(sharedKey, schema, FINANCIAL_SCHEMA_TTL_MS);
+  console.log(`[Fin] Schéma agrégé ${collectionName}:`, schema);
+  return schema;
 }
 
 // ✅ FIX #5 : getFinancialsForCollection avec fallback intelligent
@@ -3567,120 +3826,68 @@ async function countOrdersInWindow(collectionName, start, end) {
 async function getFinancialsForCollection(colName, start, end) {
   const dateField = await detectDateField(colName);
   const ref = db.collection(colName);
-
   const queries = [];
-  if (!start && !end) {
-    queries.push(ref);
-  } else {
-    let qTs = ref, qIso = ref;
-    if (start) {
-      qTs = qTs.where(dateField, '>=', admin.firestore.Timestamp.fromDate(start));
-      qIso = qIso.where(dateField, '>=', start.toISOString());
-    }
-    if (end) {
-      qTs = qTs.where(dateField, '<', admin.firestore.Timestamp.fromDate(end));
-      qIso = qIso.where(dateField, '<', end.toISOString());
-    }
-    queries.push(qTs, qIso);
+  if (!start && !end) queries.push(ref);
+  else {
+    const schemaForDates = await getFinancialFieldSchema(colName);
+    buildDateRangeQueries(ref, dateField, start, end, schemaForDates.dateTypes).forEach(item => queries.push(item.query));
   }
 
-  const result = { ordersCount: 0, sales: 0, supplierCost: 0, grossProfit: 0, refunds: 0 };
+  const result = {
+    ordersCount: 0, sales: 0, supplierCost: 0, grossProfit: 0, refunds: 0,
+    aggregationUnavailable: false, costUnavailable: false,
+  };
+  const schema = await getFinancialFieldSchema(colName);
+  const fields = { ordersCount: admin.firestore.AggregateField.count() };
+  if (schema.sales) fields.sumSales = admin.firestore.AggregateField.sum(schema.sales);
+  if (schema.supplierCost) fields.sumSupplierCost = admin.firestore.AggregateField.sum(schema.supplierCost);
+  else if (schema.profit) fields.sumProfit = admin.firestore.AggregateField.sum(schema.profit);
+  if (schema.refunds) fields.sumRefunds = admin.firestore.AggregateField.sum(schema.refunds);
 
-  // Count via .count().get() — TOUJOURS fiable
+
+  let allQueriesSucceeded = true;
   for (const q of queries) {
     try {
-      const c = await q.count().get();
-      result.ordersCount += Number(c.data()?.count || 0);
-    } catch (_) {}
-  }
-
-  // Try aggregation
-  let aggSucceeded = false;
-  try {
-    const fields = {
-      a: admin.firestore.AggregateField.sum('priceXAF'),
-      b: admin.firestore.AggregateField.sum('totalCost'),
-      c: admin.firestore.AggregateField.sum('finalCost'),
-      d: admin.firestore.AggregateField.sum('cost'),
-      e: admin.firestore.AggregateField.sum('amount'),
-      f: admin.firestore.AggregateField.sum('providerCostXAF'),
-      g: admin.firestore.AggregateField.sum('supplierCostXAF'),
-      h: admin.firestore.AggregateField.sum('estimatedProfitXAF'),
-      i: admin.firestore.AggregateField.sum('refundedAmount'),
-      j: admin.firestore.AggregateField.sum('refundAmount'), // ✅ EXO
-    };
-
-    let allOk = true;
-    for (const q of queries) {
-      try {
-        const snap = await q.aggregate(fields).get();
-        const dd = snap.data() || {};
-        const sales = Math.max(
-          Number(dd.a || 0), Number(dd.b || 0), Number(dd.c || 0),
-          Number(dd.d || 0), Number(dd.e || 0)
-        );
-        result.sales += sales;
-        result.supplierCost += Math.max(Number(dd.f || 0), Number(dd.g || 0));
-        result.grossProfit += Number(dd.h || 0);
-        result.refunds += Math.max(Number(dd.i || 0), Number(dd.j || 0));
-      } catch (e) {
-        allOk = false;
-        break;
-      }
+      // Un seul appel d'agrégation renvoie le volume et toutes les sommes.
+      // Cela évite de lancer un count puis un aggregate identique.
+      const snap = await q.aggregate(fields).get();
+      const d = snap.data() || {};
+      result.ordersCount += Number(d.ordersCount || 0);
+      result.sales += Number(d.sumSales || 0);
+      result.supplierCost += Number(d.sumSupplierCost || 0);
+      result.grossProfit += Number(d.sumProfit || 0);
+      result.refunds += Number(d.sumRefunds || 0);
+    } catch (error) {
+      allQueriesSucceeded = false;
+      console.warn(`[Fin] Agrégation indisponible pour ${colName}; aucun balayage documentaire ne sera déclenché:`, error.message);
     }
-    aggSucceeded = allOk;
-  } catch (e) {
-    console.warn(`[Fin] Aggregate indisponible pour ${colName}, fallback mémoire :`, e.message);
   }
 
-  // ✅ Fallback mémoire si :
-  // - agrégation échouée
-  // - OU sales>0 mais profit ET cost sont 0 (champs manquants, cas EXO)
-  const needsFallback = !aggSucceeded ||
-    (result.sales > 0 && result.grossProfit === 0 && result.supplierCost === 0);
+  result.aggregationUnavailable = !allQueriesSucceeded;
 
-  if (needsFallback) {
-    let memSales = 0, memCost = 0, memProfit = 0, memRefunds = 0;
-    for (const q of queries) {
-      try {
-        // Pas de limite arbitraire à 2 000 : le fallback doit rester exact.
-        // Le chemin normal est l'agrégation Firestore ; cette pagination n'est
-        // utilisée que si l'agrégation échoue ou si les champs de marge manquent.
-        const orderField = (!start && !end) ? admin.firestore.FieldPath.documentId() : dateField;
-        let lastDoc = null;
-        while (true) {
-          let pageQuery = q.orderBy(orderField).limit(500);
-          if (lastDoc) pageQuery = pageQuery.startAfter(lastDoc);
-          const page = await pageQuery.get();
-          if (page.empty) break;
-          page.forEach(doc => {
-            const data = doc.data() || {};
-            const amount = getOrderAmountXAF(data, colName);
-            const fin = getOrderFinancials(data, null, colName); // ✅ utilise KNOWN_PROVIDER
-            memSales += amount || 0;
-            memCost += fin.providerCostXAF || 0;
-            memProfit += fin.grossProfitXAF || 0;
-            memRefunds += fin.refundedAmount || 0;
-          });
-          lastDoc = page.docs[page.docs.length - 1];
-          if (page.size < 500) break;
-        }
-      } catch (e) {
-        console.warn(`[Fin] Fallback mémoire échoué pour ${colName}:`, e.message);
-      }
-    }
-    result.sales = memSales;
-    result.supplierCost = memCost;
-    result.grossProfit = memProfit;
-    result.refunds = memRefunds;
-    console.log(`[Fin] Fallback mémoire utilisé pour ${colName}: sales=${memSales}, cost=${memCost}, profit=${memProfit}`);
+  // Pour les données historiques qui enregistrent le profit mais pas le coût,
+  // on déduit le coût du chiffre d'affaires et du profit enregistré.
+  // La marge de gestion SBH reste ensuite calculée par ventes nettes - coûts.
+  if (result.supplierCost <= 0 && result.sales > 0 && result.grossProfit > 0 && result.grossProfit <= result.sales) {
+    result.supplierCost = Math.max(0, result.sales - result.grossProfit);
   }
 
+  // EXO est le seul fournisseur historique fixe de cette collection.
+  // Pour les autres collections, un coût absent reste signalé plutôt que
+  // d'inventer un coût moyen ou de relire des milliers de commandes.
+  if (result.supplierCost <= 0 && result.sales > 0 && colName === 'commandes') {
+    result.supplierCost = Math.max(0, Math.round(result.sales / EXO_MULTIPLIER));
+  }
+
+  result.costUnavailable = result.sales > 0 && result.supplierCost <= 0;
+  result.grossProfit = Math.max(0, result.sales - result.supplierCost);
   return result;
 }
 
 async function getFinancialsAllCollections(start, end) {
   let totalSales = 0, totalRefunds = 0, totalSupplierCost = 0, totalProfit = 0, totalOrders = 0;
+  const aggregationUnavailableCollections = [];
+  const costUnavailableCollections = [];
 
   for (const colName of ADMIN_ORDER_COLLECTIONS) {
     try {
@@ -3690,6 +3897,8 @@ async function getFinancialsAllCollections(start, end) {
       totalSupplierCost += r.supplierCost;
       totalProfit += r.grossProfit;
       totalOrders += r.ordersCount;
+      if (r.aggregationUnavailable) aggregationUnavailableCollections.push(colName);
+      if (r.costUnavailable) costUnavailableCollections.push(colName);
     } catch (e) {
       console.warn(`Financials ${colName}:`, e.message);
     }
@@ -3700,8 +3909,10 @@ async function getFinancialsAllCollections(start, end) {
     totalSales,
     totalRefunds,
     totalSupplierCost,
-    totalProfit,
+    totalProfit: Math.max(0, totalSales - totalRefunds - totalSupplierCost),
     netSales: Math.max(0, totalSales - totalRefunds),
+    aggregationUnavailableCollections,
+    costUnavailableCollections,
   };
 }
 
@@ -3709,15 +3920,34 @@ async function getFinancialsAllCollections(start, end) {
 // Une même plage sélectionnée ne relance pas les agrégations Firestore.
 const financialRangeAggregateCache = new Map();
 const overviewRangeResponseCache = new Map();
-const CUSTOM_RANGE_CACHE_TTL_MS = 15 * 60 * 1000;
+const OVERVIEW_RANGE_INFLIGHT = new Map();
+const CUSTOM_RANGE_CACHE_TTL_MS = 60 * 60 * 1000;
+const FINANCIAL_AGGREGATE_INFLIGHT = new Map();
 
 async function getCachedFinancialAggregate(start, end, forceRefresh = false) {
   const key = `${start ? start.toISOString() : 'open'}|${end ? end.toISOString() : 'open'}`;
+  const cacheKey = `financial-aggregate-v3-${sha256Short(key)}`;
   const cached = financialRangeAggregateCache.get(key);
   if (!forceRefresh && cached && Date.now() < cached.expires) return cached.data;
-  const data = await getFinancialsAllCollections(start, end);
-  financialRangeAggregateCache.set(key, { data, expires: Date.now() + CUSTOM_RANGE_CACHE_TTL_MS });
-  return data;
+  if (!forceRefresh) {
+    const shared = await getSharedAdminCache(cacheKey);
+    if (shared) {
+      const ttl = Math.max(1000, shared.expiresAtMs - Date.now());
+      financialRangeAggregateCache.set(key, { data: shared.payload, expires: Date.now() + ttl });
+      return shared.payload;
+    }
+  }
+  if (!forceRefresh && FINANCIAL_AGGREGATE_INFLIGHT.has(key)) return FINANCIAL_AGGREGATE_INFLIGHT.get(key);
+  const pending = (async () => {
+    const data = await getFinancialsAllCollections(start, end);
+    const expiresAt = Date.now() + CUSTOM_RANGE_CACHE_TTL_MS;
+    financialRangeAggregateCache.set(key, { data, expires: expiresAt });
+    await setSharedAdminCache(cacheKey, data, CUSTOM_RANGE_CACHE_TTL_MS);
+    return data;
+  })();
+  FINANCIAL_AGGREGATE_INFLIGHT.set(key, pending);
+  try { return await pending; }
+  finally { FINANCIAL_AGGREGATE_INFLIGHT.delete(key); }
 }
 
 async function countDepositsAllCollections(start, end) {
@@ -3728,101 +3958,168 @@ async function countDepositsAllCollections(start, end) {
   return total;
 }
 
-async function getDepositsStatsAllCollections(start, end) {
-  let total = 0, success = 0, pending = 0, failed = 0;
-  let totalCreditedXAF = 0;
-  const successByUser = new Map();
+const depositsStatsCache = new Map();
 
+async function recordDailyDepositCredit(userId, amountXAF, provider, transactionId, balanceBefore = null, balanceAfter = null, eventDate = new Date()) {
+  const uid = String(userId || '').trim();
+  const amount = Number(amountXAF || 0);
+  if (!uid || !Number.isFinite(amount) || amount <= 0) return;
+  const dateKey = localDateKey(new Date(getTimestampMs(eventDate) || Date.now()));
+  const userKey = `${dateKey}_${sha256Short(uid)}`;
+  const userDayRef = db.collection('adminDailyDepositUsers').doc(userKey);
+  const dayRef = db.collection('dailyDepositSummaries').doc(dateKey);
+  let updatedUserTotal = amount;
+  let updatedUserCount = 1;
+
+  await db.runTransaction(async tx => {
+    const [userDaySnap, daySnap] = await Promise.all([tx.get(userDayRef), tx.get(dayRef)]);
+    const prior = userDaySnap.exists ? (userDaySnap.data() || {}) : {};
+    updatedUserTotal = Number(prior.amountXAF || 0) + amount;
+    updatedUserCount = Number(prior.count || 0) + 1;
+    const day = daySnap.exists ? (daySnap.data() || {}) : {};
+    const existingTop = day.topDepositor || null;
+    const candidate = { userId: uid, amount: updatedUserTotal, count: updatedUserCount, lastAt: new Date().toISOString() };
+    const topDepositor = !existingTop || updatedUserTotal > Number(existingTop.amount || 0) ? candidate : existingTop;
+
+    tx.set(userDayRef, {
+      userId: uid, dateKey, amountXAF: updatedUserTotal, count: updatedUserCount,
+      lastAt: admin.firestore.FieldValue.serverTimestamp(), provider: String(provider || 'Inconnu'),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    tx.set(dayRef, {
+      dateKey, topDepositor,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+
+  await upsertDepositOperationLog({
+    type: 'deposit_credit', action: 'Recharge créditée', userId: uid,
+    amountXAF: amount, provider, transactionId, status: 'CONFIRMED',
+    balanceBefore, balanceAfter, source: 'system',
+  });
+  depositsStatsCache.clear();
+}
+
+const PAYMENT_SCHEMA_CACHE = new Map();
+const PAYMENT_SCHEMA_TTL_MS = 24 * 60 * 60 * 1000;
+async function getPaymentFieldSchema(collectionName) {
+  const cached = PAYMENT_SCHEMA_CACHE.get(collectionName);
+  if (cached && cached.expires > Date.now()) return cached.schema;
+  const sharedKey = `payment-schema-${collectionName}-v3`;
+  const shared = await getSharedAdminCache(sharedKey);
+  if (shared?.payload) {
+    PAYMENT_SCHEMA_CACHE.set(collectionName, { schema: shared.payload, expires: shared.expiresAtMs });
+    return shared.payload;
+  }
+  const dateField = await detectDateField(collectionName);
+  const sample = await db.collection(collectionName).limit(20).get();
+  const rows = sample.docs.map(doc => doc.data() || {});
+  // Choisir d'abord les champs réellement crédités selon le schéma de chaque
+  // fournisseur. Ne jamais préférer requestedAmount au montant crédité juste
+  // parce qu'il est plus souvent renseigné.
+  const preferredKeysByCollection = {
+    paymentTransactions: ['creditedAmountXAF', 'amountXAF'],
+    fapshiTransactions: ['creditedAmountXAF', 'amountConfirmed', 'creditedAmount', 'amountCreditedXAF'],
+    payments: ['creditedAmountXAF', 'amountXAF', 'amountCredited'],
+    rechargements: ['creditedAmountXAF', 'amountXAF', 'amountCredited'],
+    recharges: ['creditedAmountXAF', 'amountXAF', 'amountCredited'],
+    transactions: ['amountXAF', 'creditedAmountXAF', 'amountCredited'],
+  };
+  const keys = [...(preferredKeysByCollection[collectionName] || []), 'amount', 'total', 'montant'];
+  let best = null, bestCount = 0;
+  for (const key of keys) {
+    const count = rows.reduce((n, row) => n + (row[key] !== undefined && row[key] !== null && row[key] !== '' && Number.isFinite(Number(row[key])) ? 1 : 0), 0);
+    if (count > bestCount) { best = key; bestCount = count; }
+  }
+  const schema = { amountField: best || 'amount', dateTypes: dateTypesFromRows(rows, dateField) };
+  PAYMENT_SCHEMA_CACHE.set(collectionName, { schema, expires: Date.now() + PAYMENT_SCHEMA_TTL_MS });
+  await setSharedAdminCache(sharedKey, schema, PAYMENT_SCHEMA_TTL_MS);
+  return schema;
+}
+
+async function getDepositsStatsAllCollections(start, end) {
+  const cacheKey = `${start ? localDateKey(start) : 'all'}|${end ? localDateKey(new Date(end.getTime() - 1)) : 'all'}`;
+  const cached = depositsStatsCache.get(cacheKey);
+  if (cached && Date.now() < cached.expires) return cached.data;
+  const sharedKey = `deposit-aggregate-v2-${sha256Short(cacheKey)}`;
+  const shared = await getSharedAdminCache(sharedKey);
+  if (shared) {
+    depositsStatsCache.set(cacheKey, { data: shared.payload, expires: shared.expiresAtMs });
+    return shared.payload;
+  }
+
+  let total = 0, success = 0, pending = 0, failed = 0, totalCreditedXAF = 0;
   const successVariants = ['CONFIRMED','confirmed','SUCCESS','success','SUCCEEDED','succeeded','PAID','paid','SUCCESSFUL','successful','completed','COMPLETED'];
   const pendingVariants = ['PENDING','pending','PROCESSING','processing','INITIATED','initiated','WAITING','waiting'];
-  const failedVariants  = ['FAILED','failed','FAILURE','failure','CANCELLED','cancelled','REJECTED','rejected','EXPIRED','expired'];
+  const failedVariants = ['FAILED','failed','FAILURE','failure','CANCELLED','cancelled','REJECTED','rejected','EXPIRED','expired'];
 
   for (const colName of PAYMENT_COLLECTIONS) {
-    try {
-      const dateField = await detectDateField(colName);
-      let baseQ = db.collection(colName);
-      if (start) baseQ = baseQ.where(dateField, '>=', admin.firestore.Timestamp.fromDate(start));
-      if (end)   baseQ = baseQ.where(dateField, '<', admin.firestore.Timestamp.fromDate(end));
+    const dateField = await detectDateField(colName);
+    const schema = await getPaymentFieldSchema(colName);
+    const ref = db.collection(colName);
+    const baseQueries = (!start && !end)
+      ? [{ query: ref }]
+      : buildDateRangeQueries(ref, dateField, start, end, schema.dateTypes);
 
-      const [totalSnap, successSnap, pendingSnap, failedSnap] = await Promise.all([
-        baseQ.count().get().catch(() => null),
-        baseQ.where('status', 'in', successVariants).count().get().catch(() => null),
-        baseQ.where('status', 'in', pendingVariants).count().get().catch(() => null),
-        baseQ.where('status', 'in', failedVariants).count().get().catch(() => null),
-      ]);
-
-      const colTotal = Number(totalSnap?.data()?.count || 0);
-      const colSuccess = Number(successSnap?.data()?.count || 0);
-      const colPending = Number(pendingSnap?.data()?.count || 0);
-      const colFailed = Number(failedSnap?.data()?.count || 0);
-
-      total += colTotal;
-      success += colSuccess;
-      pending += colPending;
-      failed += colFailed;
-
-      if (colSuccess > 0) {
-        const successDocs = await baseQ.where('status', 'in', successVariants).limit(500).get().catch(() => null);
-        if (successDocs) {
-          successDocs.forEach(doc => {
-            const d = doc.data() || {};
-            const pick = keys => { for (const k of keys) if (d[k] !== undefined && d[k] !== null && d[k] !== '') return d[k]; return null; };
-            // ✅ FIX #6 : Priorité à amountXAF (Swychr stocke la valeur FCFA ici)
-            const amount = Number(
-              pick(['creditedAmountXAF','amountXAF','amountCredited','amount','total','montant','requestedAmount']) || 0
-            );
-            totalCreditedXAF += amount;
-            const uid = d.userId || d.uid || d.user_id || null;
-            if (uid) {
-              const cur = successByUser.get(uid) || { amount: 0, count: 0, lastAt: null };
-              cur.amount += amount;
-              cur.count++;
-              cur.lastAt = d[dateField] || d.createdAt || d.created_at || null;
-              successByUser.set(uid, cur);
-            }
-          });
-        }
+    for (const { query: baseQuery } of baseQueries) {
+      try {
+        const amountAgg = schema.amountField
+          ? { count: admin.firestore.AggregateField.count(), credited: admin.firestore.AggregateField.sum(schema.amountField) }
+          : { count: admin.firestore.AggregateField.count() };
+        const [allAgg, successAgg, pendingAgg, failedAgg] = await Promise.all([
+          baseQuery.aggregate({ count: admin.firestore.AggregateField.count() }).get(),
+          baseQuery.where('status', 'in', successVariants).aggregate(amountAgg).get(),
+          baseQuery.where('status', 'in', pendingVariants).aggregate({ count: admin.firestore.AggregateField.count() }).get(),
+          baseQuery.where('status', 'in', failedVariants).aggregate({ count: admin.firestore.AggregateField.count() }).get(),
+        ]);
+        total += Number(allAgg.data()?.count || 0);
+        success += Number(successAgg.data()?.count || 0);
+        pending += Number(pendingAgg.data()?.count || 0);
+        failed += Number(failedAgg.data()?.count || 0);
+        totalCreditedXAF += Number(successAgg.data()?.credited || 0);
+      } catch (error) {
+        console.warn(`[DepositsStats] Agrégation indisponible pour ${colName}:`, error.message);
       }
-    } catch (e) {
-      console.warn(`DepositsStats ${colName}:`, e.message);
     }
   }
 
+  // Le meilleur déposant est lu depuis le récapitulatif quotidien construit
+  // pendant la confirmation du paiement : aucun téléchargement de transactions.
   let topDepositor = null;
-  if (successByUser.size > 0) {
-    const sorted = [...successByUser.entries()].sort((a, b) => b[1].amount - a[1].amount);
-    const [uid, stats] = sorted[0];
+  if (start) {
+    const dateKey = localDateKey(start);
     try {
-      const userDoc = await db.collection('users').doc(uid).get();
-      if (userDoc.exists) {
-        const u = userDoc.data();
+      const summarySnap = await db.collection('dailyDepositSummaries').doc(dateKey).get();
+      const top = summarySnap.exists ? (summarySnap.data()?.topDepositor || null) : null;
+      if (top?.userId) {
+        const userSnap = await db.collection('users').doc(String(top.userId)).get();
+        const user = userSnap.exists ? (userSnap.data() || {}) : {};
         topDepositor = {
-          userId: uid,
-          name: u.displayName || u.username || u.name || 'Anonyme',
-          email: u.email || null,
-          phone: u.phone || u.whatsapp || null,
-          country: u.country || null,
-          amount: stats.amount,
-          count: stats.count,
-          lastAt: stats.lastAt,
+          userId: top.userId,
+          name: user.displayName || user.username || user.name || 'Anonyme',
+          email: user.email || null, phone: user.phone || user.whatsapp || null,
+          country: user.country || null,
+          amount: Number(top.amount || 0), count: Number(top.count || 0), lastAt: top.lastAt || null,
         };
       }
-    } catch (_) {}
+    } catch (error) { console.warn('[DepositsStats] Résumé quotidien indisponible:', error.message); }
   }
 
-  return { total, success, pending, failed, totalCreditedXAF, topDepositor };
+  const data = { total, success, pending, failed, totalCreditedXAF, topDepositor, topDepositorIndexed: Boolean(topDepositor) };
+  depositsStatsCache.set(cacheKey, { data, expires: Date.now() + 30 * 60 * 1000 });
+  await setSharedAdminCache(sharedKey, data, 30 * 60 * 1000);
+  return data;
 }
 
 async function getTopUsersToday(forceRefresh = false) {
-  const now = Date.now();
-  if (!forceRefresh && topUsersTodayCache.data && now < topUsersTodayCache.expires) {
-    return topUsersTodayCache.data;
-  }
-  const local = new Date(now + 60 * 60 * 1000);
+  const now = new Date();
+  const local = new Date(now.getTime() + 60 * 60 * 1000);
   const todayStart = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) - 60 * 60 * 1000);
-  const result = await computeTopUsersInRange(todayStart, new Date(now));
+  // Le cache partagé est commun aux instances Vercel; on évite un scan distinct
+  // par instance à chaque redéploiement ou changement d'instance.
+  const result = await getTopUsersInRange(todayStart, now, forceRefresh);
   topUsersTodayCache.data = result;
-  topUsersTodayCache.expires = now + TOP_USERS_TODAY_CACHE_TTL_MS;
+  topUsersTodayCache.expires = Date.now() + TOP_USERS_TODAY_CACHE_TTL_MS;
   return result;
 }
 
@@ -3830,10 +4127,19 @@ async function getTopUsersInRange(dateStart, dateEnd, forceRefresh = false) {
   const now = Date.now();
   const cacheEnd = dateEnd ? Math.floor(dateEnd.getTime() / (5 * 60 * 1000)) * (5 * 60 * 1000) : 'x';
   const cacheKey = `${dateStart?.getTime() || 'x'}_${cacheEnd}`;
+  const sharedKey = `top-users-range-v3-${sha256Short(cacheKey)}`;
   const cached = topUsersCustomRangeCache.get(cacheKey);
   if (!forceRefresh && cached && now < cached.expires) return cached.data;
+  if (!forceRefresh) {
+    const shared = await getSharedAdminCache(sharedKey);
+    if (shared && Array.isArray(shared.payload)) {
+      topUsersCustomRangeCache.set(cacheKey, { data: shared.payload, expires: shared.expiresAtMs });
+      return shared.payload;
+    }
+  }
   const result = await computeTopUsersInRange(dateStart, dateEnd);
-  topUsersCustomRangeCache.set(cacheKey, { data: result, expires: now + TOP_USERS_CUSTOM_CACHE_TTL_MS });
+  topUsersCustomRangeCache.set(cacheKey, { data: result, expires: now + 60 * 60 * 1000 });
+  await setSharedAdminCache(sharedKey, result, 60 * 60 * 1000);
   return result;
 }
 
@@ -3847,23 +4153,15 @@ async function computeTopUsersInRange(start, end) {
     const ref = db.collection(colName);
     try {
       const dateField = await detectDateField(colName);
-      const timestampStart = start ? admin.firestore.Timestamp.fromDate(start) : null;
-      const timestampEnd = end ? admin.firestore.Timestamp.fromDate(end) : null;
-      const rangeModes = [
-        { label: 'timestamp', lower: timestampStart, upper: timestampEnd },
-        { label: 'iso', lower: start ? start.toISOString() : null, upper: end ? end.toISOString() : null },
-        { label: 'milliseconds', lower: start ? start.getTime() : null, upper: end ? end.getTime() : null },
-        { label: 'seconds', lower: start ? Math.floor(start.getTime() / 1000) : null, upper: end ? Math.floor(end.getTime() / 1000) : null },
-      ];
+      const dateTypes = await getCollectionDateTypes(colName, dateField);
+      const rangeModes = buildDateRangeQueries(ref, dateField, start, end, dateTypes)
+        .map(item => ({ label: item.type, query: item.query }));
       const seenDocIds = new Set();
 
       for (const mode of rangeModes) {
         let lastDoc = null;
         while (true) {
-          let q = ref;
-          if (mode.lower !== null) q = q.where(dateField, '>=', mode.lower);
-          if (mode.upper !== null) q = q.where(dateField, '<', mode.upper);
-          q = q.orderBy(dateField, 'desc').limit(500);
+          let q = mode.query.orderBy(dateField, 'desc').limit(500);
           if (lastDoc) q = q.startAfter(lastDoc);
 
           let snap;
@@ -4032,7 +4330,7 @@ function getOrderFinancials(d = {}, rawProvider = null, collectionName = '') {
 
 // Version explicite des métriques clients : les classements et les fiches
 // doivent provenir de la même reconstruction avant d'être présentés comme exacts.
-const CUSTOMER_ORDER_METRICS_VERSION = 2;
+const CUSTOMER_ORDER_METRICS_VERSION = 3;
 const CUSTOMER_ORDER_OWNER_FIELDS = ['userId', 'uid', 'user_id', 'customerId', 'customerUid'];
 
 function normalizeCustomerOrderStatus(order = {}) {
@@ -4160,7 +4458,7 @@ adminRouter.get('/overview', async (req, res) => {
     const cached = !forceRefresh ? memCacheGet(adminMemoryCache.overview) : null;
     if (cached) return res.json({ success: true, data: cached, cached: true });
     if (!forceRefresh) {
-      const shared = await getSharedAdminCache('overview');
+      const shared = await getSharedAdminCache('overview-v2');
       if (shared) { memCacheSet(adminMemoryCache.overview, shared.payload, Math.max(1000, shared.expiresAtMs - Date.now())); return res.json({ success: true, data: shared.payload, cached: true, cacheScope: 'shared' }); }
     }
 
@@ -4205,7 +4503,7 @@ adminRouter.get('/overview', async (req, res) => {
       countPendingAdminOrders(),
       giftsRef.where('status', '==', 'pending').count().get(),
       giftsRef.where('status', '==', 'pending').where('createdAt', '<', admin.firestore.Timestamp.fromDate(new Date(now.getTime() - 24 * 60 * 60 * 1000))).count().get(),
-      getFinancialsAllCollections(todayStart, tomorrowStart),
+      getCachedFinancialAggregate(todayStart, tomorrowStart),
       usersRef.aggregate({ total: admin.firestore.AggregateField.sum('dashboardVisitCount') }).get(),
       usersRef.where('lastDashboardVisit', '>=', admin.firestore.Timestamp.fromDate(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000))).count().get(),
       usersRef.aggregate({ total: admin.firestore.AggregateField.sum('balance') }).get(),
@@ -4285,8 +4583,8 @@ adminRouter.get('/overview', async (req, res) => {
       dailyVisitsNote: 'Les visites par jour sont comptées depuis le déploiement du compteur dailyCounters. Les jours antérieurs restent à 0.',
       weekScope: 'newUsersThisWeek = lundi 00:00 (UTC+1) → maintenant. newUsersLastWeek = lundi précédent → lundi de cette semaine.',
     };
-    memCacheSet(adminMemoryCache.overview, data, 15 * 60 * 1000);
-    await setSharedAdminCache('overview', data, 15 * 60 * 1000);
+    memCacheSet(adminMemoryCache.overview, data, 30 * 60 * 1000);
+    await setSharedAdminCache('overview-v2', data, 30 * 60 * 1000);
     res.json({ success: true, data, cached: false });
   } catch (error) {
     console.error('Erreur /overview:', error);
@@ -4386,6 +4684,32 @@ adminRouter.get('/top-users', async (req, res) => {
   } catch (error) {
     console.error('Erreur /top-users:', error);
     res.status(500).json({ success: false, error: 'Impossible de charger le classement des utilisateurs.' });
+  }
+});
+
+adminRouter.get('/users-count-range', async (req, res) => {
+  try {
+    const start = parseBusinessDate(req.query.dateStart, false);
+    const end = parseBusinessDate(req.query.dateEnd, true);
+    if (!start || !end || start >= end) {
+      return res.status(400).json({ success: false, error: 'Période d’inscription invalide.' });
+    }
+    const key = `${start.toISOString()}|${end.toISOString()}`;
+    const cacheKey = `users-count-range-v2-${sha256Short(key)}`;
+    const local = usersCountRangeCache.get(key);
+    if (local && Date.now() < local.expires) return res.json({ success: true, count: local.count, cached: true });
+    const shared = await getSharedAdminCache(cacheKey);
+    if (shared) {
+      usersCountRangeCache.set(key, { count: Number(shared.payload.count || 0), expires: shared.expiresAtMs });
+      return res.json({ success: true, count: Number(shared.payload.count || 0), cached: true, cacheScope: 'shared' });
+    }
+    const count = await countUsersInWindow(start, end);
+    usersCountRangeCache.set(key, { count, expires: Date.now() + 60 * 60 * 1000 });
+    await setSharedAdminCache(cacheKey, { count }, 60 * 60 * 1000);
+    return res.json({ success: true, count, cached: false });
+  } catch (error) {
+    console.error('Erreur /users-count-range:', error);
+    return res.status(500).json({ success: false, error: 'Impossible de compter les inscriptions de cette période.' });
   }
 });
 
@@ -4497,15 +4821,14 @@ adminRouter.get('/orders', async (req, res) => {
     const cacheKey = `orders|${userId}|${statusFilter}|${providerFilter}|${dateStart?.getTime() || 'x'}|${dateEnd?.getTime() || 'x'}`;
     if (!forceRefresh && ordersCache.data && ordersCache.data[cacheKey] && Date.now() < ordersCache.data[cacheKey].expires) {
       const cached = ordersCache.data[cacheKey].orders;
-      return res.json({
-        success: true,
-        orders: cached.slice(offset, offset + limit),
-        total: cached.length,
-        offset,
-        limit,
-        hasMore: offset + limit < cached.length,
-        cached: true,
-      });
+      if (cached.length >= offset + limit) {
+        return res.json({ success: true, orders: cached.slice(offset, offset + limit), total: cached.length, offset, limit, hasMore: offset + limit < cached.length, cached: true });
+      }
+    }
+    const sharedPageKey = `orders-page-${sha256Short(`${cacheKey}|${offset}|${limit}`)}`;
+    if (!forceRefresh) {
+      const sharedPage = await getSharedAdminCache(sharedPageKey);
+      if (sharedPage) return res.json({ success: true, ...sharedPage.payload, cached: true, cacheScope: 'shared' });
     }
 
     const statusAliases = {
@@ -4519,33 +4842,40 @@ adminRouter.get('/orders', async (req, res) => {
     const providerAliases = { mtp:['mtp','morethanpanel'], exo:['exo'], afriqueboost:['afriqueboost','afb'], smmwiz:['smmwiz'], smmgen:['smmgen'] };
 
     const collected = [];
+    const pageFetchLimit = Math.min(500, Math.max(limit, (offset + limit) * ((providerFilter && providerFilter !== 'all') || (statusFilter && statusFilter !== 'all') ? 5 : 1)));
 
     for (const collectionName of ADMIN_ORDER_COLLECTIONS) {
       const ref = db.collection(collectionName);
       const dateField = await detectDateField(collectionName);
 
       try {
-        let docs = [];
+        const docsMap = new Map();
         if (userId) {
-          const [a, b, c] = await Promise.all([
-            ref.where('userId', '==', userId).limit(500).get(),
-            ref.where('uid', '==', userId).limit(500).get(),
-            ref.where('user_id', '==', userId).limit(500).get(),
-          ]);
-          const seen = new Set();
-          [...a.docs, ...b.docs, ...c.docs].forEach(d => {
-            if (!seen.has(d.id)) { seen.add(d.id); docs.push(d); }
-          });
-        } else {
-          let snap;
-          try {
-            snap = await ref.orderBy(dateField, 'desc').limit(500).get();
-          } catch (orderErr) {
-            console.warn(`[Orders] orderBy ${dateField} échoué sur ${collectionName}, fallback limit simple`);
-            snap = await ref.limit(500).get();
+          // Toutes les variantes d'identifiant reconnues par la fiche client.
+          const ownerQueries = await Promise.all(CUSTOMER_ORDER_OWNER_FIELDS.map(field =>
+            ref.where(field, '==', userId).limit(pageFetchLimit).get().catch(() => null)
+          ));
+          ownerQueries.filter(Boolean).forEach(snap => snap.docs.forEach(d => docsMap.set(d.id, d)));
+        } else if (dateStart || dateEnd) {
+          const dateTypes = await getCollectionDateTypes(collectionName, dateField);
+          const modes = buildDateRangeQueries(ref, dateField, dateStart, dateEnd, dateTypes);
+          for (const mode of modes) {
+            try {
+              const snap = await mode.query.orderBy(dateField, 'desc').limit(pageFetchLimit).get();
+              snap.docs.forEach(d => docsMap.set(d.id, d));
+            } catch (queryError) {
+              console.warn(`[Orders] Format date ${mode.type} ignoré pour ${collectionName}:`, queryError.message);
+            }
           }
-          docs = snap.docs;
+        } else {
+          try {
+            const snap = await ref.orderBy(dateField, 'desc').limit(pageFetchLimit).get();
+            snap.docs.forEach(d => docsMap.set(d.id, d));
+          } catch (orderErr) {
+            console.warn(`[Orders] orderBy ${dateField} échoué sur ${collectionName}:`, orderErr.message);
+          }
         }
+        const docs = [...docsMap.values()];
 
         for (const doc of docs) {
           const data = doc.data() || {};
@@ -4581,18 +4911,17 @@ adminRouter.get('/orders', async (req, res) => {
 
     const slice = collected.slice(offset, offset + limit);
     const enriched = await enrichAdminOrderUsers(slice);
-
-    return res.json({
-      success: true,
-      orders: enriched,
-      total: collected.length,
-      offset,
-      limit,
+    const response = {
+      success: true, orders: enriched, total: collected.length, offset, limit,
       hasMore: offset + limit < collected.length,
-      pageSizePerCollection: limit,
-      collections: ADMIN_ORDER_COLLECTIONS,
+      pageSizePerCollection: pageFetchLimit, collections: ADMIN_ORDER_COLLECTIONS,
       providerFilter: providerFilter || null,
-    });
+      totalIsLoadedWindow: true,
+    };
+    if (!ordersCache.data) ordersCache.data = {};
+    ordersCache.data[cacheKey] = { orders: collected, expires: Date.now() + ORDERS_CACHE_TTL_MS };
+    await setSharedAdminCache(sharedPageKey, response, ORDERS_CACHE_TTL_MS);
+    return res.json(response);
   } catch (error) {
     console.error('Erreur /api/admin/orders:', error);
     res.status(500).json({ success: false, error: 'Impossible de charger les commandes.' });
@@ -4695,6 +5024,45 @@ adminRouter.get('/stores', async (req, res) => {
 
 // ✅ DEPOSITS: support dateStart/dateEnd + tri mémoire
 // ✅ FIX #12 : transactions → providerFallback 'Swychr' + creditKeys priorise amountXAF
+adminRouter.get('/operations', async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 10), 100);
+    const forceRefresh = String(req.query.refresh || '') === '1';
+    const cacheKey = `operations-journal-v1-${limit}`;
+    if (!forceRefresh) {
+      const shared = await getSharedAdminCache(cacheKey);
+      if (shared) return res.json({ success: true, operations: shared.payload.operations || [], cached: true, cacheScope: 'shared', note: 'Le journal conserve les crédits confirmés enregistrés depuis son activation.' });
+    }
+    const snap = await db.collection('adminOperationLogs').orderBy('createdAt', 'desc').limit(limit).get();
+    const operations = snap.docs.map(doc => {
+      const d = doc.data() || {};
+      return {
+        id: doc.id, type: d.type || 'operation', category: d.category || 'autre', action: d.action || 'Opération',
+        userId: d.userId || null, amountXAF: Number(d.amountXAF || 0), provider: d.provider || null,
+        transactionId: d.transactionId || d.reference || null, status: d.status || 'UNKNOWN',
+        balanceBefore: d.balanceBefore == null ? null : Number(d.balanceBefore),
+        balanceAfter: d.balanceAfter == null ? null : Number(d.balanceAfter), createdAt: d.createdAt || null,
+      };
+    });
+    const userIds = [...new Set(operations.map(x => x.userId).filter(Boolean))];
+    if (userIds.length) {
+      // L'index partagé remplace N lectures de profils par quelques lectures de shards
+      // réutilisées par la rubrique Clients et les autres instances Vercel.
+      const indexedUsers = await getAllUsersSorted(false);
+      const users = new Map(indexedUsers.map(u => [u.id, {
+        name: u.displayName || u.username || u.name || 'Client',
+        email: u.email || null, country: u.country || null,
+      }]));
+      operations.forEach(op => { const user = users.get(op.userId); if (user) Object.assign(op, { userName: user.name, userEmail: user.email, country: user.country }); });
+    }
+    await setSharedAdminCache(cacheKey, { operations }, 5 * 60 * 1000);
+    return res.json({ success: true, operations, cached: false, note: 'Le journal conserve les crédits confirmés enregistrés depuis son activation.' });
+  } catch (error) {
+    console.error('Erreur /operations:', error);
+    return res.status(500).json({ success: false, error: 'Impossible de charger le journal des opérations.' });
+  }
+});
+
 adminRouter.get('/deposits', async (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 10), 100);
@@ -4706,9 +5074,18 @@ adminRouter.get('/deposits', async (req, res) => {
     const dateEnd = dateEndRaw && !isNaN(dateEndRaw.getTime()) ? dateEndRaw : null;
     const forceRefresh = String(req.query.refresh || '') === '1';
 
-    const cacheKey = `deposits:${status}:${providerFilter}:${dateStart?.getTime() || 'x'}:${dateEnd?.getTime() || 'x'}`;
+    const cacheKey = `deposits:v2:${status}:${providerFilter}:${dateStart?.getTime() || 'x'}:${dateEnd?.getTime() || 'x'}:${limit}`;
+    const sharedKey = `deposits-page-${sha256Short(cacheKey)}`;
     if (!forceRefresh && depositsCache.data && depositsCache.data[cacheKey] && Date.now() < depositsCache.data[cacheKey].expires) {
-      return res.json({ success: true, transactions: depositsCache.data[cacheKey].transactions, cached: true, sources: PAYMENT_COLLECTIONS });
+      return res.json({ success: true, ...depositsCache.data[cacheKey].payload, cached: true, cacheScope: 'instance' });
+    }
+    if (!forceRefresh) {
+      const shared = await getSharedAdminCache(sharedKey);
+      if (shared) {
+        if (!depositsCache.data) depositsCache.data = {};
+        depositsCache.data[cacheKey] = { payload: shared.payload, expires: shared.expiresAtMs };
+        return res.json({ success: true, ...shared.payload, cached: true, cacheScope: 'shared' });
+      }
     }
 
     const sources = [
@@ -4717,14 +5094,12 @@ adminRouter.get('/deposits', async (req, res) => {
       { name: 'payments', providerFallback: 'Swychr', amountKeys: ['amount','amountXAF','total','montant'], currencyKeys: ['currency','devise'], creditKeys: ['creditedAmountXAF','amountXAF','amountCredited','amount'] },
       { name: 'rechargements', providerFallback: 'Rechargement', amountKeys: ['amount','amountXAF','total','montant','requestedAmount'], currencyKeys: ['currency','devise'], creditKeys: ['creditedAmountXAF','amountXAF','amountCredited','amount'] },
       { name: 'recharges', providerFallback: 'Recharge', amountKeys: ['amount','amountXAF','total','montant','requestedAmount'], currencyKeys: ['currency','devise'], creditKeys: ['creditedAmountXAF','amountXAF','amountCredited','amount'] },
-      // ✅ FIX : Swychr → amountXAF prioritaire (montant crédité FCFA)
       { name: 'transactions', providerFallback: 'Swychr', amountKeys: ['amount','amountXAF','total','montant','requestedAmount'], currencyKeys: ['currency','devise'], creditKeys: ['amountXAF','creditedAmountXAF','amountCredited','amount'] },
     ];
-
     const statusVariants = {
       CONFIRMED: ['CONFIRMED','confirmed','SUCCESS','success','SUCCEEDED','succeeded','PAID','paid','SUCCESSFUL','successful','completed','COMPLETED'],
       PENDING: ['PENDING','pending','PROCESSING','processing','INITIATED','initiated','WAITING','waiting'],
-      FAILED: ['FAILED','failed','FAILURE','failure','CANCELLED','cancelled','REJECTED','rejected','EXPIRED','expired']
+      FAILED: ['FAILED','failed','FAILURE','failure','CANCELLED','cancelled','REJECTED','rejected','EXPIRED','expired'],
     };
 
     const results = [];
@@ -4736,9 +5111,28 @@ adminRouter.get('/deposits', async (req, res) => {
       }
       try {
         const dateField = await detectDateField(source.name).catch(() => 'createdAt');
-        const snap = await db.collection(source.name).limit(500).get();
+        const ref = db.collection(source.name);
+        const dateTypes = (dateStart || dateEnd) ? await getCollectionDateTypes(source.name, dateField) : [];
+        const modes = (dateStart || dateEnd)
+          ? buildDateRangeQueries(ref, dateField, dateStart, dateEnd, dateTypes)
+          : [{ type: 'all', query: ref }];
+        const docsMap = new Map();
+        for (const mode of modes) {
+          const q = mode.query;
+          if (status !== 'ALL' && statusVariants[status]) {
+            // Filtre sur le serveur quand l'index existe, avec repli borné si non disponible.
+            try {
+              const statusQuery = q.where('status', 'in', statusVariants[status]);
+              const snap = await statusQuery.orderBy(dateField, 'desc').limit(limit).get();
+              snap.docs.forEach(doc => docsMap.set(doc.id, doc));
+              continue;
+            } catch (_) {}
+          }
+          const snap = await q.orderBy(dateField, 'desc').limit(limit).get().catch(async () => q.limit(limit).get());
+          snap.docs.forEach(doc => docsMap.set(doc.id, doc));
+        }
 
-        const items = snap.docs.map(doc => {
+        const items = [...docsMap.values()].map(doc => {
           const d = doc.data() || {};
           const pick = keys => { for (const k of keys) if (d[k] !== undefined && d[k] !== null && d[k] !== '') return d[k]; return null; };
           const rawStatus = String(d.status || d.paymentStatus || d.state || 'UNKNOWN');
@@ -4746,20 +5140,17 @@ adminRouter.get('/deposits', async (req, res) => {
           const creditedRaw = pick(source.creditKeys);
           const createdAtRaw = d[dateField] || d.createdAt || d.dateInitiated || d.created_at || d.dateCreated || d.timestamp || d.date || d.paidAt || null;
           const createdAtMs = getTimestampMs(createdAtRaw);
-
           if (dateStart && createdAtMs < dateStart.getTime()) return null;
           if (dateEnd && createdAtMs >= dateEnd.getTime()) return null;
-
+          if (status !== 'ALL' && statusVariants[status] && !statusVariants[status].some(v => v.toLowerCase() === rawStatus.toLowerCase())) return null;
           return {
-            id: doc.id,
-            source: source.name,
+            id: doc.id, source: source.name,
             reference: d.reference || d.transId || d.fapshiTransId || d.transactionId || d.transaction_id || doc.id,
             userId: d.userId || d.uid || d.user_id || null,
             userName: d.userName || d.displayName || d.name || d.customer_name || d.username || null,
             userEmail: d.email || d.userEmail || d.customer_email || null,
             provider: d.provider || d.paymentProvider || source.providerFallback,
-            status: rawStatus,
-            requestedAmount: amount,
+            status: rawStatus, requestedAmount: amount,
             requestedCurrency: pick(source.currencyKeys) || 'XAF',
             creditedAmountXAF: creditedRaw === null ? null : Number(creditedRaw),
             createdAt: createdAtRaw,
@@ -4776,26 +5167,23 @@ adminRouter.get('/deposits', async (req, res) => {
     }
 
     let transactions = results.flatMap(r => r.items);
-    if (status !== 'ALL' && statusVariants[status]) {
-      const allowed = statusVariants[status].map(s => s.toLowerCase());
-      transactions = transactions.filter(t => allowed.includes(String(t.status).toLowerCase()));
-    }
-
+    transactions.sort((a, b) => b._createdMs - a._createdMs);
+    const totalCandidates = transactions.length;
+    transactions = transactions.slice(0, limit);
     const userIds = [...new Set(transactions.filter(t => t.userId && (!t.userName || !t.userEmail)).map(t => t.userId))];
     if (userIds.length) {
       const userSnaps = await Promise.all(userIds.map(id => db.collection('users').doc(id).get()));
-      const users = new Map(userSnaps.filter(s => s.exists).map(s => { const u = s.data() || {}; return [s.id, { name: u.displayName || u.username || u.name || null, email: u.email || null }]; }));
+      const users = new Map(userSnaps.filter(s => s.exists).map(s => {
+        const u = s.data() || {}; return [s.id, { name: u.displayName || u.username || u.name || null, email: u.email || null }];
+      }));
       for (const t of transactions) { const u = users.get(t.userId); if (u) { t.userName = t.userName || u.name; t.userEmail = t.userEmail || u.email; } }
     }
-
-    transactions.sort((a, b) => b._createdMs - a._createdMs);
-    const totalAvailable = transactions.length;
-    transactions = transactions.slice(0, limit).map(t => { delete t._createdMs; return t; });
-
+    transactions.forEach(t => { delete t._createdMs; });
+    const response = { transactions, total: totalCandidates, pageSize: limit, sources: results.map(s => s.source), providerFilter, note: 'Lecture bornée : au plus une page par collection, puis fusion et tri global.' };
     if (!depositsCache.data) depositsCache.data = {};
-    depositsCache.data[cacheKey] = { transactions, expires: Date.now() + DEPOSITS_CACHE_TTL_MS };
-
-    return res.json({ success: true, transactions, total: totalAvailable, pageSize: limit, sources: results.map(s => s.source), providerFilter });
+    depositsCache.data[cacheKey] = { payload: response, expires: Date.now() + DEPOSITS_CACHE_TTL_MS };
+    await setSharedAdminCache(sharedKey, response, DEPOSITS_CACHE_TTL_MS);
+    return res.json({ success: true, ...response, cached: false });
   } catch (error) {
     console.error('Erreur /api/admin/deposits:', error);
     return res.status(500).json({ success: false, error: 'Impossible de charger les recharges.' });
@@ -4850,14 +5238,33 @@ adminRouter.get('/customers', async (req, res) => {
     const orderMetric = u => Number(metricsReady ? (u.adminOrderCount ?? u.totalOrders ?? 0) : (u.totalOrders ?? u.adminOrderCount ?? 0));
     const spendMetric = u => Number(metricsReady ? (u.adminTotalSpent ?? u.totalSpent ?? 0) : (u.totalSpent ?? u.adminTotalSpent ?? 0));
     const profitMetric = u => Number(metricsReady ? (u.adminTotalProfit ?? u.totalProfit ?? 0) : (u.totalProfit ?? u.adminTotalProfit ?? 0));
+    const nowMs = Date.now();
+    const lastOrderMs = u => Number(u.adminLastOrderAtMs || getTimestampMs(u.adminLastOrderAt) || 0);
+    const daysSinceOrder = u => lastOrderMs(u) > 0 ? Math.floor((nowMs - lastOrderMs(u)) / 86400000) : null;
+    const signupAgeDays = u => Math.floor((nowMs - Number(u._createdAtMs || 0)) / 86400000);
+    const orderedUsers = filtered.filter(u => orderMetric(u) > 0 && spendMetric(u) > 0);
+    const vipThreshold = orderedUsers.length ? [...orderedUsers].sort((a,b) => spendMetric(b)-spendMetric(a))[Math.max(0, Math.ceil(orderedUsers.length * 0.10)-1)] : null;
+    const vipMinimumSpend = vipThreshold ? spendMetric(vipThreshold) : Number.MAX_SAFE_INTEGER;
+
     if (segment === 'ordered') filtered = filtered.filter(u => orderMetric(u) > 0);
     else if (segment === 'neverOrdered') filtered = filtered.filter(u => orderMetric(u) === 0);
+    else if (segment === 'vip') filtered = filtered.filter(u => orderMetric(u) > 0 && spendMetric(u) >= vipMinimumSpend);
+    else if (segment === 'loyal') filtered = filtered.filter(u => orderMetric(u) >= 5 && daysSinceOrder(u) !== null && daysSinceOrder(u) <= 30);
+    else if (segment === 'new') filtered = filtered.filter(u => u._createdAtMs > 0 && signupAgeDays(u) <= 30);
+    else if (segment === 'atRisk') filtered = filtered.filter(u => orderMetric(u) > 0 && daysSinceOrder(u) !== null && daysSinceOrder(u) >= 7 && daysSinceOrder(u) <= 9);
+    else if (segment === 'inactive10') filtered = filtered.filter(u => orderMetric(u) > 0 && daysSinceOrder(u) !== null && daysSinceOrder(u) >= 10 && daysSinceOrder(u) <= 20);
+    else if (segment === 'inactive21') filtered = filtered.filter(u => orderMetric(u) > 0 && daysSinceOrder(u) !== null && daysSinceOrder(u) >= 21 && daysSinceOrder(u) <= 29);
+    else if (segment === 'inactive30') filtered = filtered.filter(u => orderMetric(u) > 0 && daysSinceOrder(u) !== null && daysSinceOrder(u) >= 30 && daysSinceOrder(u) <= 89);
+    else if (segment === 'inactive90') filtered = filtered.filter(u => orderMetric(u) > 0 && daysSinceOrder(u) !== null && daysSinceOrder(u) >= 90 && daysSinceOrder(u) <= 149);
+    else if (segment === 'inactive150') filtered = filtered.filter(u => orderMetric(u) > 0 && daysSinceOrder(u) !== null && daysSinceOrder(u) >= 150);
 
     // Le segment de classement doit primer sur le tri récent par défaut.
-    if (sort === 'orders' || segment === 'highOrders') filtered.sort((a, b) => orderMetric(b) - orderMetric(a));
-    else if (sort === 'spent' || segment === 'highSpent') filtered.sort((a, b) => spendMetric(b) - spendMetric(a));
+    if (sort === 'orders' || segment === 'highOrders' || segment === 'loyal') filtered.sort((a, b) => orderMetric(b) - orderMetric(a));
+    else if (sort === 'spent' || segment === 'highSpent' || segment === 'vip') filtered.sort((a, b) => spendMetric(b) - spendMetric(a));
     else if (sort === 'profit' || segment === 'highProfit') filtered.sort((a, b) => profitMetric(b) - profitMetric(a));
     else if (sort === 'balance' || segment === 'highBalance') filtered.sort((a, b) => Number(b.balance || 0) - Number(a.balance || 0));
+    else if (['atRisk','inactive10','inactive21','inactive30','inactive90','inactive150'].includes(segment)) filtered.sort((a, b) => lastOrderMs(a) - lastOrderMs(b));
+    else if (segment === 'new') filtered.sort((a, b) => b._createdAtMs - a._createdAtMs);
     else filtered.sort((a, b) => b._createdAtMs - a._createdAtMs);
 
     const total = filtered.length;
@@ -4900,9 +5307,13 @@ function formatCustomerFromUser(u, metricsReady) {
     totalOrders: orderCount,
     totalSpent: spent,
     totalProfit: profit,
+    lastOrderAt: u.adminLastOrderAt || null,
+    lastOrderAtMs: Number(u.adminLastOrderAtMs || 0),
     createdAt: u.createdAt || u.created_at || null,
     lastSignIn: u.lastSignIn || u.lastLoginAt || null,
-    lastActivityAt: u.lastActivityAt || u.lastSeenAt || u.lastDashboardVisit || null,
+    lastActivityAt: u.lastActivityAt || u.lastSeenAt || u.lastDashboardVisit || u.lastSignIn || u.lastLoginAt || null,
+    lastOrderAt: u.adminLastOrderAt || null,
+    lastOrderAtMs: Number(u.adminLastOrderAtMs || 0),
     resellerLevel: u.resellerLevel || null,
     hasOrdered: orderCount > 0,
     metricsReady,
@@ -4945,8 +5356,10 @@ adminRouter.post('/customers/rebuild-order-metrics', async (req, res) => {
           }
           if (contribution.amount === null) unattributedAmounts++;
           ownerIds.forEach(uid => {
-            const current = metricMap.get(uid) || { count: 0, spent: 0, profit: 0 };
+            const current = metricMap.get(uid) || { count: 0, spent: 0, profit: 0, lastOrderAtMs: 0 };
             current.count++;
+            const orderTimeMs = getTimestampMs(order.createdAt || order.date || order.created_at || order.dateCreated || order.timestamp);
+            if (orderTimeMs > current.lastOrderAtMs) current.lastOrderAtMs = orderTimeMs;
             if (contribution.amount !== null) current.spent += Number(contribution.amount || 0);
             if (contribution.profit !== null) current.profit += contribution.profit;
             metricMap.set(uid, current);
@@ -4967,7 +5380,7 @@ adminRouter.post('/customers/rebuild-order-metrics', async (req, res) => {
       usersRead += page.size;
       let batch = db.batch(), writes = 0;
       for (const doc of page.docs) {
-        const expected = metricMap.get(doc.id) || { count: 0, spent: 0, profit: 0 };
+        const expected = metricMap.get(doc.id) || { count: 0, spent: 0, profit: 0, lastOrderAtMs: 0 };
         const u = doc.data() || {};
         const oldCount = Number(u.adminOrderCount);
         const oldSpent = Number(u.adminTotalSpent);
@@ -4979,18 +5392,23 @@ adminRouter.post('/customers/rebuild-order-metrics', async (req, res) => {
           adminOrderCount: expected.count,
           adminTotalSpent: Math.round(expected.spent),
           adminTotalProfit: Math.round(expected.profit),
+          adminLastOrderAtMs: Number(expected.lastOrderAtMs || 0),
+          adminLastOrderAt: expected.lastOrderAtMs ? admin.firestore.Timestamp.fromMillis(expected.lastOrderAtMs) : null,
           adminOrderMetricsVersion: CUSTOMER_ORDER_METRICS_VERSION,
           _createdAtMs: getTimestampMs(u.createdAt || u.created_at || u.dateCreated || u.timestamp),
         };
         rebuiltUsersCache.push(rebuiltUser);
         const changedNow = oldCount !== expected.count || oldVersion !== CUSTOMER_ORDER_METRICS_VERSION
           || !Number.isFinite(oldSpent) || Math.round(oldSpent) !== Math.round(expected.spent)
-          || !Number.isFinite(oldProfit) || Math.round(oldProfit) !== Math.round(expected.profit);
+          || !Number.isFinite(oldProfit) || Math.round(oldProfit) !== Math.round(expected.profit)
+          || Number(u.adminLastOrderAtMs || 0) !== Number(expected.lastOrderAtMs || 0);
         if (changedNow) {
           batch.set(doc.ref, {
             adminOrderCount: expected.count,
             adminTotalSpent: Math.round(expected.spent),
             adminTotalProfit: Math.round(expected.profit),
+            adminLastOrderAtMs: Number(expected.lastOrderAtMs || 0),
+            adminLastOrderAt: expected.lastOrderAtMs ? admin.firestore.Timestamp.fromMillis(expected.lastOrderAtMs) : null,
             adminOrderMetricsVersion: CUSTOMER_ORDER_METRICS_VERSION,
             adminOrderMetricsUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
           }, { merge: true });
@@ -5015,6 +5433,29 @@ adminRouter.post('/customers/rebuild-order-metrics', async (req, res) => {
     allUsersCache.data = rebuiltUsersCache;
     allUsersCache.expires = Date.now() + ALL_USERS_CACHE_TTL_MS;
     allUsersCache.lastRefresh = Date.now();
+    const rebuiltShardKeys = [];
+    for (let i = 0; i < rebuiltUsersCache.length; i += CUSTOMER_INDEX_SHARD_SIZE) {
+      const key = `customer-index-v${CUSTOMER_INDEX_VERSION}-part-${String(i / CUSTOMER_INDEX_SHARD_SIZE).padStart(3, '0')}`;
+      rebuiltShardKeys.push(key);
+      await setSharedAdminCache(key, rebuiltUsersCache.slice(i, i + CUSTOMER_INDEX_SHARD_SIZE).map(u => ({
+        id: u.id, displayName: u.displayName || null, username: u.username || null, name: u.name || null,
+        email: u.email || null, phone: u.phone || null, whatsapp: u.whatsapp || null,
+        country: u.country || u.countryCode || u.country_code || null, balance: Number(u.balance || 0),
+        totalOrders: Number(u.totalOrders || 0), totalSpent: Number(u.totalSpent || 0), totalProfit: Number(u.totalProfit || 0),
+        adminOrderCount: Number(u.adminOrderCount || 0), adminTotalSpent: Number(u.adminTotalSpent || 0),
+        adminTotalProfit: Number(u.adminTotalProfit || 0), adminOrderMetricsVersion: Number(u.adminOrderMetricsVersion || 0),
+        adminLastOrderAt: u.adminLastOrderAt || null, adminLastOrderAtMs: Number(u.adminLastOrderAtMs || 0),
+        createdAt: u.createdAt || null, created_at: u.created_at || null, dateCreated: u.dateCreated || null, timestamp: u.timestamp || null,
+        lastSignIn: u.lastSignIn || null, lastLoginAt: u.lastLoginAt || null, lastActivityAt: u.lastActivityAt || null,
+        lastSeenAt: u.lastSeenAt || null, lastDashboardVisit: u.lastDashboardVisit || null,
+        resellerLevel: u.resellerLevel || null,
+        _createdAtMs: getTimestampMs(u.createdAt || u.created_at || u.dateCreated || u.timestamp),
+      })), CUSTOMER_INDEX_TTL_MS);
+    }
+    await setSharedAdminCache('customer-index-v3-meta', {
+      version: CUSTOMER_INDEX_VERSION, count: rebuiltUsersCache.length, shards: rebuiltShardKeys,
+      generatedAt: new Date().toISOString(),
+    }, CUSTOMER_INDEX_TTL_MS);
     for (const key of ['overview', 'topUsers', 'usersStats']) {
       if (adminMemoryCache[key]) { adminMemoryCache[key].data = null; adminMemoryCache[key].expires = 0; }
     }
@@ -5669,9 +6110,9 @@ async function countCreatedBetween(collectionRef, start, end) {
   return countInWindow(collectionRef, start, end);
 }
 
-async function readFinancialPeriod(range) {
+async function readFinancialPeriod(range, forceRefresh = false) {
   const bounds = financialWindow(range);
-  const agg = await getFinancialsAllCollections(bounds.start, bounds.end);
+  const agg = await getCachedFinancialAggregate(bounds.start, bounds.end, forceRefresh);
   return {
     range,
     start: bounds.start ? bounds.start.toISOString() : null,
@@ -5728,12 +6169,12 @@ adminRouter.get('/financials', async (req, res) => {
     const cacheKey = isCustom
       ? `financials:custom:${bounds.start.toISOString()}:${bounds.end.toISOString()}:${bounds.previousStart.toISOString()}:${bounds.previousEnd.toISOString()}`
       : `financials:${range}`;
-    const sharedKey = isCustom ? null : `financials-${range}`;
+    const sharedKey = `financials-response-v2-${sha256Short(cacheKey)}`;
     const cached = adminMemoryCache.financialsMap.get(cacheKey);
     if (!forceRefresh && cached && Date.now() < cached.expires) {
       return res.json({ success: true, data: cached.data, previous: cached.previous, cached: true, cacheScope: 'instance' });
     }
-    if (!isCustom && !forceRefresh) {
+    if (!forceRefresh) {
       const shared = await getSharedAdminCache(sharedKey);
       if (shared) {
         const ttl = Math.max(1000, shared.expiresAtMs - Date.now());
@@ -5751,7 +6192,7 @@ adminRouter.get('/financials', async (req, res) => {
       current = periodPayloadFromAggregate('custom', bounds.start, bounds.end, currentAgg);
       previous = periodPayloadFromAggregate('custom-comparison', bounds.previousStart, bounds.previousEnd, previousAgg);
     } else {
-      current = await readFinancialPeriod(range);
+      current = await readFinancialPeriod(range, forceRefresh);
       if (bounds.previousStart && bounds.previousEnd) {
         const pAgg = await getCachedFinancialAggregate(bounds.previousStart, bounds.previousEnd, forceRefresh);
         previous = periodPayloadFromAggregate('previous', bounds.previousStart, bounds.previousEnd, pAgg);
@@ -5782,8 +6223,8 @@ adminRouter.get('/financials', async (req, res) => {
       previous.recordedGrossProfitBeforeRefunds = previous.grossMarginAfterRefunds;
     }
 
-    adminMemoryCache.financialsMap.set(cacheKey, { data: current, previous, expires: Date.now() + 15 * 60 * 1000 });
-    if (!isCustom) await setSharedAdminCache(sharedKey, { data: current, previous }, 15 * 60 * 1000);
+    adminMemoryCache.financialsMap.set(cacheKey, { data: current, previous, expires: Date.now() + 60 * 60 * 1000 });
+    await setSharedAdminCache(sharedKey, { data: current, previous }, 60 * 60 * 1000);
     res.json({ success: true, data: current, previous, cached: false, custom: isCustom });
   } catch (error) {
     console.error('Erreur /api/admin/financials:', error);
@@ -5819,17 +6260,40 @@ adminRouter.get('/overview-range', async (req, res) => {
     }
     const forceRefresh = String(req.query.refresh || '') === '1';
     const key = `${start.toISOString()}|${end.toISOString()}|${previousStart.toISOString()}|${previousEnd.toISOString()}`;
+    const sharedKey = `overview-range-response-v2-${sha256Short(key)}`;
     const cached = overviewRangeResponseCache.get(key);
     if (!forceRefresh && cached && Date.now() < cached.expires) {
-      return res.json({ success: true, data: cached.data, previous: cached.previous, cached: true });
+      return res.json({ success: true, data: cached.data, previous: cached.previous, cached: true, cacheScope: 'instance' });
     }
-    const [data, previous] = await Promise.all([
-      buildOverviewRange(start, end, forceRefresh),
-      buildOverviewRange(previousStart, previousEnd, forceRefresh),
-    ]);
-    const result = { data, previous };
-    overviewRangeResponseCache.set(key, { ...result, expires: Date.now() + CUSTOM_RANGE_CACHE_TTL_MS });
-    res.json({ success: true, ...result, cached: false });
+    if (!forceRefresh) {
+      const shared = await getSharedAdminCache(sharedKey);
+      if (shared) {
+        const ttl = Math.max(1000, shared.expiresAtMs - Date.now());
+        overviewRangeResponseCache.set(key, { ...shared.payload, expires: Date.now() + ttl });
+        return res.json({ success: true, ...shared.payload, cached: true, cacheScope: 'shared' });
+      }
+    }
+    if (!forceRefresh && OVERVIEW_RANGE_INFLIGHT.has(key)) {
+      const result = await OVERVIEW_RANGE_INFLIGHT.get(key);
+      return res.json({ success: true, ...result, cached: true, cacheScope: 'inflight' });
+    }
+    const computePromise = (async () => {
+      const [data, previous] = await Promise.all([
+        buildOverviewRange(start, end, forceRefresh),
+        buildOverviewRange(previousStart, previousEnd, forceRefresh),
+      ]);
+      const result = { data, previous };
+      overviewRangeResponseCache.set(key, { ...result, expires: Date.now() + CUSTOM_RANGE_CACHE_TTL_MS });
+      await setSharedAdminCache(sharedKey, result, CUSTOM_RANGE_CACHE_TTL_MS);
+      return result;
+    })();
+    if (!forceRefresh) OVERVIEW_RANGE_INFLIGHT.set(key, computePromise);
+    try {
+      const result = await computePromise;
+      return res.json({ success: true, ...result, cached: false });
+    } finally {
+      OVERVIEW_RANGE_INFLIGHT.delete(key);
+    }
   } catch (error) {
     console.error('Erreur /api/admin/overview-range:', error);
     res.status(500).json({ success: false, error: 'Impossible de calculer les indicateurs de cette période.' });
@@ -5843,10 +6307,12 @@ adminRouter.post('/cache/clear', (req, res) => {
   adminMemoryCache.financialsMap.clear();
   financialRangeAggregateCache.clear();
   overviewRangeResponseCache.clear();
+  OVERVIEW_RANGE_INFLIGHT.clear();
   adminMemoryCache.orderSummary.data = null; adminMemoryCache.orderSummary.expires = 0;
   adminMemoryCache.giftsMap.clear();
   allUsersCache.data = null;
   allUsersCache.expires = 0;
+  usersCountRangeCache.clear();
   topUsersTodayCache.data = null;
   topUsersTodayCache.expires = 0;
   topUsersCustomRangeCache.clear(); // ✅ FIX : vide aussi le cache custom
@@ -5855,6 +6321,9 @@ adminRouter.post('/cache/clear', (req, res) => {
   ordersCache.data = null;
   ordersCache.expires = 0;
   Object.keys(DATE_FIELD_CACHE).forEach(k => delete DATE_FIELD_CACHE[k]);
+  DATE_TYPE_CACHE.clear();
+  FINANCIAL_SCHEMA_CACHE.clear();
+  PAYMENT_SCHEMA_CACHE.clear();
   res.json({ success: true, message: 'Cache vidé.' });
 });
 
