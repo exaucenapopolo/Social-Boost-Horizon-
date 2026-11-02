@@ -473,8 +473,8 @@ textarea.msg-area:focus{border-color:var(--gold)}
           </div>
           <div class="section-actions">
             <div class="segmented">
-              <button class="seg-btn active" data-topusers-period="all" onclick="setTopUsersPeriod('all')">Toute la plateforme</button>
-              <button class="seg-btn" data-topusers-period="today" onclick="setTopUsersPeriod('today')">Aujourd'hui</button>
+              <button class="seg-btn" data-topusers-period="all" onclick="setTopUsersPeriod('all')">Toute la plateforme</button>
+              <button class="seg-btn active" data-topusers-period="today" onclick="setTopUsersPeriod('today')">Aujourd'hui</button>
               <button class="seg-btn" data-topusers-period="week" onclick="setTopUsersPeriod('week')">Cette semaine</button>
               <button class="seg-btn" data-topusers-period="custom" onclick="setTopUsersPeriod('custom')">Période</button>
             </div>
@@ -991,7 +991,7 @@ let overviewLoading = false;
 let overviewPeriod = 'today';
 let overviewPeriodData = null;
 let overviewPeriodLoading = false;
-let topUsersPeriod = 'all';
+let topUsersPeriod = 'today';
 let topUsersLoaded = false;
 let topUsersLoadedAt = 0;
 let topUsersLoading = false;
@@ -1400,7 +1400,7 @@ async function loadObjectivesFromServer(force=false){
       }
     }
     objectivesServerLoaded=true;
-    try{sessionStorage.removeItem('sbh_goal_progress_v1');}catch(_){}
+    try{sessionStorage.removeItem('sbh_goal_progress_v2');}catch(_){}
   }catch(e){
     // La copie locale reste consultable lorsque le réseau est temporairement indisponible.
     console.warn('Objectifs Firestore indisponibles, copie locale conservée:',e.message);
@@ -1441,6 +1441,11 @@ async function openObjectivesModal(){
   document.getElementById('objVisitsInput').value=saved.targets?.visits??'';
   document.getElementById('objectiveDateStart').value=saved.startDate||'';
   document.getElementById('objectiveDateEnd').value=saved.endDate||'';
+  const hasSavedGoal=Boolean(saved.startDate&&saved.endDate&&saved.targets);
+  const title=document.querySelector('#objectivesModal .modal-header h3');
+  if(title)title.innerHTML=`<i class="fas fa-bullseye"></i> ${hasSavedGoal?'Modifier mes objectifs':'Définir mes objectifs'}`;
+  const saveBtn=document.querySelector('#objectivesModal .modal-footer .btn-gold');
+  if(saveBtn)saveBtn.innerHTML=`<i class="fas fa-check"></i> ${hasSavedGoal?'Enregistrer les modifications':'Enregistrer'}`;
   updateObjectivePeriodInputs();
   document.getElementById('objectivesModal').classList.add('active');
 }
@@ -1456,8 +1461,7 @@ async function saveObjectives(){
   try{
     const d=await fetchAdmin('/objectives',{method:'PUT',body:JSON.stringify(goal)});
     saveStoredObjectives(d.goal||goal);objectivesServerLoaded=true;
-    try{sessionStorage.removeItem('sbh_goal_progress_v1');}catch(_){}
-    closeObjectivesModal();showToast('Objectifs enregistrés et synchronisés sur tes appareils.');loadObjectiveProgress(true);
+    closeObjectivesModal();showToast('Objectifs enregistrés et synchronisés sur tes appareils.');loadObjectiveProgress(false);
   }catch(e){showError('Enregistrement des objectifs : '+e.message+' — aucune synchronisation serveur confirmée.');}
   finally{if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i> Enregistrer';}}
 }
@@ -1466,7 +1470,7 @@ async function resetObjectives(){
   try{
     await fetchAdmin('/objectives',{method:'DELETE'});
     localStorage.removeItem(OBJECTIVES_KEY);objectivesServerLoaded=true;
-    try{sessionStorage.removeItem('sbh_goal_progress_v1');}catch(_){}
+    try{sessionStorage.removeItem('sbh_goal_progress_v2');}catch(_){}
     closeObjectivesModal();showToast('Objectifs supprimés sur tous les appareils.');
     const panel=document.getElementById('overviewObjectivesPanel');if(panel)panel.innerHTML='<p class="section-sub">Aucun objectif défini. Choisis une période et tes cibles pour commencer le suivi.</p>';
   }catch(e){showError('Suppression des objectifs : '+e.message);}
@@ -1580,7 +1584,7 @@ async function loadObjectiveProgress(force=false){
 
   // 4) Dernier recours : une période différente, récupérée une fois puis mise en cache local + serveur.
   if(!force){
-    try{const cache=JSON.parse(sessionStorage.getItem('sbh_goal_progress_v1')||'{}');const entry=cache[cacheKey];if(entry&&entry.expires>Date.now()){renderObjectiveProgress(entry.data,goal);renderObjectiveAssistantAlert(entry.data,goal);return;}}catch(_){}
+    try{const cache=JSON.parse(sessionStorage.getItem('sbh_goal_progress_v2')||'{}');const entry=cache[cacheKey];if(entry&&entry.expires>Date.now()){renderObjectiveProgress(entry.data,goal);renderObjectiveAssistantAlert(entry.data,goal);return;}}catch(_){}
   }
   panel.innerHTML='<div class="loading"><i class="fas fa-circle-notch"></i> Mise à jour de la progression…</div>';
   try{
@@ -1588,7 +1592,7 @@ async function loadObjectiveProgress(force=false){
     const d=await fetchAdmin('/overview-range?'+params.toString());
     const data=d.data||{};
     renderObjectiveProgress(data,goal);renderObjectiveAssistantAlert(data,goal);
-    try{const cache=JSON.parse(sessionStorage.getItem('sbh_goal_progress_v1')||'{}');cache[cacheKey]={data,expires:Date.now()+30*60*1000};sessionStorage.setItem('sbh_goal_progress_v1',JSON.stringify(cache));}catch(_){}
+    try{const cache=JSON.parse(sessionStorage.getItem('sbh_goal_progress_v2')||'{}');cache[cacheKey]={data,expires:Date.now()+30*60*1000};sessionStorage.setItem('sbh_goal_progress_v2',JSON.stringify(cache));}catch(_){}
   }catch(e){panel.innerHTML=`<p class="error-msg" style="display:block;">Progression indisponible : ${esc(e.message)}</p>`;}
 }
 
@@ -1741,7 +1745,7 @@ function setTopUsersPeriod(period){
   const titleEl=document.getElementById('topUsersTitle');const subEl=document.getElementById('topUsersSubtitle');
   const labels={all:'Clients les plus actifs — toute la plateforme',today:'Clients les plus actifs — aujourd’hui',week:'Clients les plus actifs — cette semaine',custom:'Clients les plus actifs — période personnalisée'};
   if(titleEl)titleEl.textContent=labels[period]||labels.all;
-  if(subEl)subEl.textContent=period==='today'?'Classement exact des commandes enregistrées aujourd’hui.':period==='week'?'Classement exact depuis le début de la semaine.':period==='custom'?'Classement exact sur les dates choisies.':'Classement global construit à partir des métriques historiques vérifiées des fiches clients.';
+  if(subEl)subEl.textContent=period==='today'?'Classement du jour calculé une seule fois et conservé en cache jusqu’à minuit.':period==='week'?'Classement exact depuis le début de la semaine.':period==='custom'?'Classement exact sur les dates choisies.':'Classement global construit à partir des métriques historiques vérifiées des fiches clients.';
   const thead=document.getElementById('topUsersThead');
   if(thead)thead.innerHTML=`<tr><th>Client</th><th>Pays</th><th>Commandes${period==='today'?' du jour':period==='week'?' de la semaine':period==='custom'?' (période)':''}</th><th>Total dépensé</th><th>Solde</th><th>Marge brute</th><th></th></tr>`;
   loadTopUsers(false);
@@ -1753,13 +1757,18 @@ function applyTopUsersFilter(){
 
 let lastTopUsersForceRefreshAt=0;
 function refreshTopUsersSafely(){
-  if(Date.now()-lastTopUsersForceRefreshAt<FORCE_REFRESH_THROTTLE_MS){showToast('Actualisation du classement limitée à une fois toutes les 5 minutes pour protéger le quota.');return;}
-  const period=topUsersPeriod==='all'?'classement global (index des profils)':`classement ${topUsersPeriod} (lecture des commandes de la période)`;
-  if(!confirm(`Forcer le recalcul du ${period} ?\n\nCette action contourne le cache partagé et peut relire plusieurs centaines ou milliers de documents selon l'activité. Pour consulter les données récentes, changez simplement de période ou rouvrez la rubrique sans forcer.`))return;
-  lastTopUsersForceRefreshAt=Date.now();
-  loadTopUsers(true);
+  // L'actualisation relit le cache partagé ; elle ne force pas un nouveau scan
+  // de toutes les commandes. Le classement du jour est un snapshot quotidien.
+  topUsersLoaded=false;
+  loadTopUsers(false);
+  showToast(topUsersPeriod==='today'
+    ? 'Classement du jour conservé en cache jusqu’à minuit pour protéger le quota Firestore.'
+    : 'Classement actualisé à partir des données mises en cache.');
 }
-
+function applyTopUsersFilter(){
+  topUsersLoaded=false;
+  loadTopUsers(false);
+}
 async function loadTopUsers(force=false){
   if(topUsersLoading)return;
   if(!force&&topUsersLoaded&&topUsersPeriod===lastTopUsersPeriod&&Date.now()-topUsersLoadedAt<CLIENT_TTL.topUsers)return;
@@ -2495,17 +2504,14 @@ L'équipe Social Boost Horizon`;
   }
 
   if(type==='relance'){
-    const lastConnection=info.lastActivityAt||info.lastSignIn||null;
     const lastOrder=info.lastOrderAt||null;
     const signupLine=signupDate?`Nous avons retrouvé votre inscription du ${signupDate}.`:'Nous avons retrouvé votre compte sur Social Boost Horizon.';
-    const connectionLine=lastConnection?`La dernière activité ou connexion enregistrée sur notre plateforme remonte au ${formatDate(lastConnection)}.`:'Nous ne disposons pas d’une date fiable pour votre dernière connexion.';
-    const orderLine=lastOrder?`Votre dernière commande enregistrée remonte au ${formatDate(lastOrder)}.`:'Nous n’avons pas retrouvé de date fiable pour votre dernière commande.';
+    const orderLine=lastOrder?`Votre dernière commande enregistrée remonte au ${formatDate(lastOrder)}.`:'À ce jour, aucune commande n’est enregistrée sur votre compte.';
     return `Bonjour ${n},
 
 Cela fait un moment que nous n’avons plus eu le plaisir de vous retrouver sur Social Boost Horizon, et nous souhaitions simplement prendre de vos nouvelles.
 
 ${signupLine}
-${connectionLine}
 ${orderLine}
 
 Nous aimerions savoir si tout s’est bien passé lors de votre dernière expérience. Avez-vous rencontré une difficulté, un problème de paiement, une incompréhension dans l’utilisation de la plateforme ou un service qui n’a pas répondu à vos attentes ?
