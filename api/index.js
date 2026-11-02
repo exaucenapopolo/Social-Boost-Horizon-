@@ -3553,8 +3553,11 @@ const allUsersCache = { data: null, expires: 0, lastRefresh: 0 };
 const usersCountRangeCache = new Map();
 const ALL_USERS_CACHE_TTL_MS = 60 * 60 * 1000;
 
-const topUsersTodayCache = { data: null, expires: 0, lastRefresh: 0 };
-const TOP_USERS_TODAY_CACHE_TTL_MS = 5 * 60 * 1000;
+const topUsersTodayCache = { data: null, expires: 0, lastRefresh: 0, dayKey: null };
+// Mutualise aussi les appels simultanés dans une même instance Vercel :
+// l'ouverture/actualisation répétée de la page ne relance pas le scan du jour.
+const topUsersTodayInFlight = new Map();
+const TOP_USERS_TODAY_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 // ✅ FIX #3 : Cache séparé pour les périodes personnalisées du top-users
 const topUsersCustomRangeCache = new Map();
@@ -3627,7 +3630,7 @@ async function getCollectionDateTypes(collectionName, dateField = null) {
   const key = `${collectionName}|${field}`;
   const cached = DATE_TYPE_CACHE.get(key);
   if (cached && cached.expires > Date.now()) return cached.types;
-  const sharedKey = `date-types-v2-${sha256Short(key)}`;
+  const sharedKey = `date-types-v3-${sha256Short(key)}`;
   try {
     const shared = await getSharedAdminCache(sharedKey);
     if (shared?.payload?.types?.length) {
@@ -3638,7 +3641,12 @@ async function getCollectionDateTypes(collectionName, dateField = null) {
   let types = ['timestamp', 'iso'];
   try {
     const sample = await db.collection(collectionName).limit(20).get();
-    if (!sample.empty) types = dateTypesFromRows(sample.docs.map(doc => doc.data() || {}), field);
+    if (!sample.empty) {
+      const detected = dateTypesFromRows(sample.docs.map(doc => doc.data() || {}), field);
+      // Ne pas supposer que les 20 premiers documents représentent tout
+      // l'historique : certains documents plus anciens utilisent un autre type.
+      types = [...new Set(['timestamp', 'iso', ...detected])];
+    }
   } catch (error) {
     console.warn(`[DateTypes] Échantillon indisponible ${collectionName}:`, error.message);
   }
@@ -3827,60 +3835,98 @@ async function getFinancialsForCollection(colName, start, end) {
   const dateField = await detectDateField(colName);
   const ref = db.collection(colName);
   const queries = [];
-  if (!start && !end) queries.push(ref);
-  else {
-    const schemaForDates = await getFinancialFieldSchema(colName);
-    buildDateRangeQueries(ref, dateField, start, end, schemaForDates.dateTypes).forEach(item => queries.push(item.query));
+
+  if (!start && !end) {
+    queries.push(ref);
+  } else {
+    // Une même collection peut contenir des dates Firestore Timestamp et des
+    // dates ISO historiques. On garde les deux formats connus, plus les types
+    // numériques réellement détectés, pour ne pas ignorer des commandes.
+    const detectedTypes = await getCollectionDateTypes(colName, dateField);
+    const types = [...new Set(['timestamp', 'iso', ...(detectedTypes || []).filter(t => t === 'seconds' || t === 'milliseconds')])];
+    queries.push(...buildDateRangeQueries(ref, dateField, start, end, types).map(x => x.query));
   }
 
-  const result = {
-    ordersCount: 0, sales: 0, supplierCost: 0, grossProfit: 0, refunds: 0,
-    aggregationUnavailable: false, costUnavailable: false,
+  const result = { ordersCount: 0, sales: 0, supplierCost: 0, grossProfit: 0, refunds: 0 };
+  let aggregationSucceeded = true;
+
+  // Une seule agrégation par type de date rassemble le nombre de commandes,
+  // les variantes historiques de ventes, les coûts, les marges et les retours.
+  const fields = {
+    ordersCount: admin.firestore.AggregateField.count(),
+    a: admin.firestore.AggregateField.sum('priceXAF'),
+    b: admin.firestore.AggregateField.sum('totalCost'),
+    c: admin.firestore.AggregateField.sum('finalCost'),
+    d: admin.firestore.AggregateField.sum('cost'),
+    e: admin.firestore.AggregateField.sum('amount'),
+    f: admin.firestore.AggregateField.sum('providerCostXAF'),
+    g: admin.firestore.AggregateField.sum('supplierCostXAF'),
+    h: admin.firestore.AggregateField.sum('estimatedProfitXAF'),
+    i: admin.firestore.AggregateField.sum('refundedAmount'),
+    j: admin.firestore.AggregateField.sum('refundAmount'),
   };
-  const schema = await getFinancialFieldSchema(colName);
-  const fields = { ordersCount: admin.firestore.AggregateField.count() };
-  if (schema.sales) fields.sumSales = admin.firestore.AggregateField.sum(schema.sales);
-  if (schema.supplierCost) fields.sumSupplierCost = admin.firestore.AggregateField.sum(schema.supplierCost);
-  else if (schema.profit) fields.sumProfit = admin.firestore.AggregateField.sum(schema.profit);
-  if (schema.refunds) fields.sumRefunds = admin.firestore.AggregateField.sum(schema.refunds);
 
-
-  let allQueriesSucceeded = true;
-  for (const q of queries) {
+  for (const query of queries) {
     try {
-      // Un seul appel d'agrégation renvoie le volume et toutes les sommes.
-      // Cela évite de lancer un count puis un aggregate identique.
-      const snap = await q.aggregate(fields).get();
+      const snap = await query.aggregate(fields).get();
       const d = snap.data() || {};
       result.ordersCount += Number(d.ordersCount || 0);
-      result.sales += Number(d.sumSales || 0);
-      result.supplierCost += Number(d.sumSupplierCost || 0);
-      result.grossProfit += Number(d.sumProfit || 0);
-      result.refunds += Number(d.sumRefunds || 0);
+      result.sales += Math.max(
+        Number(d.a || 0), Number(d.b || 0), Number(d.c || 0),
+        Number(d.d || 0), Number(d.e || 0)
+      );
+      result.supplierCost += Math.max(Number(d.f || 0), Number(d.g || 0));
+      result.grossProfit += Number(d.h || 0);
+      result.refunds += Math.max(Number(d.i || 0), Number(d.j || 0));
     } catch (error) {
-      allQueriesSucceeded = false;
-      console.warn(`[Fin] Agrégation indisponible pour ${colName}; aucun balayage documentaire ne sera déclenché:`, error.message);
+      aggregationSucceeded = false;
+      console.warn(`[Fin] Agrégation indisponible pour ${colName}; calcul de secours requis:`, error.message);
+      break;
     }
   }
 
-  result.aggregationUnavailable = !allQueriesSucceeded;
+  // Même règle que l'ancienne version fonctionnelle : lorsqu'une collection
+  // possède des ventes mais aucun coût/marge exploitable, recalculer les lignes
+  // avec les champs et multiplicateurs propres au fournisseur.
+  const needsFallback = !aggregationSucceeded ||
+    (result.sales > 0 && result.grossProfit === 0 && result.supplierCost === 0);
 
-  // Pour les données historiques qui enregistrent le profit mais pas le coût,
-  // on déduit le coût du chiffre d'affaires et du profit enregistré.
-  // La marge de gestion SBH reste ensuite calculée par ventes nettes - coûts.
-  if (result.supplierCost <= 0 && result.sales > 0 && result.grossProfit > 0 && result.grossProfit <= result.sales) {
-    result.supplierCost = Math.max(0, result.sales - result.grossProfit);
+  if (needsFallback) {
+    let memSales = 0, memCost = 0, memProfit = 0, memRefunds = 0, memOrders = 0;
+    for (const query of queries) {
+      try {
+        const orderField = (!start && !end) ? admin.firestore.FieldPath.documentId() : dateField;
+        let lastDoc = null;
+        while (true) {
+          let pageQuery = query.orderBy(orderField).limit(500);
+          if (lastDoc) pageQuery = pageQuery.startAfter(lastDoc);
+          const page = await pageQuery.get();
+          if (page.empty) break;
+          page.forEach(doc => {
+            const data = doc.data() || {};
+            const amount = getOrderAmountXAF(data, colName);
+            const fin = getOrderFinancials(data, null, colName);
+            memOrders++;
+            memSales += amount || 0;
+            memCost += fin.providerCostXAF || 0;
+            memProfit += fin.grossProfitXAF || 0;
+            memRefunds += fin.refundedAmount || 0;
+          });
+          lastDoc = page.docs[page.docs.length - 1];
+          if (page.size < 500) break;
+        }
+      } catch (error) {
+        console.warn(`[Fin] Lecture de secours échouée pour ${colName}:`, error.message);
+      }
+    }
+    result.ordersCount = memOrders || result.ordersCount;
+    result.sales = memSales;
+    result.supplierCost = memCost;
+    result.grossProfit = memProfit;
+    result.refunds = memRefunds;
+    console.log(`[Fin] Secours ${colName}: commandes=${result.ordersCount}, ventes=${memSales}, coût=${memCost}, marge=${memProfit}, remboursements=${memRefunds}`);
   }
 
-  // EXO est le seul fournisseur historique fixe de cette collection.
-  // Pour les autres collections, un coût absent reste signalé plutôt que
-  // d'inventer un coût moyen ou de relire des milliers de commandes.
-  if (result.supplierCost <= 0 && result.sales > 0 && colName === 'commandes') {
-    result.supplierCost = Math.max(0, Math.round(result.sales / EXO_MULTIPLIER));
-  }
-
-  result.costUnavailable = result.sales > 0 && result.supplierCost <= 0;
-  result.grossProfit = Math.max(0, result.sales - result.supplierCost);
   return result;
 }
 
@@ -3909,7 +3955,7 @@ async function getFinancialsAllCollections(start, end) {
     totalSales,
     totalRefunds,
     totalSupplierCost,
-    totalProfit: Math.max(0, totalSales - totalRefunds - totalSupplierCost),
+    totalProfit,
     netSales: Math.max(0, totalSales - totalRefunds),
     aggregationUnavailableCollections,
     costUnavailableCollections,
@@ -3926,7 +3972,7 @@ const FINANCIAL_AGGREGATE_INFLIGHT = new Map();
 
 async function getCachedFinancialAggregate(start, end, forceRefresh = false) {
   const key = `${start ? start.toISOString() : 'open'}|${end ? end.toISOString() : 'open'}`;
-  const cacheKey = `financial-aggregate-v3-${sha256Short(key)}`;
+  const cacheKey = `financial-aggregate-v4-${sha256Short(key)}`;
   const cached = financialRangeAggregateCache.get(key);
   if (!forceRefresh && cached && Date.now() < cached.expires) return cached.data;
   if (!forceRefresh) {
@@ -4115,14 +4161,85 @@ async function getTopUsersToday(forceRefresh = false) {
   const now = new Date();
   const local = new Date(now.getTime() + 60 * 60 * 1000);
   const todayStart = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) - 60 * 60 * 1000);
-  // Le cache partagé est commun aux instances Vercel; on évite un scan distinct
-  // par instance à chaque redéploiement ou changement d'instance.
-  const result = await getTopUsersInRange(todayStart, now, forceRefresh);
-  topUsersTodayCache.data = result;
-  topUsersTodayCache.expires = Date.now() + TOP_USERS_TODAY_CACHE_TTL_MS;
-  return result;
-}
+  const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  const dayKey = localDateKey(todayStart);
+  const sharedKey = `top-users-today-v2-${dayKey}`;
 
+  // Un seul parcours du jour par date. Le paramètre refresh du navigateur
+  // ne contourne volontairement pas ce verrou quotidien.
+  if (topUsersTodayCache.data && topUsersTodayCache.dayKey === dayKey && Date.now() < topUsersTodayCache.expires) {
+    return topUsersTodayCache.data;
+  }
+
+  const alreadyRunning = topUsersTodayInFlight.get(dayKey);
+  if (alreadyRunning) return alreadyRunning;
+
+  const computation = (async () => {
+    const cached = await getSharedAdminCache(sharedKey);
+    if (cached && Array.isArray(cached.payload)) {
+      topUsersTodayCache.data = cached.payload;
+      topUsersTodayCache.dayKey = dayKey;
+      topUsersTodayCache.expires = cached.expiresAtMs;
+      return cached.payload;
+    }
+
+    // Verrou Firestore commun à toutes les instances Vercel : deux instances
+    // démarrées en parallèle ne peuvent pas scanner les commandes du jour
+    // chacune de leur côté.
+    const dailyLockRef = db.collection('adminDashboardSettings').doc(`topUsersDailySnapshot-${dayKey}`);
+    let ownsLock = false;
+    await db.runTransaction(async tx => {
+      const lockSnap = await tx.get(dailyLockRef);
+      if (lockSnap.exists) return;
+      tx.create(dailyLockRef, {
+        dayKey,
+        status: 'running',
+        startedAt: admin.firestore.FieldValue.serverTimestamp(),
+        startedAtMs: Date.now(),
+      });
+      ownsLock = true;
+    });
+
+    if (!ownsLock) {
+      // Une autre instance est responsable du calcul. On attend brièvement
+      // son résultat partagé, sans démarrer un second parcours coûteux.
+      for (let attempt = 0; attempt < 8; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const ready = await getSharedAdminCache(sharedKey);
+        if (ready && Array.isArray(ready.payload)) {
+          topUsersTodayCache.data = ready.payload;
+          topUsersTodayCache.dayKey = dayKey;
+          topUsersTodayCache.expires = ready.expiresAtMs;
+          return ready.payload;
+        }
+      }
+      console.warn(`[TopUsers] Le snapshot du ${dayKey} est encore en cours dans une autre instance.`);
+      return [];
+    }
+
+    try {
+      const result = await computeTopUsersInRange(todayStart, now);
+      const ttl = Math.max(60 * 1000, tomorrowStart.getTime() - Date.now());
+      await setSharedAdminCache(sharedKey, result, ttl);
+      await dailyLockRef.set({ status: 'completed', completedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      topUsersTodayCache.data = result;
+      topUsersTodayCache.dayKey = dayKey;
+      topUsersTodayCache.expires = Date.now() + ttl;
+      topUsersTodayCache.lastRefresh = Date.now();
+      return result;
+    } catch (error) {
+      await dailyLockRef.set({ status: 'failed', failedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true }).catch(() => {});
+      throw error;
+    }
+  })();
+
+  topUsersTodayInFlight.set(dayKey, computation);
+  try {
+    return await computation;
+  } finally {
+    topUsersTodayInFlight.delete(dayKey);
+  }
+}
 async function getTopUsersInRange(dateStart, dateEnd, forceRefresh = false) {
   const now = Date.now();
   const cacheEnd = dateEnd ? Math.floor(dateEnd.getTime() / (5 * 60 * 1000)) * (5 * 60 * 1000) : 'x';
@@ -4303,8 +4420,7 @@ function getOrderAmountXAF(d = {}, collectionName = '') {
 // quand rawProvider est null (cas EXO)
 function getOrderFinancials(d = {}, rawProvider = null, collectionName = '') {
   const amount = getOrderAmountXAF(d, collectionName);
-  
-  // Résolution du provider : rawProvider > champ doc > KNOWN_PROVIDER_BY_COLLECTION > 'inconnu'
+
   let resolvedProvider = null;
   if (rawProvider) {
     resolvedProvider = rawProvider;
@@ -4313,19 +4429,62 @@ function getOrderFinancials(d = {}, rawProvider = null, collectionName = '') {
   } else if (collectionName && KNOWN_PROVIDER_BY_COLLECTION[collectionName]) {
     resolvedProvider = KNOWN_PROVIDER_BY_COLLECTION[collectionName];
   }
-  
+
   const provider = normalizeProvider(resolvedProvider);
   const storedMultiplier = Number(d.providerMultiplier || d.multiplier || 0);
   const multiplierByProvider = { MTP: MTP_MULTIPLIER, EXO: EXO_MULTIPLIER, AfriqueBoost: AFB_MULTIPLIER, SMMWiz: SMMWIZ_MULTIPLIER, SMMGen: SMMGEN_MULTIPLIER };
   const multiplier = storedMultiplier > 1 ? storedMultiplier : multiplierByProvider[provider];
-  const storedCost = d.providerCostXAF ?? d.supplierCostXAF ?? d.provider_cost_xaf ?? d.supplier_cost_xaf;
-  let providerCostXAF = storedCost !== undefined && storedCost !== null && Number.isFinite(Number(storedCost)) ? Math.max(0, Number(storedCost)) : null;
+  const costCandidates = [d.providerCostXAF, d.supplierCostXAF, d.provider_cost_xaf, d.supplier_cost_xaf]
+    .filter(value => value !== undefined && value !== null && value !== '' && Number.isFinite(Number(value)))
+    .map(value => Math.max(0, Number(value)));
+  const positiveStoredCost = costCandidates.find(value => value > 0);
+  let providerCostXAF = positiveStoredCost !== undefined
+    ? positiveStoredCost
+    : (costCandidates.length ? 0 : null);
   let providerCostEstimated = false;
-  if (providerCostXAF === null && amount !== null && multiplier && multiplier > 1) { providerCostXAF = Math.round(amount / multiplier); providerCostEstimated = true; }
-  let grossProfitXAF = d.estimatedProfitXAF !== undefined && d.estimatedProfitXAF !== null && Number.isFinite(Number(d.estimatedProfitXAF)) ? Number(d.estimatedProfitXAF) : (amount !== null && providerCostXAF !== null ? amount - providerCostXAF : null);
-  const profitEstimated = !(d.estimatedProfitXAF !== undefined && d.estimatedProfitXAF !== null && Number.isFinite(Number(d.estimatedProfitXAF))) && (providerCostEstimated || providerCostXAF === null || amount === null);
+
+  const storedProfit = d.estimatedProfitXAF;
+  const hasPositiveStoredProfit = storedProfit !== undefined && storedProfit !== null &&
+    Number.isFinite(Number(storedProfit)) && Number(storedProfit) > 0;
+
+  // Si la marge a été enregistrée mais pas le coût, le coût est déductible
+  // sans hypothèse : prix facturé moins marge enregistrée.
+  if ((providerCostXAF === null || providerCostXAF <= 0) && amount !== null && amount > 0 &&
+      hasPositiveStoredProfit && Number(storedProfit) < amount) {
+    providerCostXAF = amount - Number(storedProfit);
+    providerCostEstimated = true;
+  }
+
+  // Pour les petits montants, le coût enregistré peut être arrondi à zéro
+  // (ou égal au prix de vente). Avec un multiplicateur fournisseur connu,
+  // on reconstitue alors le coût au lieu d'afficher une marge nulle.
+  const invalidStoredCost = providerCostXAF === null || providerCostXAF <= 0 ||
+    (amount !== null && amount > 0 && providerCostXAF >= amount);
+  if (amount !== null && amount > 0 && multiplier && multiplier > 1 && invalidStoredCost) {
+    providerCostXAF = Math.min(amount, Math.max(0, Math.round(amount / multiplier)));
+    providerCostEstimated = true;
+  }
+
+  let grossProfitXAF = storedProfit !== undefined && storedProfit !== null && Number.isFinite(Number(storedProfit))
+    ? Number(storedProfit)
+    : (amount !== null && providerCostXAF !== null ? amount - providerCostXAF : null);
+
+  // Le champ estimatedProfitXAF peut être resté à zéro après un arrondi ancien.
+  // Recalculer seulement si le prix, le coût et le multiplicateur rendent une
+  // marge positive mathématiquement cohérente.
+  if (amount !== null && amount > 0 && providerCostXAF !== null &&
+      providerCostXAF < amount && (grossProfitXAF === null || grossProfitXAF <= 0)) {
+    grossProfitXAF = amount - providerCostXAF;
+    providerCostEstimated = true;
+  }
+
   const refundedAmount = Number(d.refundedAmount ?? d.refundAmount ?? 0) || 0;
-  return { amount, provider, providerCostXAF, grossProfitXAF, profitMarginPct: amount > 0 && grossProfitXAF !== null ? Math.round((grossProfitXAF / amount) * 10000) / 100 : null, providerCostEstimated, profitEstimated, multiplier: multiplier || null, refundedAmount };
+  return {
+    amount, provider, providerCostXAF, grossProfitXAF,
+    profitMarginPct: amount > 0 && grossProfitXAF !== null ? Math.round((grossProfitXAF / amount) * 10000) / 100 : null,
+    providerCostEstimated, profitEstimated: providerCostEstimated || grossProfitXAF === null,
+    multiplier: multiplier || null, refundedAmount,
+  };
 }
 
 // Version explicite des métriques clients : les classements et les fiches
@@ -4372,7 +4531,7 @@ function getCustomerOrderContribution(order = {}, collectionName = '') {
     order.provider || order.fournisseur || order.providerName || order.supplier || (collectionName === 'commandes' ? 'EXO' : null),
     collectionName
   );
-  const profitEligible = isCustomerMarginEligible(order);
+  const profitEligible = !isCustomerOrderExcluded(order);
   const profitKnown = profitEligible && financials.grossProfitXAF !== null &&
     financials.grossProfitXAF !== undefined && Number.isFinite(Number(financials.grossProfitXAF));
   return {
@@ -4458,7 +4617,7 @@ adminRouter.get('/overview', async (req, res) => {
     const cached = !forceRefresh ? memCacheGet(adminMemoryCache.overview) : null;
     if (cached) return res.json({ success: true, data: cached, cached: true });
     if (!forceRefresh) {
-      const shared = await getSharedAdminCache('overview-v2');
+      const shared = await getSharedAdminCache('overview-v3');
       if (shared) { memCacheSet(adminMemoryCache.overview, shared.payload, Math.max(1000, shared.expiresAtMs - Date.now())); return res.json({ success: true, data: shared.payload, cached: true, cacheScope: 'shared' }); }
     }
 
@@ -4584,7 +4743,7 @@ adminRouter.get('/overview', async (req, res) => {
       weekScope: 'newUsersThisWeek = lundi 00:00 (UTC+1) → maintenant. newUsersLastWeek = lundi précédent → lundi de cette semaine.',
     };
     memCacheSet(adminMemoryCache.overview, data, 30 * 60 * 1000);
-    await setSharedAdminCache('overview-v2', data, 30 * 60 * 1000);
+    await setSharedAdminCache('overview-v3', data, 30 * 60 * 1000);
     res.json({ success: true, data, cached: false });
   } catch (error) {
     console.error('Erreur /overview:', error);
@@ -4906,17 +5065,27 @@ adminRouter.get('/orders', async (req, res) => {
 
     collected.sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt));
 
+    // Pour une recherche par date sans filtre additionnel, le total vient des
+    // agrégations Firestore de chaque collection, pas du petit lot chargé pour
+    // afficher la page. Cela évite d'annoncer 3 ou 10 commandes quand il y en a
+    // davantage dans la journée.
+    let exactRangeTotal = null;
+    if (dateStart && dateEnd && !userId && (!statusFilter || statusFilter === 'all') && (!providerFilter || providerFilter === 'all')) {
+      const counts = await Promise.all(ADMIN_ORDER_COLLECTIONS.map(name => countOrdersInWindow(name, dateStart, dateEnd)));
+      exactRangeTotal = counts.reduce((sum, n) => sum + Number(n || 0), 0);
+    }
+
     if (!ordersCache.data) ordersCache.data = {};
     ordersCache.data[cacheKey] = { orders: collected, expires: Date.now() + ORDERS_CACHE_TTL_MS };
 
     const slice = collected.slice(offset, offset + limit);
     const enriched = await enrichAdminOrderUsers(slice);
     const response = {
-      success: true, orders: enriched, total: collected.length, offset, limit,
+      success: true, orders: enriched, total: exactRangeTotal === null ? collected.length : exactRangeTotal, offset, limit,
       hasMore: offset + limit < collected.length,
       pageSizePerCollection: pageFetchLimit, collections: ADMIN_ORDER_COLLECTIONS,
       providerFilter: providerFilter || null,
-      totalIsLoadedWindow: true,
+      totalIsLoadedWindow: exactRangeTotal === null,
     };
     if (!ordersCache.data) ordersCache.data = {};
     ordersCache.data[cacheKey] = { orders: collected, expires: Date.now() + ORDERS_CACHE_TTL_MS };
@@ -5321,8 +5490,36 @@ function formatCustomerFromUser(u, metricsReady) {
 }
 
 adminRouter.post('/customers/rebuild-order-metrics', async (req, res) => {
+  let rebuildLockRef = null;
+  let rebuildDayKey = localDateKey(new Date());
   try {
     if (req.body?.confirm !== true) return res.status(400).json({ success: false, error: 'Confirmation explicite requise.' });
+
+    // La reconstruction complète peut parcourir tout l'historique. Une
+    // transaction Firestore interdit une seconde tentative le même jour,
+    // même si une autre instance Vercel reçoit la requête.
+    rebuildLockRef = db.collection('adminDashboardSettings').doc('customerOrderMetricsRebuildLock');
+    let alreadyAttemptedToday = false;
+    await db.runTransaction(async tx => {
+      const lockSnap = await tx.get(rebuildLockRef);
+      const lockData = lockSnap.exists ? (lockSnap.data() || {}) : {};
+      if (lockData.dayKey === rebuildDayKey) {
+        alreadyAttemptedToday = true;
+        return;
+      }
+      tx.set(rebuildLockRef, {
+        dayKey: rebuildDayKey,
+        status: 'running',
+        startedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+    });
+    if (alreadyAttemptedToday) {
+      return res.status(429).json({
+        success: false,
+        code: 'DAILY_REBUILD_LIMIT',
+        error: 'Le recalcul historique a déjà été lancé aujourd’hui. Pour protéger le quota Firestore, une seule tentative est autorisée par jour. Réessayez demain.',
+      });
+    }
     // Empêche de présenter un ancien classement comme exact pendant un recalcul.
     await setSharedAdminCache('customerOrderMetricsState', {
       version: 1, rebuilding: true, startedAt: new Date().toISOString(),
@@ -5425,8 +5622,13 @@ adminRouter.post('/customers/rebuild-order-metrics', async (req, res) => {
     await setSharedAdminCache('customerOrderMetricsState', {
       version: CUSTOMER_ORDER_METRICS_VERSION, completedAt, ordersRead, usersRead, changed,
       unattributedOrders, unattributedAmounts, excludedOrders,
-      rule: 'Commandes en attente, en cours et terminées incluses dans le volume et les dépenses ; annulations/rejets exclus. Marge calculée sur les commandes éligibles (succès, terminées, en cours).',
+      rule: 'Commandes payées en attente, en cours et terminées incluses dans le volume, les dépenses et la marge ; annulations/rejets exclus. Les coûts manquants sont estimés avec le multiplicateur fournisseur connu.',
     }, 60 * 60 * 24 * 365 * 1000);
+
+    await rebuildLockRef.set({
+      dayKey: rebuildDayKey, status: 'completed', completedAt,
+      ordersRead, usersRead, changed,
+    }, { merge: true });
 
     await Promise.all(['overview','topUsers','usersStats'].map(key => setSharedAdminCache(key, null, 1000)));
     rebuiltUsersCache.sort((a, b) => b._createdAtMs - a._createdAtMs);
@@ -5469,7 +5671,12 @@ adminRouter.post('/customers/rebuild-order-metrics', async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur rebuild adminOrderMetrics:', error);
-    return res.status(500).json({ success: false, error: 'Le recalcul historique a échoué. Aucun chiffre ne sera présenté comme recalculé.' });
+    if (rebuildLockRef) {
+      try {
+        await rebuildLockRef.set({ dayKey: rebuildDayKey, status: 'failed', failedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      } catch (_) {}
+    }
+    return res.status(500).json({ success: false, error: 'Le recalcul historique a échoué. Pour protéger le quota, une nouvelle tentative ne sera possible que demain.' });
   }
 });
 
@@ -6169,7 +6376,7 @@ adminRouter.get('/financials', async (req, res) => {
     const cacheKey = isCustom
       ? `financials:custom:${bounds.start.toISOString()}:${bounds.end.toISOString()}:${bounds.previousStart.toISOString()}:${bounds.previousEnd.toISOString()}`
       : `financials:${range}`;
-    const sharedKey = `financials-response-v2-${sha256Short(cacheKey)}`;
+    const sharedKey = `financials-response-v3-${sha256Short(cacheKey)}`;
     const cached = adminMemoryCache.financialsMap.get(cacheKey);
     if (!forceRefresh && cached && Date.now() < cached.expires) {
       return res.json({ success: true, data: cached.data, previous: cached.previous, cached: true, cacheScope: 'instance' });
@@ -6260,7 +6467,7 @@ adminRouter.get('/overview-range', async (req, res) => {
     }
     const forceRefresh = String(req.query.refresh || '') === '1';
     const key = `${start.toISOString()}|${end.toISOString()}|${previousStart.toISOString()}|${previousEnd.toISOString()}`;
-    const sharedKey = `overview-range-response-v2-${sha256Short(key)}`;
+    const sharedKey = `overview-range-response-v3-${sha256Short(key)}`;
     const cached = overviewRangeResponseCache.get(key);
     if (!forceRefresh && cached && Date.now() < cached.expires) {
       return res.json({ success: true, data: cached.data, previous: cached.previous, cached: true, cacheScope: 'instance' });
