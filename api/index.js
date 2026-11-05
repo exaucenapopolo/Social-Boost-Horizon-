@@ -4490,7 +4490,7 @@ function getOrderFinancials(d = {}, rawProvider = null, collectionName = '') {
 // Version explicite des métriques clients : les classements et les fiches
 // doivent provenir de la même reconstruction avant d'être présentés comme exacts.
 const CUSTOMER_ORDER_METRICS_VERSION = 3;
-const CUSTOMER_ORDER_OWNER_FIELDS = ['userId', 'uid', 'user_id', 'customerId', 'customerUid', 'ownerId', 'ownerUid', 'buyerId', 'buyerUid', 'clientId', 'clientUid', 'creatorId', 'createdBy'];
+const CUSTOMER_ORDER_OWNER_FIELDS = ['userId', 'uid', 'user_id', 'customerId', 'customerUid'];
 
 function normalizeCustomerOrderStatus(order = {}) {
   return String(order.status || order.orderStatus || order.state || '')
@@ -5034,22 +5034,6 @@ adminRouter.get('/orders', async (req, res) => {
             console.warn(`[Orders] orderBy ${dateField} échoué sur ${collectionName}:`, orderErr.message);
           }
         }
-        if (!docsMap.size && !userId && !dateStart && !dateEnd && (!statusFilter || statusFilter === 'all') && (!providerFilter || providerFilter === 'all')) {
-          try {
-            const fallbackSnap = await ref.limit(pageFetchLimit).get();
-            fallbackSnap.docs.forEach(d => docsMap.set(d.id, d));
-          } catch (plainErr) {
-            console.warn(`[Orders] fallback simple limit ${collectionName}:`, plainErr.message);
-          }
-        }
-        if (!docsMap.size && !userId && !dateStart && !dateEnd && (!statusFilter || statusFilter === 'all') && (!providerFilter || providerFilter === 'all')) {
-          try {
-            const ultraFallbackSnap = await ref.get();
-            ultraFallbackSnap.docs.forEach(d => docsMap.set(d.id, d));
-          } catch (allErr) {
-            console.warn(`[Orders] fallback complet ${collectionName}:`, allErr.message);
-          }
-        }
         const docs = [...docsMap.values()];
 
         for (const doc of docs) {
@@ -5122,325 +5106,18 @@ async function enrichAdminOrderUsers(orders) {
   return orders.map(o=>{const u=adminOrderUserCache.get(o.userId)||{};return {...o,userName:u.name||null,userEmail:u.email||null,userPhone:u.phone||null};});
 }
 
-
 function normalizeAdminOrder(doc, collectionName) {
-  const data = (doc && typeof doc.data === 'function' ? doc.data() : {}) || {};
-  const ownerId = pickOrderOwnerId(data);
-  const provider = String(data.provider || data.providerName || data.fournisseur || data.vendor || data.partner || data.api || collectionName || '').trim() || collectionName || 'unknown';
-  const rawStatus = data.status || data.orderStatus || data.state || data.etat || data.paymentStatus || data.deliveryStatus || '';
-  const createdAt = data.createdAt || data.created_at || data.date || data.timestamp || data.dateCreated || data.orderDate || data.order_date || null;
-  const userEmail = data.customerEmail || data.customer_email || data.email || data.userEmail || null;
-  const userName = data.userName || data.customerName || data.name || data.fullName || data.clientName || data.client || (userEmail ? String(userEmail).split('@')[0] : null) || (ownerId ? String(ownerId).split('@')[0] : null) || 'Client';
-  const serviceName = data.serviceName || data.service || data.productName || data.itemName || data.title || data.packageName || null;
-  const orderId = data.orderId || data.id || doc.id;
-  const providerRef = pickOrderProviderReference(data);
-
-  return {
-    ...data,
-    id: doc.id,
-    collection: collectionName,
-    orderId,
-    userId: ownerId || data.userId || data.uid || data.customerId || data.customerUid || null,
-    userName,
-    userEmail,
-    userPhone: data.phone || data.customerPhone || data.whatsapp || data.whatsappNumber || data.userPhone || null,
-    serviceName,
-    provider,
-    providerOrderId: providerRef,
-    status: normalizeAdminOrderStatus(provider, rawStatus),
-    createdAt,
-  };
-}
-
-function normalizeAdminStatusValue(value) {
-  return String(value || '').trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-}
-
-function pickOrderOwnerId(order = {}) {
-  return order.userId || order.uid || order.user_id || order.customerId || order.customerUid || order.ownerId || order.ownerUid || order.buyerId || order.buyerUid || order.clientId || order.clientUid || order.creatorId || order.createdBy || null;
-}
-
-function pickOrderProviderReference(order = {}) {
-  return order.providerOrderId || order.exoOrderId || order.externalOrderId || order.providerId || order.orderId || order.reference || order.transactionId || null;
-}
-
-function normalizeAdminOrderStatus(provider, rawStatus) {
-  const s = normalizeAdminStatusValue(rawStatus);
-  const map = {
-    pending: 'En attente',
-    processing: 'En cours',
-    inprogress: 'En cours',
-    'in progress': 'En cours',
-    completed: 'Terminé',
-    complete: 'Terminé',
-    done: 'Terminé',
-    delivered: 'Terminé',
-    success: 'Terminé',
-    successful: 'Terminé',
-    succeeded: 'Terminé',
-    paid: 'Terminé',
-    partial: 'Partiel',
-    canceled: 'Annulé',
-    cancelled: 'Annulé',
-    reject: 'Annulé',
-    rejected: 'Annulé',
-    failed: 'Échoué',
-    failure: 'Échoué',
-    error: 'Échoué',
-  };
-  if (provider === 'SMMGen') return 'SMMGen fermé';
-  return map[s] || (rawStatus || 'En attente');
-}
-
-function orderRefundAmountFromData(orderData = {}, status = '', remains = 0) {
-  const totalCost = Number(orderData.priceXAF || orderData.totalCost || orderData.finalCost || orderData.cost || orderData.amount || 0) || 0;
-  if (!totalCost) return 0;
-  const qty = Number(orderData.quantity || 1) || 1;
-  const friendly = normalizeAdminStatusValue(status);
-  if (friendly.includes('partiel') || friendly.includes('partial')) {
-    const rem = Number(remains || qty) || qty;
-    return Math.max(0, Math.round((rem / qty) * totalCost));
-  }
-  if (friendly.includes('annul') || friendly.includes('cancel') || friendly.includes('rej') || friendly.includes('failed') || friendly.includes('échou')) {
-    return totalCost;
-  }
-  return 0;
-}
-
-async function applyOrderRefund(orderRef, ownerId, provider, transactionLabel, refundAmount, nextStatus, extraUpdates = {}) {
-  if (!refundAmount || refundAmount <= 0) {
-    await orderRef.update({ ...extraUpdates, status: nextStatus, lastChecked: admin.firestore.FieldValue.serverTimestamp() });
-    return false;
-  }
-  await db.runTransaction(async (t) => {
-    const freshOrder = await t.get(orderRef);
-    if (!freshOrder.exists) return;
-    const freshData = freshOrder.data() || {};
-    const alreadyRefunded = Boolean(freshData.refunded || freshData.isRefunded || freshData.refund);
-    if (alreadyRefunded) {
-      t.update(orderRef, { ...extraUpdates, status: nextStatus, lastChecked: admin.firestore.FieldValue.serverTimestamp() });
-      return;
-    }
-    const userRef = ownerId ? db.collection('users').doc(ownerId) : null;
-    let balanceBefore = 0;
-    let balanceAfter = refundAmount;
-    if (userRef) {
-      const userDoc = await t.get(userRef);
-      balanceBefore = userDoc.exists ? Number(userDoc.data().balance || 0) : 0;
-      balanceAfter = balanceBefore + refundAmount;
-      if (userDoc.exists) t.update(userRef, { balance: balanceAfter });
-      else t.set(userRef, { balance: balanceAfter }, { merge: true });
-    }
-    addAdminOperationLog(t, { type: 'order_refund', category: 'remboursement', action: 'Remboursement de commande', userId: ownerId || null, amountXAF: refundAmount, provider, transactionId: transactionLabel, status: 'CONFIRMED', balanceBefore, balanceAfter, source: 'admin-status-check' });
-    t.update(orderRef, { ...extraUpdates, status: nextStatus, refunded: true, refundedAmount: refundAmount, lastChecked: admin.firestore.FieldValue.serverTimestamp() });
-  });
-  return true;
-}
-
-async function verifyAdminOrderDocument(orderRef, orderData = {}, collectionName = '') {
-  const provider = normalizeProvider(orderData.provider || orderData.fournisseur || orderData.providerName || orderData.supplier || orderData.api || (collectionName === 'commandes' ? 'EXO' : null));
-  const providerOrderId = pickOrderProviderReference(orderData);
-  if (!providerOrderId && provider !== 'SMMGen') {
-    throw new Error('Aucune référence fournisseur trouvée pour cette commande.');
-  }
-  const ownerId = pickOrderOwnerId(orderData);
-  let providerStatus = null;
-  let startCount = Number(orderData.providerStartCount || 0) || 0;
-  let remains = Number(orderData.providerRemains || 0) || 0;
-  let charge = Number(orderData.providerCharge || 0) || 0;
-  let mappedStatus = 'En attente';
-  let extraUpdates = {};
-
-  if (provider === 'EXO') {
-    const result = await callExo({ action: 'status', order: orderData.exoOrderId || providerOrderId });
-    if (result.error) throw new Error('Erreur EXO: ' + result.error);
-    providerStatus = result.status;
-    mappedStatus = normalizeAdminOrderStatus(provider, providerStatus);
-    remains = parseInt(result.remains) || 0;
-    startCount = parseInt(result.start_count) || 0;
-    extraUpdates = { providerStartCount: startCount, providerRemains: remains };
-  } else if (provider === 'MTP') {
-    const result = await callMTP({ action: 'status', order: providerOrderId });
-    if (result.error) throw new Error('Erreur MTP: ' + result.error);
-    providerStatus = result.status;
-    mappedStatus = normalizeAdminOrderStatus(provider, providerStatus);
-    remains = parseInt(result.remains) || 0;
-    startCount = parseInt(result.start_count) || 0;
-    extraUpdates = { providerStartCount: startCount, providerRemains: remains };
-  } else if (provider === 'AfriqueBoost') {
-    const result = await callAfriqueBoost({ action: 'status', order: providerOrderId });
-    if (result.error) throw new Error('Erreur AfriqueBoost: ' + result.error);
-    providerStatus = result.status;
-    mappedStatus = normalizeAdminOrderStatus(provider, providerStatus);
-    remains = parseInt(result.remains) || 0;
-    startCount = parseInt(result.start_count) || 0;
-    extraUpdates = { providerStartCount: startCount, providerRemains: remains };
-  } else if (provider === 'SMMWiz') {
-    const result = await callSmmWiz({ action: 'status', order: providerOrderId });
-    if (result.error) throw new Error('Erreur SMMWiz: ' + result.error);
-    providerStatus = result.status;
-    mappedStatus = normalizeAdminOrderStatus(provider, providerStatus);
-    remains = parseInt(result.remains) || 0;
-    startCount = parseInt(result.start_count) || 0;
-    charge = parseFloat(result.charge) || 0;
-    extraUpdates = { providerStartCount: startCount, providerRemains: remains, providerCharge: charge };
-  } else if (provider === 'SMMGen') {
-    throw new Error('SMMGen est un ancien fournisseur inactif : aucune vérification disponible.');
-  } else {
-    const result = await callMTP({ action: 'status', order: providerOrderId });
-    if (result.error) throw new Error('Erreur fournisseur: ' + result.error);
-    providerStatus = result.status;
-    mappedStatus = normalizeAdminOrderStatus(provider, providerStatus);
-    remains = parseInt(result.remains) || 0;
-    startCount = parseInt(result.start_count) || 0;
-    extraUpdates = { providerStartCount: startCount, providerRemains: remains };
-  }
-
-  const refundAmount = orderRefundAmountFromData(orderData, mappedStatus, remains);
-  const label = orderData.orderId || orderData.reference || orderData.id || providerOrderId || orderRef.id;
-  if (refundAmount > 0) {
-    await applyOrderRefund(orderRef, ownerId, provider, label, refundAmount, mappedStatus, extraUpdates);
-  } else {
-    await orderRef.update({ status: mappedStatus, lastChecked: admin.firestore.FieldValue.serverTimestamp(), ...extraUpdates });
-  }
-
-  const updated = await orderRef.get();
-  return { providerStatus, status: mappedStatus, refunded: refundAmount > 0, refundAmount, order: normalizeAdminOrder(updated, collectionName) };
-}
-
-async function creditSwychrDeposit(transRef, transData, txId, statusLabel = 'CONFIRMED') {
-  const userId = transData.userId || transData.uid || transData.customerId || null;
-  const amountXAF = Number(transData.amountXAF || transData.creditedAmountXAF || transData.amount || transData.total || 0) || 0;
-  if (!userId || amountXAF <= 0) {
-    await transRef.update({ status: statusLabel, lastChecked: admin.firestore.FieldValue.serverTimestamp() });
-    return false;
-  }
-  let credited = false;
-  let balanceBefore = 0;
-  let balanceAfter = 0;
-  await db.runTransaction(async (t) => {
-    const freshTrans = await t.get(transRef);
-    if (!freshTrans.exists) return;
-    const freshData = freshTrans.data() || {};
-    const alreadyCredited = Boolean(freshData.creditedAt || freshData.creditApplied || freshData.dateConfirmed);
-    if (alreadyCredited) return;
-    const userRef = db.collection('users').doc(userId);
-    const userDoc = await t.get(userRef);
-    balanceBefore = userDoc.exists ? Number(userDoc.data().balance || 0) : 0;
-    balanceAfter = balanceBefore + amountXAF;
-    if (userDoc.exists) t.update(userRef, { balance: balanceAfter });
-    else t.set(userRef, { balance: balanceAfter }, { merge: true });
-    t.update(transRef, { status: statusLabel, lastChecked: admin.firestore.FieldValue.serverTimestamp(), creditedAmountXAF: amountXAF, creditedAt: admin.firestore.FieldValue.serverTimestamp(), creditApplied: true });
-    credited = true;
-    if (transData.storeId && transData.email) {
-      const storeCustomerRef = db.collection('stores').doc(String(transData.storeId)).collection('customers').doc(String(transData.email));
-      const storeCustomerDoc = await t.get(storeCustomerRef);
-      const storeBalanceBefore = storeCustomerDoc.exists ? Number(storeCustomerDoc.data().balance || 0) : 0;
-      t.set(storeCustomerRef, { balance: storeBalanceBefore + amountXAF }, { merge: true });
-    }
-  });
-  if (credited) {
-    await recordDailyDepositCredit(userId, amountXAF, 'Swychr', txId, balanceBefore, balanceAfter);
-    await upsertDepositOperationLog({ provider: 'Swychr', transactionId: txId, userId, amountXAF, status: 'CONFIRMED', action: 'Recharge créditée', balanceBefore, balanceAfter, source: 'admin-status-check' });
-  }
-  return credited;
-}
-
-async function verifyAdminDepositDocument(transRef, transData = {}, sourceName = '') {
-  const source = String(sourceName || '').toLowerCase();
-  const provider = String(transData.provider || transData.providerName || transData.fournisseur || transData.api || (source === 'paymenttransactions' ? 'NelsiusPay' : source === 'fapshitransactions' ? 'Fapshi' : 'Swychr')).trim() || 'Swychr';
-  const txId = transData.reference || transData.transactionId || transData.transactionID || transData.transId || transRef.id;
-
-  if (source === 'paymenttransactions' || provider.toLowerCase().includes('nelsius') || provider.toLowerCase().includes('nelsius')) {
-    const nelsiusStatusResp = await callNelsiusPay(`/payments/${encodeURIComponent(txId)}`, 'GET');
-    if (!nelsiusStatusResp.ok) {
-      throw new Error(nelsiusStatusResp.status === 404 ? 'Transaction non trouvée chez le fournisseur.' : (nelsiusStatusResp.data?.message || `Erreur de vérification (HTTP ${nelsiusStatusResp.status})`));
-    }
-    const nelsiusData = nelsiusStatusResp.data?.data || nelsiusStatusResp.data;
-    const providerStatus = String(nelsiusData?.status || 'pending').toLowerCase();
-    const internalStatus = normalizeNelsiusStatus(providerStatus);
-    const providerAmount = Number(nelsiusData?.amount) || transData.providerAmount || 0;
-    const providerCurrency = (nelsiusData?.currency || transData.providerCurrency || 'XAF').toUpperCase();
-    const transactionCode = nelsiusData?.transaction_code || transData.transactionCode || null;
-    await transRef.update({ status: internalStatus, transactionCode, providerAmount, providerCurrency, lastChecked: admin.firestore.FieldValue.serverTimestamp() });
-    if (internalStatus === 'CONFIRMED') {
-      await creditUserIfNeeded(transRef.id, transData.userId || transData.uid, { ...transData, creditedAmountXAF: Number(transData.creditedAmountXAF || transData.amountXAF || providerAmount || 0) });
-    }
-    return { status: internalStatus, transactionCode };
-  }
-
-  if (source === 'fapshitransactions' || provider.toLowerCase().includes('fapshi')) {
-    const fapshiTransId = transData.fapshiTransId || txId;
-    const API_USER = process.env.FAPSHI_API_USER;
-    const SECRET_KEY = process.env.FAPSHI_SECRET_KEY;
-    if (!API_USER || !SECRET_KEY) throw new Error('Configuration Fapshi incomplète.');
-    const fapshiRes = await fetch(`https://live.fapshi.com/payment-status/${fapshiTransId}`, { headers: { 'apiuser': API_USER, 'apikey': SECRET_KEY, 'Content-Type': 'application/json' } });
-    if (!fapshiRes.ok) throw new Error(`Fapshi API error: ${fapshiRes.status} - ${await fapshiRes.text()}`);
-    const fapshiData = await fapshiRes.json();
-    const statusUpper = String(fapshiData.status || 'PENDING').toUpperCase();
-    if (statusUpper === 'SUCCESSFUL') {
-      const amountToCredit = Number(transData.amount || transData.creditedAmountXAF || 0);
-      if (amountToCredit > 0) {
-        const userRef = db.collection('users').doc(transData.userId || transData.uid);
-        let balanceBefore = 0, balanceAfter = amountToCredit;
-        await db.runTransaction(async (t) => {
-          const userDoc = await t.get(userRef);
-          balanceBefore = userDoc.exists ? Number(userDoc.data().balance || 0) : 0;
-          balanceAfter = balanceBefore + amountToCredit;
-          if (userDoc.exists) t.update(userRef, { balance: balanceAfter }); else t.set(userRef, { balance: balanceAfter }, { merge: true });
-          t.update(transRef, { status: 'CONFIRMED', dateConfirmed: admin.firestore.FieldValue.serverTimestamp(), lastChecked: admin.firestore.FieldValue.serverTimestamp() });
-        });
-        await recordDailyDepositCredit(transData.userId || transData.uid, amountToCredit, 'Fapshi', txId, balanceBefore, balanceAfter);
-        await bumpDailyCounter('deposits');
-        return { status: 'CONFIRMED' };
-      }
-      await transRef.update({ status: 'FAILED', lastChecked: admin.firestore.FieldValue.serverTimestamp() });
-      return { status: 'FAILED' };
-    }
-    if (statusUpper === 'PENDING' || statusUpper === 'WAITING' || statusUpper === 'INITIATED') {
-      await transRef.update({ status: 'PENDING', lastChecked: admin.firestore.FieldValue.serverTimestamp() });
-      return { status: 'PENDING' };
-    }
-    if (statusUpper === 'FAILED' || statusUpper === 'EXPIRED' || statusUpper === 'CANCELED' || statusUpper === 'REVERSED') {
-      await transRef.update({ status: 'FAILED', lastChecked: admin.firestore.FieldValue.serverTimestamp() });
-      return { status: 'FAILED' };
-    }
-    await transRef.update({ status: statusUpper, lastChecked: admin.firestore.FieldValue.serverTimestamp() });
-    return { status: statusUpper };
-  }
-
-  if (source === 'transactions' || source === 'payments' || source === 'rechargements' || source === 'recharges' || provider.toLowerCase().includes('swychr')) {
-    const authRes = await fetch('https://api.accountpe.com/api/payin/admin/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: process.env.ACCOUNTPE_USERNAME, password: process.env.ACCOUNTPE_PASSWORD })
-    });
-    const authData = await authRes.json();
-    if (!authData.token) throw new Error('Échec authentification Swychr : Token introuvable');
-    const statusRes = await fetch('https://api.accountpe.com/api/payin/payment_link_status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authData.token}` },
-      body: JSON.stringify({ transaction_id: txId })
-    });
-    const textResponse = await statusRes.text();
-    let statusData;
-    try { statusData = JSON.parse(textResponse); } catch { throw new Error('Réponse API Swychr invalide (non JSON)'); }
-    const attributes = statusData?.data?.data?.attributes || statusData?.data?.attributes || {};
-    const rawStatus = String(attributes.status || 'inconnu').toLowerCase().trim();
-    const statusSucces = ['1', 'success', 'completed', 'terminé', 'succès', 'reussi', 'successful', 'paid'];
-    const statusEchec = ['-1', '2', 'failed', 'echec', 'annulé', 'cancelled', 'rejected', 'error'];
-    let interpretedStatus = 'PENDING';
-    if (statusSucces.includes(rawStatus)) interpretedStatus = 'CONFIRMED';
-    else if (statusEchec.includes(rawStatus)) interpretedStatus = 'FAILED';
-    else interpretedStatus = 'PENDING';
-    await transRef.update({ status: interpretedStatus, verifiedBy: 'admin_direct_check', lastChecked: admin.firestore.FieldValue.serverTimestamp() });
-    if (interpretedStatus === 'CONFIRMED') {
-      await creditSwychrDeposit(transRef, transData, txId, 'CONFIRMED');
-    }
-    return { status: interpretedStatus };
-  }
-
-  throw new Error(`Source de recharge non supportée pour vérification: ${sourceName || 'inconnu'}`);
+  const d = doc.data() || {}; const rawProvider = d.provider || d.fournisseur || d.providerName || d.supplier || d.api || (collectionName === 'commandes' ? 'EXO' : null);
+  const financials = getOrderFinancials(d, rawProvider, collectionName);
+  return { id:doc.id, collection:collectionName, orderId:d.orderId||d.reference||d.order_id||doc.id,
+    userId:d.userId||d.uid||d.user_id||d.customerId||null, provider:financials.provider, providerRaw:rawProvider,
+    serviceId:d.serviceId??d.service_id??d.service??null, serviceName:d.serviceName||d.service_name||d.name||d.serviceTitle||'Service',
+    serviceType:d.serviceType||d.service_type||d.type||null,
+    platform:d.platform||null, link:d.link||d.targetLink||d.target||null, quantity:Number(d.quantity||d.qty||0),
+    amount:financials.amount, providerCostXAF:financials.providerCostXAF, grossProfitXAF:financials.grossProfitXAF,
+    profitMarginPct:financials.profitMarginPct, providerCostEstimated:financials.providerCostEstimated, profitEstimated:financials.profitEstimated, multiplier:financials.multiplier,
+    status:d.status||d.orderStatus||d.state||'Inconnu', refunded:Boolean(d.refunded||d.isRefunded||d.refund), refundedAmount:financials.refundedAmount,
+    createdAt:d.createdAt||d.date||d.dateCreated||d.created_at||d.timestamp||null };
 }
 
 // ✅ STORES: ne force pas la date, tri en mémoire
@@ -5553,22 +5230,6 @@ adminRouter.get('/operations', async (req, res) => {
   } catch (error) {
     console.error('Erreur /operations:', error);
     return res.status(500).json({ success: false, error: 'Impossible de charger le journal des opérations.' });
-  }
-});
-
-
-adminRouter.post('/orders/:collection/:docId/verify-status', async (req, res) => {
-  try {
-    const collection = String(req.params.collection || '').trim();
-    const docId = String(req.params.docId || '').trim();
-    if (!collection || !docId) return res.status(400).json({ success: false, error: 'Commande invalide.' });
-    const orderRef = db.collection(collection).doc(docId);
-    const orderDoc = await orderRef.get();
-    if (!orderDoc.exists) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
-    const result = await verifyAdminOrderDocument(orderRef, orderDoc.data() || {}, collection);
-    return res.json({ success: true, ...result, message: `Commande ${docId} vérifiée.` });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -6058,22 +5719,6 @@ adminRouter.post('/customers/:id/email', async (req, res) => {
   } catch (error) {
     console.error('Erreur /api/admin/customers/:id/email:', error);
     return res.status(500).json({ success: false, error: 'Impossible d’envoyer cet email.' });
-  }
-});
-
-
-adminRouter.post('/deposits/:source/:docId/verify-status', async (req, res) => {
-  try {
-    const source = String(req.params.source || '').trim();
-    const docId = String(req.params.docId || '').trim();
-    if (!source || !docId) return res.status(400).json({ success: false, error: 'Recharge invalide.' });
-    const transRef = db.collection(source).doc(docId);
-    const transDoc = await transRef.get();
-    if (!transDoc.exists) return res.status(404).json({ success: false, error: 'Transaction introuvable.' });
-    const result = await verifyAdminDepositDocument(transRef, transDoc.data() || {}, source);
-    return res.json({ success: true, ...result, transaction: { id: transDoc.id, ...transDoc.data() }, message: `Recharge ${docId} vérifiée.` });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
   }
 });
 
