@@ -781,12 +781,13 @@ textarea.msg-area:focus{border-color:var(--gold)}
         <div class="table-wrap">
           <table>
             <thead><tr><th>ID</th><th>Fournisseur</th><th>Nom</th>
-              <th onclick="sortServices('providerCost')" style="cursor:pointer;">Coût <i class="fas fa-sort" style="opacity:.4;font-size:.65rem;"></i></th>
-              <th onclick="sortServices('finalPrice')" style="cursor:pointer;">Prix final <i class="fas fa-sort" style="opacity:.4;font-size:.65rem;"></i></th>
-              <th onclick="sortServices('profit')" style="cursor:pointer;">Bénéfice <i class="fas fa-sort" style="opacity:.4;font-size:.65rem;"></i></th>
-              <th onclick="sortServices('profitMargin')" style="cursor:pointer;">Marge <i class="fas fa-sort" style="opacity:.4;font-size:.65rem;"></i></th>
+              <th onclick="sortServices(\'providerCost\')" style="cursor:pointer;">Coût <i class="fas fa-sort" style="opacity:.4;font-size:.65rem;"></i></th>
+              <th onclick="sortServices(\'finalPrice\')" style="cursor:pointer;">Prix final <i class="fas fa-sort" style="opacity:.4;font-size:.65rem;"></i></th>
+              <th onclick="sortServices(\'profit\')" style="cursor:pointer;">Bénéfice <i class="fas fa-sort" style="opacity:.4;font-size:.65rem;"></i></th>
+              <th onclick="sortServices(\'profitMargin\')" style="cursor:pointer;">Marge <i class="fas fa-sort" style="opacity:.4;font-size:.65rem;"></i></th>
+              <th>Action</th>
             </tr></thead>
-            <tbody id="servicesBody"><tr><td colspan="7" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr></tbody>
+            <tbody id="servicesBody"><tr><td colspan="8" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr></tbody>
           </table>
         </div>
         <div class="stats-bar" id="serviceStatsBar"></div>
@@ -2549,8 +2550,8 @@ function getFilteredServices(){
 function renderServices(){
   const tb=document.getElementById('servicesBody');if(!tb)return;tb.innerHTML='';
   const filtered=getFilteredServices();
-  if(!filtered.length){tb.innerHTML='<tr><td colspan="7" class="loading">Aucun service trouvé.</td></tr>';}
-  else{filtered.forEach(s=>{const bc=s.provider==='MTP'?'badge-mtp':s.provider==='EXO'?'badge-exo':s.provider==='AfriqueBoost'?'badge-afb':'badge-smg';const tr=document.createElement('tr');tr.innerHTML=`<td>${esc(s.id)}</td><td><span class="badge ${bc}">${esc(s.provider)}</span></td><td>${esc(s.name)}</td><td>${Number(s.providerCost||0).toLocaleString('fr-FR')} FCFA</td><td>${Number(s.finalPrice||0).toLocaleString('fr-FR')} FCFA</td><td style="color:var(--green);">+${Number(s.profit||0).toLocaleString('fr-FR')} FCFA</td><td>${s.profitMargin}%</td>`;tb.appendChild(tr);});}
+  if(!filtered.length){tb.innerHTML='<tr><td colspan="8" class="loading">Aucun service trouvé.</td></tr>';}
+  else{filtered.forEach(s=>{const bc=s.provider==='MTP'?'badge-mtp':s.provider==='EXO'?'badge-exo':s.provider==='AfriqueBoost'?'badge-afb':'badge-smg';const tr=document.createElement('tr');tr.innerHTML=`<td>${esc(s.id)}</td><td><span class="badge ${bc}">${esc(s.provider)}</span></td><td>${esc(s.name)}</td><td>${Number(s.providerCost||0).toLocaleString('fr-FR')} FCFA</td><td>${Number(s.finalPrice||0).toLocaleString('fr-FR')} FCFA</td><td style="color:var(--green);">+${Number(s.profit||0).toLocaleString('fr-FR')} FCFA</td><td>${s.profitMargin}%</td><td><div class="action-row"><button class="btn btn-outline btn-sm" title="Charger dans le calculateur" onclick="setServiceCalculatorFromRow('${escAttr(s.id)}')"><i class="fas fa-calculator"></i></button><button class="btn btn-blue btn-sm" title="Copier le prix" onclick="copyServiceRowPrice('${escAttr(s.id)}')"><i class="fas fa-copy"></i></button></div></td>`;tb.appendChild(tr);});}
   const totalEl=document.getElementById('servicesTotalText');if(totalEl)totalEl.textContent=`${allServices.length} services au total`;
   const byProv={};allServices.forEach(s=>{byProv[s.provider]=(byProv[s.provider]||0)+1;});
   const badgesEl=document.getElementById('providerStatsBadges');if(badgesEl)badgesEl.innerHTML=Object.entries(byProv).map(([k,v])=>`<span class="provider-badge"><strong>${esc(k)}</strong><span class="provider-badge-count">${v}</span></span>`).join('');
@@ -2559,6 +2560,46 @@ function renderServices(){
   populateServiceCalculator();
   updateServiceCalculator();
 }
+
+
+function findServiceById(serviceId){
+  const id = String(serviceId || '').trim().toLowerCase();
+  if (!id) return null;
+  return allServices.find(s => String(s.id || '').trim().toLowerCase() === id) || null;
+}
+
+function setServiceCalculatorFromRow(serviceId){
+  const service = findServiceById(serviceId);
+  if (!service) { showToast('Service introuvable.'); return; }
+  const input = document.getElementById('serviceCalcSearch');
+  const qty = document.getElementById('serviceCalcQty');
+  if (input) input.value = `${service.id} — ${service.name} — ${service.provider}`;
+  if (qty) qty.value = '1';
+  populateServiceCalculator();
+  updateServiceCalculator();
+  const result = document.getElementById('serviceCalcResult');
+  if (result && result.scrollIntoView) result.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+async function copyServiceRowPrice(serviceId){
+  const service = findServiceById(serviceId);
+  if (!service) { showToast('Service introuvable.'); return; }
+  const message = [
+    `${service.name || 'Service'}`,
+    `Fournisseur: ${service.provider || '—'}`,
+    `ID: ${service.id || '—'}`,
+    `Prix client: ${Number(service.finalPrice || 0).toLocaleString('fr-FR')} FCFA`,
+    `Coût fournisseur: ${Number(service.providerCost || 0).toLocaleString('fr-FR')} FCFA`,
+    `Marge: ${Number(service.profit || 0).toLocaleString('fr-FR')} FCFA (${Number(service.profitMargin || 0).toLocaleString('fr-FR')}%)`
+  ].join('\n');
+  try{
+    await navigator.clipboard.writeText(message);
+    showToast('Prix du service copié.');
+  }catch(e){
+    alert('Copie impossible.');
+  }
+}
+
 function filterServices(){renderServices();}
 function sortServices(field){const sel=document.getElementById('serviceSort');if(sel){const current=sel.value;const [cf,cd]=current.split('-');if(cf===field)sel.value=field+'-'+(cd==='asc'?'desc':'asc');else sel.value=field+'-desc';}renderServices();}
 function resetServiceFilters(){const s1=document.getElementById('serviceFilter');if(s1)s1.value='all';const s2=document.getElementById('serviceSearch');if(s2)s2.value='';const s3=document.getElementById('serviceIdSearch');if(s3)s3.value='';const s4=document.getElementById('serviceSort');if(s4)s4.value='finalPrice-asc';const s5=document.getElementById('serviceLimit');if(s5)s5.value='25';renderServices();}
