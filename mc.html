@@ -740,18 +740,9 @@ textarea.msg-area:focus{border-color:var(--gold)}
         <div class="section-head">
           <div><span class="section-label">Répartition</span><h2 class="section-title">Services par fournisseur</h2><p class="section-sub" id="servicesTotalText">—</p></div>
         </div>
-        <div class="service-calculator">
-          <div class="filter-bar" style="margin-bottom:12px;">
-            <div class="filter-group" style="flex:1;min-width:220px;"><label>Service</label>
-              <input id="serviceCalcSearch" type="text" list="serviceCalcList" placeholder="Rechercher un service ou coller son ID…" oninput="updateServiceCalculator()" style="min-width:220px;">
-              <datalist id="serviceCalcList"></datalist>
-            </div>
-            <div class="filter-group"><label>Quantité</label><input id="serviceCalcQty" type="number" min="1" step="1" value="1" oninput="updateServiceCalculator()" style="width:120px;"></div>
-            <div class="filter-group"><label>Devise</label><select id="serviceCalcCurrency" onchange="updateServiceCalculator()"></select></div>
-            <div class="filter-group"><label>Action</label><button class="btn btn-outline btn-sm" onclick="copyServiceCalculatorResult()"><i class="fas fa-copy"></i> Copier</button></div>
+        <div class="section-sub" style="margin-bottom:14px;max-width:unset;">
+            Clique sur <strong>Calculer</strong> sur n’importe quelle ligne pour ouvrir la modale de simulation avec le service déjà sélectionné, la quantité et la devise de ton choix.
           </div>
-          <div id="serviceCalcResult" class="service-calc-result">Choisis un service pour calculer le prix, le coût fournisseur et la marge.</div>
-        </div>
         <div id="providerStatsBadges" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;"></div>
         <div class="filter-bar">
           <div class="filter-group"><label>Fournisseur</label>
@@ -781,10 +772,10 @@ textarea.msg-area:focus{border-color:var(--gold)}
         <div class="table-wrap">
           <table>
             <thead><tr><th>ID</th><th>Fournisseur</th><th>Nom</th>
-              <th onclick="sortServices(\'providerCost\')" style="cursor:pointer;">Coût <i class="fas fa-sort" style="opacity:.4;font-size:.65rem;"></i></th>
-              <th onclick="sortServices(\'finalPrice\')" style="cursor:pointer;">Prix final <i class="fas fa-sort" style="opacity:.4;font-size:.65rem;"></i></th>
-              <th onclick="sortServices(\'profit\')" style="cursor:pointer;">Bénéfice <i class="fas fa-sort" style="opacity:.4;font-size:.65rem;"></i></th>
-              <th onclick="sortServices(\'profitMargin\')" style="cursor:pointer;">Marge <i class="fas fa-sort" style="opacity:.4;font-size:.65rem;"></i></th>
+              <th onclick="sortServices('providerCost')" style="cursor:pointer;">Coût <i class="fas fa-sort" style="opacity:.4;font-size:.65rem;"></i></th>
+              <th onclick="sortServices('finalPrice')" style="cursor:pointer;">Prix final <i class="fas fa-sort" style="opacity:.4;font-size:.65rem;"></i></th>
+              <th onclick="sortServices('profit')" style="cursor:pointer;">Bénéfice <i class="fas fa-sort" style="opacity:.4;font-size:.65rem;"></i></th>
+              <th onclick="sortServices('profitMargin')" style="cursor:pointer;">Marge <i class="fas fa-sort" style="opacity:.4;font-size:.65rem;"></i></th>
               <th>Action</th>
             </tr></thead>
             <tbody id="servicesBody"><tr><td colspan="8" class="loading"><i class="fas fa-circle-notch"></i> Chargement…</td></tr></tbody>
@@ -792,6 +783,34 @@ textarea.msg-area:focus{border-color:var(--gold)}
         </div>
         <div class="stats-bar" id="serviceStatsBar"></div>
       </section>
+    </div>
+
+    <div id="serviceCalcModal" class="modal-overlay" onclick="if(event.target===this)closeServiceCalculatorModal()">
+      <div class="modal" style="max-width:760px;">
+        <div class="modal-header">
+          <h3><i class="fas fa-calculator"></i> Simulation service / prix</h3>
+          <button class="modal-close" onclick="closeServiceCalculatorModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="recipient-info" id="serviceCalcSelectedInfo">
+            <div class="name">Sélectionne un service</div>
+            <div class="meta">Clique sur <strong>Calculer</strong> dans la liste des services pour ouvrir cette modale avec le bon service.</div>
+          </div>
+          <div class="filter-bar" style="margin-bottom:12px;">
+            <div class="filter-group" style="flex:1;min-width:220px;"><label>Service</label>
+              <input id="serviceCalcSearch" type="text" list="serviceCalcList" placeholder="Rechercher un service ou coller son ID…" oninput="updateServiceCalculator()" style="min-width:220px;">
+              <datalist id="serviceCalcList"></datalist>
+            </div>
+            <div class="filter-group"><label>Quantité</label><input id="serviceCalcQty" type="number" min="1" step="1" value="1" oninput="updateServiceCalculator()" style="width:120px;"></div>
+            <div class="filter-group"><label>Devise</label><select id="serviceCalcCurrency" onchange="updateServiceCalculator()"></select></div>
+            <div class="filter-group"><label>Action</label><button class="btn btn-outline btn-sm" onclick="copyServiceCalculatorResult()"><i class="fas fa-copy"></i> Copier le prix client</button></div>
+          </div>
+          <div id="serviceCalcResult" class="service-calc-result">Choisis un service pour calculer le prix, le coût fournisseur et la marge.</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeServiceCalculatorModal()">Fermer</button>
+        </div>
+      </div>
     </div>
 
     <div id="view-gifts" class="view" style="display:none;">
@@ -2520,17 +2539,29 @@ function copyServiceCalculatorResult(){
   const currency=document.getElementById('serviceCalcCurrency')?.value||'XAF';
   const qty=Math.max(1,parseInt(document.getElementById('serviceCalcQty')?.value||'1',10)||1);
   const totalPriceXAF=Number(service.finalPrice||0)*qty;
-  const totalCostXAF=Number(service.providerCost||0)*qty;
-  const totalProfitXAF=totalPriceXAF-totalCostXAF;
-  const text=`Service: ${service.name || '—'}
-Fournisseur: ${service.provider || '—'}
-ID: ${service.id || '—'}
-Quantité: ${qty}
-Prix client: ${formatCurrencyValue(convertXAFToCurrency(totalPriceXAF,currency),currency)} (${Math.round(totalPriceXAF).toLocaleString('fr-FR')} FCFA)
-Coût fournisseur: ${formatCurrencyValue(convertXAFToCurrency(totalCostXAF,currency),currency)} (${Math.round(totalCostXAF).toLocaleString('fr-FR')} FCFA)
-Bénéfice: ${formatCurrencyValue(convertXAFToCurrency(totalProfitXAF,currency),currency)} (${Math.round(totalProfitXAF).toLocaleString('fr-FR')} FCFA)`;
-  navigator.clipboard.writeText(text).then(()=>showToast('Résumé copié.')).catch(()=>alert('Copie impossible.'));
+  const totalPriceCur=convertXAFToCurrency(totalPriceXAF,currency);
+  const text=formatCurrencyValue(totalPriceCur,currency);
+  navigator.clipboard.writeText(text).then(()=>showToast('Prix client copié.')).catch(()=>alert('Copie impossible.'));
 }
+
+function openServiceCalculatorModal(provider,id){
+  const service=allServices.find(s=>String(s.provider||'').toLowerCase()===String(provider||'').toLowerCase() && String(s.id||'')===String(id||''));
+  if(!service){showError('Service introuvable.');return;}
+  const search=document.getElementById('serviceCalcSearch');
+  if(search)search.value=`${service.id} — ${service.name} — ${service.provider}`;
+  const qty=document.getElementById('serviceCalcQty');
+  if(qty)qty.value='1';
+  const currency=document.getElementById('serviceCalcCurrency');
+  if(currency)currency.value='XAF';
+  const info=document.getElementById('serviceCalcSelectedInfo');
+  if(info)info.innerHTML=`<div class="name">${esc(service.name||'Service')}</div><div class="meta"><strong>${esc(service.provider||'—')}</strong> · ID ${esc(service.id||'—')} · Coût ${Number(service.providerCost||0).toLocaleString('fr-FR')} FCFA · Prix ${Number(service.finalPrice||0).toLocaleString('fr-FR')} FCFA</div>`;
+  const modal=document.getElementById('serviceCalcModal');
+  if(modal)modal.classList.add('active');
+  populateServiceCalculator();
+  updateServiceCalculator();
+}
+
+function closeServiceCalculatorModal(){const modal=document.getElementById('serviceCalcModal');if(modal)modal.classList.remove('active');}
 
 function getFilteredServices(){
   const provider=document.getElementById('serviceFilter')?.value||'all';
@@ -2551,55 +2582,13 @@ function renderServices(){
   const tb=document.getElementById('servicesBody');if(!tb)return;tb.innerHTML='';
   const filtered=getFilteredServices();
   if(!filtered.length){tb.innerHTML='<tr><td colspan="8" class="loading">Aucun service trouvé.</td></tr>';}
-  else{filtered.forEach(s=>{const bc=s.provider==='MTP'?'badge-mtp':s.provider==='EXO'?'badge-exo':s.provider==='AfriqueBoost'?'badge-afb':'badge-smg';const tr=document.createElement('tr');tr.innerHTML=`<td>${esc(s.id)}</td><td><span class="badge ${bc}">${esc(s.provider)}</span></td><td>${esc(s.name)}</td><td>${Number(s.providerCost||0).toLocaleString('fr-FR')} FCFA</td><td>${Number(s.finalPrice||0).toLocaleString('fr-FR')} FCFA</td><td style="color:var(--green);">+${Number(s.profit||0).toLocaleString('fr-FR')} FCFA</td><td>${s.profitMargin}%</td><td><div class="action-row"><button class="btn btn-outline btn-sm" title="Charger dans le calculateur" onclick="setServiceCalculatorFromRow('${escAttr(s.id)}')"><i class="fas fa-calculator"></i></button><button class="btn btn-blue btn-sm" title="Copier le prix" onclick="copyServiceRowPrice('${escAttr(s.id)}')"><i class="fas fa-copy"></i></button></div></td>`;tb.appendChild(tr);});}
+  else{filtered.forEach(s=>{const bc=s.provider==='MTP'?'badge-mtp':s.provider==='EXO'?'badge-exo':s.provider==='AfriqueBoost'?'badge-afb':'badge-smg';const tr=document.createElement('tr');tr.innerHTML=`<td>${esc(s.id)}</td><td><span class="badge ${bc}">${esc(s.provider)}</span></td><td>${esc(s.name)}</td><td>${Number(s.providerCost||0).toLocaleString('fr-FR')} FCFA</td><td>${Number(s.finalPrice||0).toLocaleString('fr-FR')} FCFA</td><td style="color:var(--green);">+${Number(s.profit||0).toLocaleString('fr-FR')} FCFA</td><td>${s.profitMargin}%</td><td><div class="action-row"><button class="btn btn-blue btn-sm" onclick="openServiceCalculatorModal('${escAttr(s.provider)}','${escAttr(s.id)}')"><i class="fas fa-calculator"></i> Calculer</button></div></td>`;tb.appendChild(tr);});}
   const totalEl=document.getElementById('servicesTotalText');if(totalEl)totalEl.textContent=`${allServices.length} services au total`;
   const byProv={};allServices.forEach(s=>{byProv[s.provider]=(byProv[s.provider]||0)+1;});
   const badgesEl=document.getElementById('providerStatsBadges');if(badgesEl)badgesEl.innerHTML=Object.entries(byProv).map(([k,v])=>`<span class="provider-badge"><strong>${esc(k)}</strong><span class="provider-badge-count">${v}</span></span>`).join('');
   const statsEl=document.getElementById('serviceStatsBar');
   if(statsEl){const prices=allServices.map(s=>s.finalPrice).filter(v=>Number.isFinite(Number(v)));const minP=prices.length?Math.min(...prices):0;const maxP=prices.length?Math.max(...prices):0;statsEl.innerHTML=`<div class="stat-item">Total : <strong>${allServices.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Prix min : <strong>${minP.toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-sep"></div><div class="stat-item">Prix max : <strong>${maxP.toLocaleString('fr-FR')} FCFA</strong></div>`;}
-  populateServiceCalculator();
-  updateServiceCalculator();
 }
-
-
-function findServiceById(serviceId){
-  const id = String(serviceId || '').trim().toLowerCase();
-  if (!id) return null;
-  return allServices.find(s => String(s.id || '').trim().toLowerCase() === id) || null;
-}
-
-function setServiceCalculatorFromRow(serviceId){
-  const service = findServiceById(serviceId);
-  if (!service) { showToast('Service introuvable.'); return; }
-  const input = document.getElementById('serviceCalcSearch');
-  const qty = document.getElementById('serviceCalcQty');
-  if (input) input.value = `${service.id} — ${service.name} — ${service.provider}`;
-  if (qty) qty.value = '1';
-  populateServiceCalculator();
-  updateServiceCalculator();
-  const result = document.getElementById('serviceCalcResult');
-  if (result && result.scrollIntoView) result.scrollIntoView({behavior:'smooth',block:'center'});
-}
-
-async function copyServiceRowPrice(serviceId){
-  const service = findServiceById(serviceId);
-  if (!service) { showToast('Service introuvable.'); return; }
-  const message = [
-    `${service.name || 'Service'}`,
-    `Fournisseur: ${service.provider || '—'}`,
-    `ID: ${service.id || '—'}`,
-    `Prix client: ${Number(service.finalPrice || 0).toLocaleString('fr-FR')} FCFA`,
-    `Coût fournisseur: ${Number(service.providerCost || 0).toLocaleString('fr-FR')} FCFA`,
-    `Marge: ${Number(service.profit || 0).toLocaleString('fr-FR')} FCFA (${Number(service.profitMargin || 0).toLocaleString('fr-FR')}%)`
-  ].join('\n');
-  try{
-    await navigator.clipboard.writeText(message);
-    showToast('Prix du service copié.');
-  }catch(e){
-    alert('Copie impossible.');
-  }
-}
-
 function filterServices(){renderServices();}
 function sortServices(field){const sel=document.getElementById('serviceSort');if(sel){const current=sel.value;const [cf,cd]=current.split('-');if(cf===field)sel.value=field+'-'+(cd==='asc'?'desc':'asc');else sel.value=field+'-desc';}renderServices();}
 function resetServiceFilters(){const s1=document.getElementById('serviceFilter');if(s1)s1.value='all';const s2=document.getElementById('serviceSearch');if(s2)s2.value='';const s3=document.getElementById('serviceIdSearch');if(s3)s3.value='';const s4=document.getElementById('serviceSort');if(s4)s4.value='finalPrice-asc';const s5=document.getElementById('serviceLimit');if(s5)s5.value='25';renderServices();}
