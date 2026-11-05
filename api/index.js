@@ -4362,10 +4362,13 @@ async function computeTopUsersInRange(start, end) {
 
   return topRows.map(row => {
     const u = usersMap.get(row.id) || {};
+    const looksLikeEmail = /@/.test(String(row.id || ''));
+    const emailFallback = looksLikeEmail ? row.id : null;
+    const nameFallback = looksLikeEmail ? String(row.id).split('@')[0] : 'Client';
     return {
       id: row.id,
-      name: u.name || 'Client',
-      email: u.email || null,
+      name: u.name || nameFallback,
+      email: u.email || emailFallback,
       phone: u.phone || null,
       country: u.country || null,
       balance: Number(u.balance || 0),
@@ -4490,7 +4493,23 @@ function getOrderFinancials(d = {}, rawProvider = null, collectionName = '') {
 // Version explicite des métriques clients : les classements et les fiches
 // doivent provenir de la même reconstruction avant d'être présentés comme exacts.
 const CUSTOMER_ORDER_METRICS_VERSION = 3;
-const CUSTOMER_ORDER_OWNER_FIELDS = ['userId', 'uid', 'user_id', 'customerId', 'customerUid'];
+const CUSTOMER_ORDER_OWNER_FIELDS = [
+  'userId',
+  'uid',
+  'user_id',
+  'customerId',
+  'customerUid',
+  'ownerId',
+  'ownerUid',
+  'buyerId',
+  'buyerUid',
+  'clientId',
+  'clientUid',
+  'creatorId',
+  'createdBy',
+  'customerEmail',
+  'customer_email',
+];
 
 function normalizeCustomerOrderStatus(order = {}) {
   return String(order.status || order.orderStatus || order.state || '')
