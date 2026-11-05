@@ -3316,80 +3316,6 @@ async function getServicesData() {
   return result;
 }
 
-
-let adminServiceLookupCache = { map: null, expires: 0 };
-
-function serviceLooksLikePackage(service = {}) {
-  const raw = String(service.type || service.serviceType || service.pricingMode || '').trim().toLowerCase();
-  return raw.includes('package') || raw.includes('flat') || raw.includes('per_order') || raw.includes('paquet');
-}
-
-function buildAdminServiceLookup(services = []) {
-  const map = new Map();
-  for (const s of Array.isArray(services) ? services : []) {
-    const provider = normalizeProvider(s.provider);
-    const id = String(s.id ?? s.service ?? s.serviceId ?? s.providerServiceId ?? '').trim();
-    const name = String(s.name || '').trim().toLowerCase();
-    const finalProvider = provider || 'inconnu';
-    if (finalProvider && id) map.set(`${finalProvider}::${id}`, s);
-    if (id) map.set(`id::${id}`, s);
-    if (finalProvider && name) map.set(`${finalProvider}::name::${name}`, s);
-    if (name) map.set(`name::${name}`, s);
-  }
-  return map;
-}
-
-async function getAdminServiceLookup(force = false) {
-  if (!force && adminServiceLookupCache.map && Date.now() < adminServiceLookupCache.expires) {
-    return adminServiceLookupCache.map;
-  }
-  const data = await getServicesData();
-  const services = Array.isArray(data?.services) ? data.services : [];
-  const map = buildAdminServiceLookup(services);
-  adminServiceLookupCache = { map, expires: Date.now() + ADMIN_CACHE_TTL };
-  return map;
-}
-
-function findServicePricingForOrder(order = {}, collectionName = '', serviceLookup = null) {
-  const provider = normalizeProvider(
-    order.provider || order.fournisseur || order.providerName || order.supplier || order.api ||
-    KNOWN_PROVIDER_BY_COLLECTION[collectionName] || ''
-  );
-  const qty = Math.max(1, Number(order.quantity || order.qty || order.count || 1) || 1);
-  const serviceId = String(order.serviceId || order.service || order.providerServiceId || order.externalServiceId || order.service_id || '').trim();
-  const serviceName = String(order.serviceName || order.service_name || order.name || '').trim().toLowerCase();
-
-  let service = null;
-  if (serviceLookup && serviceLookup.size) {
-    if (provider && serviceId) service = serviceLookup.get(`${provider}::${serviceId}`) || service;
-    if (!service && serviceId) service = serviceLookup.get(`id::${serviceId}`) || service;
-    if (!service && provider && serviceName) service = serviceLookup.get(`${provider}::name::${serviceName}`) || service;
-    if (!service && serviceName) service = serviceLookup.get(`name::${serviceName}`) || service;
-  }
-
-  if (!service) return { service: null, provider, qty, amount: null, providerCostXAF: null, isPackage: false, isPerUnit: false };
-
-  const unitPriceXAF = Number(service.finalPrice || 0);
-  const unitCostXAF = Number(service.providerCost || 0);
-  const isPackage = serviceLooksLikePackage(service);
-  const isPerUnit = String(service.pricingMode || '').trim().toLowerCase() === 'per_unit';
-
-  const amount = isPackage
-    ? unitPriceXAF
-    : isPerUnit
-      ? unitPriceXAF * qty
-      : Math.round((unitPriceXAF / 1000) * qty);
-
-  const providerCostXAF = isPackage
-    ? unitCostXAF
-    : isPerUnit
-      ? unitCostXAF * qty
-      : Math.round((unitCostXAF / 1000) * qty);
-
-  return { service, provider, qty, amount, providerCostXAF, isPackage, isPerUnit };
-}
-
-
 const adminMemoryCache = {
   overview:   { data: null, expires: 0 },
   topUsers:   { data: null, expires: 0 },
@@ -3906,7 +3832,6 @@ async function getFinancialFieldSchema(collectionName) {
 // - Ajout de refundAmount (pour EXO)
 // - Fallback mémoire si profit=0 & cost=0 & sales>0 (indique champs manquants EXO)
 async function getFinancialsForCollection(colName, start, end) {
-  const serviceLookup = await getAdminServiceLookup();
   const dateField = await detectDateField(colName);
   const ref = db.collection(colName);
   const queries = [];
@@ -3963,7 +3888,7 @@ async function getFinancialsForCollection(colName, start, end) {
   // Même règle que l'ancienne version fonctionnelle : lorsqu'une collection
   // possède des ventes mais aucun coût/marge exploitable, recalculer les lignes
   // avec les champs et multiplicateurs propres au fournisseur.
-  const needsFallback = !aggregationSucceeded ||
+  const needsFallback = !aggregationSucceeded || Boolean(start || end) ||
     (result.sales > 0 && result.grossProfit === 0 && result.supplierCost === 0);
 
   if (needsFallback) {
@@ -3977,16 +3902,16 @@ async function getFinancialsForCollection(colName, start, end) {
           if (lastDoc) pageQuery = pageQuery.startAfter(lastDoc);
           const page = await pageQuery.get();
           if (page.empty) break;
-          page.forEach(doc => {
+          for (const doc of page.docs) {
             const data = doc.data() || {};
-            const amount = getOrderAmountXAF(data, colName, serviceLookup);
-            const fin = getOrderFinancials(data, null, colName, serviceLookup);
+            const fin = await getOrderFinancials(data, null, colName);
+            const amount = fin.amount;
             memOrders++;
             memSales += amount || 0;
             memCost += fin.providerCostXAF || 0;
             memProfit += fin.grossProfitXAF || 0;
             memRefunds += fin.refundedAmount || 0;
-          });
+          }
           lastDoc = page.docs[page.docs.length - 1];
           if (page.size < 500) break;
         }
@@ -4339,7 +4264,6 @@ async function getTopUsersInRange(dateStart, dateEnd, forceRefresh = false) {
 // arbitraire de 1 000 commandes. Les mêmes statuts/champs financiers que la
 // fiche client sont appliqués : attente incluse, annulation/rejet exclus.
 async function computeTopUsersInRange(start, end) {
-  const serviceLookup = await getAdminServiceLookup();
   const userAgg = new Map();
 
   for (const colName of ADMIN_ORDER_COLLECTIONS) {
@@ -4368,14 +4292,14 @@ async function computeTopUsersInRange(start, end) {
           }
           if (snap.empty) break;
 
-          snap.forEach(doc => {
-            if (seenDocIds.has(doc.id)) return;
+          for (const doc of snap.docs) {
+            if (seenDocIds.has(doc.id)) continue;
             seenDocIds.add(doc.id);
             const order = doc.data() || {};
             const ownerIds = getCustomerOrderOwnerIds(order);
-            if (!ownerIds.length) return;
-            const contribution = getCustomerOrderContribution(order, colName, serviceLookup);
-            if (!contribution.included) return;
+            if (!ownerIds.length) continue;
+            const contribution = await getCustomerOrderContribution(order, colName);
+            if (!contribution.included) continue;
 
             const createdAt = order[dateField] || order.createdAt || order.created_at || order.date || null;
             let createdAtMs = getTimestampMs(createdAt);
@@ -4383,8 +4307,8 @@ async function computeTopUsersInRange(start, end) {
               createdAtMs = createdAt * 1000;
             }
             // Garde-fou sur la plage réelle, indépendamment du type Firestore.
-            if (start && createdAtMs && createdAtMs < start.getTime()) return;
-            if (end && createdAtMs && createdAtMs >= end.getTime()) return;
+            if (start && createdAtMs && createdAtMs < start.getTime()) continue;
+            if (end && createdAtMs && createdAtMs >= end.getTime()) continue;
 
             ownerIds.forEach(uid => {
               const cur = userAgg.get(uid) || { count: 0, totalPaid: 0, totalProfit: 0, orders: [], lastOrderAt: null };
@@ -4405,7 +4329,7 @@ async function computeTopUsersInRange(start, end) {
               }
               userAgg.set(uid, cur);
             });
-          });
+          }
 
           lastDoc = snap.docs[snap.docs.length - 1];
           if (snap.size < 500) break;
@@ -4480,7 +4404,7 @@ function getCountryAliases(value) {
   return [...new Set([code, code.toLowerCase(), fr.of(code), String(fr.of(code) || '').toLowerCase(), en.of(code), String(en.of(code) || '').toLowerCase()])].filter(Boolean).slice(0, 10);
 }
 
-function getOrderAmountXAF(d = {}, collectionName = '', serviceLookup = null) {
+function getOrderAmountXAF(d = {}, collectionName = '') {
   const keys = ['priceXAF','chargedAmountXAF','paidAmountXAF','amountXAF','finalPriceXAF','orderPriceXAF','totalPriceXAF','totalAmountXAF'];
   if (collectionName === 'commandes') keys.push('totalCost','finalCost','cost');
   keys.push('amount','totalAmount','total');
@@ -4489,20 +4413,103 @@ function getOrderAmountXAF(d = {}, collectionName = '', serviceLookup = null) {
     const value=d[key]; if(value===undefined||value===null||value===''||!Number.isFinite(Number(value)))continue;
     const n=Math.max(0,Number(value)); if(n>0)return n; explicitZero=true;
   }
-  if (explicitZero) return 0;
+  return explicitZero ? 0 : null;
+}
 
-  const pricing = findServicePricingForOrder(d, collectionName, serviceLookup);
-  if (pricing && Number.isFinite(Number(pricing.amount)) && Number(pricing.amount) > 0) {
-    return Number(pricing.amount);
+function getOrderQuantityValue(d = {}) {
+  const keys = ['quantity', 'qty', 'count', 'units', 'orderQuantity'];
+  for (const key of keys) {
+    const value = Number(d[key]);
+    if (Number.isFinite(value) && value > 0) return Math.max(1, Math.round(value));
   }
-  return null;
+  return 1;
+}
+
+function getAdminServicesCatalog() {
+  const cached = adminCache && adminCache.services;
+  if (!cached) return [];
+  if (Array.isArray(cached.services)) return cached.services;
+  return [];
+}
+
+function normalizeLooseLookup(value) {
+  return String(value || '').trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[\s_\-]+/g, ' ');
+}
+
+function findAdminServiceForOrder(order = {}, provider = null, collectionName = '') {
+  const catalog = getAdminServicesCatalog();
+  if (!catalog.length) return null;
+  const providerName = normalizeProvider(provider || order.provider || order.fournisseur || order.providerName || order.supplier || (collectionName === 'commandes' ? 'EXO' : null));
+  const providerId = String(order.serviceId || order.providerServiceId || order.service_id || order.service || order.itemId || order.item_id || '').trim();
+  const serviceName = normalizeLooseLookup(order.serviceName || order.service_name || order.name || order.title || order.packageName || order.productName || '');
+  const serviceType = normalizeLooseLookup(order.serviceType || order.type || '');
+
+  const sameProvider = svc => normalizeProvider(svc.provider) === providerName || !providerName || providerName === 'inconnu';
+  const idMatch = svc => providerId && String(svc.id || svc.providerServiceId || '').trim() === providerId;
+  const nameMatch = svc => serviceName && normalizeLooseLookup(svc.name).includes(serviceName);
+  const reverseNameMatch = svc => serviceName && serviceName.includes(normalizeLooseLookup(svc.name));
+  const typeMatch = svc => serviceType && normalizeLooseLookup(svc.type || '').includes(serviceType);
+
+  return catalog.find(svc => sameProvider(svc) && (idMatch(svc) || nameMatch(svc) || reverseNameMatch(svc) || typeMatch(svc))) || null;
+}
+
+function computeAdminOrderTotalsFromService(order = {}, service = null, provider = null, collectionName = '') {
+  const qty = getOrderQuantityValue(order);
+  const providerName = normalizeProvider(provider || order.provider || order.fournisseur || order.providerName || order.supplier || (collectionName === 'commandes' ? 'EXO' : null));
+  const serviceName = String(order.serviceName || order.service_name || order.name || order.title || order.packageName || '').toLowerCase();
+  const orderType = String(order.serviceType || order.type || service?.type || '').toLowerCase();
+  const isPackage = /package/.test(orderType) || /package/.test(serviceName);
+
+  const unitAmount = Number(service?.finalPrice || service?.priceXAF || 0) || 0;
+  const unitCost = Number(service?.providerCost || service?.providerCostXAF || 0) || 0;
+
+  if (providerName === 'SMMWiz') {
+    // Les commandes SMMWiz stockent parfois un mode de tarification spécifique.
+    // On garde le calcul simple et cohérent avec le catalogue affiché.
+    const pricingMode = getSmmWizPricingMode(orderType || service?.type || 'Default');
+    const rateUnit = unitAmount > 0 ? unitAmount : unitCost;
+    const providerUnit = unitCost > 0 ? unitCost : Math.max(0, rateUnit - 0);
+    if (pricingMode === 'package') {
+      const amount = rateUnit;
+      const providerCostXAF = providerUnit;
+      return { amount, providerCostXAF, grossProfitXAF: amount - providerCostXAF };
+    }
+    if (pricingMode === 'per_unit') {
+      const amount = Math.round(rateUnit * qty);
+      const providerCostXAF = Math.round(providerUnit * qty);
+      return { amount, providerCostXAF, grossProfitXAF: amount - providerCostXAF };
+    }
+    const amount = Math.round((rateUnit / 1000) * qty);
+    const providerCostXAF = Math.round((providerUnit / 1000) * qty);
+    return { amount, providerCostXAF, grossProfitXAF: amount - providerCostXAF };
+  }
+
+  if (isPackage) {
+    const amount = unitAmount;
+    const providerCostXAF = unitCost;
+    return { amount, providerCostXAF, grossProfitXAF: amount - providerCostXAF };
+  }
+
+  const amount = Math.round((unitAmount / 1000) * qty);
+  const providerCostXAF = Math.round((unitCost / 1000) * qty);
+  return { amount, providerCostXAF, grossProfitXAF: amount - providerCostXAF };
+}
+
+async function ensureAdminServicesCatalog() {
+  const cached = getAdminServicesCatalog();
+  if (cached.length) return cached;
+  try {
+    const data = await getServicesData();
+    return Array.isArray(data?.services) ? data.services : [];
+  } catch (_) {
+    return [];
+  }
 }
 
 // ✅ FIX #9 : getOrderFinancials résout automatiquement le provider via KNOWN_PROVIDER_BY_COLLECTION
 // quand rawProvider est null (cas EXO)
-function getOrderFinancials(d = {}, rawProvider = null, collectionName = '', serviceLookup = null) {
-  const amount = getOrderAmountXAF(d, collectionName, serviceLookup);
-  const servicePricing = findServicePricingForOrder(d, collectionName, serviceLookup);
+async function getOrderFinancials(d = {}, rawProvider = null, collectionName = '') {
+  let amount = getOrderAmountXAF(d, collectionName);
 
   let resolvedProvider = null;
   if (rawProvider) {
@@ -4526,26 +4533,16 @@ function getOrderFinancials(d = {}, rawProvider = null, collectionName = '', ser
     : (costCandidates.length ? 0 : null);
   let providerCostEstimated = false;
 
-  if ((providerCostXAF === null || providerCostXAF <= 0) && servicePricing && Number.isFinite(Number(servicePricing.providerCostXAF)) && Number(servicePricing.providerCostXAF) > 0) {
-    providerCostXAF = Number(servicePricing.providerCostXAF);
-    providerCostEstimated = true;
-  }
-
   const storedProfit = d.estimatedProfitXAF;
   const hasPositiveStoredProfit = storedProfit !== undefined && storedProfit !== null &&
     Number.isFinite(Number(storedProfit)) && Number(storedProfit) > 0;
 
-  // Si la marge a été enregistrée mais pas le coût, le coût est déductible
-  // sans hypothèse : prix facturé moins marge enregistrée.
   if ((providerCostXAF === null || providerCostXAF <= 0) && amount !== null && amount > 0 &&
       hasPositiveStoredProfit && Number(storedProfit) < amount) {
     providerCostXAF = amount - Number(storedProfit);
     providerCostEstimated = true;
   }
 
-  // Pour les petits montants, le coût enregistré peut être arrondi à zéro
-  // (ou égal au prix de vente). Avec un multiplicateur fournisseur connu,
-  // on reconstitue alors le coût au lieu d'afficher une marge nulle.
   const invalidStoredCost = providerCostXAF === null || providerCostXAF <= 0 ||
     (amount !== null && amount > 0 && providerCostXAF >= amount);
   if (amount !== null && amount > 0 && multiplier && multiplier > 1 && invalidStoredCost) {
@@ -4557,13 +4554,22 @@ function getOrderFinancials(d = {}, rawProvider = null, collectionName = '', ser
     ? Number(storedProfit)
     : (amount !== null && providerCostXAF !== null ? amount - providerCostXAF : null);
 
-  // Le champ estimatedProfitXAF peut être resté à zéro après un arrondi ancien.
-  // Recalculer seulement si le prix, le coût et le multiplicateur rendent une
-  // marge positive mathématiquement cohérente.
   if (amount !== null && amount > 0 && providerCostXAF !== null &&
       providerCostXAF < amount && (grossProfitXAF === null || grossProfitXAF <= 0)) {
     grossProfitXAF = amount - providerCostXAF;
     providerCostEstimated = true;
+  }
+
+  if ((amount === null || amount <= 0 || providerCostXAF === null || providerCostXAF <= 0 || grossProfitXAF === null) && d.serviceName) {
+    const catalog = await ensureAdminServicesCatalog();
+    const service = findAdminServiceForOrder(d, provider, collectionName) || catalog.find(s => normalizeLooseLookup(s.name).includes(normalizeLooseLookup(d.serviceName)) || normalizeLooseLookup(d.serviceName).includes(normalizeLooseLookup(s.name)));
+    if (service) {
+      const serviceTotals = computeAdminOrderTotalsFromService(d, service, provider, collectionName);
+      if (amount === null || amount <= 0) amount = serviceTotals.amount;
+      if (providerCostXAF === null || providerCostXAF <= 0) providerCostXAF = serviceTotals.providerCostXAF;
+      if (grossProfitXAF === null || grossProfitXAF <= 0) grossProfitXAF = serviceTotals.grossProfitXAF;
+      providerCostEstimated = true;
+    }
   }
 
   const refundedAmount = Number(d.refundedAmount ?? d.refundAmount ?? 0) || 0;
@@ -4610,15 +4616,14 @@ function getCustomerOrderOwnerIds(order = {}) {
     .filter(Boolean))];
 }
 
-function getCustomerOrderContribution(order = {}, collectionName = '', serviceLookup = null) {
+async function getCustomerOrderContribution(order = {}, collectionName = '') {
   if (isCustomerOrderExcluded(order)) {
     return { included: false, amount: null, profit: null, profitEligible: false, profitUnavailable: false, financials: null };
   }
-  const financials = getOrderFinancials(
+  const financials = await getOrderFinancials(
     order,
     order.provider || order.fournisseur || order.providerName || order.supplier || (collectionName === 'commandes' ? 'EXO' : null),
-    collectionName,
-    serviceLookup
+    collectionName
   );
   const profitEligible = !isCustomerOrderExcluded(order);
   const profitKnown = profitEligible && financials.grossProfitXAF !== null &&
@@ -5154,7 +5159,7 @@ adminRouter.get('/orders', async (req, res) => {
             if (!wanted.includes(String(data.status || '').toLowerCase())) continue;
           }
 
-          const o = normalizeAdminOrder(doc, collectionName);
+          const o = await normalizeAdminOrder(doc, collectionName);
 
           if (providerFilter && providerFilter !== 'all') {
             const wanted = providerAliases[providerFilter] || [providerFilter];
@@ -5212,7 +5217,7 @@ async function enrichAdminOrderUsers(orders) {
 }
 
 
-function normalizeAdminOrder(doc, collectionName) {
+async function normalizeAdminOrder(doc, collectionName) {
   const data = (doc && typeof doc.data === 'function' ? doc.data() : {}) || {};
   const ownerId = pickOrderOwnerId(data);
   const provider = String(data.provider || data.providerName || data.fournisseur || data.vendor || data.partner || data.api || collectionName || '').trim() || collectionName || 'unknown';
@@ -5223,6 +5228,8 @@ function normalizeAdminOrder(doc, collectionName) {
   const serviceName = data.serviceName || data.service || data.productName || data.itemName || data.title || data.packageName || null;
   const orderId = data.orderId || data.id || doc.id;
   const providerRef = pickOrderProviderReference(data);
+  const providerOrder = normalizeAdminOrderStatus(provider, rawStatus);
+  const financials = await getOrderFinancials(data, provider, collectionName);
 
   return {
     ...data,
@@ -5236,8 +5243,14 @@ function normalizeAdminOrder(doc, collectionName) {
     serviceName,
     provider,
     providerOrderId: providerRef,
-    status: normalizeAdminOrderStatus(provider, rawStatus),
+    status: providerOrder,
     createdAt,
+    amount: financials.amount,
+    providerCostXAF: financials.providerCostXAF,
+    grossProfitXAF: financials.grossProfitXAF,
+    profitMarginPct: financials.profitMarginPct,
+    providerCostEstimated: financials.providerCostEstimated,
+    profitEstimated: financials.profitEstimated,
   };
 }
 
@@ -5394,7 +5407,7 @@ async function verifyAdminOrderDocument(orderRef, orderData = {}, collectionName
   }
 
   const updated = await orderRef.get();
-  return { providerStatus, status: mappedStatus, refunded: refundAmount > 0, refundAmount, order: normalizeAdminOrder(updated, collectionName) };
+  return { providerStatus, status: mappedStatus, refunded: refundAmount > 0, refundAmount, order: await normalizeAdminOrder(updated, collectionName) };
 }
 
 async function creditSwychrDeposit(transRef, transData, txId, statusLabel = 'CONFIRMED') {
@@ -5971,7 +5984,7 @@ adminRouter.post('/customers/rebuild-order-metrics', async (req, res) => {
           ordersRead++;
           const order = doc.data() || {};
           const ownerIds = getCustomerOrderOwnerIds(order);
-          const contribution = getCustomerOrderContribution(order, collectionName);
+          const contribution = await getCustomerOrderContribution(order, collectionName);
           if (!ownerIds.length) {
             if (contribution.included) unattributedOrders++;
             continue;
@@ -6174,7 +6187,6 @@ adminRouter.get('/customers/:id', async (req, res) => {
     if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
     const u = userDoc.data() || {};
 
-    const serviceLookup = await getAdminServiceLookup();
     const collectionRows = await fetchCustomerOrderDocuments(userId);
     const all = [];
     const countsByCollection = {};
@@ -6187,12 +6199,11 @@ adminRouter.get('/customers/:id', async (req, res) => {
       let includedCount = 0, excludedCount = 0;
       for (const doc of row.docs) {
         const order = doc.data() || {};
-        const contribution = getCustomerOrderContribution(order, row.collectionName, serviceLookup);
-        const financials = contribution.financials || getOrderFinancials(
+        const contribution = await getCustomerOrderContribution(order, row.collectionName);
+        const financials = contribution.financials || await getOrderFinancials(
           order,
           order.provider || order.fournisseur || order.providerName || order.supplier || (row.collectionName === 'commandes' ? 'EXO' : null),
-          row.collectionName,
-          serviceLookup
+          row.collectionName
         );
         const createdAt = order.createdAt || order.date || order.created_at || order.dateCreated || order.timestamp || null;
         const included = contribution.included;
