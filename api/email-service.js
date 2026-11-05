@@ -17,6 +17,7 @@ const WHATSAPP_NUMBER      = '+1 (423) 675-2034';
 const WHATSAPP_LINK        = 'https://wa.me/14236752034';
 const PARTNER_TEXERRA_URL  = 'https://www.texerra.site/';
 const PARTNER_TRIXHUB_URL  = 'https://www.trixhub.store/?ref=EXA0001HJB';
+const PARTNER_PATAYAM_URL  = 'https://www.pata-yam.site/';
 
 function fmt(n) {
   return Number(n || 0).toLocaleString('fr-FR');
@@ -77,27 +78,36 @@ function header() {
   </td></tr>`;
 }
 
-// ─── Section partenaires (2 blocs côte à côte) ───
+// ─── Section partenaires (3 blocs côte à côte) ───
 function partnersBlock() {
   return `<tr><td style="padding:26px 0 0;">
     <div style="color:#666e7d;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-align:center;margin-bottom:14px;font-family:Arial,sans-serif;">Nos partenaires officiels</div>
     <table width="100%" cellpadding="0" cellspacing="0">
       <tr>
-        <td width="50%" valign="top" style="padding-right:6px;">
+        <td width="33.33%" valign="top" style="padding-right:4px;">
           <a href="${PARTNER_TEXERRA_URL}" style="text-decoration:none;display:block;">
-            <div style="border:1px solid #1e2430;border-radius:6px;padding:16px 14px;background:#0f131c;min-height:92px;">
+            <div style="border:1px solid #1e2430;border-radius:6px;padding:16px 12px;background:#0f131c;min-height:92px;">
               <div style="color:#C9A961;font-size:12px;font-weight:700;letter-spacing:1.2px;font-family:Arial,sans-serif;">TEXERRA SMS</div>
               <div style="color:#8b93a7;font-size:11px;line-height:1.55;margin-top:6px;font-family:Arial,sans-serif;">Acheter un numéro étranger pour WhatsApp, tiktok, PayPal...etc.</div>
               <div style="color:#4DA6FF;font-size:11px;margin-top:8px;font-weight:600;font-family:Arial,sans-serif;">texerra.site →</div>
             </div>
           </a>
         </td>
-        <td width="50%" valign="top" style="padding-left:6px;">
+        <td width="33.33%" valign="top" style="padding:0 4px;">
           <a href="${PARTNER_TRIXHUB_URL}" style="text-decoration:none;display:block;">
-            <div style="border:1px solid #1e2430;border-radius:6px;padding:16px 14px;background:#0f131c;min-height:92px;">
+            <div style="border:1px solid #1e2430;border-radius:6px;padding:16px 12px;background:#0f131c;min-height:92px;">
               <div style="color:#C9A961;font-size:12px;font-weight:700;letter-spacing:1.2px;font-family:Arial,sans-serif;">TRIXHUB</div>
               <div style="color:#8b93a7;font-size:11px;line-height:1.55;margin-top:6px;font-family:Arial,sans-serif;">Gagnez jusqu'à 5 000 FCFA par jour avec ton téléphone en effectuant des tâches.</div>
               <div style="color:#4DA6FF;font-size:11px;margin-top:8px;font-weight:600;font-family:Arial,sans-serif;">trixhub.store →</div>
+            </div>
+          </a>
+        </td>
+        <td width="33.33%" valign="top" style="padding-left:4px;">
+          <a href="${PARTNER_PATAYAM_URL}" style="text-decoration:none;display:block;">
+            <div style="border:1px solid #1e2430;border-radius:6px;padding:16px 12px;background:#0f131c;min-height:92px;">
+              <div style="color:#C9A961;font-size:12px;font-weight:700;letter-spacing:1.2px;font-family:Arial,sans-serif;">PATA YAM</div>
+              <div style="color:#8b93a7;font-size:11px;line-height:1.55;margin-top:6px;font-family:Arial,sans-serif;">Gestion des dépenses</div>
+              <div style="color:#4DA6FF;font-size:11px;margin-top:8px;font-weight:600;font-family:Arial,sans-serif;">pata-yam.site →</div>
             </div>
           </a>
         </td>
