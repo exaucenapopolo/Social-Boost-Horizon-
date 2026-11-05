@@ -1217,7 +1217,7 @@ function switchView(view){
   else if(view==='finances'){if(!financialsLoaded)loadFinancials();}
   else if(view==='gifts'){if(!giftsLoaded){giftsLoaded=true;loadGifts();}}
   else if(view==='deposits'){if(allDeposits.length===0&&!depositsLoading)loadDeposits(true);}
-  else if(view==='orders'){if(allOrders.length===0&&!ordersLoading)loadOrders(true);if(!orderSummaryLoaded)loadOrderSummary();}
+  else if(view==='orders'){const search=document.getElementById('orderSearch');if(search&&allOrders.length===0)search.value='';if(allOrders.length===0&&!ordersLoading)loadOrders(true);if(!orderSummaryLoaded)loadOrderSummary();}
   else if(view==='customers'){if(allCustomers.length===0&&!customersLoading)loadCustomers(true);}
   else if(view==='stores'){if(allStores.length===0&&!storesLoading)loadStores(true);}
 }
@@ -2023,7 +2023,7 @@ function renderOrders(){
   const q=(document.getElementById('orderSearch')?.value||'').toLowerCase().trim();
   const list=allOrders.filter(o=>{if(!q)return true;return [o.orderId,o.userId,o.userName,o.userEmail,o.serviceName,o.provider,o.collection,o.status].filter(Boolean).join(' ').toLowerCase().includes(q);});
   const tb=document.getElementById('ordersBody');tb.innerHTML='';
-  if(!list.length){tb.innerHTML='<tr><td colspan="11" class="loading">Aucune commande pour ces critères.</td></tr>';}
+  if(!list.length){tb.innerHTML=`<tr><td colspan="11" class="loading">${q?'Aucune commande pour ces critères.':'Aucune commande chargée.'}</td></tr>`;}
   list.forEach(o=>{
     const tr=document.createElement('tr');
     tr.innerHTML=`<td style="white-space:nowrap;font-size:.78rem;color:var(--text-muted);">${esc(formatDate(o.createdAt))}</td><td><strong>${esc(o.orderId||o.id)}</strong></td><td><strong>${esc(o.userName||'Client inconnu')}</strong>${o.userId?`<br><small style="color:var(--text-dim);">${esc(o.userEmail||'')}</small>`:''}</td><td><span class="badge badge-mtp">${esc(o.provider||'—')}</span><br><small style="color:var(--text-dim);font-size:.7rem;">${esc(o.collection||'')}</small></td><td>${esc(o.serviceName||'Service')}<br><small style="color:var(--text-dim);">${esc(o.platform||'')}</small></td><td>${Number(o.quantity||0).toLocaleString('fr-FR')}</td><td style="white-space:nowrap;font-weight:600;">${o.amount==null?'—':Number(o.amount).toLocaleString('fr-FR')+' FCFA'}${o.refunded?'<br><small class="kpi-warning">Remboursée</small>':''}</td><td style="white-space:nowrap;">${o.providerCostXAF==null?'—':Number(o.providerCostXAF).toLocaleString('fr-FR')+' FCFA'}${o.providerCostEstimated?'<br><small style="color:var(--text-dim);">estimé</small>':''}</td><td style="white-space:nowrap;">${o.grossProfitXAF==null?'—':Number(o.grossProfitXAF).toLocaleString('fr-FR')+' FCFA'}${o.profitMarginPct==null?'':`<br><small>${Number(o.profitMarginPct).toLocaleString('fr-FR')} %</small>`}${o.profitEstimated?'<br><small style="color:var(--text-dim);">estimée</small>':''}</td><td>${esc(o.status||'Inconnu')}</td><td><div class="action-row"><button class="btn btn-blue btn-sm" title="Vérifier le statut" onclick="verifyOrderStatus('${escAttr(o.collection||'')}', '${escAttr(o.id)}')"><i class="fas fa-rotate"></i></button><button class="btn btn-outline btn-sm" title="Fiche" ${!o.userId?'disabled':''} onclick="openCustomerDetail('${escAttr(o.userId||'')}')"><i class="fas fa-user"></i></button>${o.userId?`<button class="btn btn-gold btn-sm" title="Email" onclick="sendCustomerEmail('${escAttr(o.userId)}','${escAttr(o.userName||'')}','','order_feedback')"><i class="fas fa-envelope"></i></button>`:''}${o.link?`<a class="btn btn-outline btn-sm" href="${escAttr(o.link)}" target="_blank" rel="noopener" title="Ouvrir"><i class="fas fa-arrow-up-right-from-square"></i></a>`:''}</div></td>`;
@@ -2035,6 +2035,20 @@ function renderOrders(){
   const knownProfit=list.filter(o=>o.grossProfitXAF!=null);
   const profit=knownProfit.reduce((sum,o)=>sum+Number(o.grossProfitXAF||0),0);
   document.getElementById('ordersStats').innerHTML=`<div class="stat-item">Affichées : <strong>${list.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Payé : <strong>${total.toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-sep"></div><div class="stat-item">Coûts : <strong>${costs.toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-sep"></div><div class="stat-item">Marge : <strong>${profit.toLocaleString('fr-FR')} FCFA</strong></div>`;
+}
+
+async function verifyOrderStatus(collection, docId){
+  collection=String(collection||'').trim();
+  docId=String(docId||'').trim();
+  if(!collection||!docId){showToast('Commande invalide.');return false;}
+  try{
+    const result=await fetchAdmin(`/orders/${encodeURIComponent(collection)}/${encodeURIComponent(docId)}/verify-status`,{method:'POST'});
+    if(!result.success) throw new Error(result.error||'Vérification impossible.');
+    const updated=result.order||null;
+    if(updated){allOrders=allOrders.map(item=>item.collection===collection&&item.id===docId?updated:item);renderOrders();}
+    showToast(result.message||'Commande vérifiée.');
+    return true;
+  }catch(e){showError('Commande : '+e.message);showToast('Vérification impossible.');return false;}
 }
 
 async function verifyDisplayedOrders(){
@@ -2137,6 +2151,19 @@ function renderDepositsTable(){
   const credited=confirmed.reduce((sum,t)=>sum+(t.creditedAmountXAF==null?0:Number(t.creditedAmountXAF||0)),0);
   const byProvider={};allDeposits.forEach(t=>{const p=t.provider||'?';byProvider[p]=(byProvider[p]||0)+1;});
   document.getElementById('depositsStats').innerHTML=`<div class="stat-item">Affichées : <strong>${allDeposits.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Confirmées : <strong>${confirmed.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Crédité : <strong>${credited.toLocaleString('fr-FR')} FCFA</strong></div>${Object.entries(byProvider).map(([k,v])=>`<div class="stat-sep"></div><div class="stat-item"><i class="fas fa-plug" style="color:var(--gold);"></i> ${esc(k)} : <strong>${v}</strong></div>`).join('')}`;
+}
+
+async function verifyDepositStatus(source, docId){
+  source=String(source||'').trim();
+  docId=String(docId||'').trim();
+  if(!source||!docId){showToast('Recharge invalide.');return false;}
+  try{
+    const result=await fetchAdmin(`/deposits/${encodeURIComponent(source)}/${encodeURIComponent(docId)}/verify-status`,{method:'POST'});
+    if(!result.success) throw new Error(result.error||'Vérification impossible.');
+    if(result.transaction){allDeposits=allDeposits.map(item=>((item.source||item.provider||'')===source&&(item.id||item.reference||'')===docId)?{...item,...result.transaction}:item);renderDepositsTable();}
+    showToast(result.message||'Recharge vérifiée.');
+    return true;
+  }catch(e){showError('Recharge : '+e.message);showToast('Vérification impossible.');return false;}
 }
 
 async function verifyDisplayedDeposits(){
