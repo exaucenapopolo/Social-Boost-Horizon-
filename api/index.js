@@ -3316,6 +3316,80 @@ async function getServicesData() {
   return result;
 }
 
+
+let adminServiceLookupCache = { map: null, expires: 0 };
+
+function serviceLooksLikePackage(service = {}) {
+  const raw = String(service.type || service.serviceType || service.pricingMode || '').trim().toLowerCase();
+  return raw.includes('package') || raw.includes('flat') || raw.includes('per_order') || raw.includes('paquet');
+}
+
+function buildAdminServiceLookup(services = []) {
+  const map = new Map();
+  for (const s of Array.isArray(services) ? services : []) {
+    const provider = normalizeProvider(s.provider);
+    const id = String(s.id ?? s.service ?? s.serviceId ?? s.providerServiceId ?? '').trim();
+    const name = String(s.name || '').trim().toLowerCase();
+    const finalProvider = provider || 'inconnu';
+    if (finalProvider && id) map.set(`${finalProvider}::${id}`, s);
+    if (id) map.set(`id::${id}`, s);
+    if (finalProvider && name) map.set(`${finalProvider}::name::${name}`, s);
+    if (name) map.set(`name::${name}`, s);
+  }
+  return map;
+}
+
+async function getAdminServiceLookup(force = false) {
+  if (!force && adminServiceLookupCache.map && Date.now() < adminServiceLookupCache.expires) {
+    return adminServiceLookupCache.map;
+  }
+  const data = await getServicesData();
+  const services = Array.isArray(data?.services) ? data.services : [];
+  const map = buildAdminServiceLookup(services);
+  adminServiceLookupCache = { map, expires: Date.now() + ADMIN_CACHE_TTL };
+  return map;
+}
+
+function findServicePricingForOrder(order = {}, collectionName = '', serviceLookup = null) {
+  const provider = normalizeProvider(
+    order.provider || order.fournisseur || order.providerName || order.supplier || order.api ||
+    KNOWN_PROVIDER_BY_COLLECTION[collectionName] || ''
+  );
+  const qty = Math.max(1, Number(order.quantity || order.qty || order.count || 1) || 1);
+  const serviceId = String(order.serviceId || order.service || order.providerServiceId || order.externalServiceId || order.service_id || '').trim();
+  const serviceName = String(order.serviceName || order.service_name || order.name || '').trim().toLowerCase();
+
+  let service = null;
+  if (serviceLookup && serviceLookup.size) {
+    if (provider && serviceId) service = serviceLookup.get(`${provider}::${serviceId}`) || service;
+    if (!service && serviceId) service = serviceLookup.get(`id::${serviceId}`) || service;
+    if (!service && provider && serviceName) service = serviceLookup.get(`${provider}::name::${serviceName}`) || service;
+    if (!service && serviceName) service = serviceLookup.get(`name::${serviceName}`) || service;
+  }
+
+  if (!service) return { service: null, provider, qty, amount: null, providerCostXAF: null, isPackage: false, isPerUnit: false };
+
+  const unitPriceXAF = Number(service.finalPrice || 0);
+  const unitCostXAF = Number(service.providerCost || 0);
+  const isPackage = serviceLooksLikePackage(service);
+  const isPerUnit = String(service.pricingMode || '').trim().toLowerCase() === 'per_unit';
+
+  const amount = isPackage
+    ? unitPriceXAF
+    : isPerUnit
+      ? unitPriceXAF * qty
+      : Math.round((unitPriceXAF / 1000) * qty);
+
+  const providerCostXAF = isPackage
+    ? unitCostXAF
+    : isPerUnit
+      ? unitCostXAF * qty
+      : Math.round((unitCostXAF / 1000) * qty);
+
+  return { service, provider, qty, amount, providerCostXAF, isPackage, isPerUnit };
+}
+
+
 const adminMemoryCache = {
   overview:   { data: null, expires: 0 },
   topUsers:   { data: null, expires: 0 },
@@ -3832,6 +3906,7 @@ async function getFinancialFieldSchema(collectionName) {
 // - Ajout de refundAmount (pour EXO)
 // - Fallback mémoire si profit=0 & cost=0 & sales>0 (indique champs manquants EXO)
 async function getFinancialsForCollection(colName, start, end) {
+  const serviceLookup = await getAdminServiceLookup();
   const dateField = await detectDateField(colName);
   const ref = db.collection(colName);
   const queries = [];
@@ -3904,8 +3979,8 @@ async function getFinancialsForCollection(colName, start, end) {
           if (page.empty) break;
           page.forEach(doc => {
             const data = doc.data() || {};
-            const amount = getOrderAmountXAF(data, colName);
-            const fin = getOrderFinancials(data, null, colName);
+            const amount = getOrderAmountXAF(data, colName, serviceLookup);
+            const fin = getOrderFinancials(data, null, colName, serviceLookup);
             memOrders++;
             memSales += amount || 0;
             memCost += fin.providerCostXAF || 0;
@@ -4264,6 +4339,7 @@ async function getTopUsersInRange(dateStart, dateEnd, forceRefresh = false) {
 // arbitraire de 1 000 commandes. Les mêmes statuts/champs financiers que la
 // fiche client sont appliqués : attente incluse, annulation/rejet exclus.
 async function computeTopUsersInRange(start, end) {
+  const serviceLookup = await getAdminServiceLookup();
   const userAgg = new Map();
 
   for (const colName of ADMIN_ORDER_COLLECTIONS) {
@@ -4298,7 +4374,7 @@ async function computeTopUsersInRange(start, end) {
             const order = doc.data() || {};
             const ownerIds = getCustomerOrderOwnerIds(order);
             if (!ownerIds.length) return;
-            const contribution = getCustomerOrderContribution(order, colName);
+            const contribution = getCustomerOrderContribution(order, colName, serviceLookup);
             if (!contribution.included) return;
 
             const createdAt = order[dateField] || order.createdAt || order.created_at || order.date || null;
@@ -4404,7 +4480,7 @@ function getCountryAliases(value) {
   return [...new Set([code, code.toLowerCase(), fr.of(code), String(fr.of(code) || '').toLowerCase(), en.of(code), String(en.of(code) || '').toLowerCase()])].filter(Boolean).slice(0, 10);
 }
 
-function getOrderAmountXAF(d = {}, collectionName = '') {
+function getOrderAmountXAF(d = {}, collectionName = '', serviceLookup = null) {
   const keys = ['priceXAF','chargedAmountXAF','paidAmountXAF','amountXAF','finalPriceXAF','orderPriceXAF','totalPriceXAF','totalAmountXAF'];
   if (collectionName === 'commandes') keys.push('totalCost','finalCost','cost');
   keys.push('amount','totalAmount','total');
@@ -4413,13 +4489,20 @@ function getOrderAmountXAF(d = {}, collectionName = '') {
     const value=d[key]; if(value===undefined||value===null||value===''||!Number.isFinite(Number(value)))continue;
     const n=Math.max(0,Number(value)); if(n>0)return n; explicitZero=true;
   }
-  return explicitZero ? 0 : null;
+  if (explicitZero) return 0;
+
+  const pricing = findServicePricingForOrder(d, collectionName, serviceLookup);
+  if (pricing && Number.isFinite(Number(pricing.amount)) && Number(pricing.amount) > 0) {
+    return Number(pricing.amount);
+  }
+  return null;
 }
 
 // ✅ FIX #9 : getOrderFinancials résout automatiquement le provider via KNOWN_PROVIDER_BY_COLLECTION
 // quand rawProvider est null (cas EXO)
-function getOrderFinancials(d = {}, rawProvider = null, collectionName = '') {
-  const amount = getOrderAmountXAF(d, collectionName);
+function getOrderFinancials(d = {}, rawProvider = null, collectionName = '', serviceLookup = null) {
+  const amount = getOrderAmountXAF(d, collectionName, serviceLookup);
+  const servicePricing = findServicePricingForOrder(d, collectionName, serviceLookup);
 
   let resolvedProvider = null;
   if (rawProvider) {
@@ -4442,6 +4525,11 @@ function getOrderFinancials(d = {}, rawProvider = null, collectionName = '') {
     ? positiveStoredCost
     : (costCandidates.length ? 0 : null);
   let providerCostEstimated = false;
+
+  if ((providerCostXAF === null || providerCostXAF <= 0) && servicePricing && Number.isFinite(Number(servicePricing.providerCostXAF)) && Number(servicePricing.providerCostXAF) > 0) {
+    providerCostXAF = Number(servicePricing.providerCostXAF);
+    providerCostEstimated = true;
+  }
 
   const storedProfit = d.estimatedProfitXAF;
   const hasPositiveStoredProfit = storedProfit !== undefined && storedProfit !== null &&
@@ -4522,14 +4610,15 @@ function getCustomerOrderOwnerIds(order = {}) {
     .filter(Boolean))];
 }
 
-function getCustomerOrderContribution(order = {}, collectionName = '') {
+function getCustomerOrderContribution(order = {}, collectionName = '', serviceLookup = null) {
   if (isCustomerOrderExcluded(order)) {
     return { included: false, amount: null, profit: null, profitEligible: false, profitUnavailable: false, financials: null };
   }
   const financials = getOrderFinancials(
     order,
     order.provider || order.fournisseur || order.providerName || order.supplier || (collectionName === 'commandes' ? 'EXO' : null),
-    collectionName
+    collectionName,
+    serviceLookup
   );
   const profitEligible = !isCustomerOrderExcluded(order);
   const profitKnown = profitEligible && financials.grossProfitXAF !== null &&
@@ -6085,6 +6174,7 @@ adminRouter.get('/customers/:id', async (req, res) => {
     if (!userDoc.exists) return res.status(404).json({ success: false, error: 'Utilisateur introuvable.' });
     const u = userDoc.data() || {};
 
+    const serviceLookup = await getAdminServiceLookup();
     const collectionRows = await fetchCustomerOrderDocuments(userId);
     const all = [];
     const countsByCollection = {};
@@ -6097,11 +6187,12 @@ adminRouter.get('/customers/:id', async (req, res) => {
       let includedCount = 0, excludedCount = 0;
       for (const doc of row.docs) {
         const order = doc.data() || {};
-        const contribution = getCustomerOrderContribution(order, row.collectionName);
+        const contribution = getCustomerOrderContribution(order, row.collectionName, serviceLookup);
         const financials = contribution.financials || getOrderFinancials(
           order,
           order.provider || order.fournisseur || order.providerName || order.supplier || (row.collectionName === 'commandes' ? 'EXO' : null),
-          row.collectionName
+          row.collectionName,
+          serviceLookup
         );
         const createdAt = order.createdAt || order.date || order.created_at || order.dateCreated || order.timestamp || null;
         const included = contribution.included;
