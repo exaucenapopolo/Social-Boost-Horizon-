@@ -5123,6 +5123,35 @@ async function enrichAdminOrderUsers(orders) {
 }
 
 
+function normalizeAdminOrder(doc, collectionName) {
+  const data = (doc && typeof doc.data === 'function' ? doc.data() : {}) || {};
+  const ownerId = pickOrderOwnerId(data);
+  const provider = String(data.provider || data.providerName || data.fournisseur || data.vendor || data.partner || data.api || collectionName || '').trim() || collectionName || 'unknown';
+  const rawStatus = data.status || data.orderStatus || data.state || data.etat || data.paymentStatus || data.deliveryStatus || '';
+  const createdAt = data.createdAt || data.created_at || data.date || data.timestamp || data.dateCreated || data.orderDate || data.order_date || null;
+  const userEmail = data.customerEmail || data.customer_email || data.email || data.userEmail || null;
+  const userName = data.userName || data.customerName || data.name || data.fullName || data.clientName || data.client || (userEmail ? String(userEmail).split('@')[0] : null) || (ownerId ? String(ownerId).split('@')[0] : null) || 'Client';
+  const serviceName = data.serviceName || data.service || data.productName || data.itemName || data.title || data.packageName || null;
+  const orderId = data.orderId || data.id || doc.id;
+  const providerRef = pickOrderProviderReference(data);
+
+  return {
+    ...data,
+    id: doc.id,
+    collection: collectionName,
+    orderId,
+    userId: ownerId || data.userId || data.uid || data.customerId || data.customerUid || null,
+    userName,
+    userEmail,
+    userPhone: data.phone || data.customerPhone || data.whatsapp || data.whatsappNumber || data.userPhone || null,
+    serviceName,
+    provider,
+    providerOrderId: providerRef,
+    status: normalizeAdminOrderStatus(provider, rawStatus),
+    createdAt,
+  };
+}
+
 function normalizeAdminStatusValue(value) {
   return String(value || '').trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
