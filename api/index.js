@@ -5042,6 +5042,14 @@ adminRouter.get('/orders', async (req, res) => {
             console.warn(`[Orders] fallback simple limit ${collectionName}:`, plainErr.message);
           }
         }
+        if (!docsMap.size && !userId && !dateStart && !dateEnd && (!statusFilter || statusFilter === 'all') && (!providerFilter || providerFilter === 'all')) {
+          try {
+            const ultraFallbackSnap = await ref.get();
+            ultraFallbackSnap.docs.forEach(d => docsMap.set(d.id, d));
+          } catch (allErr) {
+            console.warn(`[Orders] fallback complet ${collectionName}:`, allErr.message);
+          }
+        }
         const docs = [...docsMap.values()];
 
         for (const doc of docs) {
