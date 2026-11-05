@@ -1500,10 +1500,16 @@ function renderObjectiveProgress(data,goal){
     const pct=m.target>0?(m.current/m.target)*100:0;const missing=Math.max(0,m.target-m.current);const pace=m.target*elapsed;
     const fillClass=pct>=100?'success':(m.current>=pace?'warning':'danger');
     const valueClass=pct>=100?'good':(m.current>=pace?'warn':'bad');
-    return `<div class="objective-row"><div class="objective-info"><div class="objective-title">${esc(m.label)}</div><div class="objective-meta">Réalisé : <strong style="color:var(--text);">${m.fmt(m.current)}</strong> / Cible : <strong>${m.fmt(m.target)}</strong>${missing>0?`<br><span style="color:var(--warning);">Il manque ${m.fmt(missing)}</span>`:'<br><span style="color:var(--green);">Cible atteinte</span>'}${started&&!finished&&missing>0?` · Rythme attendu : ${m.fmt(Math.ceil(pace))}`:''}</div><div class="objective-bar"><div class="objective-fill ${fillClass}" style="width:${Math.min(100,pct)}%;"></div></div></div><div class="objective-value ${valueClass}">${Math.round(pct)}%</div></div>`;
+    const dailyTarget=Math.max(1,Math.ceil(m.target/Math.max(1,Math.round(duration/(24*60*60*1000)))));
+    const weeklyTarget=Math.max(1,Math.ceil(dailyTarget*7));
+    return `<div class="objective-row"><div class="objective-info"><div class="objective-title">${esc(m.label)}</div><div class="objective-meta">Réalisé : <strong style="color:var(--text);">${m.fmt(m.current)}</strong> / Cible : <strong>${m.fmt(m.target)}</strong>${missing>0?`<br><span style="color:var(--warning);">Il manque ${m.fmt(missing)}</span>`:'<br><span style="color:var(--green);">Cible atteinte</span>'}${started&&!finished&&missing>0?` · Rythme attendu : ${m.fmt(Math.ceil(pace))}`:''}<br><span style="color:var(--text-dim);">Micro-objectif : ${m.fmt(dailyTarget)}/jour · ${m.fmt(weeklyTarget)}/semaine</span></div><div class="objective-bar"><div class="objective-fill ${fillClass}" style="width:${Math.min(100,pct)}%;"></div></div></div><div class="objective-value ${valueClass}">${Math.round(pct)}%</div></div>`;
   }).join('');
   const fmt=d=>new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
   panel.innerHTML=`<div class="rec-card ${completed?'severity-success':(!started?'severity-info':onTrack===metrics.length?'severity-success':'severity-warning')}"><div class="rec-body"><div class="rec-title">${esc(status)} · ${fmt(goal.startDate)} au ${fmt(goal.endDate)}</div><div class="rec-desc">${esc(detail)}</div></div></div>${rows}`;
+  const rec=document.createElement('div');
+  rec.className='rec-card severity-info';
+  rec.innerHTML=`<div class="rec-icon"><i class="fas fa-calendar-check"></i></div><div class="rec-body"><div class="rec-title">Cadence recommandée</div><div class="rec-desc">Pour atteindre ton objectif du mois, surveille surtout le rythme journalier et hebdomadaire ci-dessus.</div></div>`;
+  panel.appendChild(rec);
 }
 function renderObjectiveAssistantAlert(data,goal){
   const panel=document.getElementById('overviewRecommendationsPanel');
@@ -1667,21 +1673,10 @@ async function loadOverview(force=false){
 }
 function renderDepositBlock(obj,key){
   const data=(obj&&typeof obj==='object')?obj:{total:Number(obj||0),success:Number(obj||0),pending:0,failed:0,totalCreditedXAF:0};
-  const total=Number(data.total||0);
-  const success=Number(data.success||0);
-  const pending=Number(data.pending||0);
-  const failed=Number(data.failed||0);
-  const xaf=Number(data.totalCreditedXAF||0);
+  const total=Number(data.total??data.success??0);const success=Number(data.success||0);const pending=Number(data.pending||0);const failed=Number(data.failed||0);const xaf=Number(data.totalCreditedXAF||0);
   const main=document.getElementById('kpiDeposits'+key);const sub=document.getElementById('kpiDeposits'+key+'Sub');
   if(main)main.textContent=total.toLocaleString('fr-FR');
-  if(sub){
-    const parts=[];
-    parts.push(`${success.toLocaleString('fr-FR')} réussi(s)`);
-    parts.push(`${pending.toLocaleString('fr-FR')} en attente`);
-    parts.push(`${failed.toLocaleString('fr-FR')} échoué(s)`);
-    if(xaf>0)parts.push(`${xaf.toLocaleString('fr-FR')} FCFA crédités`);
-    sub.textContent=parts.join(' · ');
-  }
+  if(sub){const parts=[];parts.push(success.toLocaleString('fr-FR')+' réussis');if(pending>0)parts.push(pending.toLocaleString('fr-FR')+' en attente');if(failed>0)parts.push(failed.toLocaleString('fr-FR')+' échoués');if(xaf>0)parts.push(xaf.toLocaleString('fr-FR')+' FCFA crédités');if(!parts.length)parts.push(total.toLocaleString('fr-FR')+' tx');sub.textContent=parts.join(' · ');}
 }
 function renderKpiDelta(current,previous,label){
   const cur=Number(current||0),prev=Number(previous||0);
@@ -1990,7 +1985,7 @@ function renderOrders(){
   if(!list.length){tb.innerHTML='<tr><td colspan="11" class="loading">Aucune commande pour ces critères.</td></tr>';}
   list.forEach(o=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td style="white-space:nowrap;font-size:.78rem;color:var(--text-muted);">${esc(formatDate(o.createdAt))}</td><td><strong>${esc(o.orderId||o.id)}</strong></td><td><strong>${esc(o.userName||'Client inconnu')}</strong>${o.userId?`<br><small style="color:var(--text-dim);">${esc(o.userEmail||'')}</small>`:''}</td><td><span class="badge badge-mtp">${esc(o.provider||'—')}</span><br><small style="color:var(--text-dim);font-size:.7rem;">${esc(o.collection||'')}</small></td><td>${esc(o.serviceName||'Service')}<br><small style="color:var(--text-dim);">${esc(o.platform||'')}</small></td><td>${Number(o.quantity||0).toLocaleString('fr-FR')}</td><td style="white-space:nowrap;font-weight:600;">${o.amount==null?'—':Number(o.amount).toLocaleString('fr-FR')+' FCFA'}${o.refunded?'<br><small class="kpi-warning">Remboursée</small>':''}</td><td style="white-space:nowrap;">${o.providerCostXAF==null?'—':Number(o.providerCostXAF).toLocaleString('fr-FR')+' FCFA'}${o.providerCostEstimated?'<br><small style="color:var(--text-dim);">estimé</small>':''}</td><td style="white-space:nowrap;">${o.grossProfitXAF==null?'—':Number(o.grossProfitXAF).toLocaleString('fr-FR')+' FCFA'}${o.profitMarginPct==null?'':`<br><small>${Number(o.profitMarginPct).toLocaleString('fr-FR')} %</small>`}${o.profitEstimated?'<br><small style="color:var(--text-dim);">estimée</small>':''}</td><td>${esc(o.status||'Inconnu')}</td><td><div class="action-row"><button class="btn btn-outline btn-sm" title="Fiche" ${!o.userId?'disabled':''} onclick="openCustomerDetail('${escAttr(o.userId||'')}')"><i class="fas fa-user"></i></button>${o.userId?`<button class="btn btn-gold btn-sm" title="Email" onclick="sendCustomerEmail('${escAttr(o.userId)}','${escAttr(o.userName||'')}','','order_feedback')"><i class="fas fa-envelope"></i></button>`:''}${o.link?`<a class="btn btn-outline btn-sm" href="${escAttr(o.link)}" target="_blank" rel="noopener" title="Ouvrir"><i class="fas fa-arrow-up-right-from-square"></i></a>`:''}</div></td>`;
+    tr.innerHTML=`<td style="white-space:nowrap;font-size:.78rem;color:var(--text-muted);">${esc(formatDate(o.createdAt))}</td><td><strong>${esc(o.orderId||o.id)}</strong></td><td><strong>${esc(o.userName||'Client inconnu')}</strong>${o.userId?`<br><small style="color:var(--text-dim);">${esc(o.userEmail||'')}</small>`:''}</td><td><span class="badge badge-mtp">${esc(o.provider||'—')}</span><br><small style="color:var(--text-dim);font-size:.7rem;">${esc(o.collection||'')}</small></td><td>${esc(o.serviceName||'Service')}<br><small style="color:var(--text-dim);">${esc(o.platform||'')}</small></td><td>${Number(o.quantity||0).toLocaleString('fr-FR')}</td><td style="white-space:nowrap;font-weight:600;">${o.amount==null?'—':Number(o.amount).toLocaleString('fr-FR')+' FCFA'}${o.refunded?'<br><small class="kpi-warning">Remboursée</small>':''}</td><td style="white-space:nowrap;">${o.providerCostXAF==null?'—':Number(o.providerCostXAF).toLocaleString('fr-FR')+' FCFA'}${o.providerCostEstimated?'<br><small style="color:var(--text-dim);">estimé</small>':''}</td><td style="white-space:nowrap;">${o.grossProfitXAF==null?'—':Number(o.grossProfitXAF).toLocaleString('fr-FR')+' FCFA'}${o.profitMarginPct==null?'':`<br><small>${Number(o.profitMarginPct).toLocaleString('fr-FR')} %</small>`}${o.profitEstimated?'<br><small style="color:var(--text-dim);">estimée</small>':''}</td><td>${esc(o.status||'Inconnu')}</td><td><div class="action-row"><button class="btn btn-blue btn-sm" title="Vérifier le statut" onclick="verifyOrderStatus('${escAttr(o.collection||'')}', '${escAttr(o.id)}')"><i class="fas fa-rotate"></i></button><button class="btn btn-outline btn-sm" title="Fiche" ${!o.userId?'disabled':''} onclick="openCustomerDetail('${escAttr(o.userId||'')}')"><i class="fas fa-user"></i></button>${o.userId?`<button class="btn btn-gold btn-sm" title="Email" onclick="sendCustomerEmail('${escAttr(o.userId)}','${escAttr(o.userName||'')}','','order_feedback')"><i class="fas fa-envelope"></i></button>`:''}${o.link?`<a class="btn btn-outline btn-sm" href="${escAttr(o.link)}" target="_blank" rel="noopener" title="Ouvrir"><i class="fas fa-arrow-up-right-from-square"></i></a>`:''}</div></td>`;
     tb.appendChild(tr);
   });
   const total=list.reduce((sum,o)=>sum+(o.amount==null?0:Number(o.amount)),0);
@@ -2000,6 +1995,27 @@ function renderOrders(){
   const profit=knownProfit.reduce((sum,o)=>sum+Number(o.grossProfitXAF||0),0);
   document.getElementById('ordersStats').innerHTML=`<div class="stat-item">Affichées : <strong>${list.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Payé : <strong>${total.toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-sep"></div><div class="stat-item">Coûts : <strong>${costs.toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-sep"></div><div class="stat-item">Marge : <strong>${profit.toLocaleString('fr-FR')} FCFA</strong></div>`;
 }
+
+async function verifyOrderStatus(collection, docId){
+  if(!collection||!docId){showError('Commande invalide.');return;}
+  try{
+    showToast('Vérification de la commande…');
+    const result=await fetchAdmin(`/orders/${encodeURIComponent(collection)}/${encodeURIComponent(docId)}/verify-status`,{method:'POST'});
+    if(result.success){
+      const updated=result.order||null;
+      if(updated){
+        allOrders=allOrders.map(o=>o.id===updated.id&&o.collection===updated.collection?updated:o);
+        renderOrders();
+      }else{
+        await loadOrders(true,true);
+      }
+      showToast(result.message||'Statut de commande vérifié.');
+    }else{
+      throw new Error(result.error||'Vérification impossible.');
+    }
+  }catch(e){showError('Commande : '+e.message);}
+}
+
 
 let operationJournalLoadedAt=0;
 let operationJournalLoading=false;
@@ -2059,21 +2075,40 @@ async function loadDeposits(reset=false,force=false){
     const ds=formatDateInput('depositDateStart');if(ds)p.set('dateStart',ds.toISOString());
     const de=formatDateInput('depositDateEnd');if(de)p.set('dateEnd',new Date(de.getTime()+24*60*60*1000).toISOString());
     const d=await fetchAdmin('/deposits?'+p.toString());
-    allDeposits=d.transactions||[];depositsLoadedAt=Date.now();tb.innerHTML='';
-    if(!allDeposits.length)tb.innerHTML='<tr><td colspan="8" class="loading">Aucune recharge.</td></tr>';
-    for(const t of allDeposits){
-      const tr=document.createElement('tr');
-      const status=String(t.status||'UNKNOWN').toUpperCase();
-      const color=status==='CONFIRMED'?'var(--green)':status==='FAILED'?'var(--red)':'var(--warning)';
-      tr.innerHTML=`<td style="white-space:nowrap;font-size:.78rem;color:var(--text-muted);">${esc(formatDate(t.createdAt))}</td><td><strong>${esc(t.reference)}</strong></td><td><strong>${esc(t.userName||'Client')}</strong><br><small style="color:var(--text-dim);">${esc(t.userEmail||t.userId||'')}</small></td><td><span class="badge badge-mtp">${esc(t.provider)}</span></td><td>${Number(t.requestedAmount||0).toLocaleString('fr-FR')} ${esc(t.requestedCurrency||'')}</td><td style="font-weight:600;color:var(--green);">${t.creditedAmountXAF==null?'—':Number(t.creditedAmountXAF).toLocaleString('fr-FR')+' FCFA'}</td><td><span style="font-weight:600;color:${color};">${esc(status)}</span>${t.failureReason?'<br><small style="color:var(--text-dim);">'+esc(t.failureReason)+'</small>':''}</td><td><div class="action-row"><button class="btn btn-outline btn-sm" onclick="openCustomerDetail('${escAttr(t.userId||'')}')" ${!t.userId?'disabled':''}><i class="fas fa-user"></i></button></div></td>`;
-      tb.appendChild(tr);
-    }
-    const confirmed=allDeposits.filter(t=>['CONFIRMED','SUCCESS','SUCCEEDED','PAID'].includes(String(t.status||'').toUpperCase()));
-    const credited=confirmed.reduce((sum,t)=>sum+(t.creditedAmountXAF==null?0:Number(t.creditedAmountXAF||0)),0);
-    const byProvider={};allDeposits.forEach(t=>{const p=t.provider||'?';byProvider[p]=(byProvider[p]||0)+1;});
-    document.getElementById('depositsStats').innerHTML=`<div class="stat-item">Affichées : <strong>${allDeposits.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Confirmées : <strong>${confirmed.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Crédité : <strong>${credited.toLocaleString('fr-FR')} FCFA</strong></div>${Object.entries(byProvider).map(([k,v])=>`<div class="stat-sep"></div><div class="stat-item"><i class="fas fa-plug" style="color:var(--gold);"></i> ${esc(k)} : <strong>${v}</strong></div>`).join('')}`;
+    allDeposits=d.transactions||[];depositsLoadedAt=Date.now();renderDepositsTable();
   }catch(e){tb.innerHTML=`<tr><td colspan="8" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Recharges : '+e.message);}
   finally{depositsLoading=false;}
+}
+
+function renderDepositsTable(){
+  const tb=document.getElementById('depositsBody');if(!tb)return;
+  tb.innerHTML='';
+  if(!allDeposits.length)tb.innerHTML='<tr><td colspan="8" class="loading">Aucune recharge.</td></tr>';
+  for(const t of allDeposits){
+    const tr=document.createElement('tr');
+    const status=String(t.status||'UNKNOWN').toUpperCase();
+    const color=status==='CONFIRMED'||status==='COMPLETED'||status==='SUCCESS'||status==='SUCCEEDED'||status==='PAID'?'var(--green)':status==='FAILED'?'var(--red)':'var(--warning)';
+    tr.innerHTML=`<td style="white-space:nowrap;font-size:.78rem;color:var(--text-muted);">${esc(formatDate(t.createdAt))}</td><td><strong>${esc(t.reference)}</strong></td><td><strong>${esc(t.userName||'Client')}</strong><br><small style="color:var(--text-dim);">${esc(t.userEmail||t.userId||'')}</small></td><td><span class="badge badge-mtp">${esc(t.provider)}</span></td><td>${Number(t.requestedAmount||0).toLocaleString('fr-FR')} ${esc(t.requestedCurrency||'')}</td><td style="font-weight:600;color:var(--green);">${t.creditedAmountXAF==null?'—':Number(t.creditedAmountXAF).toLocaleString('fr-FR')+' FCFA'}</td><td><span style="font-weight:600;color:${color};">${esc(status)}</span>${t.failureReason?'<br><small style="color:var(--text-dim);">'+esc(t.failureReason)+'</small>':''}</td><td><div class="action-row"><button class="btn btn-blue btn-sm" title="Vérifier le statut" onclick="verifyDepositStatus('${escAttr(t.source||t.provider||'')}', '${escAttr(t.id||t.reference||'')}')"><i class="fas fa-rotate"></i></button><button class="btn btn-outline btn-sm" onclick="openCustomerDetail('${escAttr(t.userId||'')}')" ${!t.userId?'disabled':''}><i class="fas fa-user"></i></button></div></td>`;
+    tb.appendChild(tr);
+  }
+  const confirmed=allDeposits.filter(t=>['CONFIRMED','SUCCESS','SUCCEEDED','PAID','COMPLETED'].includes(String(t.status||'').toUpperCase()));
+  const credited=confirmed.reduce((sum,t)=>sum+(t.creditedAmountXAF==null?0:Number(t.creditedAmountXAF||0)),0);
+  const byProvider={};allDeposits.forEach(t=>{const p=t.provider||'?';byProvider[p]=(byProvider[p]||0)+1;});
+  document.getElementById('depositsStats').innerHTML=`<div class="stat-item">Affichées : <strong>${allDeposits.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Confirmées : <strong>${confirmed.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Crédité : <strong>${credited.toLocaleString('fr-FR')} FCFA</strong></div>${Object.entries(byProvider).map(([k,v])=>`<div class="stat-sep"></div><div class="stat-item"><i class="fas fa-plug" style="color:var(--gold);"></i> ${esc(k)} : <strong>${v}</strong></div>`).join('')}`;
+}
+
+async function verifyDepositStatus(provider, docId){
+  if(!provider||!docId){showError('Recharge invalide.');return;}
+  try{
+    showToast('Vérification de la recharge…');
+    const result=await fetchAdmin(`/deposits/${encodeURIComponent(provider)}/${encodeURIComponent(docId)}/verify-status`,{method:'POST'});
+    if(result.success){
+      await loadDeposits(false,true);
+      showToast(result.message||'Statut de recharge vérifié.');
+    }else{
+      throw new Error(result.error||'Vérification impossible.');
+    }
+  }catch(e){showError('Recharge : '+e.message);}
 }
 
 function clearCustomerDates(){const s=document.getElementById('customerDateStart');const e=document.getElementById('customerDateEnd');if(s)s.value='';if(e)e.value='';loadCustomers(true);}
@@ -2853,7 +2888,7 @@ function renderGifts(list){
     const waBtn=`<button class="btn btn-wa btn-sm" ${!g.whatsapp?'disabled':''} onclick="${g.whatsapp?"openWaModal('"+escAttr(g.id)+"')":''}"><i class="fab fa-whatsapp"></i></button>`;
     const emailBtn='<button class="btn btn-outline btn-sm" '+(!(g.email||g.userId)?'disabled':'')+' onclick="'+((g.email||g.userId)?"openGiftEmailModal('"+escAttr(g.id)+"')":'')+'" title="Email"><i class="fas fa-envelope"></i></button>';
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td style="font-size:.78rem;color:var(--text-dim);white-space:nowrap;">${formatDate(g.createdAt)}${ageBadge}</td><td style="font-size:.84rem;">${user}</td><td>${esc(g.country||'–')}</td><td>${giftTypeLabel(g)}</td><td>${links.length?links.join(''):'–'}</td><td>${statusLabel(g.status)}</td><td><div class="action-row">${waBtn}${emailBtn}${g.link?`<button class="btn btn-outline btn-sm" onclick="copyText('${escAttr(g.link)}')"><i class="fas fa-copy"></i></button>`:''}${g.status==='pending'?`<button class="btn btn-green btn-sm" onclick="setGiftStatus('${escAttr(g.id)}','delivered')" title="Livré"><i class="fas fa-check"></i></button><button class="btn btn-red btn-sm" onclick="setGiftStatus('${escAttr(g.id)}','rejected')" title="Rejeter"><i class="fas fa-xmark"></i></button>`:`<button class="btn btn-outline btn-sm" onclick="setGiftStatus('${escAttr(g.id)}','pending')" title="Réouvrir"><i class="fas fa-rotate-left"></i></button>`}</div></td>`;
+    tr.innerHTML=`<td style="font-size:.78rem;color:var(--text-dim);white-space:nowrap;">${formatDate(g.createdAt)}${ageBadge}</td><td style="font-size:.84rem;">${user}</td><td>${esc(g.country||'–')}</td><td>${giftTypeLabel(g)}</td><td>${links.length?links.join(''):'–'}</td><td>${statusLabel(g.status)}</td><td><div class="action-row">${waBtn}${g.userId?`<button class="btn btn-blue btn-sm" title="Fiche client" onclick="openCustomerDetail('${escAttr(g.userId)}')"><i class="fas fa-user"></i></button>`:''}${emailBtn}${g.link?`<button class="btn btn-outline btn-sm" onclick="copyText('${escAttr(g.link)}')"><i class="fas fa-copy"></i></button>`:''}${g.status==='pending'?`<button class="btn btn-green btn-sm" onclick="setGiftStatus('${escAttr(g.id)}','delivered')" title="Livré"><i class="fas fa-check"></i></button><button class="btn btn-red btn-sm" onclick="setGiftStatus('${escAttr(g.id)}','rejected')" title="Rejeter"><i class="fas fa-xmark"></i></button>`:`<button class="btn btn-outline btn-sm" onclick="setGiftStatus('${escAttr(g.id)}','pending')" title="Réouvrir"><i class="fas fa-rotate-left"></i></button>`}</div></td>`;
     tb.appendChild(tr);
   });
   updateGiftStats(list);
