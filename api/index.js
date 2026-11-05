@@ -5034,6 +5034,14 @@ adminRouter.get('/orders', async (req, res) => {
             console.warn(`[Orders] orderBy ${dateField} échoué sur ${collectionName}:`, orderErr.message);
           }
         }
+        if (!docsMap.size && !userId && !dateStart && !dateEnd && (!statusFilter || statusFilter === 'all') && (!providerFilter || providerFilter === 'all')) {
+          try {
+            const fallbackSnap = await ref.limit(pageFetchLimit).get();
+            fallbackSnap.docs.forEach(d => docsMap.set(d.id, d));
+          } catch (plainErr) {
+            console.warn(`[Orders] fallback simple limit ${collectionName}:`, plainErr.message);
+          }
+        }
         const docs = [...docsMap.values()];
 
         for (const doc of docs) {
