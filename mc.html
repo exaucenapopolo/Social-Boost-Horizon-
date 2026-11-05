@@ -442,9 +442,9 @@ textarea.msg-area:focus{border-color:var(--gold)}
       <section class="section">
         <div class="section-head"><div><span class="section-label">Dépôts</span><h2 class="section-title">Dépôts et visites</h2></div></div>
         <div class="stats-strip" style="margin-bottom:0;">
-          <div class="stat-block"><div class="stat-label">Dépôts réussis aujourd'hui</div><div class="stat-value green" id="kpiDepositsToday">—</div><div class="stat-sub" id="kpiDepositsTodaySub" style="font-size:.72rem;">—</div></div>
-          <div class="stat-block"><div class="stat-label">Dépôts réussis hier</div><div class="stat-value" id="kpiDepositsYesterday">—</div><div class="stat-sub" id="kpiDepositsYesterdaySub" style="font-size:.72rem;">—</div></div>
-          <div class="stat-block"><div class="stat-label">Dépôts réussis avant-hier</div><div class="stat-value" id="kpiDepositsDayBefore">—</div><div class="stat-sub" id="kpiDepositsDayBeforeSub" style="font-size:.72rem;">—</div></div>
+          <div class="stat-block"><div class="stat-label">Dépôts aujourd'hui</div><div class="stat-value green" id="kpiDepositsToday">—</div><div class="stat-sub" id="kpiDepositsTodaySub" style="font-size:.72rem;">—</div></div>
+          <div class="stat-block"><div class="stat-label">Dépôts hier</div><div class="stat-value" id="kpiDepositsYesterday">—</div><div class="stat-sub" id="kpiDepositsYesterdaySub" style="font-size:.72rem;">—</div></div>
+          <div class="stat-block"><div class="stat-label">Dépôts avant-hier</div><div class="stat-value" id="kpiDepositsDayBefore">—</div><div class="stat-sub" id="kpiDepositsDayBeforeSub" style="font-size:.72rem;">—</div></div>
           <div class="stat-block"><div class="stat-label">Meilleur déposant</div><div class="stat-value gold" id="kpiTopDepositorName" style="font-size:1.1rem;">—</div><div class="stat-sub" id="kpiTopDepositorAmount" style="font-size:.72rem;">—</div></div>
           <div class="stat-block"><div class="stat-label">Visites aujourd'hui</div><div class="stat-value blue" id="kpiVisitsToday">—</div><div class="stat-sub" id="kpiVisitsTodayCompare">—</div></div>
           <div class="stat-block"><div class="stat-label">Visites hier</div><div class="stat-value" id="kpiVisitsYesterday">—</div></div>
@@ -1667,10 +1667,21 @@ async function loadOverview(force=false){
 }
 function renderDepositBlock(obj,key){
   const data=(obj&&typeof obj==='object')?obj:{total:Number(obj||0),success:Number(obj||0),pending:0,failed:0,totalCreditedXAF:0};
-  const success=Number(data.success||data.total||0);const pending=Number(data.pending||0);const failed=Number(data.failed||0);const xaf=Number(data.totalCreditedXAF||0);
+  const total=Number(data.total||0);
+  const success=Number(data.success||0);
+  const pending=Number(data.pending||0);
+  const failed=Number(data.failed||0);
+  const xaf=Number(data.totalCreditedXAF||0);
   const main=document.getElementById('kpiDeposits'+key);const sub=document.getElementById('kpiDeposits'+key+'Sub');
-  if(main)main.textContent=success.toLocaleString('fr-FR');
-  if(sub){const parts=[];if(pending>0)parts.push(pending.toLocaleString('fr-FR')+' en attente');if(failed>0)parts.push(failed.toLocaleString('fr-FR')+' échoué(s)');if(xaf>0)parts.push(xaf.toLocaleString('fr-FR')+' FCFA');if(!parts.length)parts.push(Number(data.total||0).toLocaleString('fr-FR')+' tx');sub.textContent=parts.join(' · ');}
+  if(main)main.textContent=total.toLocaleString('fr-FR');
+  if(sub){
+    const parts=[];
+    parts.push(`${success.toLocaleString('fr-FR')} réussi(s)`);
+    parts.push(`${pending.toLocaleString('fr-FR')} en attente`);
+    parts.push(`${failed.toLocaleString('fr-FR')} échoué(s)`);
+    if(xaf>0)parts.push(`${xaf.toLocaleString('fr-FR')} FCFA crédités`);
+    sub.textContent=parts.join(' · ');
+  }
 }
 function renderKpiDelta(current,previous,label){
   const cur=Number(current||0),prev=Number(previous||0);
