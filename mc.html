@@ -584,6 +584,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
         <div><div class="page-title">Commandes</div><div class="page-subtitle">Historique paginé, filtrable par date et fournisseur</div></div>
         <div class="top-actions">
           <button class="btn btn-outline" onclick="refreshOrdersView()"><i class="fas fa-sync-alt"></i> Actualiser</button>
+          <button class="btn btn-blue" onclick="verifyDisplayedOrders()"><i class="fas fa-rotate"></i> Vérifier affiché</button>
           <button class="btn btn-gold" onclick="exportOrdersPDF()"><i class="fas fa-file-pdf"></i> Exporter PDF</button>
         </div>
       </div>
@@ -620,6 +621,7 @@ textarea.msg-area:focus{border-color:var(--gold)}
         <div><div class="page-title">Recharges clients</div><div class="page-subtitle">Transactions de paiement</div></div>
         <div class="top-actions">
           <button class="btn btn-outline" onclick="refreshDepositsSafely()"><i class="fas fa-sync-alt"></i> Actualiser</button>
+          <button class="btn btn-blue" onclick="verifyDisplayedDeposits()"><i class="fas fa-rotate"></i> Vérifier affiché</button>
           <button class="btn btn-gold" onclick="exportDepositsPDF()"><i class="fas fa-file-pdf"></i> Exporter PDF</button>
         </div>
       </div>
@@ -737,6 +739,18 @@ textarea.msg-area:focus{border-color:var(--gold)}
       <section class="section" style="padding-top:0;">
         <div class="section-head">
           <div><span class="section-label">Répartition</span><h2 class="section-title">Services par fournisseur</h2><p class="section-sub" id="servicesTotalText">—</p></div>
+        </div>
+        <div class="service-calculator">
+          <div class="filter-bar" style="margin-bottom:12px;">
+            <div class="filter-group" style="flex:1;min-width:220px;"><label>Service</label>
+              <input id="serviceCalcSearch" type="text" list="serviceCalcList" placeholder="Rechercher un service ou coller son ID…" oninput="updateServiceCalculator()" style="min-width:220px;">
+              <datalist id="serviceCalcList"></datalist>
+            </div>
+            <div class="filter-group"><label>Quantité</label><input id="serviceCalcQty" type="number" min="1" step="1" value="1" oninput="updateServiceCalculator()" style="width:120px;"></div>
+            <div class="filter-group"><label>Devise</label><select id="serviceCalcCurrency" onchange="updateServiceCalculator()"></select></div>
+            <div class="filter-group"><label>Action</label><button class="btn btn-outline btn-sm" onclick="copyServiceCalculatorResult()"><i class="fas fa-copy"></i> Copier</button></div>
+          </div>
+          <div id="serviceCalcResult" class="service-calc-result">Choisis un service pour calculer le prix, le coût fournisseur et la marge.</div>
         </div>
         <div id="providerStatsBadges" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;"></div>
         <div class="filter-bar">
@@ -1028,6 +1042,7 @@ let allServices = [];
 let servicesLoaded = false;
 let servicesLoadedAt = 0;
 let currentMultipliers = null;
+let currentServiceRates = null;
 let allGifts = [];
 let giftsLoaded = false;
 let currentWaGift = null;
@@ -1040,6 +1055,32 @@ let customerEmailSending = false;
 let metricsRebuildRunning = false;
 
 const CLIENT_TTL = {overview:30*60*1000,topUsers:30*60*1000,financials:30*60*1000,orders:10*60*1000,orderSummary:15*60*1000,deposits:10*60*1000,customers:30*60*1000,stores:30*60*1000,gifts:10*60*1000,services:30*60*1000};
+const SERVICE_CURRENCIES = [
+  { code: 'XAF', label: 'Franc CFA (XAF)' },
+  { code: 'XOF', label: 'Franc CFA (XOF)' },
+  { code: 'USD', label: 'Dollar US' },
+  { code: 'EUR', label: 'Euro' },
+  { code: 'GBP', label: 'Livre sterling' },
+  { code: 'CAD', label: 'Dollar canadien' },
+  { code: 'CHF', label: 'Franc suisse' },
+  { code: 'RUB', label: 'Rouble russe' },
+  { code: 'ZAR', label: 'Rand sud-africain' },
+  { code: 'MAD', label: 'Dirham marocain' },
+  { code: 'GHS', label: 'Cedi ghanéen' },
+  { code: 'NGN', label: 'Naira nigériane' },
+  { code: 'KES', label: 'Shilling kényan' },
+  { code: 'UGX', label: 'Shilling ougandais' },
+  { code: 'TZS', label: 'Shilling tanzanien' },
+  { code: 'RWF', label: 'Franc rwandais' },
+  { code: 'ZMW', label: 'Kwacha zambien' },
+  { code: 'CDF', label: 'Franc congolais' },
+  { code: 'AOA', label: 'Kwanza angolais' },
+];
+const DEFAULT_SERVICE_RATES = {
+  XAF: 1, XOF: 1, USD: 590, EUR: 690, GBP: 771.6, CAD: 408.95, CHF: 703.08,
+  RUB: 6.9466, ZAR: 35.01, MAD: 58.68, GHS: 49.67, NGN: 0.4346, KES: 4.4919,
+  UGX: 0.1577, TZS: 0.2260, RWF: 0.4200, ZMW: 24.39, CDF: 0.2344, AOA: 0.6400,
+};
 const AUTO_REFRESH_INTERVAL_MS = 30*60*1000;
 const FORCE_REFRESH_THROTTLE_MS = 5*60*1000;
 const BADGES_TTL_MS = 10*60*1000;
@@ -1996,24 +2037,25 @@ function renderOrders(){
   document.getElementById('ordersStats').innerHTML=`<div class="stat-item">Affichées : <strong>${list.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Payé : <strong>${total.toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-sep"></div><div class="stat-item">Coûts : <strong>${costs.toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-sep"></div><div class="stat-item">Marge : <strong>${profit.toLocaleString('fr-FR')} FCFA</strong></div>`;
 }
 
-async function verifyOrderStatus(collection, docId){
-  if(!collection||!docId){showError('Commande invalide.');return;}
-  try{
-    showToast('Vérification de la commande…');
-    const result=await fetchAdmin(`/orders/${encodeURIComponent(collection)}/${encodeURIComponent(docId)}/verify-status`,{method:'POST'});
-    if(result.success){
-      const updated=result.order||null;
-      if(updated){
-        allOrders=allOrders.map(o=>o.id===updated.id&&o.collection===updated.collection?updated:o);
-        renderOrders();
+async function verifyDisplayedOrders(){
+  if(!allOrders.length){showToast('Aucune commande chargée à vérifier.');return;}
+  if(!confirm(`Vérifier les ${allOrders.length.toLocaleString('fr-FR')} commande(s) affichée(s) ?`))return;
+  let ok=0, fail=0;
+  for(const o of allOrders){
+    try{
+      const result=await fetchAdmin(`/orders/${encodeURIComponent(o.collection||'')}/${encodeURIComponent(o.id||'')}/verify-status`,{method:'POST'});
+      if(result.success){
+        ok++;
+        if(result.order){
+          allOrders=allOrders.map(item=>item.id===result.order.id&&item.collection===result.order.collection?result.order:item);
+        }
       }else{
-        await loadOrders(true,true);
+        fail++;
       }
-      showToast(result.message||'Statut de commande vérifié.');
-    }else{
-      throw new Error(result.error||'Vérification impossible.');
-    }
-  }catch(e){showError('Commande : '+e.message);}
+    }catch(_){fail++;}
+  }
+  renderOrders();
+  showToast(`Vérification terminée : ${ok} succès${fail?`, ${fail} échec(s)`:''}.`);
 }
 
 
@@ -2097,18 +2139,18 @@ function renderDepositsTable(){
   document.getElementById('depositsStats').innerHTML=`<div class="stat-item">Affichées : <strong>${allDeposits.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Confirmées : <strong>${confirmed.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Crédité : <strong>${credited.toLocaleString('fr-FR')} FCFA</strong></div>${Object.entries(byProvider).map(([k,v])=>`<div class="stat-sep"></div><div class="stat-item"><i class="fas fa-plug" style="color:var(--gold);"></i> ${esc(k)} : <strong>${v}</strong></div>`).join('')}`;
 }
 
-async function verifyDepositStatus(provider, docId){
-  if(!provider||!docId){showError('Recharge invalide.');return;}
-  try{
-    showToast('Vérification de la recharge…');
-    const result=await fetchAdmin(`/deposits/${encodeURIComponent(provider)}/${encodeURIComponent(docId)}/verify-status`,{method:'POST'});
-    if(result.success){
-      await loadDeposits(false,true);
-      showToast(result.message||'Statut de recharge vérifié.');
-    }else{
-      throw new Error(result.error||'Vérification impossible.');
-    }
-  }catch(e){showError('Recharge : '+e.message);}
+async function verifyDisplayedDeposits(){
+  if(!allDeposits.length){showToast('Aucune recharge chargée à vérifier.');return;}
+  if(!confirm(`Vérifier les ${allDeposits.length.toLocaleString('fr-FR')} recharge(s) affichée(s) ?`))return;
+  let ok=0, fail=0;
+  for(const t of allDeposits){
+    try{
+      const result=await fetchAdmin(`/deposits/${encodeURIComponent(t.source||t.provider||'')}/${encodeURIComponent(t.id||t.reference||'')}/verify-status`,{method:'POST'});
+      if(result.success) ok++; else fail++;
+    }catch(_){fail++;}
+  }
+  await loadDeposits(false,true);
+  showToast(`Vérification terminée : ${ok} succès${fail?`, ${fail} échec(s)`:''}.`);
 }
 
 function clearCustomerDates(){const s=document.getElementById('customerDateStart');const e=document.getElementById('customerDateEnd');if(s)s.value='';if(e)e.value='';loadCustomers(true);}
@@ -2371,11 +2413,97 @@ async function loadServices(force=false){
   try{
     const d=await fetchAdmin('/services');
     const data=d.data||{};
-    allServices=data.services||[];currentMultipliers=data.multipliers||{};
+    allServices=data.services||[];currentMultipliers=data.multipliers||{};currentServiceRates=data.rates||{};
     servicesLoaded=true;servicesLoadedAt=Date.now();
+    populateServiceCalculator();
     renderServices();
+    updateServiceCalculator();
   }catch(e){document.getElementById('servicesBody').innerHTML=`<tr><td colspan="7" class="loading">Erreur : ${esc(e.message)}</td></tr>`;showError('Services : '+e.message);}
 }
+
+function getServiceCurrencyRates(){
+  const base={...DEFAULT_SERVICE_RATES};
+  if(currentServiceRates&&typeof currentServiceRates==='object'){
+    for(const [k,v] of Object.entries(currentServiceRates)){
+      const n=Number(v);
+      if(Number.isFinite(n)&&n>0)base[String(k).toUpperCase()]=n;
+    }
+  }
+  return base;
+}
+function convertXAFToCurrency(amountXAF,currency){
+  const cur=String(currency||'XAF').toUpperCase();
+  const rates=getServiceCurrencyRates();
+  const rate=Number(rates[cur]||1);
+  return !rate||rate<=0?Number(amountXAF||0):Number(amountXAF||0)/rate;
+}
+function formatCurrencyValue(amount,currency){
+  const cur=String(currency||'XAF').toUpperCase();
+  const n=Number(amount||0);
+  if(cur==='XAF'||cur==='XOF') return `${Math.round(n).toLocaleString('fr-FR')} ${cur}`;
+  return `${n.toLocaleString('fr-FR',{minimumFractionDigits:n%1?2:0,maximumFractionDigits:2})} ${cur}`;
+}
+function populateServiceCalculator(){
+  const sel=document.getElementById('serviceCalcCurrency');
+  if(sel&&!sel.options.length){
+    sel.innerHTML=SERVICE_CURRENCIES.map(c=>`<option value="${c.code}">${esc(c.label)}</option>`).join('');
+    sel.value='XAF';
+  }
+  const dl=document.getElementById('serviceCalcList');
+  if(dl){
+    const sorted=[...allServices].sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'fr'));
+    dl.innerHTML=sorted.slice(0,500).map(s=>`<option value="${escAttr(`${s.id} — ${s.name} — ${s.provider}`)}"></option>`).join('');
+  }
+}
+function findCalculatorService(){
+  const raw=String(document.getElementById('serviceCalcSearch')?.value||'').trim();
+  const query=raw.toLowerCase();
+  if(!query) return allServices[0]||null;
+  let service=allServices.find(s=>String(s.id||'').toLowerCase()===query||String(s.name||'').toLowerCase()===query);
+  if(service) return service;
+  const idMatch=raw.match(/^(\d+)/);
+  if(idMatch){
+    service=allServices.find(s=>String(s.id||'').toLowerCase()===idMatch[1]);
+    if(service) return service;
+  }
+  return allServices.find(s=>String(s.id||'').toLowerCase().includes(query)||String(s.name||'').toLowerCase().includes(query)||String(s.provider||'').toLowerCase().includes(query))||null;
+}
+function updateServiceCalculator(){
+  const result=document.getElementById('serviceCalcResult');
+  if(!result) return;
+  const currency=document.getElementById('serviceCalcCurrency')?.value||'XAF';
+  const qty=Math.max(1,parseInt(document.getElementById('serviceCalcQty')?.value||'1',10)||1);
+  const service=findCalculatorService();
+  if(!service){result.textContent='Aucun service disponible.';return;}
+  const unitPrice=Number(service.finalPrice||0);
+  const unitCost=Number(service.providerCost||0);
+  const totalPriceXAF=unitPrice*qty;
+  const totalCostXAF=unitCost*qty;
+  const totalProfitXAF=totalPriceXAF-totalCostXAF;
+  const totalPriceCur=convertXAFToCurrency(totalPriceXAF,currency);
+  const totalCostCur=convertXAFToCurrency(totalCostXAF,currency);
+  const totalProfitCur=convertXAFToCurrency(totalProfitXAF,currency);
+  const margin=totalPriceXAF>0?Math.max(0,Math.round((totalProfitXAF/totalPriceXAF)*10000)/100):0;
+  result.innerHTML=`<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><strong>${esc(service.name||'Service')}</strong><div style="color:var(--text-dim);font-size:.78rem;">${esc(service.provider||'—')} · ID ${esc(service.id||'—')}</div></div><div><span class="badge badge-mtp">${esc(currency)}</span></div></div><div class="calc-grid"><div><span>Prix client total</span><strong>${esc(formatCurrencyValue(totalPriceCur,currency))}</strong><small>${Math.round(totalPriceXAF).toLocaleString('fr-FR')} FCFA</small></div><div><span>Coût fournisseur total</span><strong>${esc(formatCurrencyValue(totalCostCur,currency))}</strong><small>${Math.round(totalCostXAF).toLocaleString('fr-FR')} FCFA</small></div><div><span>Bénéfice total</span><strong style="color:var(--green);">${esc(formatCurrencyValue(totalProfitCur,currency))}</strong><small>${Math.round(totalProfitXAF).toLocaleString('fr-FR')} FCFA</small></div><div><span>Marge</span><strong>${margin}%</strong><small>${qty.toLocaleString('fr-FR')} unité(s)</small></div></div>`;
+}
+function copyServiceCalculatorResult(){
+  const service=findCalculatorService();
+  if(!service){alert('Aucun service disponible.');return;}
+  const currency=document.getElementById('serviceCalcCurrency')?.value||'XAF';
+  const qty=Math.max(1,parseInt(document.getElementById('serviceCalcQty')?.value||'1',10)||1);
+  const totalPriceXAF=Number(service.finalPrice||0)*qty;
+  const totalCostXAF=Number(service.providerCost||0)*qty;
+  const totalProfitXAF=totalPriceXAF-totalCostXAF;
+  const text=`Service: ${service.name || '—'}
+Fournisseur: ${service.provider || '—'}
+ID: ${service.id || '—'}
+Quantité: ${qty}
+Prix client: ${formatCurrencyValue(convertXAFToCurrency(totalPriceXAF,currency),currency)} (${Math.round(totalPriceXAF).toLocaleString('fr-FR')} FCFA)
+Coût fournisseur: ${formatCurrencyValue(convertXAFToCurrency(totalCostXAF,currency),currency)} (${Math.round(totalCostXAF).toLocaleString('fr-FR')} FCFA)
+Bénéfice: ${formatCurrencyValue(convertXAFToCurrency(totalProfitXAF,currency),currency)} (${Math.round(totalProfitXAF).toLocaleString('fr-FR')} FCFA)`;
+  navigator.clipboard.writeText(text).then(()=>showToast('Résumé copié.')).catch(()=>alert('Copie impossible.'));
+}
+
 function getFilteredServices(){
   const provider=document.getElementById('serviceFilter')?.value||'all';
   const search=(document.getElementById('serviceSearch')?.value||'').toLowerCase();
@@ -2401,6 +2529,8 @@ function renderServices(){
   const badgesEl=document.getElementById('providerStatsBadges');if(badgesEl)badgesEl.innerHTML=Object.entries(byProv).map(([k,v])=>`<span class="provider-badge"><strong>${esc(k)}</strong><span class="provider-badge-count">${v}</span></span>`).join('');
   const statsEl=document.getElementById('serviceStatsBar');
   if(statsEl){const prices=allServices.map(s=>s.finalPrice).filter(v=>Number.isFinite(Number(v)));const minP=prices.length?Math.min(...prices):0;const maxP=prices.length?Math.max(...prices):0;statsEl.innerHTML=`<div class="stat-item">Total : <strong>${allServices.length}</strong></div><div class="stat-sep"></div><div class="stat-item">Prix min : <strong>${minP.toLocaleString('fr-FR')} FCFA</strong></div><div class="stat-sep"></div><div class="stat-item">Prix max : <strong>${maxP.toLocaleString('fr-FR')} FCFA</strong></div>`;}
+  populateServiceCalculator();
+  updateServiceCalculator();
 }
 function filterServices(){renderServices();}
 function sortServices(field){const sel=document.getElementById('serviceSort');if(sel){const current=sel.value;const [cf,cd]=current.split('-');if(cf===field)sel.value=field+'-'+(cd==='asc'?'desc':'asc');else sel.value=field+'-desc';}renderServices();}
